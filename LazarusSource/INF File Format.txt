@@ -1,0 +1,49 @@
+When you receive a drag'n'drop file, append ".inf" to the filename and if it exists use its contents as the BBC metadata. The format is:
+(one_or_more_non_space_characters)(one_or_more_spaces)(hex_address)(one_or_more_spaces)(hex_address)(any_supplimentary_info)
+for instance:
+SCREEN 3000 0
+MDUMP/S 800 0000B82C
+PRLIST FFFF0900 FFFF091A 33 7764 123435 6C67 33569A
+(You can't see, but those have multiple spaces in them - you should swallow any number of extranous spaces).
+On reading you should ignore the first parameter, and use the second and third parameters as the load and exec address. If the fourth parameter exists it is the access attributes, and can also be L which is an alias for 08. If there is no source access attribute, set the destination access to &33 = WR/wr (or &00 on DFS).
+
+When you send a drag'n'drop, and you should have a user-settable "create .inf files" option, if that option is set, append ".inf" to the output filename and write:
+(filename)(spaces_padded_to_12)(8_digit_hex_address)(exactly_one_space)(8_digit_hex_address)(optionally: (exactly_one_space)(2_digit_hex_address) or 'L')(end_of_line)
+for instance:
+SCREEN 00003000 00000000
+MDUMP/S 00000800 0000B82C L
+PRLIST FFFF0900 FFFF091A 33
+(You can't see, but those have exactly once space between the address parameters, and exactly enough spaces after the leafname to pad to 12 characters)
+
+Also, remember to translate between BBC filename characters and WinDOS characters:
+# <-> ?
+. <-> /
+$ <-> <
+^ <-> >
+& <-> +
+@ <-> =
+% <-> ;
+And special case, as it's nonreversable: WinDOS SPC -> BBC _
+
+So, for example, assuming "create .inf" is turned on:
+dragging BBC file Menu12 gives WinDOS file Menu12 and Menu12.inf containing (eg) Menu12 FFFF1200 FFFF803A
+dragging BBC file Build/src gives WinDOS file Build.src and Build.src.inf containing (eg) Build/src FFFF1900 FFFF801E
+dragging BBC file PIC1=2? gives WinDOS file PIC1@2# and PIC1@2#.inf containing (eg) PIC1=2? FFFF3000 FFFF3000
+
+Dragging WinDOS file Client65 gives BBC file Client65 and if Client65.inf exists, sets the load/exec from the contents
+Dragging WinDOS file notes.txt gives BBC file notes/txt and if notes.txt.inf exists, sets the load/exec from the contents
+Dragging WinDOS file Build#1.zip gives BBC file Build?1/zip and if Build#1.zip.inf exists, sets the load/exec from the contents
+Dragging WinDOS file Image 1 gives BBC file Image_1 and if Image 1.inf exists, sets the load/exec from the contents
+Dragging WinDOS file TMP@1.$$$ gives BBC file TMP=1/<<< and if TMP@1.$$$.inf exists, sets the load/exec from the contents
+
+Converting leafname characters is a lot simpler than translating characters in full pathnames are you aren't needing to parse pathname-specific characters, a translation of this will do it for you:
+80 DEFFNfn_zip(B$):LOCALB%:A$="#?./$<^>&+@=%; "
+90 FOR A%=1 TO LEN B$:B%=INSTR(A$,MID$(B$,A%,1))-1
+100 IF B%>TRUE:B$=LEFT$(B$,A%-1)+MID$(A$+"_",(B%EOR1)+1,1)+MID$(B$,A%+1)
+110 NEXT:=B$
+
+You will need to truncate WinDOS leafnames to fit the destination BBC filesystem. You probably need a user-settable option or dialogue to enable/disable this and to chose what to do if multiple files truncate tpo the same leafname (eg Build Source 1 and Build Source 2 both truncate to Build_Sour.
+
+You also need an option to decide what to do with DFS directory prefixes, does DFS T.ReadMe go to WinDOS T.ReadMe, T\ReadMe or ReadMe.T ? DFS $.name always goes to WinDOS name
+
+Also, remove the space from the program name. Spaces in filenames are the sperm of the devil, and are a particular right pain in executable pathnames.

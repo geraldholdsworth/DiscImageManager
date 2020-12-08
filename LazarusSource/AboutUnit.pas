@@ -5,7 +5,7 @@ unit AboutUnit;
 interface
 
 uses
-  {Windows,}Messages,SysUtils,Variants,Classes,
+  Messages,SysUtils,Variants,Classes,
   Controls,Forms,Dialogs,ExtCtrls,StdCtrls;
 
 type

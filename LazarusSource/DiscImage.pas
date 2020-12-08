@@ -13,8 +13,7 @@ unit DiscImage;
 
 interface
 
-uses Classes, //for TStream
-     ComCtrls;   //for TStatusBar - can't use for Mac OSX
+uses Classes,ComCtrls;
 
 {$M+}
 
@@ -191,7 +190,7 @@ type
 implementation
 
 uses
- SysUtils,DateUtils;//,Vcl.Dialogs;
+ SysUtils,DateUtils;
 
 {-------------------------------------------------------------------------------
 Reset a TDirEntry to blank (not part of the TDiscImage class)

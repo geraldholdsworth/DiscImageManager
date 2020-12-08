@@ -31,7 +31,7 @@ object AboutForm: TAboutForm
       Align = alTop
       Alignment = taCenter
       AutoSize = False
-      Caption = 'Disc Image Reader'
+      Caption = 'Disc Image Manager'
       Font.Color = clGreen
       Font.Height = -32
       Font.Name = 'Tahoma'
@@ -62,7 +62,7 @@ object AboutForm: TAboutForm
       Width = 431
       Align = alTop
       Alignment = taCenter
-      Caption = 'Version 1.04'
+      Caption = 'Version 1.05'
       Font.Color = clWindowText
       Font.Height = -16
       Font.Name = 'Tahoma'

@@ -6,6 +6,7 @@ object MainForm: TMainForm
   ClientHeight = 718
   ClientWidth = 987
   OnCreate = FormCreate
+  Position = poScreenCenter
   LCLVersion = '2.0.10.0'
   object ToolPanel: TPanel
     Left = 530

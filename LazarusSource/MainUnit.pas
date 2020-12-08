@@ -2,27 +2,11 @@ unit MainUnit;
 
 {$MODE Delphi}
 
-//Demo project file to show the usage of the TDiscImage class
-//written by and (c)2018 Gerald J Holdsworth
-//
-//This is version 1.04
-// * Takes account of new TDiscImage changes (from 1.10)
-//TDiscImage class will have it's own version number
-//
-//Free to use and distribute, but do not change without my OK - we don't want
-//different versions of this floating around the web, do we?
-//
-//Also feel free to use any of my code in your own applications. Only thing I
-//ask is that you credit me, please.
-
 interface
 
 uses
-  {Windows,}Messages,SysUtils,Variants,Classes,
-  Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,
-  ExtCtrls, Buttons, ComCtrls, Menus,
-  Types,DateUtils,{ImageList,}ImgList//,
-  {Imaging.pngimage,IOUtils};
+  Messages,SysUtils,Variants,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,
+  DiscImage,ExtCtrls,Buttons,ComCtrls,Menus,Types,DateUtils,ImgList;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -161,7 +145,7 @@ type
     relfile     = 54;
     cbmfile     = 54;
     //Application Title
-    ApplicationTitle = 'Disc Image Reader';
+    ApplicationTitle = 'Disc Image Manager';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -257,7 +241,10 @@ var
  imagefilename,
  windowsfilename: String;
 begin
- if path[Length(path)]<>'\' then path:=path+'\';
+ // Ensure path ends in a directory separator
+ // For macOS it is '/'
+ // For Windows is is '\'
+ if path[Length(path)]<>PathDelim then path:=path+PathDelim;
  //Object is a file, so download it
  if Image.Disc[dir].Entries[entry].DirRef=-1 then
  begin
@@ -286,7 +273,10 @@ var
  ref            : Cardinal;
  c,s            : Integer;
 begin
- if path[Length(path)]<>'\' then path:=path+'\';
+ // Ensure path ends in a directory separator
+ // For macOS it is '/'
+ // For Windows is is '\'
+ if path[Length(path)]<>PathDelim then path:=path+PathDelim;
  //Get the full path and filename
  imagefilename:=GetImageFilename(dir,entry);
  //Convert to Windows filename
