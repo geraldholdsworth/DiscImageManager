@@ -1,4 +1,4 @@
-# DiscImageManager
+# Disc Image Manager
 This is a Delphi class used to load a retro disc image, read the catalogue and output any required files. So far, the following formats are supported:
 • Acorn DFS
 • Acorn ADFS, floppy formats S, M, L, D, E, E+, F, F+ and Hard Discs
