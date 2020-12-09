@@ -7,10 +7,10 @@
       <Unit0>
         <Filename Value="DiscImageReader.lpr"/>
         <IsPartOfProject Value="True"/>
-        <CursorPos X="3" Y="15"/>
-        <UsageCount Value="82"/>
+        <IsVisibleTab Value="True"/>
+        <CursorPos X="22" Y="3"/>
+        <UsageCount Value="83"/>
         <Loaded Value="True"/>
-        <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit0>
       <Unit1>
         <Filename Value="MainUnit.pas"/>
@@ -18,14 +18,12 @@
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="796"/>
-        <CursorPos X="55" Y="823"/>
-        <UsageCount Value="82"/>
+        <TopLine Value="144"/>
+        <CursorPos X="33" Y="150"/>
+        <UsageCount Value="83"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
-        <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit1>
       <Unit2>
         <Filename Value="DiscImage.pas"/>
@@ -33,9 +31,8 @@
         <EditorIndex Value="2"/>
         <TopLine Value="782"/>
         <CursorPos X="39" Y="623"/>
-        <UsageCount Value="82"/>
+        <UsageCount Value="83"/>
         <Loaded Value="True"/>
-        <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit2>
       <Unit3>
         <Filename Value="AboutUnit.pas"/>
@@ -45,10 +42,9 @@
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="3"/>
         <CursorPos X="29" Y="8"/>
-        <UsageCount Value="82"/>
+        <UsageCount Value="83"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
-        <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit3>
       <Unit4>
         <Filename Value="/Library/Lazarus/lcl/controls.pp"/>
@@ -63,7 +59,6 @@
         <UnitName Value="Unit1"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="10"/>
-        <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit5>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">

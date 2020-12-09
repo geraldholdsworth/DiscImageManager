@@ -1,6 +1,6 @@
 program DiscImageReader;
 
-{$MODE Delphi}
+{$MODE objFPC}{$H+}
 
 uses
   Forms, Interfaces,
@@ -11,6 +11,9 @@ uses
 {$R *.res}
 
 begin
+  //RequireDerivedFormResource:=True;
+  Application.Scaled:=True;
+  Application.Title:='Disc Image Manager';
   Application.Initialize;
 //  Application.MainFormOnTaskbar := True;
   Application.CreateForm(TMainForm, MainForm);

@@ -5,7 +5,7 @@ object MainForm: TMainForm
   Width = 901
   ClientHeight = 718
   ClientWidth = 901
-  Color = clBackground
+  Color = clAppWorkspace
   Icon.Data = {
     CF15020000000100060000000000010020006190000066000000101000000100
     200068040000C79000003030000001002000A82500002F950000202000000100
@@ -4286,11 +4286,11 @@ object MainForm: TMainForm
   Scaled = False
   object ToolPanel: TPanel
     Left = 444
-    Height = 700
+    Height = 695
     Top = 0
     Width = 457
     Align = alRight
-    ClientHeight = 700
+    ClientHeight = 695
     ClientWidth = 457
     TabOrder = 0
     object ButtonPanel: TPanel
@@ -5378,11 +5378,11 @@ object MainForm: TMainForm
     end
     object SearchPanel: TPanel
       Left = 1
-      Height = 212
+      Height = 207
       Top = 487
       Width = 455
       Align = alClient
-      ClientHeight = 212
+      ClientHeight = 207
       ClientWidth = 455
       TabOrder = 3
       object Label8: TLabel
@@ -5558,7 +5558,7 @@ object MainForm: TMainForm
       object searchresultscount: TLabel
         Left = 1
         Height = 13
-        Top = 198
+        Top = 193
         Width = 453
         Align = alBottom
         Alignment = taCenter
@@ -5609,11 +5609,11 @@ object MainForm: TMainForm
   end
   object ImageContentsPanel: TPanel
     Left = 0
-    Height = 700
+    Height = 695
     Top = 0
     Width = 444
     Align = alClient
-    ClientHeight = 700
+    ClientHeight = 695
     ClientWidth = 444
     TabOrder = 1
     object lb_contents: TLabel
@@ -5634,11 +5634,11 @@ object MainForm: TMainForm
     end
     object DirList: TTreeView
       Left = 1
-      Height = 663
+      Height = 658
       Top = 36
       Width = 442
       Align = alClient
-      BackgroundColor = clBackground
+      BackgroundColor = clAppWorkspace
       BorderStyle = bsNone
       Font.CharSet = ANSI_CHARSET
       Font.Color = clBlack
@@ -5667,8 +5667,8 @@ object MainForm: TMainForm
   end
   object StatusBar: TStatusBar
     Left = 0
-    Height = 18
-    Top = 700
+    Height = 23
+    Top = 695
     Width = 901
     Panels = <    
       item
