@@ -1,12 +1,12 @@
 unit MainUnit;
 
-{$MODE Delphi}
+{$MODE objFPC}
 
 interface
 
 uses
-  Messages,SysUtils,Variants,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,
-  DiscImage,ExtCtrls,Buttons,ComCtrls,Menus,Types,DateUtils,ImgList;
+  SysUtils,Variants,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,
+  DiscImage,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -23,6 +23,7 @@ type
   { TMainForm }
 
   TMainForm = class(TForm)
+    btn_OpenImage1: TSpeedButton;
     ToolPanel: TPanel;
     OpenDialog1: TOpenDialog;
     SaveDialog1: TSaveDialog;
@@ -98,20 +99,20 @@ type
     procedure ResetFileFields;
     procedure ResetSearchFields;
     procedure btn_downloadClick(Sender: TObject);
-    function GetImageFilename(dir,entry: Integer): String;
-    function GetWindowsFilename(dir,entry: Integer): String;
-    procedure DownLoadFile(dir,entry: Integer; path: String);
-    procedure DownLoadDirectory(dir,entry: Integer; path: String);
+    function GetImageFilename(dir,entry: Integer): AnsiString;
+    function GetWindowsFilename(dir,entry: Integer): AnsiString;
+    procedure DownLoadFile(dir,entry: Integer; path: AnsiString);
+    procedure DownLoadDirectory(dir,entry: Integer; path: AnsiString);
     procedure btn_OpenImageClick(Sender: TObject);
-    function ConvertToKMG(size: Int64): String;
-    function IntToStrComma(size: Int64): String;
+    function ConvertToKMG(size: Int64): AnsiString;
+    function IntToStrComma(size: Int64): AnsiString;
     procedure DirListChange(Sender: TObject; Node: TTreeNode);
     procedure btn_AboutClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure ValidateFilename(var f: String);
+    procedure ValidateFilename(var f: AnsiString);
     procedure sb_searchClick(Sender: TObject);
     procedure lb_searchresultsClick(Sender: TObject);
-    procedure DirListEdited(Sender: TObject; Node: TTreeNode; var S: string);
+    procedure DirListEdited(Sender: TObject; var S: AnsiString);
     procedure DirListEditing(Sender: TObject; Node: TTreeNode;
       var AllowEdit: Boolean);
     procedure DirListDblClick(Sender: TObject);
@@ -119,7 +120,7 @@ type
   private
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
-    FileTypes: array[3..50] of String =
+    FileTypes: array[3..50] of AnsiString =
                               ('690','695','AE9','AF1','AFF','B60','BC5','BD9',
                                'BDA','BE8','C25','C27','C85','D87','D88','D89',
                                'D94','F9D','F9E','F9F','FAE','FB1','FB4','FC6',
@@ -127,7 +128,7 @@ type
                                'FEB','FEC','FED','FF2','FF4','FF5','FF6','FF7',
                                'FF8','FF9','FFA','FFB','FFC','FFD','FFE','FFF');
     //Windows extension - used to translate from RISC OS to Windows
-    Extensions: array[1..12] of String =
+    Extensions: array[1..12] of AnsiString =
                               ('69Cbmp','ADFpdf' ,'B60png','C46tar',   'C85jpg',
                                'DDCzip','FF0tiff','FF6ttf','FF9sprite','FFBbas',
                                'FFDdat','FFFtxt');
@@ -145,7 +146,8 @@ type
     relfile     = 54;
     cbmfile     = 54;
     //Application Title
-    ApplicationTitle = 'Disc Image Manager';
+    ApplicationTitle   = 'Disc Image Manager';
+    ApplicationVersion = '1.05.1';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -167,7 +169,28 @@ end;
 
 //About box
 procedure TMainForm.btn_AboutClick(Sender: TObject);
+var
+ platform: AnsiString;
 begin
+ //Update the Application Title
+ AboutForm.lb_Title.Caption:=ApplicationTitle;
+ //Determine the current platform (compile time directive)
+ platform:='';
+ {$IFDEF Darwin}
+ platform:=' macOS';
+ {$ENDIF}
+ {$IFDEF Win32}
+ platform:=' Windows 32 bit';
+ {$ENDIF}
+ {$IFDEF Win64}
+ platform:=' Windows 64 bit';
+ {$ENDIF}
+ {$IFDEF Linux}
+ platform:=' Linux';
+ {$ENDIF}
+ //Update the Application Version
+ AboutForm.lb_Version.Caption:='Version '+ApplicationVersion+platform;
+ //Show the Form, as a modal
  AboutForm.ShowModal;
 end;
 
@@ -214,14 +237,14 @@ begin
 end;
 
 //Create an Image filename
-function TMainForm.GetImageFilename(dir,entry: Integer): String;
+function TMainForm.GetImageFilename(dir,entry: Integer): AnsiString;
 begin
  Result:=Image.Disc[dir].Entries[entry].Parent+Image.DirSep
         +Image.Disc[dir].Entries[entry].Filename;
 end;
 
 //Create a Windows filename
-function TMainForm.GetWindowsFilename(dir,entry: Integer): String;
+function TMainForm.GetWindowsFilename(dir,entry: Integer): AnsiString;
 begin
  //Get the filename
  Result:=Image.Disc[dir].Entries[entry].Filename;
@@ -234,12 +257,12 @@ begin
 end;
 
 //Download a file
-procedure TMainForm.DownLoadFile(dir,entry: Integer;path: String);
+procedure TMainForm.DownLoadFile(dir,entry: Integer;path: AnsiString);
 var
  buffer         : TDIByteArray;
  F              : TFileStream;
  imagefilename,
- windowsfilename: String;
+ windowsfilename: AnsiString;
 begin
  // Ensure path ends in a directory separator
  // For macOS it is '/'
@@ -266,16 +289,15 @@ begin
 end;
 
 //Download an entire directory
-procedure TMainForm.DownLoadDirectory(dir,entry: Integer;path: String);
+procedure TMainForm.DownLoadDirectory(dir,entry: Integer;path: AnsiString);
 var
  imagefilename,
- windowsfilename: String;
+ windowsfilename: AnsiString;
  ref            : Cardinal;
  c,s            : Integer;
 begin
+ ref:=0;
  // Ensure path ends in a directory separator
- // For macOS it is '/'
- // For Windows is is '\'
  if path[Length(path)]<>PathDelim then path:=path+PathDelim;
  //Get the full path and filename
  imagefilename:=GetImageFilename(dir,entry);
@@ -404,7 +426,7 @@ var
  ft       : Integer;
  filename,
  filetype,
- location : String;
+ location : AnsiString;
 begin
  if Node<>nil then //Just being careful!!!
  begin
@@ -515,7 +537,7 @@ end;
 procedure TMainForm.DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
 var
  ft,i,dir,entry: Integer;
- filetype      : String;
+ filetype      : AnsiString;
 begin
  //The directory and entry references, as always
  dir  :=TMyTreeNode(Node).Dir;
@@ -605,6 +627,7 @@ var
  entry : Integer;
  ptr   : Cardinal;
 begin
+ ptr:=0;
  //Selected item: -1 for none
  s:=-1;
  //Find the selected item
@@ -652,8 +675,7 @@ begin
 end;
 
 //Rename file/directory
-procedure TMainForm.DirListEdited(Sender: TObject; Node: TTreeNode;
-  var S: string);
+procedure TMainForm.DirListEdited(Sender: TObject; var S: AnsiString);
 begin
  //Rename the file
  if not Image.RenameFile(lb_Parent.Caption+'.'+lb_Filename.Caption,S) then
@@ -697,7 +719,7 @@ procedure TMainForm.sb_searchClick(Sender: TObject);
 var
  search : TDirEntry;
  results: TSearchResults;
- t1,t2  : String;
+ t1,t2  : AnsiString;
  i      : Integer;
 begin
  ResetDirEntry(search);
@@ -728,14 +750,14 @@ begin
 end;
 
 //Converts a number into a string with trailing 'Bytes', 'KB', etc.
-function TMainForm.ConvertToKMG(size: Int64): String;
+function TMainForm.ConvertToKMG(size: Int64): AnsiString;
 var
  new_size_int : Int64; //Int64 will allow for huge disc sizes
  new_size_dec,
  level,
  multiplier   : Integer;
 const
- sizes: array[1..6] of String = ('Bytes','KB','MB','GB','TB','EB');
+ sizes: array[1..6] of AnsiString = ('Bytes','KB','MB','GB','TB','EB');
 begin
  //Default is in bytes
  Result:=IntToStr(size)+' '+sizes[1];
@@ -776,13 +798,29 @@ begin
 end;
 
 //Converts Int64 to string, adding in the thousand separator ','
-function TMainForm.IntToStrComma(size: Int64): String;
+function TMainForm.IntToStrComma(size: Int64): AnsiString;
+{var
+ n,f: AnsiString;
+ c,i: Integer;}
 begin
- Result:=Format('%.0n',[Real(size)]);
+{ n:=IntToStr(size);
+ f:='';
+ c:=0;
+ for i:=strlen(pchar(n)) downto 1 do
+ begin
+  f:=n[i]+f;
+  c:=c+1;
+  if (c=3) and (i>1) then
+  begin
+   f:=','+f;
+   c:=0;
+  end;
+ end;
+ Result:=f;//}Result:=Format('%.0n',[Real(size)]);
 end;
 
 //Validate a filename
-procedure TMainForm.ValidateFilename(var f: String);
+procedure TMainForm.ValidateFilename(var f: AnsiString);
 var
  i: Integer;
 begin

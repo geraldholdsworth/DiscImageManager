@@ -1,20 +1,18 @@
 unit AboutUnit;
 
-{$MODE Delphi}
+{$MODE objFPC}
 
 interface
 
 uses
-  Messages,SysUtils,Variants,Classes,
-  Controls,Forms,Dialogs,ExtCtrls,StdCtrls;
+  SysUtils,Variants,Classes,Controls,Forms,Dialogs,ExtCtrls,StdCtrls;
 
 type
   TAboutForm = class(TForm)
     CreditsPanel: TPanel;
-    Label7: TLabel;
+    lb_Title: TLabel;
     Label8: TLabel;
-    Label9: TLabel;
-    Label10: TLabel;
+    lb_Version: TLabel;
     Label14: TLabel;
   private
     { Private declarations }
