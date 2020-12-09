@@ -4,7 +4,7 @@ echo "========================================================"
 echo "    Bundle and DMG creation script"
 echo "========================================================"
 echo "Enter your projects folder"
-folder='OneDrive/Programming/Lazarus/Disc Image Reader'
+folder='OneDrive/Programming/Lazarus/DiscImageReader'
 #read folder
 echo $folder
 if [ -e "$folder" ]
