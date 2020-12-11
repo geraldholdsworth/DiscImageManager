@@ -1,10 +1,12 @@
 object MainForm: TMainForm
-  Left = 266
-  Height = 718
-  Top = 128
-  Width = 901
-  ClientHeight = 718
-  ClientWidth = 901
+  Left = 262
+  Height = 751
+  Top = 62
+  Width = 935
+  BorderIcons = [biSystemMenu]
+  BorderStyle = bsDialog
+  ClientHeight = 751
+  ClientWidth = 935
   Color = clAppWorkspace
   Icon.Data = {
     CF15020000000100060000000000010020006190000066000000101000000100
@@ -4280,17 +4282,18 @@ object MainForm: TMainForm
     00000FE00000000000000FE00000000000000F
   }
   OnCreate = FormCreate
+  OnShow = FormShow
   Position = poScreenCenter
   ShowHint = True
   LCLVersion = '2.0.10.0'
   Scaled = False
   object ToolPanel: TPanel
-    Left = 444
-    Height = 695
+    Left = 478
+    Height = 733
     Top = 0
     Width = 457
     Align = alRight
-    ClientHeight = 695
+    ClientHeight = 733
     ClientWidth = 457
     TabOrder = 0
     object ButtonPanel: TPanel
@@ -4472,7 +4475,7 @@ object MainForm: TMainForm
       object btn_download: TSpeedButton
         Left = 76
         Height = 37
-        Hint = 'Download File'
+        Hint = 'Extract File(s)'
         Top = 35
         Width = 37
         Flat = True
@@ -4721,7 +4724,7 @@ object MainForm: TMainForm
         ShowHint = True
         ParentShowHint = False
       end
-      object btn_OpenImage1: TSpeedButton
+      object btn_SaveImage: TSpeedButton
         Left = 39
         Height = 37
         Hint = 'Save Image'
@@ -5378,11 +5381,11 @@ object MainForm: TMainForm
     end
     object SearchPanel: TPanel
       Left = 1
-      Height = 207
+      Height = 245
       Top = 487
       Width = 455
       Align = alClient
-      ClientHeight = 207
+      ClientHeight = 245
       ClientWidth = 455
       TabOrder = 3
       object Label8: TLabel
@@ -5558,7 +5561,7 @@ object MainForm: TMainForm
       object searchresultscount: TLabel
         Left = 1
         Height = 13
-        Top = 193
+        Top = 231
         Width = 453
         Align = alBottom
         Alignment = taCenter
@@ -5589,7 +5592,7 @@ object MainForm: TMainForm
       end
       object lb_searchresults: TListBox
         Left = 5
-        Height = 104
+        Height = 133
         Top = 91
         Width = 444
         Color = clBtnFace
@@ -5609,18 +5612,18 @@ object MainForm: TMainForm
   end
   object ImageContentsPanel: TPanel
     Left = 0
-    Height = 695
+    Height = 733
     Top = 0
-    Width = 444
+    Width = 478
     Align = alClient
-    ClientHeight = 695
-    ClientWidth = 444
+    ClientHeight = 733
+    ClientWidth = 478
     TabOrder = 1
     object lb_contents: TLabel
       Left = 1
       Height = 35
       Top = 1
-      Width = 442
+      Width = 476
       Align = alTop
       Alignment = taCenter
       AutoSize = False
@@ -5634,9 +5637,9 @@ object MainForm: TMainForm
     end
     object DirList: TTreeView
       Left = 1
-      Height = 658
+      Height = 696
       Top = 36
-      Width = 442
+      Width = 476
       Align = alClient
       BackgroundColor = clAppWorkspace
       BorderStyle = bsNone
@@ -5662,14 +5665,15 @@ object MainForm: TMainForm
       OnEdited = DirListEdited
       OnEditing = DirListEditing
       OnGetImageIndex = DirListGetImageIndex
+      OnSelectionChanged = DirListSelectionChanged
       Options = [tvoAllowMultiselect, tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoRightClickSelect, tvoShowButtons, tvoShowRoot, tvoToolTips, tvoThemedDraw]
     end
   end
   object StatusBar: TStatusBar
     Left = 0
-    Height = 23
-    Top = 695
-    Width = 901
+    Height = 18
+    Top = 733
+    Width = 935
     Panels = <    
       item
         Width = 500
@@ -16002,7 +16006,7 @@ object MainForm: TMainForm
     Left = 80
     Top = 152
     object ExtractFile1: TMenuItem
-      Caption = '&Extract File'
+      Caption = '&Extract File(s)'
       OnClick = btn_downloadClick
     end
     object RenameFile1: TMenuItem

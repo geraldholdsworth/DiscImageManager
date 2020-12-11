@@ -1,15 +1,8 @@
 unit DiscImage;
 
-{$MODE objFPC}
+//This project is now covered by the GNU GPL v3 licence
 
-{*******************************************************************************
- Class TDiscImage
- version 1.10
- written by Gerald J Holdsworth with help from Jasper Renow-Clarke
- You may use this source code freely. All I ask is that you credit myself in any
- projects it is included in.
- You may not edit this code without notifying myself.
-*******************************************************************************}
+{$MODE objFPC}
 
 interface
 

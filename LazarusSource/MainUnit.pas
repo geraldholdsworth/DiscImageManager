@@ -1,12 +1,14 @@
 unit MainUnit;
 
+//This project is now covered by the GNU GPL v3 licence
+
 {$MODE objFPC}
 
 interface
 
 uses
-  SysUtils,Variants,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,
-  DiscImage,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList;
+  SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,ExtCtrls,
+  Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -23,7 +25,7 @@ type
   { TMainForm }
 
   TMainForm = class(TForm)
-    btn_OpenImage1: TSpeedButton;
+    btn_SaveImage: TSpeedButton;
     ToolPanel: TPanel;
     OpenDialog1: TOpenDialog;
     SaveDialog1: TSaveDialog;
@@ -96,6 +98,8 @@ type
     NewDirectory1: TMenuItem;
     procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
     procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
+    procedure DirListSelectionChanged(Sender: TObject);
+    procedure FormShow(Sender: TObject);
     procedure ResetFileFields;
     procedure ResetSearchFields;
     procedure btn_downloadClick(Sender: TObject);
@@ -109,6 +113,7 @@ type
     procedure DirListChange(Sender: TObject; Node: TTreeNode);
     procedure btn_AboutClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure BBCtoWin(var f: AnsiString);
     procedure ValidateFilename(var f: AnsiString);
     procedure sb_searchClick(Sender: TObject);
     procedure lb_searchresultsClick(Sender: TObject);
@@ -147,7 +152,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.1';
+    ApplicationVersion = '1.05.2';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -252,6 +257,8 @@ begin
  if (Image.Disc[dir].Entries[entry].ShortFileType<>'')
  and(Image.Disc[dir].Entries[entry].DirRef=-1) then
   Result:=Result+','+Image.Disc[dir].Entries[entry].ShortFileType;
+ //Convert BBC chars to PC
+ BBCtoWin(Result);
  //Replace any non-valid characters
  ValidateFilename(Result);
 end;
@@ -261,12 +268,11 @@ procedure TMainForm.DownLoadFile(dir,entry: Integer;path: AnsiString);
 var
  buffer         : TDIByteArray;
  F              : TFileStream;
+ inffile,
  imagefilename,
  windowsfilename: AnsiString;
 begin
  // Ensure path ends in a directory separator
- // For macOS it is '/'
- // For Windows is is '\'
  if path[Length(path)]<>PathDelim then path:=path+PathDelim;
  //Object is a file, so download it
  if Image.Disc[dir].Entries[entry].DirRef=-1 then
@@ -280,6 +286,14 @@ begin
    F:=TFileStream.Create(path+windowsfilename,fmCreate);
    F.Position:=0;
    F.Write(buffer[0],Length(buffer));
+   F.Free;
+   //Create the inf file
+   inffile:=PadRight(LeftStr(windowsfilename,12),12)+' '
+           +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8)+' '
+           +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
+   F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate);
+   F.Position:=0;
+   F.Write(inffile[1],Length(inffile));
    F.Free;
   end
   //Happens if the file could not be located
@@ -414,6 +428,16 @@ begin
     lb_dsd.Caption         :='No';
    lb_maptype.Caption      :=Image.MapTypeString;
    lb_dirtype.Caption      :=Image.DirectoryTypeString;
+   //Enable the controls
+   btn_SaveImage.Enabled:=True;
+   //Enable the search area
+   ed_filenamesearch.Enabled:=True;
+   ed_lengthsearch.Enabled  :=True;
+   ed_filetypesearch.Enabled:=True;
+   lb_searchresults.Enabled :=True;
+   sb_search.Enabled        :=True;
+   //Enable the directory view
+   DirList.Enabled:=True;
   end;
  end;
 end;
@@ -608,6 +632,43 @@ begin
  Node.SelectedIndex:=Node.ImageIndex;
 end;
 
+//Is called when the selection changes on the directory view
+procedure TMainForm.DirListSelectionChanged(Sender: TObject);
+begin
+ //Enable/disable download button depending on if there is something selected
+ btn_download.Enabled:=False;
+ ExtractFile1.Enabled:=False;
+ if DirList.SelectionCount>0 then
+ begin
+  btn_download.Enabled:=True;
+  ExtractFile1.Enabled:=True;
+ end;
+end;
+
+//Initialise Form
+procedure TMainForm.FormShow(Sender: TObject);
+begin
+ //Enable or disable buttons
+ btn_OpenImage.Enabled:=True;
+ btn_SaveImage.Enabled:=False;
+ btn_About.Enabled    :=True;
+ btn_download.Enabled :=False;
+ ExtractFile1.Enabled :=False;
+ //Not written yet - menu items
+ RenameFile1.Enabled  :=False;
+ DeleteFile1.Enabled  :=False;
+ AddFile1.Enabled     :=False;
+ NewDirectory1.Enabled:=False;
+ //Disable the search area
+ ed_filenamesearch.Enabled:=False;
+ ed_lengthsearch.Enabled  :=False;
+ ed_filetypesearch.Enabled:=False;
+ lb_searchresults.Enabled :=False;
+ sb_search.Enabled        :=False;
+ //Disable the directory view
+ DirList.Enabled:=False;
+end;
+
 //This is called when the form is created - i.e. when the application is created
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
@@ -799,27 +860,37 @@ end;
 
 //Converts Int64 to string, adding in the thousand separator ','
 function TMainForm.IntToStrComma(size: Int64): AnsiString;
-{var
- n,f: AnsiString;
- c,i: Integer;}
 begin
-{ n:=IntToStr(size);
- f:='';
- c:=0;
- for i:=strlen(pchar(n)) downto 1 do
- begin
-  f:=n[i]+f;
-  c:=c+1;
-  if (c=3) and (i>1) then
-  begin
-   f:=','+f;
-   c:=0;
-  end;
- end;
- Result:=f;//}Result:=Format('%.0n',[Real(size)]);
+ Result:=Format('%.0n',[Real(size)]);
 end;
 
-//Validate a filename
+//Convert BBC to Windows filename
+procedure TMainForm.BBCtoWin(var f: AnsiString);
+var
+ i: Integer;
+begin
+ { PC <-> BBC
+# <-> ?
+. <-> /
+$ <-> <
+^ <-> >
+& <-> +
+@ <-> =
+% <-> ;
+ }
+ for i:=1 to Length(f) do
+ begin
+  if f[i]='/' then f[i]:='.';
+  if f[i]='?' then f[i]:='#';
+  if f[i]='<' then f[i]:='$';
+  if f[i]='>' then f[i]:='^';
+  if f[i]='+' then f[i]:='&';
+  if f[i]='=' then f[i]:='@';
+  if f[i]=';' then f[i]:='%';
+ end;
+end;
+
+//Validate a filename for Windows
 procedure TMainForm.ValidateFilename(var f: AnsiString);
 var
  i: Integer;
