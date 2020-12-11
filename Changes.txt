@@ -1,0 +1,25 @@
+Changes History
+
+Up to, and including, version 1.04 the application was called Disc Image Reader and was compiled on Delphi for Windows only. The DiscImage unit had it's own version number and had reached version 1.10.
+
+Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
+
+1.05
+* First macOS version.
+* First version to appear on GitHub.
+* A few spurious bugs had crept in from the conversion - disc sizes were reported as 0 bytes and the main window became sizeable.
+* StatusBar update no longer functions.
+
+1.05.1
+* Code tidied up and compatibility Delphi removed. Now completely Object Free Pascal.
+* Compiled for Windows and Linux.
+* Version numbers now remain at 1.05 with revision number following.
+
+1.05.2
+* Main window is no longer sizeable, and you only now have the close button.
+* Buttons are disabled when not needed, and enabled when they can be used.
+* Extracted files now come with an .inf file.
+* Hint for the extract file button changed from "Download File" to "Extract File(s)"
+* Pop-up menu item for "Extract File" changed to "Extract File(s)"
+* Now developed and distributed under the GNU GPL v3 licence.
+* About dialogue window changed to reflect new licence and GitHub web address.
