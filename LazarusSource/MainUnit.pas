@@ -26,9 +26,21 @@ type
 
   TMainForm = class(TForm)
     btn_SaveImage: TSpeedButton;
+    ed_filenamesearch: TEdit;
+    ed_filetypesearch: TEdit;
+    ed_lengthsearch: TEdit;
+    Label10: TLabel;
+    Label14: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    AddNewFile: TOpenDialog;
+    Panel1: TPanel;
+    SaveImage: TSaveDialog;
+    sb_search: TSpeedButton;
+    searchresultscount: TLabel;
     ToolPanel: TPanel;
-    OpenDialog1: TOpenDialog;
-    SaveDialog1: TSaveDialog;
+    OpenImageFile: TOpenDialog;
+    ExtractDialogue: TSaveDialog;
     DirList: TTreeView;
     FileImages: TImageList;
     FullSizeTypes: TImageList;
@@ -77,16 +89,7 @@ type
     btn_download: TSpeedButton;
     btn_About: TSpeedButton;
     SearchPanel: TPanel;
-    Label8: TLabel;
-    Label9: TLabel;
-    ed_filenamesearch: TEdit;
-    ed_lengthsearch: TEdit;
-    Label10: TLabel;
     lb_searchresults: TListBox;
-    sb_search: TSpeedButton;
-    ed_filetypesearch: TEdit;
-    Label14: TLabel;
-    searchresultscount: TLabel;
     Label23: TLabel;
     lb_freespace: TLabel;
     FIle_Menu: TPopupMenu;
@@ -96,9 +99,10 @@ type
     StatusBar: TStatusBar;
     AddFile1: TMenuItem;
     NewDirectory1: TMenuItem;
+    procedure btn_SaveImageClick(Sender: TObject);
     procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
     procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
-    procedure DirListSelectionChanged(Sender: TObject);
+    procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure ResetFileFields;
     procedure ResetSearchFields;
@@ -152,7 +156,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.2';
+    ApplicationVersion = '1.05.3';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -167,9 +171,107 @@ implementation
 
 uses AboutUnit;
 
+//Add a new file to the disc image (DFS only at the moment)
 procedure TMainForm.AddFile1Click(Sender: TObject);
+var
+  NewFile        : TDirEntry;
+  buffer         : TDIByteArray;
+  i,index        : Integer;
+  side,ptr       : Cardinal;
+  importfilename,
+  inffile,
+  execaddr,
+  loadaddr       : AnsiString;
+  fields         : array of AnsiString;
+  chr            : Char;
+  F              : TFileStream;
 begin
- {}
+ //Find out which side of a DFS disc it is
+ if Image.FormatNumber mod 2=1 then //Only for double sided
+ //As with DFS we can only Add with the root selected, the index will be the side
+  side:=DirList.Selected.Index
+ else
+ //Not double sided, so assume side 0
+  side:=0;
+ //Open the dialogue box
+ if AddNewFile.Execute then
+  if AddNewFile.Files.Count>0 then
+   //If more than one file selected, iterate through them
+   for i:=0 to AddNewFile.Files.Count-1 do
+   begin
+    //Extract the filename
+    importfilename:=ExtractFileName(AddNewFile.Files[i]);
+    //Remove any extraenous specifiers
+    while (importfilename[4]='.') do
+     importfilename:=RightStr(importfilename,Length(importfilename)-2);
+    //If root, remove the directory specifier
+    if (importfilename[2]='.') and (importfilename[1]='$') then
+     importfilename:=RightStr(importfilename,Length(importfilename)-2);
+    //Make sure the file does not exist already
+    if not(Image.FileExists(':'+IntToStr(side)+'.$.'+importfilename,ptr)) then
+    begin
+     //Initialise the TDirArray
+     ResetDirEntry(NewFile);
+     //Initialise the buffer
+     SetLength(buffer,0);
+     //Initialise the addresses
+     execaddr:='00000000';
+     loadaddr:='00000000';
+     //Is there an inf file?
+     if FileExists(AddNewFile.Files[i]+'.inf') then
+     begin
+      inffile:='';
+      //Read in the first line
+      F:=TFileStream.Create(AddNewFile.Files[i]+'.inf',fmOpenRead);
+      F.Position:=0;
+      while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
+       inffile:=inffile+chr;
+      F.Free;
+      //Decode the line - first we get rid of double spaces
+      while Pos('  ',inffile)<>0 do
+       inffile:=ReplaceStr(inffile,'  ',' ');
+      //Now split the string at the spaces
+      fields:=inffile.Split(' ');
+      //Then extract the fields
+      if Length(fields)>1 then loadaddr:=fields[1];
+      if length(fields)>2 then execaddr:=fields[2];
+     end;
+     //Setup the record
+     NewFile.Filename:=importfilename;
+     NewFile.ExecAddr:=StrToInt('$'+execaddr);
+     NewFile.LoadAddr:=StrToInt('$'+loadaddr);
+     NewFile.Side    :=side;
+     //Load the file from the host
+     F:=TFileStream.Create(AddNewFile.Files[i],fmOpenRead);
+     F.Position:=0;
+     SetLength(buffer,F.Size);
+     NewFile.Length:=F.Read(buffer[0],F.Size);
+     F.Free;
+     //Write the File
+     index:=Image.WriteFile(NewFile,buffer);
+     if index<>-1 then //File added OK
+     begin
+      //Now add the entry to the Directory List
+      if DirList.Selected.HasChildren then
+       //Insert it before the one specified
+       DirList.Items.Insert(DirList.Selected.Items[index],importfilename)
+      else
+       //Is the first child, so just add it
+       DirList.Items.AddChildFirst(DirList.Selected,importfilename);
+      //And update the free space display
+      lb_freespace.Caption    :=ConvertToKMG(Image.FreeSpace)
+                               +' ('+IntToStrComma(Image.FreeSpace)+' Bytes) Free';
+     end;
+    end;
+   end;
+ {
+ DirList.Items.Insert(<node>,<string>) - inserts a new node before <node>
+ DirList.Items.AddChildFirst(<node>,<string>) - inserts a new node as the first child of <node>
+ DirList.Items.Add(<node>,<string>) - inserts a new node as the last child of <node>
+ DirList.Selected.GetFirstChild - gets the first child node
+ See:
+ http://docs.embarcadero.com/products/rad_studio/radstudio2007/RS2007_helpupdates/HUpdate3/EN/html/delphivclwin32/!!MEMBERTYPE_Methods_ComCtrls_TTreeNodes.html
+ }
 end;
 
 //About box
@@ -182,16 +284,16 @@ begin
  //Determine the current platform (compile time directive)
  platform:='';
  {$IFDEF Darwin}
- platform:=' macOS';
+ platform:=' macOS';            //Apple Mac OS X (64 bit only)
  {$ENDIF}
  {$IFDEF Win32}
- platform:=' Windows 32 bit';
+ platform:=' Windows 32 bit';   //Microsoft Windows 32 bit
  {$ENDIF}
  {$IFDEF Win64}
- platform:=' Windows 64 bit';
+ platform:=' Windows 64 bit';   //Microsoft Windows 64 bit
  {$ENDIF}
  {$IFDEF Linux}
- platform:=' Linux';
+ platform:=' Linux';            //Linux, all flavours (64 bit only)
  {$ENDIF}
  //Update the Application Version
  AboutForm.lb_Version.Caption:='Version '+ApplicationVersion+platform;
@@ -226,13 +328,13 @@ begin
        saver:=False;
        if s=0 then
        begin
-        SaveDialog1.FileName:=GetWindowsFilename(dir,entry);
-        saver:=SaveDialog1.Execute;
+        ExtractDialogue.FileName:=GetWindowsFilename(dir,entry);
+        saver:=ExtractDialogue.Execute;
        end;
        if s>0 then saver:=True;
        //Download a single file
        if saver then
-        DownLoadFile(dir,entry,ExtractFilePath(SaveDialog1.FileName));
+        DownLoadFile(dir,entry,ExtractFilePath(ExtractDialogue.FileName));
       end
       else
        if DirList.SelectionCount=1 then
@@ -288,13 +390,16 @@ begin
    F.Write(buffer[0],Length(buffer));
    F.Free;
    //Create the inf file
-   inffile:=PadRight(LeftStr(windowsfilename,12),12)+' '
-           +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8)+' '
-           +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
-   F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate);
-   F.Position:=0;
-   F.Write(inffile[1],Length(inffile));
-   F.Free;
+   if Image.FormatNumber shr 4<2 then //DFS and ADFS only
+   begin
+    inffile:=PadRight(LeftStr(windowsfilename,12),12)+' '
+            +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8)+' '
+            +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
+    F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate);
+    F.Position:=0;
+    F.Write(inffile[1],Length(inffile));
+    F.Free;
+   end;
   end
   //Happens if the file could not be located
   else ShowMessage('Could not locate file "'+imagefilename+'"');
@@ -365,7 +470,7 @@ var
  end;
 begin
  //Show the open file dialogue box
- if OpenDialog1.Execute then
+ if OpenImageFile.Execute then
  begin
   //Clear all the labels, and enable/disable the buttons
   ResetFileFields;
@@ -374,9 +479,9 @@ begin
   //Set the progress label
   Image.ProgressUpdate:=StatusBar;
   //Load the image and create the catalogue
-  Image.LoadFromFile(OpenDialog1.FileName);
+  Image.LoadFromFile(OpenImageFile.FileName);
   //Change the application title (what appears on SHIFT+TAB, etc.)
-  Caption:=ApplicationTitle+' - '+ExtractFileName(OpenDialog1.FileName);
+  Caption:=ApplicationTitle+' - '+ExtractFileName(OpenImageFile.FileName);
   //If the format is a recognised one
   if Image.FormatString<>'' then
   begin
@@ -415,7 +520,7 @@ begin
     end;
    end;
    //Populate the info box
-   lb_imagefilename.Caption:=OpenDialog1.FileName;
+   lb_imagefilename.Caption:=OpenImageFile.FileName;
    lb_format.Caption       :=Image.FormatString;
    lb_disctitle.Caption    :=Image.Title;
    lb_discsize.Caption     :=ConvertToKMG(Image.DiscSize)
@@ -450,8 +555,34 @@ var
  ft       : Integer;
  filename,
  filetype,
- location : AnsiString;
+ location,
+ multiple : AnsiString;
 begin
+ //Disable the AddFile menu item
+ AddFile1.Enabled    :=False;
+ //More than one?
+ multiple:='';
+ if DirList.SelectionCount>1 then multiple:='s';
+ //Change the menu names - we'll change these to 'Directory', if needed, later
+ ExtractFile1.Caption:='&Extract File'+multiple;
+ RenameFile1.Caption :='&Rename File'+multiple;
+ DeleteFile1.Caption :='&Delete File'+multiple;
+ btn_download.Hint:='Extract File'+multiple;
+ //Enable the buttons, if there is a selection
+ if DirList.SelectionCount>0 then
+ begin
+  btn_download.Enabled:=True;
+  ExtractFile1.Enabled:=True;
+ end
+ else
+ begin
+  //Disable buttons
+  btn_download.Enabled:=False;
+  ExtractFile1.Enabled:=False;
+ end;
+ if Image.FormatNumber shr 4=0 then //This line is temporary - DFS only at the moment
+  //Enable the Add Files menu
+  if DirList.SelectionCount=1 then AddFile1.Enabled:=True;
  if Node<>nil then //Just being careful!!!
  begin
   //Get the entry and dir references
@@ -477,6 +608,7 @@ begin
   //and the filetype will be either Directory or Application (RISC OS only)
   if TMyTreeNode(Node).IsDir then
   begin
+   //Determine if it is a Directory or an ADFS Application
    if filename='' then
      filename:=Image.Disc[entry].Directory;
    if  (Copy(filename,1,1)='!') //Application indicated by '!' as first char
@@ -484,15 +616,18 @@ begin
     filetype:='Application'
    else
     filetype:='Directory';
+   //Change the menu text
+   ExtractFile1.Caption:='&Extract '+filetype;
+   RenameFile1.Caption :='&Rename '+filetype;
+   DeleteFile1.Caption :='&Delete '+filetype;
+   btn_download.Hint:='Extract '+filetype;
    //Report if directory is broken and include the error code
    if Image.Disc[entry].Broken then
     filetype:=filetype+' (BROKEN - 0x'
                       +IntToHex(Image.Disc[entry].ErrorCode,2)+')';
    if dir>=0 then
     lb_title.Caption:=Image.Disc[dir].Title;
-  end
-{  else
-   btn_download.Enabled:=True}; //No longer required
+  end;
   //Filename
   lb_FileName.Caption:=filename;
   //Filetype Image
@@ -632,22 +767,19 @@ begin
  Node.SelectedIndex:=Node.ImageIndex;
 end;
 
-//Is called when the selection changes on the directory view
-procedure TMainForm.DirListSelectionChanged(Sender: TObject);
+//Form is getting resized
+procedure TMainForm.FormResize(Sender: TObject);
 begin
- //Enable/disable download button depending on if there is something selected
- btn_download.Enabled:=False;
- ExtractFile1.Enabled:=False;
- if DirList.SelectionCount>0 then
- begin
-  btn_download.Enabled:=True;
-  ExtractFile1.Enabled:=True;
- end;
+ if Height<634 then Height:=634; //Minimum height
+ if Width<664 then Width:=664; //Minimum width
 end;
 
 //Initialise Form
 procedure TMainForm.FormShow(Sender: TObject);
 begin
+ //Initial width and height of form
+ Width:=921;
+ Height:=751;
  //Enable or disable buttons
  btn_OpenImage.Enabled:=True;
  btn_SaveImage.Enabled:=False;
@@ -718,6 +850,25 @@ end;
 procedure TMainForm.DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
 begin
   NodeClass:=TMyTreeNode;
+end;
+
+//Save the Image to disc
+procedure TMainForm.btn_SaveImageClick(Sender: TObject);
+var
+ ext,
+ filename: AnsiString;
+begin
+ //Remove the existing part of the original filename
+ filename:=ExtractFileName(Image.Filename);
+ ext:=ExtractFileExt(filename);
+ filename:=LeftStr(filename,Length(filename)-Length(ext));
+ //Populate the filename part of the dialogue
+ SaveImage.FileName:=filename+'.'+Image.FormatExt;
+ SaveImage.DefaultExt:=Image.FormatExt;
+ //Show the dialogue
+ If SaveImage.Execute then
+  //Save the image
+  Image.SaveToFile(SaveImage.FileName);
 end;
 
 //User has double clicked on the DirList box
@@ -861,7 +1012,7 @@ end;
 //Converts Int64 to string, adding in the thousand separator ','
 function TMainForm.IntToStrComma(size: Int64): AnsiString;
 begin
- Result:=Format('%.0n',[Real(size)]);
+ Result:=Format('%.0n',[1.0*size]);
 end;
 
 //Convert BBC to Windows filename
@@ -869,15 +1020,6 @@ procedure TMainForm.BBCtoWin(var f: AnsiString);
 var
  i: Integer;
 begin
- { PC <-> BBC
-# <-> ?
-. <-> /
-$ <-> <
-^ <-> >
-& <-> +
-@ <-> =
-% <-> ;
- }
  for i:=1 to Length(f) do
  begin
   if f[i]='/' then f[i]:='.';

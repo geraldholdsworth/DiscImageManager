@@ -13,7 +13,7 @@ uses
 begin
   //RequireDerivedFormResource:=True;
   Application.Scaled:=True;
-  Application.Title:='Disc Image Manager';
+ Application.Title:='Disc Image Manager';
   Application.Initialize;
 //  Application.MainFormOnTaskbar := True;
   Application.CreateForm(TMainForm, MainForm);
