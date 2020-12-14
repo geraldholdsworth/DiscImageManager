@@ -23,3 +23,12 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * Pop-up menu item for "Extract File" changed to "Extract File(s)"
 * Now developed and distributed under the GNU GPL v3 licence.
 * About dialogue window changed to reflect new licence and GitHub web address.
+
+1.05.3
+* Reverted the main window to sizeable.
+* Reverted to the window system icons (maximise and minimise)
+* Set the initial main window size to 921x751px
+* Changed the search panel around so that the search results grows and shrinks with the main window resizing.
+* .inf files only now produced for DFS and ADFS
+* Facility to save images back to disc added (the code had been written just not attached to any buttons or menus)
+* Files can now be added to a DFS image
