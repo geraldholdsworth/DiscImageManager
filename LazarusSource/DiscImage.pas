@@ -6,7 +6,7 @@ unit DiscImage;
 
 interface
 
-uses Classes,ComCtrls;
+uses Classes;
 
 {$M+}
 
@@ -88,7 +88,6 @@ type
   root_name,                    //Disc title(s)
   imagefilename : AnsiString;   //Filename of the disc image
   dir_sep       : Char;         //Directory Separator
-  FProgress     : TStatusBar;   //Progress Update
   procedure ResetVariables;
   function ReadString(ptr,term: Integer): AnsiString; overload;
   function ReadString(ptr,term: Integer;control: Boolean): AnsiString; overload;
@@ -130,7 +129,12 @@ type
   function ID_DFS: Boolean;
   function ReadDFSDisc: TDisc;
   function ConvertSector(address,side: Integer): Integer;
-  function WriteDFSFile(file_details: TDirEntry;m,f: Byte; var buffer: TDIByteArray): Integer;
+  function WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  procedure UpdateDFSCat(side: Integer);
+  function ValidateDFSFilename(filename: AnsiString): AnsiString;
+  function RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function DeleteDFSFile(filename: AnsiString):Boolean;
+  function UpdateDFSFileAttributes(filename,attributes: AnsiString): Boolean;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
@@ -163,10 +167,11 @@ type
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray; count: Cardinal): Boolean;
   function WriteDiscDataFromStream(addr,side: Cardinal; F: TStream): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
-  function RenameFile(oldfilename, newfilename: AnsiString): Boolean;
+  function RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Boolean;
   function DeleteFile(filename: AnsiString): Boolean;
   function MoveFile(filename, directory: AnsiString): Integer;
   function CopyFile(filename, directory: AnsiString): Integer;
+  function UpdateAttributes(filename,attributes: AnsiString): Boolean;
   //Properties
   property Disc:                TDisc      read FDisc;
   property FormatString:        AnsiString read FormatToString;
@@ -180,7 +185,6 @@ type
   property DirectoryType:       Byte       read FDirType;
   property MapTypeString:       AnsiString read MapTypeToString;
   property DirectoryTypeString: AnsiString read DirTypeToString;
-  property ProgressUpdate:      TStatusBar write FProgress;
   property DirSep:              Char       read dir_sep;
   property Filename:            AnsiString read imagefilename;
  End;
@@ -227,7 +231,6 @@ begin
  //This just sets all the global and public variables to zero, or blank.
  ResetVariables;
  SetLength(Fdata,0);
- FPRogress:=nil;
 end;
 
 {-------------------------------------------------------------------------------
@@ -562,7 +565,7 @@ begin
    f:=FFormat MOD $10; //Minor format (sub format)
    case m of
     0:      //Write DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      Result:=WriteDFSFile(file_details,m,f,buffer);
+      Result:=WriteDFSFile(file_details,buffer);
     1: exit;//Write ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
     2: exit;//Write Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
     3: exit;//Write Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
@@ -592,17 +595,41 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file - oldfilename is full path, newfilename has no path
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameFile(oldfilename, newfilename: AnsiString): Boolean;
+function TDiscImage.RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Boolean;
+var
+ m,f: Byte;
 begin
  Result:=False;
+ m:=FFormat DIV $10; //Major format
+ f:=FFormat MOD $10; //Minor format (sub format)
+ case m of
+  0:      //Rename DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Result:=RenameDFSFile(oldfilename,newfilename);
+  1: exit;//Rename ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Rename Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Rename Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Rename AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
 end;
 
 {-------------------------------------------------------------------------------
 Deletes a file (given full pathname)
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteFile(filename: AnsiString): Boolean;
+var
+ m,f: Byte;
 begin
  Result:=False;
+ m:=FFormat DIV $10; //Major format
+ f:=FFormat MOD $10; //Minor format (sub format)
+ case m of
+  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Result:=DeleteDFSFile(filename);
+  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -647,6 +674,26 @@ begin
     Result:=WriteFile(file_details,buffer);
    end;
   end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Set the attributes for a file
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateAttributes(filename,attributes: AnsiString):Boolean;
+var
+ m,f: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ f:=FFormat MOD $10; //Minor format (sub format)
+ case m of
+  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Result:=UpdateDFSFileAttributes(filename,attributes);
+  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
  end;
 end;
 
@@ -1291,16 +1338,16 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Update the progress label
+Update the progress label - no longer used...left in for future possibilities
 -------------------------------------------------------------------------------}
 procedure TDiscImage.UpdateProgress(S: AnsiString);
 begin
- if FProgress<>nil then
+{ if FProgress<>nil then
   if FProgress.Panels.Count>0 then
    begin
     FProgress.Panels[0].Text:=S;
     FProgress.Update;
-   end;
+   end; }
 end;
 
 {-------------------------------------------------------------------------------
@@ -2333,10 +2380,9 @@ end;
 {-------------------------------------------------------------------------------
 Write Acorn DFS File
 -------------------------------------------------------------------------------}
-function TDiscImage.WriteDFSFile(file_details: TDirEntry;m,f: Byte;
-  var buffer: TDIByteArray): Integer;
+function TDiscImage.WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
 var
- t     : Byte;
+ t,m,f  : Byte;
  i,l,
  pos,
  count,
@@ -2349,26 +2395,12 @@ var
 begin
  Result:=-1;
  count:=file_details.Length;
+ m:=FFormat DIV $10; //Major format
+ f:=FFormat MOD $10; //Minor format (sub format)
  //Overwrite the parent
  file_details.Parent:=':'+IntToStr(file_details.Side*2)+dir_sep+root_name;
  //Check that the filename is valid
- for i:=1 to Length(file_details.Filename) do
- begin
-  //Remove top-bit set characters
-  file_details.Filename[i]:=chr(ord(file_details.Filename[i]) AND $7F);
-  //and remove control codes
-  if ord(file_details.Filename[i])<32 then
-   file_details.Filename[i]:=chr(ord(file_details.Filename[i])+32);
- end;
- //Ensure that the root has not been included
- if  (file_details.Filename[1]=root_name)
- and (file_details.Filename[2]=dir_sep) then
-  file_details.Filename:=Copy(file_details.Filename,3,Length(file_details.Filename));
- //Is it not too long, including any directory specifier?
- if (file_details.Filename[2]=dir_sep) then
-  file_details.Filename:=Copy(file_details.Filename,1,9)
- else
-  file_details.Filename:=Copy(file_details.Filename,1,7);
+ file_details.Filename:=ValidateDFSFilename(file_details.Filename);
  //Can the catalogue be extended?
  l:=Length(FDisc[file_details.Side].Entries);
  if ((l<31) and (f<2))         // Max 31 entries for Acorn DFS
@@ -2418,65 +2450,12 @@ begin
   //Update the catalogue, if successful
   if success then
   begin
-   //Update the number of catalogue entries
-   if l<32 then
-    WriteByte(l*8,ConvertSector($105,file_details.Side));
-   if f>1 then //Extra files on Watford DFS
-    if l>31 then
-    begin
-     WriteByte( 31*8,   ConvertSector($105,file_details.Side));
-     WriteByte((l-31)*8,ConvertSector($305,file_details.Side));
-    end;
    //Update the free space
    dec(free_space,file_details.Length);
    //Update the catalogue
-   for i:=0 to l-1 do
-   begin
-    //Filename
-    fn:=FDisc[file_details.Side].Entries[i].Filename;
-    //Directory specifier
-    dn:=root_name; //Default will be root
-    //Is there a directory specifier in the filename?
-    if fn[2]=dir_sep then
-    begin
-     //Yes update the specifier
-     dn:=fn[1];
-     //and shorten the filename
-     fn:=Copy(fn,3,Length(fn));
-    end;
-    //Now write the filename into the image
-    for t:=0 to 6 do
-     if t<Length(fn) then
-      WriteByte(ord(fn[t+1]),ConvertSector($000+t+$08*(i+1),file_details.Side))
-     else //Pad with spaces
-      WriteByte($20,         ConvertSector($000+t+$08*(i+1),file_details.Side));
-    //Directory specifier
-    t:=Ord(dn[1]);
-    //Attribute
-    if StrPos(PChar(FDisc[file_details.Side].Entries[i].Attributes),'L')<>nil then
-     t:=t OR $80;
-    //Write the directory specifier and attribute together
-    WriteByte(t,             ConvertSector($000+7+$08*(i+1),file_details.Side));
-    //Load address
-    Write16b(FDisc[file_details.Side].Entries[i].LoadAddr and $FFFF,
-                               ConvertSector($100+$08*(i+1),file_details.Side));
-    //Execution address
-    Write16b(FDisc[file_details.Side].Entries[i].ExecAddr and $FFFF,
-                               ConvertSector($102+$08*(i+1),file_details.Side));
-    //Length
-    Write16b(FDisc[file_details.Side].Entries[i].Length   and $FFFF,
-                               ConvertSector($104+$08*(i+1),file_details.Side));
-    //Start Sector
-    WriteByte(FDisc[file_details.Side].Entries[i].Sector  and $FF,
-                               ConvertSector($107+$08*(i+1),file_details.Side));
-    //Extra bits for Load,Execution,Length and Start Sector
-    t:=((Integer(FDisc[file_details.Side].Entries[i].Sector)  and   $300) shr  8) //bits 0,1
-     OR((Integer(FDisc[file_details.Side].Entries[i].LoadAddr)and $30000) shr 14) //bits 2,3
-     OR((Integer(FDisc[file_details.Side].Entries[i].Length  )and $30000) shr 12) //bits 4,5
-     OR((Integer(FDisc[file_details.Side].Entries[i].ExecAddr)and $30000) shr 10);//bits 6,7
-    WriteByte(t,               ConvertSector($106+$08*(i+1),file_details.Side));
-   end;
-   Result:=filen;//Pointer to where it was inserted
+   UpdateDFSCat(file_details.Side);
+   //Pointer to where it was inserted
+   Result:=filen;
   end
   //or revert back if not
   else
@@ -2486,6 +2465,186 @@ begin
    SetLength(FDisc,l-1);
   end;
   //The data written will get overwritten anyway if failed.
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Validate a filename
+-------------------------------------------------------------------------------}
+function TDiscImage.ValidateDFSFilename(filename: AnsiString): AnsiString;
+var
+ i: Integer;
+begin
+  for i:=1 to Length(filename) do
+ begin
+  //Remove top-bit set characters
+  filename[i]:=chr(ord(filename[i]) AND $7F);
+  //and remove control codes
+  if ord(filename[i])<32 then
+   filename[i]:=chr(ord(filename[i])+32);
+ end;
+ //Ensure that the root has not been included
+ if  (filename[1]=root_name)
+ and (filename[2]=dir_sep) then
+  filename:=Copy(filename,3,Length(filename));
+ //Is it not too long, including any directory specifier?
+ if (filename[2]=dir_sep) then
+  filename:=Copy(filename,1,9)
+ else
+  filename:=Copy(filename,1,7);
+ Result:=filename;
+end;
+
+{-------------------------------------------------------------------------------
+Update the catalogue
+-------------------------------------------------------------------------------}
+procedure TDiscImage.UpdateDFSCat(side: Integer);
+var
+ i,s,c : Integer;
+ fn,dn : AnsiString;
+ t,f   : Byte;
+begin
+ f:=FFormat mod $10;//Subformat 
+ //Update the number of catalogue entries
+ c:=Length(FDisc[side].Entries);
+ if c<32 then
+  WriteByte(c*8,ConvertSector($105,side));
+ if f>1 then //Extra files on Watford DFS
+  if c>31 then
+   begin
+    WriteByte( 31*8,   ConvertSector($105,side));
+    WriteByte((c-31)*8,ConvertSector($305,side));
+   end;
+ //Update the entries
+ for i:=0 to Length(FDisc[side].Entries)-1 do
+ begin
+  //Catalogue sector
+  s:=$000; //Acorn DFS
+  c:=i;
+  if (f>1) and (i>30) then s:=$200; //Watford DFS
+  if s=$200 then c:=i-31;
+  //Filename
+  fn:=FDisc[side].Entries[i].Filename;
+  //Directory specifier
+  dn:=root_name; //Default will be root
+  //Is there a directory specifier in the filename?
+  if fn[2]=dir_sep then
+  begin
+   //Yes update the specifier
+   dn:=fn[1];
+   //and shorten the filename
+   fn:=Copy(fn,3,Length(fn));
+  end;
+  //Now write the filename into the image
+  for t:=0 to 6 do
+   if t<Length(fn) then
+    WriteByte(ord(fn[t+1]),ConvertSector(s+t+$08*(c+1),side))
+   else //Pad with spaces
+    WriteByte($20,         ConvertSector(s+t+$08*(c+1),side));
+  //Directory specifier
+  t:=Ord(dn[1]);
+  //Attribute
+  if Pos('L',FDisc[side].Entries[i].Attributes)>0 then
+   t:=t OR $80;
+  //Write the directory specifier and attribute together
+  WriteByte(t,               ConvertSector(s+7+$08*(c+1),side));
+  //Load address
+  Write16b(FDisc[side].Entries[i].LoadAddr and $FFFF,
+                             ConvertSector(s+$100+$08*(c+1),side));
+  //Execution address
+  Write16b(FDisc[side].Entries[i].ExecAddr and $FFFF,
+                             ConvertSector(s+$102+$08*(c+1),side));
+  //Length
+  Write16b(FDisc[side].Entries[i].Length   and $FFFF,
+                             ConvertSector(s+$104+$08*(c+1),side));
+  //Start Sector
+  WriteByte(FDisc[side].Entries[i].Sector  and $FF,
+                             ConvertSector(s+$107+$08*(c+1),side));
+  //Extra bits for Load,Execution,Length and Start Sector
+  t:=((Integer(FDisc[side].Entries[i].Sector)  and   $300) shr  8) //bits 0,1
+   OR((Integer(FDisc[side].Entries[i].LoadAddr)and $30000) shr 14) //bits 2,3
+   OR((Integer(FDisc[side].Entries[i].Length  )and $30000) shr 12) //bits 4,5
+   OR((Integer(FDisc[side].Entries[i].ExecAddr)and $30000) shr 10);//bits 6,7
+  WriteByte(t,               ConvertSector(s+$106+$08*(c+1),side));
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Rename Acorn DFS File
+-------------------------------------------------------------------------------}
+function TDiscImage.RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+var
+ ptr,entry,dir: Cardinal;
+begin
+ Result:=False;
+ //Check that the new name meets the required DFS filename specs
+ newfilename:=ValidateDFSFilename(newfilename);
+ //Check that the file exists
+ if FileExists(oldfilename,ptr) then
+ begin
+  //FileExists returns a pointer to the file
+  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  //Make sure the new filename does not already exist
+  if not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr) then
+  begin
+   //Change the entry
+   FDisc[dir].Entries[entry].Filename:=newfilename;
+   //Update the catalogue
+   UpdateDFSCat(dir);
+   Result:=True;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Delete Acorn DFS File
+-------------------------------------------------------------------------------}
+function TDiscImage.DeleteDFSFile(filename: AnsiString):Boolean;
+var
+ ptr,entry,dir: Cardinal;
+ i: Integer;
+begin
+ Result:=False;
+ //Check that the file exists
+ if FileExists(filename,ptr) then
+ begin
+  //FileExists returns a pointer to the file
+  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  //Remove the filename from the entries by moving the entries below up one
+  for i:=entry+1 to Length(FDisc[dir].Entries)-1 do
+   FDisc[dir].Entries[i-1]:=FDisc[dir].Entries[i];
+  //Reduce the number of entries by 1
+  SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);
+  //Update the catalogue
+  UpdateDFSCat(dir);
+  Result:=True;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update DFS File attributes
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateDFSFileAttributes(filename,attributes: AnsiString): Boolean;
+var
+ ptr,
+ entry,
+ dir   : Cardinal;
+begin
+ Result:=False;
+ //Make sure that the file exists, but also to get the pointer
+ if FileExists(filename,ptr) then
+ begin
+  //FileExists returns a pointer to the file
+  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  //Change the attributes on the local copy
+  FDisc[dir].Entries[entry].Attributes:=attributes;
+  //Then update the catalogue
+  UpdateDFSCat(dir);
+  //And return a success
+  Result:=True;
  end;
 end;
 

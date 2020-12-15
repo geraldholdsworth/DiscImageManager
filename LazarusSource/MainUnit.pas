@@ -25,10 +25,20 @@ type
   { TMainForm }
 
   TMainForm = class(TForm)
-    btn_SaveImage: TSpeedButton;
+   cb_private: TCheckBox;
+   cb_ownerwrite: TCheckBox;
+   cb_ownerread: TCheckBox;
+   cb_ownerlocked: TCheckBox;
+   cb_ownerexecute: TCheckBox;
+   cb_publicread: TCheckBox;
+   cb_publicwrite: TCheckBox;
+   cb_publicexecute: TCheckBox;
     ed_filenamesearch: TEdit;
     ed_filetypesearch: TEdit;
     ed_lengthsearch: TEdit;
+    Label15: TLabel;
+    Label7: TLabel;
+    ToolBarImages: TImageList;
     Label10: TLabel;
     Label14: TLabel;
     Label8: TLabel;
@@ -38,13 +48,22 @@ type
     SaveImage: TSaveDialog;
     sb_search: TSpeedButton;
     searchresultscount: TLabel;
+    ToolBar1: TToolBar;
+    btn_OpenImage: TToolButton;
+    btn_SaveImage: TToolButton;
+    btn_Delete: TToolButton;
+    btn_Rename: TToolButton;
+    btn_AddFiles: TToolButton;
+    ToolButton3: TToolButton;
+    btn_download: TToolButton;
+    ToolButton5: TToolButton;
+    btn_About: TToolButton;
     ToolPanel: TPanel;
     OpenImageFile: TOpenDialog;
     ExtractDialogue: TSaveDialog;
     DirList: TTreeView;
     FileImages: TImageList;
     FullSizeTypes: TImageList;
-    ButtonPanel: TPanel;
     FileInfoPanel: TPanel;
     img_FileType: TImage;
     lb_FileName: TLabel;
@@ -65,33 +84,11 @@ type
     Label13: TLabel;
     Label4: TLabel;
     lb_location: TLabel;
-    ImageInfoPanel: TPanel;
-    lb_imagefilename: TLabel;
-    Label16: TLabel;
-    Label17: TLabel;
-    Label15: TLabel;
-    lb_format: TLabel;
-    Label18: TLabel;
-    lb_disctitle: TLabel;
-    Label19: TLabel;
-    lb_discsize: TLabel;
-    Label20: TLabel;
-    lb_dsd: TLabel;
-    Label22: TLabel;
-    lb_maptype: TLabel;
-    Label24: TLabel;
-    lb_dirtype: TLabel;
     Label21: TLabel;
-    btn_OpenImage: TSpeedButton;
     ImageContentsPanel: TPanel;
     lb_contents: TLabel;
-    Label7: TLabel;
-    btn_download: TSpeedButton;
-    btn_About: TSpeedButton;
     SearchPanel: TPanel;
     lb_searchresults: TListBox;
-    Label23: TLabel;
-    lb_freespace: TLabel;
     FIle_Menu: TPopupMenu;
     ExtractFile1: TMenuItem;
     RenameFile1: TMenuItem;
@@ -100,10 +97,16 @@ type
     AddFile1: TMenuItem;
     NewDirectory1: TMenuItem;
     procedure btn_SaveImageClick(Sender: TObject);
+    procedure AttributeChangeClick(Sender: TObject);
+    function GetFilePath(Node: TTreeNode): AnsiString;
+    procedure DeleteFile1Click(Sender: TObject);
     procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
+    procedure DirListEditingEnd(Sender: TObject; Node: TTreeNode;
+     Cancel: Boolean);
     procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure RenameFile1Click(Sender: TObject);
     procedure ResetFileFields;
     procedure ResetSearchFields;
     procedure btn_downloadClick(Sender: TObject);
@@ -121,12 +124,18 @@ type
     procedure ValidateFilename(var f: AnsiString);
     procedure sb_searchClick(Sender: TObject);
     procedure lb_searchresultsClick(Sender: TObject);
-    procedure DirListEdited(Sender: TObject; var S: AnsiString);
     procedure DirListEditing(Sender: TObject; Node: TTreeNode;
       var AllowEdit: Boolean);
     procedure DirListDblClick(Sender: TObject);
     procedure AddFile1Click(Sender: TObject);
+    procedure UpdateImageInfo;
   private
+   var
+    //To keep track of renames
+    PathBeforeEdit,
+    NameBeforeEdit:AnsiString;
+    //Stop the checkbox OnClick from firing when just changing the values
+    DoNotUpdate   :Boolean;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..50] of AnsiString =
@@ -156,7 +165,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.3';
+    ApplicationVersion = '1.05.4';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -259,8 +268,7 @@ begin
        //Is the first child, so just add it
        DirList.Items.AddChildFirst(DirList.Selected,importfilename);
       //And update the free space display
-      lb_freespace.Caption    :=ConvertToKMG(Image.FreeSpace)
-                               +' ('+IntToStrComma(Image.FreeSpace)+' Bytes) Free';
+      UpdateImageInfo;
      end;
     end;
    end;
@@ -476,8 +484,6 @@ begin
   ResetFileFields;
   //Clear the search fields
   ResetSearchFields;
-  //Set the progress label
-  Image.ProgressUpdate:=StatusBar;
   //Load the image and create the catalogue
   Image.LoadFromFile(OpenImageFile.FileName);
   //Change the application title (what appears on SHIFT+TAB, etc.)
@@ -520,19 +526,7 @@ begin
     end;
    end;
    //Populate the info box
-   lb_imagefilename.Caption:=OpenImageFile.FileName;
-   lb_format.Caption       :=Image.FormatString;
-   lb_disctitle.Caption    :=Image.Title;
-   lb_discsize.Caption     :=ConvertToKMG(Image.DiscSize)
-                            +' ('+IntToStrComma(Image.DiscSize)+' Bytes)';
-   lb_freespace.Caption    :=ConvertToKMG(Image.FreeSpace)
-                            +' ('+IntToStrComma(Image.FreeSpace)+' Bytes) Free';
-   if Image.DoubleSided then
-    lb_dsd.Caption         :='Yes'
-   else
-    lb_dsd.Caption         :='No';
-   lb_maptype.Caption      :=Image.MapTypeString;
-   lb_dirtype.Caption      :=Image.DirectoryTypeString;
+   UpdateImageInfo;
    //Enable the controls
    btn_SaveImage.Enabled:=True;
    //Enable the search area
@@ -545,6 +539,23 @@ begin
    DirList.Enabled:=True;
   end;
  end;
+end;
+
+//Update the Image information display
+procedure TMainForm.UpdateImageInfo;
+begin
+ StatusBar.Panels[0].Text:=Image.FormatString;
+ StatusBar.Panels[1].Text:=Image.Title;
+ StatusBar.Panels[2].Text:=ConvertToKMG(Image.DiscSize)
+                          +' ('+IntToStrComma(Image.DiscSize)+' Bytes)';
+ StatusBar.Panels[3].Text:=ConvertToKMG(Image.FreeSpace)
+                          +' ('+IntToStrComma(Image.FreeSpace)+' Bytes)';
+ if Image.DoubleSided then
+  StatusBar.Panels[4].Text:='Double Sided'
+ else
+  StatusBar.Panels[4].Text:='Single Sided';
+ StatusBar.Panels[5].Text:=Image.MapTypeString;
+ StatusBar.Panels[6].Text:=Image.DirectoryTypeString;
 end;
 
 //This is called when the selection changes on the TreeView
@@ -560,29 +571,51 @@ var
 begin
  //Disable the AddFile menu item
  AddFile1.Enabled    :=False;
+ btn_AddFiles.Enabled:=False;
  //More than one?
  multiple:='';
  if DirList.SelectionCount>1 then multiple:='s';
  //Change the menu names - we'll change these to 'Directory', if needed, later
  ExtractFile1.Caption:='&Extract File'+multiple;
- RenameFile1.Caption :='&Rename File'+multiple;
- DeleteFile1.Caption :='&Delete File'+multiple;
  btn_download.Hint:='Extract File'+multiple;
+ RenameFile1.Caption :='&Rename File'+multiple;
+ btn_Rename.Hint:='Rename File'+multiple;
+ DeleteFile1.Caption :='&Delete File'+multiple;
+ btn_Delete.Hint:='Delete File'+multiple;
  //Enable the buttons, if there is a selection
  if DirList.SelectionCount>0 then
  begin
   btn_download.Enabled:=True;
   ExtractFile1.Enabled:=True;
+  DeleteFile1.Enabled :=True;
+  btn_Delete.Enabled  :=True;
  end
  else
  begin
-  //Disable buttons
+  //Disable buttons if not
   btn_download.Enabled:=False;
   ExtractFile1.Enabled:=False;
+  DeleteFile1.Enabled :=False;
+  btn_Delete.Enabled  :=False;
  end;
- if Image.FormatNumber shr 4=0 then //This line is temporary - DFS only at the moment
-  //Enable the Add Files menu
-  if DirList.SelectionCount=1 then AddFile1.Enabled:=True;
+ //Enable the Add Files and Rename menu
+ if DirList.SelectionCount=1 then
+ begin
+  AddFile1.Enabled    :=True;
+  btn_AddFiles.Enabled:=True;
+  RenameFile1.Enabled :=True;
+  btn_Rename.Enabled  :=True;
+ end
+ else //Disable otherwise
+ begin
+  AddFile1.Enabled    :=False;
+  btn_AddFiles.Enabled:=False;
+  RenameFile1.Enabled :=False;
+  btn_Rename.Enabled  :=False;
+ end;
+ //Reset the file details panel
+ ResetFileFields;
+ DoNotUpdate   :=True;
  if Node<>nil then //Just being careful!!!
  begin
   //Get the entry and dir references
@@ -590,8 +623,6 @@ begin
   dir:=-1;
   //Clear the filename variable
   filename:='';
-  //And reset the labels
-  ResetFileFields;
   //If the node does not have a parent, then the dir ref is the one contained
   //in the extra info. Otherwise is -1
   if Node.Parent<>nil then
@@ -600,9 +631,43 @@ begin
   if dir>=0 then
   begin
    filename:=Image.Disc[dir].Entries[entry].Filename;
-   if Image.Disc[dir].Entries[entry].Attributes<>'' then
-    filename:=filename+' ('+Image.Disc[dir].Entries[entry].Attributes+')';
+   //Attributes
+   cb_ownerwrite.Checked   :=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
+   cb_ownerread.Checked    :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+   cb_ownerlocked.Checked  :=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+   cb_ownerexecute.Checked :=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
+   cb_publicwrite.Checked  :=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+   cb_publicread.Checked   :=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+   cb_publicexecute.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
+   cb_private.Checked      :=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
+   //Enable whichever tickboxes are appropriate to the system
+   if Image.FormatNumber div $10=0 then //DFS
+    cb_ownerlocked.Enabled   :=True;
+   if Image.FormatNumber div $10=1 then //ADFS
+   begin
+    cb_ownerwrite.Enabled    :=True;
+    cb_ownerread.Enabled     :=True;
+    cb_ownerlocked.Enabled   :=True;
+    cb_publicwrite.Enabled   :=True;
+    cb_publicread.Enabled    :=True;
+    if Image.FormatNumber mod $10<3 then //ADFS Old Directory
+    begin
+     cb_ownerexecute.Enabled  :=True;
+     cb_publicexecute.Enabled :=True;
+     cb_private.Enabled       :=True;
+    end;
+   end;
+   //Filetype
    filetype:=Image.Disc[dir].Entries[entry].Filetype;
+  end
+  else //Disable buttons as we are on the root
+  begin
+   btn_download.Enabled:=False;
+   ExtractFile1.Enabled:=False;
+   DeleteFile1.Enabled :=False;
+   btn_Delete.Enabled  :=False;
+   RenameFile1.Enabled :=False;
+   btn_Rename.Enabled  :=False;
   end;
   //If it is a directory, however, we need to get the filename from somewhere else
   //and the filetype will be either Directory or Application (RISC OS only)
@@ -618,15 +683,22 @@ begin
     filetype:='Directory';
    //Change the menu text
    ExtractFile1.Caption:='&Extract '+filetype;
+   btn_download.Hint   :='Extract '+filetype;
    RenameFile1.Caption :='&Rename '+filetype;
+   btn_Rename.Hint     :='Rename '+filetype;
    DeleteFile1.Caption :='&Delete '+filetype;
-   btn_download.Hint:='Extract '+filetype;
+   btn_Delete.Hint     :='Delete '+filetype;
    //Report if directory is broken and include the error code
    if Image.Disc[entry].Broken then
     filetype:=filetype+' (BROKEN - 0x'
                       +IntToHex(Image.Disc[entry].ErrorCode,2)+')';
    if dir>=0 then
     lb_title.Caption:=Image.Disc[dir].Title;
+  end
+  else //Can only add files to a directory
+  begin
+   AddFile1.Enabled    :=False;
+   btn_AddFiles.Enabled:=False;
   end;
   //Filename
   lb_FileName.Caption:=filename;
@@ -690,6 +762,7 @@ begin
   //Update the image
   DirListGetImageIndex(Sender, Node);
  end;
+ DoNotUpdate   :=False;
 end;
 
 //Called when the TreeView is updated, and it wants to know which icon to use
@@ -781,16 +854,19 @@ begin
  Width:=921;
  Height:=751;
  //Enable or disable buttons
- btn_OpenImage.Enabled:=True;
- btn_SaveImage.Enabled:=False;
- btn_About.Enabled    :=True;
- btn_download.Enabled :=False;
- ExtractFile1.Enabled :=False;
- //Not written yet - menu items
- RenameFile1.Enabled  :=False;
- DeleteFile1.Enabled  :=False;
- AddFile1.Enabled     :=False;
- NewDirectory1.Enabled:=False;
+ btn_OpenImage.Enabled    :=True;
+ btn_SaveImage.Enabled    :=False;
+ btn_About.Enabled        :=True;
+ btn_download.Enabled     :=False;
+ btn_Delete.Enabled       :=False;
+ btn_Rename.Enabled       :=False;
+ btn_AddFiles.Enabled     :=False;
+ //Menu items
+ ExtractFile1.Enabled     :=False;
+ RenameFile1.Enabled      :=False;
+ DeleteFile1.Enabled      :=False;
+ AddFile1.Enabled         :=False;
+ NewDirectory1.Enabled    :=False;
  //Disable the search area
  ed_filenamesearch.Enabled:=False;
  ed_lengthsearch.Enabled  :=False;
@@ -798,7 +874,16 @@ begin
  lb_searchresults.Enabled :=False;
  sb_search.Enabled        :=False;
  //Disable the directory view
- DirList.Enabled:=False;
+ DirList.Enabled          :=False;
+ //Reset the file details panel
+ ResetFileFields;
+ //Clear the search fields
+ ResetSearchFields;
+ //Clear the status bar
+ UpdateImageInfo;
+ //Reset the tracking variables
+ PathBeforeEdit:='';
+ NameBeforeEdit:='';
 end;
 
 //This is called when the form is created - i.e. when the application is created
@@ -808,8 +893,6 @@ begin
  Caption:=ApplicationTitle;
  //Create the image instance
  Image:=TDiscImage.Create;
- //Clear the search fields
- ResetSearchFields;
 end;
 
 //Highlight the file in the tree
@@ -847,7 +930,8 @@ begin
 end;
 
 //This just creates our custom TTreeNode
-procedure TMainForm.DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
+procedure TMainForm.DirListCreateNodeClass(Sender: TCustomTreeView;
+  var NodeClass: TTreeNodeClass);
 begin
   NodeClass:=TMyTreeNode;
 end;
@@ -871,6 +955,87 @@ begin
   Image.SaveToFile(SaveImage.FileName);
 end;
 
+//Attribute has been changed
+procedure TMainForm.AttributeChangeClick(Sender: TObject);
+var
+ att,filepath: AnsiString;
+begin
+ if not DoNotUpdate then
+ begin
+  att:='';
+   //Attributes
+   if cb_ownerwrite.Checked    then att:=att+'W';
+   if cb_ownerread.Checked     then att:=att+'R';
+   if cb_ownerlocked.Checked   then att:=att+'L';
+   if cb_ownerexecute.Checked  then att:=att+'E';
+   if cb_publicwrite.Checked   then att:=att+'w';
+   if cb_publicread.Checked    then att:=att+'r';
+   if cb_publicexecute.Checked then att:=att+'e';
+   if cb_private.Checked       then att:=att+'P';
+   //Get the file path
+   filepath:=GetFilePath(DirList.Selected);
+   //Update the attributes for the file
+   if not Image.UpdateAttributes(filepath,att) then
+   begin
+    //If unsuccessful, revert back.
+    DoNotUpdate:=True;
+    TCheckbox(Sender).Checked:=not TCheckbox(Sender).Checked;
+    DoNotUpdate:=False;
+   end;
+ end;
+end;
+
+//Get full file path from selected node
+function TMainForm.GetFilePath(Node: TTreeNode): AnsiString;
+begin
+ //Make sure that the node exists
+ if Node<>nil then
+ begin
+  //Start with the text in the node (i.e the filename)
+  Result:=Node.Text;
+  //If it has a parent, then add this and move up a level, until we reach the root
+  while Node.Parent<>nil do
+  begin
+   Node:=Node.Parent;
+   Result:=Node.Text+Image.DirSep+Result;
+  end;
+ end;
+end;
+
+//Delete file
+procedure TMainForm.DeleteFile1Click(Sender: TObject);
+var
+ filepath: AnsiString;
+ i: Integer;
+ R: Boolean;
+begin
+ //Result of the confirmation - assumed Yes for now
+ R:=True;
+ //For mulitple deletes, ensure that the user really wants to
+ if DirList.SelectionCount>1 then
+   R:=MessageDlg('Delete '+IntToStr(DirList.SelectionCount)+' files?',
+                 mtInformation,[mbYes, mbNo],0)=mrYes;
+ //If user does, or single file, continue
+ if R then
+  //Go through all the selections (or the only one)
+  for i:=0 to DirList.SelectionCount-1 do
+  begin
+   //Get the full path to the file
+   filepath:=GetFilePath(DirList.Selections[i]);
+   //If singular, check if the user wants to
+   if DirList.SelectionCount=1 then
+    R:=MessageDlg('Delete '+filepath+'?',mtInformation,[mbYes, mbNo],0)=mrYes;
+   //If so, then delete
+   if R then
+    if Image.DeleteFile(filepath) then
+    begin
+     //Now update the node and filedetails panel
+     DirList.Selections[i].Delete;
+     ResetFileFields;
+    end;
+  end;
+end;
+
 //User has double clicked on the DirList box
 procedure TMainForm.DirListDblClick(Sender: TObject);
 var
@@ -886,26 +1051,59 @@ begin
    btn_downloadClick(Sender);
 end;
 
-//Rename file/directory
-procedure TMainForm.DirListEdited(Sender: TObject; var S: AnsiString);
+//Rename menu item has been clicked
+procedure TMainForm.RenameFile1Click(Sender: TObject);
 begin
- //Rename the file
- if not Image.RenameFile(lb_Parent.Caption+'.'+lb_Filename.Caption,S) then
-  //Revert if it cannot be renamed
-  S:=lb_FileName.Caption;
+ //Make sure we're not dealing with the root
+ if DirList.Selected.Parent<>nil then
+ begin
+  //Save the path and name before they get edited
+  PathBeforeEdit:=GetFilePath(DirList.Selected);
+  NameBeforeEdit:=DirList.Selected.Text;
+  //Set the node to edit mode
+  DirList.Selected.EditText;
+ end;
 end;
 
 //Can we rename this node or not?
 procedure TMainForm.DirListEditing(Sender: TObject; Node: TTreeNode;
   var AllowEdit: Boolean);
 begin
- AllowEdit:=not TMyTreeNode(Node).IsDir;
+ //Set the node to edit mode, if not the root
+ AllowEdit:=Node.Parent<>nil;
+ //Save the path and name before they get edited
+ PathBeforeEdit:=GetFilePath(Node);
+ NameBeforeEdit:=Node.Text;
+end;
+
+//Rename file/directory
+procedure TMainForm.DirListEditingEnd(Sender: TObject; Node: TTreeNode;
+ Cancel: Boolean);
+var
+ newfilename: AnsiString;
+begin
+ newfilename:=Node.Text;
+ if not Cancel then
+  //Rename the file
+  if not Image.RenameFile(PathBeforeEdit,newfilename) then
+   //Revert if it cannot be renamed
+   Node.Text:=NameBeforeEdit
+  else
+  begin
+   //Otherwise change the text on the tree and the file details panel
+   Node.Text:=newfilename;
+   lb_Filename.Caption:=newfilename;
+  end;
+ //Reset the tracking variables
+ PathBeforeEdit:='';
+ NameBeforeEdit:='';
 end;
 
 //Reset the label fields for file info
 procedure TMainForm.ResetFileFields;
 begin
- lb_filename.Caption :='';
+ DoNotUpdate         :=True;
+ lb_FileName.Caption :='';
  lb_filetype.Caption :='';
  lb_loadaddr.Caption :='';
  lb_execaddr.Caption :='';
@@ -915,6 +1113,25 @@ begin
  lb_title.Caption    :='';
  lb_location.Caption :='';
  img_FileType.Picture.Bitmap:=nil;
+ //Disable the access tick boxes
+ cb_ownerwrite.Enabled    :=False;
+ cb_ownerread.Enabled     :=False;
+ cb_ownerlocked.Enabled   :=False;
+ cb_ownerexecute.Enabled  :=False;
+ cb_publicwrite.Enabled   :=False;
+ cb_publicread.Enabled    :=False;
+ cb_publicexecute.Enabled :=False;
+ cb_private.Enabled       :=False;
+ //And untick them
+ cb_ownerwrite.Checked    :=False;
+ cb_ownerread.Checked     :=False;
+ cb_ownerlocked.Checked   :=False;
+ cb_ownerexecute.Checked  :=False;
+ cb_publicwrite.Checked   :=False;
+ cb_publicread.Checked    :=False;
+ cb_publicexecute.Checked :=False;
+ cb_private.Checked       :=False;
+ DoNotUpdate   :=False;
 end;
 
 //Clear the search edit boxes

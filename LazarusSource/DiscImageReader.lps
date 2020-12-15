@@ -3,12 +3,13 @@
   <ProjectSession>
     <Version Value="11"/>
     <BuildModes Active="Default"/>
-    <Units Count="7">
+    <Units Count="9">
       <Unit0>
         <Filename Value="DiscImageReader.lpr"/>
         <IsPartOfProject Value="True"/>
-        <CursorPos X="20" Y="3"/>
-        <UsageCount Value="179"/>
+        <IsVisibleTab Value="True"/>
+        <CursorPos X="31" Y="9"/>
+        <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit0>
       <Unit1>
@@ -17,11 +18,10 @@
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="236"/>
-        <CursorPos X="7" Y="263"/>
-        <UsageCount Value="179"/>
+        <TopLine Value="955"/>
+        <CursorPos X="36" Y="980"/>
+        <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit1>
@@ -29,9 +29,9 @@
         <Filename Value="DiscImage.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="2"/>
-        <TopLine Value="2346"/>
-        <CursorPos X="66" Y="2412"/>
-        <UsageCount Value="179"/>
+        <TopLine Value="2621"/>
+        <CursorPos X="25" Y="2646"/>
+        <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit2>
       <Unit3>
@@ -42,152 +42,169 @@
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="3"/>
         <CursorPos Y="4"/>
-        <UsageCount Value="179"/>
+        <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit3>
       <Unit4>
+        <Filename Value="filedetailsunit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FileDetailForm"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="FileDetailsUnit"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="47"/>
+      </Unit4>
+      <Unit5>
         <Filename Value="/Library/Lazarus/lcl/controls.pp"/>
         <UnitName Value="Controls"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="2312"/>
         <CursorPos X="15" Y="2326"/>
-        <UsageCount Value="1"/>
-      </Unit4>
-      <Unit5>
+        <UsageCount Value="8"/>
+      </Unit5>
+      <Unit6>
         <Filename Value="../Blank Project/unit1.pas"/>
         <UnitName Value="Unit1"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="1"/>
-      </Unit5>
-      <Unit6>
+        <UsageCount Value="8"/>
+      </Unit6>
+      <Unit7>
         <Filename Value="/Library/Lazarus/lcl/include/treeview.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="39"/>
         <CursorPos Y="56"/>
-        <UsageCount Value="10"/>
-      </Unit6>
+        <UsageCount Value="7"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="/Library/Lazarus/components/lazutils/lazstringutils.pas"/>
+        <UnitName Value="LazStringUtils"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="114"/>
+        <CursorPos Y="131"/>
+        <UsageCount Value="8"/>
+      </Unit8>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="202" TopLine="195"/>
+        <Caret Line="828" Column="35" TopLine="799"/>
       </Position1>
       <Position2>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="198" Column="38" TopLine="181"/>
+        <Caret Line="829" Column="35" TopLine="800"/>
       </Position2>
       <Position3>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="196" Column="3" TopLine="167"/>
+        <Caret Line="830" Column="35" TopLine="801"/>
       </Position3>
       <Position4>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="198" Column="5" TopLine="172"/>
+        <Caret Line="831" Column="35" TopLine="802"/>
       </Position4>
       <Position5>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="117" Column="15" TopLine="103"/>
+        <Caret Line="832" Column="35" TopLine="803"/>
       </Position5>
       <Position6>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="199" TopLine="186"/>
+        <Caret Line="835" Column="35" TopLine="806"/>
       </Position6>
       <Position7>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="204" Column="15" TopLine="192"/>
+        <Caret Line="836" Column="35" TopLine="807"/>
       </Position7>
       <Position8>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="248" Column="28" TopLine="237"/>
+        <Caret Line="837" Column="35" TopLine="808"/>
       </Position8>
       <Position9>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="197" Column="31" TopLine="183"/>
+        <Caret Line="666" Column="41" TopLine="638"/>
       </Position9>
       <Position10>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="566" Column="37" TopLine="557"/>
+        <Caret Line="632" Column="18" TopLine="623"/>
       </Position10>
       <Position11>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="560" Column="3" TopLine="546"/>
+        <Caret Line="659" Column="91" TopLine="643"/>
       </Position11>
       <Position12>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="260" TopLine="242"/>
+        <Caret Line="665" Column="28" TopLine="641"/>
       </Position12>
       <Position13>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="544" Column="21" TopLine="543"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="100" Column="15" TopLine="85"/>
       </Position13>
       <Position14>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="158" Column="12" TopLine="158"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="631" Column="27" TopLine="602"/>
       </Position14>
       <Position15>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="578" Column="21" TopLine="565"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="994" Column="18" TopLine="969"/>
       </Position15>
       <Position16>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="159" Column="77" TopLine="155"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="591" Column="33" TopLine="579"/>
       </Position16>
       <Position17>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="622" Column="22" TopLine="609"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="110" Column="15" TopLine="94"/>
       </Position17>
       <Position18>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="159" Column="76" TopLine="154"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="108" Column="15" TopLine="94"/>
       </Position18>
       <Position19>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="544" Column="90" TopLine="528"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="879" Column="2" TopLine="860"/>
       </Position19>
       <Position20>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="578" Column="85" TopLine="561"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="110" Column="15" TopLine="110"/>
       </Position20>
       <Position21>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="611" Column="21" TopLine="594"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="767" Column="24" TopLine="756"/>
       </Position21>
       <Position22>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="168" Column="62" TopLine="168"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="642" Column="83" TopLine="457"/>
       </Position22>
       <Position23>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="616" Column="15" TopLine="600"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="100" Column="15" TopLine="84"/>
       </Position23>
       <Position24>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="637" Column="53" TopLine="621"/>
+        <Caret Line="172" Column="12" TopLine="147"/>
       </Position24>
       <Position25>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="640" Column="38" TopLine="625"/>
+        <Caret Line="682" Column="21" TopLine="669"/>
       </Position25>
       <Position26>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="2336" Column="21" TopLine="2330"/>
+        <Caret Line="136" Column="12" TopLine="127"/>
       </Position26>
       <Position27>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="133" Column="94" TopLine="133"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="982" Column="24" TopLine="952"/>
       </Position27>
       <Position28>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="2464" Column="10" TopLine="2333"/>
+        <Caret Line="137" Column="12" TopLine="125"/>
       </Position28>
       <Position29>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="261" Column="51" TopLine="245"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="2641" Column="16" TopLine="2616"/>
       </Position29>
       <Position30>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="2409" Column="38" TopLine="2382"/>
+        <Caret Line="2646" Column="25" TopLine="2621"/>
       </Position30>
     </JumpHistory>
     <RunParams>
