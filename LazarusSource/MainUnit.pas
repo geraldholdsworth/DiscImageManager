@@ -36,6 +36,7 @@ type
     ed_filenamesearch: TEdit;
     ed_filetypesearch: TEdit;
     ed_lengthsearch: TEdit;
+    icons: TImageList;
     Label15: TLabel;
     Label7: TLabel;
     ToolBarImages: TImageList;
@@ -54,6 +55,7 @@ type
     btn_Delete: TToolButton;
     btn_Rename: TToolButton;
     btn_AddFiles: TToolButton;
+    btn_NewImage: TToolButton;
     ToolButton3: TToolButton;
     btn_download: TToolButton;
     ToolButton5: TToolButton;
@@ -93,9 +95,12 @@ type
     ExtractFile1: TMenuItem;
     RenameFile1: TMenuItem;
     DeleteFile1: TMenuItem;
-    StatusBar: TStatusBar;
+    ImageDetails: TStatusBar;
     AddFile1: TMenuItem;
     NewDirectory1: TMenuItem;
+    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
+    function QueryUnsaved: Boolean;
+    procedure btn_NewImageClick(Sender: TObject);
     procedure btn_SaveImageClick(Sender: TObject);
     procedure AttributeChangeClick(Sender: TObject);
     function GetFilePath(Node: TTreeNode): AnsiString;
@@ -115,12 +120,15 @@ type
     procedure DownLoadFile(dir,entry: Integer; path: AnsiString);
     procedure DownLoadDirectory(dir,entry: Integer; path: AnsiString);
     procedure btn_OpenImageClick(Sender: TObject);
+    procedure ShowNewImage(title: AnsiString);
     function ConvertToKMG(size: Int64): AnsiString;
     function IntToStrComma(size: Int64): AnsiString;
     procedure DirListChange(Sender: TObject; Node: TTreeNode);
     procedure btn_AboutClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure BBCtoWin(var f: AnsiString);
+    procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
+     const Rect: TRect);
     procedure ValidateFilename(var f: AnsiString);
     procedure sb_searchClick(Sender: TObject);
     procedure lb_searchresultsClick(Sender: TObject);
@@ -136,6 +144,8 @@ type
     NameBeforeEdit:AnsiString;
     //Stop the checkbox OnClick from firing when just changing the values
     DoNotUpdate   :Boolean;
+    //Has the image changed since last saved?
+    HasChanged       :Boolean;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..50] of AnsiString =
@@ -165,7 +175,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.4';
+    ApplicationVersion = '1.05.5';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -178,7 +188,7 @@ implementation
 
 {$R *.lfm}
 
-uses AboutUnit;
+uses AboutUnit, NewImageUnit;
 
 //Add a new file to the disc image (DFS only at the moment)
 procedure TMainForm.AddFile1Click(Sender: TObject);
@@ -260,6 +270,7 @@ begin
      index:=Image.WriteFile(NewFile,buffer);
      if index<>-1 then //File added OK
      begin
+      HasChanged:=True;
       //Now add the entry to the Directory List
       if DirList.Selected.HasChildren then
        //Insert it before the one specified
@@ -447,6 +458,21 @@ end;
 
 //User has clicked on the button to open a new image
 procedure TMainForm.btn_OpenImageClick(Sender: TObject);
+begin
+ if QueryUnsaved then
+  //Show the open file dialogue box
+  if OpenImageFile.Execute then
+  begin
+   //Load the image and create the catalogue
+   Image.LoadFromFile(OpenImageFile.FileName);
+   HasChanged:=False;
+   //Update the display
+   ShowNewImage(Image.Filename);
+  end;
+end;
+
+//Reset the display for a new/loaded image
+procedure TMainForm.ShowNewImage(title: AnsiString);
 var
  //Used as a marker to make sure all directories are displayed.
  //Some double sided discs have each side as separate discs
@@ -477,17 +503,12 @@ var
   end;
  end;
 begin
- //Show the open file dialogue box
- if OpenImageFile.Execute then
- begin
   //Clear all the labels, and enable/disable the buttons
   ResetFileFields;
   //Clear the search fields
   ResetSearchFields;
-  //Load the image and create the catalogue
-  Image.LoadFromFile(OpenImageFile.FileName);
   //Change the application title (what appears on SHIFT+TAB, etc.)
-  Caption:=ApplicationTitle+' - '+ExtractFileName(OpenImageFile.FileName);
+  Caption:=ApplicationTitle+' - '+ExtractFileName(title);
   //If the format is a recognised one
   if Image.FormatString<>'' then
   begin
@@ -538,24 +559,31 @@ begin
    //Enable the directory view
    DirList.Enabled:=True;
   end;
- end;
 end;
 
 //Update the Image information display
 procedure TMainForm.UpdateImageInfo;
+var
+ i: Integer;
 begin
- StatusBar.Panels[0].Text:=Image.FormatString;
- StatusBar.Panels[1].Text:=Image.Title;
- StatusBar.Panels[2].Text:=ConvertToKMG(Image.DiscSize)
-                          +' ('+IntToStrComma(Image.DiscSize)+' Bytes)';
- StatusBar.Panels[3].Text:=ConvertToKMG(Image.FreeSpace)
-                          +' ('+IntToStrComma(Image.FreeSpace)+' Bytes)';
- if Image.DoubleSided then
-  StatusBar.Panels[4].Text:='Double Sided'
+ if Image.FormatNumber<>$FF then
+ begin
+  ImageDetails.Panels[1].Text:=Image.FormatString;
+  ImageDetails.Panels[2].Text:=Image.Title;
+  ImageDetails.Panels[3].Text:=ConvertToKMG(Image.DiscSize)
+                           +' ('+IntToStrComma(Image.DiscSize)+' Bytes)';
+  ImageDetails.Panels[4].Text:=ConvertToKMG(Image.FreeSpace)
+                           +' ('+IntToStrComma(Image.FreeSpace)+' Bytes)';
+  if Image.DoubleSided then
+   ImageDetails.Panels[5].Text:='Double Sided'
+  else
+   ImageDetails.Panels[5].Text:='Single Sided';
+  ImageDetails.Panels[6].Text:=Image.MapTypeString;
+  ImageDetails.Panels[7].Text:=Image.DirectoryTypeString;
+ end
  else
-  StatusBar.Panels[4].Text:='Single Sided';
- StatusBar.Panels[5].Text:=Image.MapTypeString;
- StatusBar.Panels[6].Text:=Image.DirectoryTypeString;
+  for i:=1 to 7 do ImageDetails.Panels[i].Text:='';
+ ImageDetails.Repaint;
 end;
 
 //This is called when the selection changes on the TreeView
@@ -569,55 +597,37 @@ var
  location,
  multiple : AnsiString;
 begin
- //Disable the AddFile menu item
- AddFile1.Enabled    :=False;
- btn_AddFiles.Enabled:=False;
+ //Reset the fields to blank
+ ResetFileFields;
  //More than one?
  multiple:='';
- if DirList.SelectionCount>1 then multiple:='s';
+ if DirList.SelectionCount>1 then
+  multiple:='s';
  //Change the menu names - we'll change these to 'Directory', if needed, later
  ExtractFile1.Caption:='&Extract File'+multiple;
- btn_download.Hint:='Extract File'+multiple;
+ btn_download.Hint   :='Extract File'+multiple;
  RenameFile1.Caption :='&Rename File'+multiple;
- btn_Rename.Hint:='Rename File'+multiple;
+ btn_Rename.Hint     :='Rename File'+multiple;
  DeleteFile1.Caption :='&Delete File'+multiple;
- btn_Delete.Hint:='Delete File'+multiple;
- //Enable the buttons, if there is a selection
- if DirList.SelectionCount>0 then
+ btn_Delete.Hint     :='Delete File'+multiple;
+ //Enable the buttons, if there is a selection, otherwise disable
+ btn_download.Enabled:=DirList.SelectionCount>0;
+ ExtractFile1.Enabled:=DirList.SelectionCount>0;
+ DeleteFile1.Enabled :=DirList.SelectionCount>0;
+ btn_Delete.Enabled  :=DirList.SelectionCount>0;
+ //Disable the Add Files and Rename menu
+ AddFile1.Enabled    :=False;
+ btn_AddFiles.Enabled:=False;
+ RenameFile1.Enabled :=False;
+ btn_Rename.Enabled  :=False;
+ //If only a single item selected
+ if (Node<>nil) and (DirList.SelectionCount=1) then
  begin
-  btn_download.Enabled:=True;
-  ExtractFile1.Enabled:=True;
-  DeleteFile1.Enabled :=True;
-  btn_Delete.Enabled  :=True;
- end
- else
- begin
-  //Disable buttons if not
-  btn_download.Enabled:=False;
-  ExtractFile1.Enabled:=False;
-  DeleteFile1.Enabled :=False;
-  btn_Delete.Enabled  :=False;
- end;
- //Enable the Add Files and Rename menu
- if DirList.SelectionCount=1 then
- begin
+  //Enable the Add Files and Rename menu
   AddFile1.Enabled    :=True;
   btn_AddFiles.Enabled:=True;
   RenameFile1.Enabled :=True;
   btn_Rename.Enabled  :=True;
- end
- else //Disable otherwise
- begin
-  AddFile1.Enabled    :=False;
-  btn_AddFiles.Enabled:=False;
-  RenameFile1.Enabled :=False;
-  btn_Rename.Enabled  :=False;
- end;
- //Reset the file details panel
- ResetFileFields;
- DoNotUpdate   :=True;
- if Node<>nil then //Just being careful!!!
- begin
   //Get the entry and dir references
   entry:=Node.Index;
   dir:=-1;
@@ -632,6 +642,7 @@ begin
   begin
    filename:=Image.Disc[dir].Entries[entry].Filename;
    //Attributes
+   DoNotUpdate   :=True; //Make sure the event doesn't fire
    cb_ownerwrite.Checked   :=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_ownerread.Checked    :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_ownerlocked.Checked  :=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
@@ -657,6 +668,7 @@ begin
      cb_private.Enabled       :=True;
     end;
    end;
+   DoNotUpdate   :=False;  //Re-enable the event firing
    //Filetype
    filetype:=Image.Disc[dir].Entries[entry].Filetype;
   end
@@ -742,27 +754,26 @@ begin
    location:='';
    //ADFS Old map - Sector is an offset
    if Image.MapType=$00 then
-    location:='Offset: 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
+    location:='Offset: 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
    //ADFS New map - Sector is an indirect address (fragment and sector)
    if Image.MapType=$01 then
-    location:='Indirect address: 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
+    location:='Indirect address: 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
    //Commodore formats - Sector and Track
    if ((Image.FormatNumber>=$20) and (Image.FormatNumber<=$2F)) then
-    location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track);
+    location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)+' ';
    //All other formats - Sector
    if (Image.FormatNumber<=$0F)
    or ((Image.FormatNumber>=$20) and (Image.FormatNumber<=$2F))
    or ((Image.FormatNumber>=$40) and (Image.FormatNumber<=$4F)) then
-    location:=location+' Sector '+IntToStr(Image.Disc[dir].Entries[entry].Sector);
+    location:=location+'Sector '+IntToStr(Image.Disc[dir].Entries[entry].Sector)+' ';
    //DFS - indicates which side also
    if Image.FormatNumber<=$0F then
-    location:=location+' Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side);
+    location:=location+'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side);
    lb_location.Caption:=location;
   end;
   //Update the image
   DirListGetImageIndex(Sender, Node);
  end;
- DoNotUpdate   :=False;
 end;
 
 //Called when the TreeView is updated, and it wants to know which icon to use
@@ -830,9 +841,6 @@ begin
   else
    //to a closed one
    ft:=directory;
-  //Following doesn't work, hence why it is commented out
-//  if Copy(Image.Disc[dir].Entries[entry].Filename,1,1)='!' then
-//   ft:=application;
  end;
  //Tell the system what the ImageList reference is
  Node.ImageIndex:=ft;
@@ -844,7 +852,7 @@ end;
 procedure TMainForm.FormResize(Sender: TObject);
 begin
  if Height<634 then Height:=634; //Minimum height
- if Width<664 then Width:=664; //Minimum width
+ if Width<664  then Width:=664; //Minimum width
 end;
 
 //Initialise Form
@@ -875,6 +883,8 @@ begin
  sb_search.Enabled        :=False;
  //Disable the directory view
  DirList.Enabled          :=False;
+ //Reset the changed variable
+ HasChanged:=False;
  //Reset the file details panel
  ResetFileFields;
  //Clear the search fields
@@ -951,8 +961,66 @@ begin
  SaveImage.DefaultExt:=Image.FormatExt;
  //Show the dialogue
  If SaveImage.Execute then
+ begin
   //Save the image
   Image.SaveToFile(SaveImage.FileName);
+  Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
+  HasChanged:=False;
+  //Update the status bar
+  UpdateImageInfo
+ end;
+end;
+
+//Query about unsaved changes
+function TMainForm.QueryUnsaved: Boolean;
+begin
+ Result:=True;
+ if HasChanged then
+  Result:=MessageDlg('You have unsaved changes. Do you wish to continue?',
+                mtInformation,[mbYes,mbNo],0)=mrYes;
+end;
+
+//Application is closing
+procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+begin
+ CanClose:=QueryUnsaved;
+end;
+
+//Create a new blank image
+procedure TMainForm.btn_NewImageClick(Sender: TObject);
+var
+ minor,tracks: Byte;
+begin
+ if QueryUnsaved then
+ begin
+  //Show the form, modally
+  NewImageForm.ShowModal;
+  //If Create was clicked, then create a new image
+  if NewImageForm.ModalResult=mrOK then
+  begin
+   //Get the sub-format
+   minor:=$F;
+   case NewImageForm.MainFormat.ItemIndex of
+    0: minor:=NewImageForm.DFS.ItemIndex;
+    1: minor:=NewImageForm.ADFS.ItemIndex;
+    2: minor:=NewImageForm.C64.ItemIndex;
+    3: minor:=NewImageForm.Spectrum.ItemIndex;
+    4: minor:=NewImageForm.Amiga.ItemIndex;
+   end;
+   //Number of tracks (DFS only)
+   tracks:=0; //Default
+   if NewImageForm.MainFormat.ItemIndex=0 then
+    tracks:=NewImageForm.DFSTracks.ItemIndex;
+   //Now create the image
+   if Image.Format(NewImageForm.MainFormat.ItemIndex,minor,tracks) then
+   begin
+    HasChanged:=True;
+    ShowNewImage(Image.Filename);
+   end
+   else
+    ShowMessage('Failed to create image');
+  end;
+ end;
 end;
 
 //Attribute has been changed
@@ -975,7 +1043,13 @@ begin
    //Get the file path
    filepath:=GetFilePath(DirList.Selected);
    //Update the attributes for the file
-   if not Image.UpdateAttributes(filepath,att) then
+   if Image.UpdateAttributes(filepath,att) then
+   begin
+    HasChanged:=True;
+    //Update the status bar
+    UpdateImageInfo
+   end
+   else
    begin
     //If unsuccessful, revert back.
     DoNotUpdate:=True;
@@ -1029,6 +1103,9 @@ begin
    if R then
     if Image.DeleteFile(filepath) then
     begin
+     HasChanged:=True;
+     //Update the status bar
+     UpdateImageInfo;
      //Now update the node and filedetails panel
      DirList.Selections[i].Delete;
      ResetFileFields;
@@ -1090,6 +1167,9 @@ begin
    Node.Text:=NameBeforeEdit
   else
   begin
+   HasChanged:=True;
+   //Update the status bar
+   UpdateImageInfo;
    //Otherwise change the text on the tree and the file details panel
    Node.Text:=newfilename;
    lb_Filename.Caption:=newfilename;
@@ -1247,6 +1327,15 @@ begin
   if f[i]='=' then f[i]:='@';
   if f[i]=';' then f[i]:='%';
  end;
+end;
+
+{Custom redraw event for the status bar}
+procedure TMainForm.ImageDetailsDrawPanel(StatusBar: TStatusBar;
+ Panel: TStatusPanel; const Rect: TRect);
+begin
+ //First panel - we want to put the 'not saved' indicator here
+ if (Panel.Index=0) and (HasChanged) then
+  icons.Draw(StatusBar.Canvas,Rect.Left,Rect.Top,0);
 end;
 
 //Validate a filename for Windows

@@ -4,19 +4,19 @@ program DiscImageReader;
 
 uses
   Forms, Interfaces,
-  MainUnit in 'MainUnit.pas' {MainForm},
+  MainUnit in 'MainUnit.pas',
   DiscImage in 'DiscImage.pas',
-  AboutUnit in 'AboutUnit.pas' {AboutForm};
+  AboutUnit in 'AboutUnit.pas',
+  NewImageUnit in 'NewImageUnit.pas';
 
 {$R *.res}
 
 begin
-  //RequireDerivedFormResource:=True;
   Application.Scaled:=True;
- Application.Title:='Disc Image Manager';
+  Application.Title:='Disc Image Manager';
   Application.Initialize;
-//  Application.MainFormOnTaskbar := True;
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TAboutForm, AboutForm);
+  Application.CreateForm(TNewImageForm, NewImageForm);
   Application.Run;
 end.

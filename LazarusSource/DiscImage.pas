@@ -135,6 +135,7 @@ type
   function RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
   function DeleteDFSFile(filename: AnsiString):Boolean;
   function UpdateDFSFileAttributes(filename,attributes: AnsiString): Boolean;
+  function FormatDFS(minor,tracks: Byte): TDisc;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
@@ -156,7 +157,7 @@ type
   procedure LoadFromStream(F: TStream);
   procedure SaveToFile(filename: AnsiString);
   procedure SaveToStream(F: TStream);
-  function Format(fs,map,dir: Byte): Boolean;
+  function Format(major,minor,tracks: Byte): Boolean;
   function ExtractFile(filename: AnsiString; var buffer: TDIByteArray): Boolean;
   function ExtractFileToStream(filename: AnsiString;F: TStream): Boolean;
   function WriteFile(file_details: TDirEntry; var buffer: TDIByteArray): Integer;
@@ -336,13 +337,20 @@ Saves an image to a file
 procedure TDiscImage.SaveToFile(filename: AnsiString);
 var
  FDiscDrive: TFileStream;
+ ext: AnsiString;
 begin
+ //Validate the filename
+ ext:=ExtractFileExt(filename);
+ filename:=LeftStr(filename,Length(filename)-Length(ext));
+ filename:=filename+'.'+FormatToExt;
  //Create the stream
  FDiscDrive:=TFileStream.Create(filename,fmCreate);
  //Call the procedure to read from the stream
  SaveToStream(FDiscDrive);
  //Close the stream
  FDiscDrive.Free;
+ //Change the image's filename
+ imagefilename:=filename;
 end;
 
 {-------------------------------------------------------------------------------
@@ -359,9 +367,20 @@ end;
 {-------------------------------------------------------------------------------
 Create and format a new disc image
 -------------------------------------------------------------------------------}
-function TDiscImage.Format(fs: Byte; map: Byte; dir: Byte): Boolean;
+function TDiscImage.Format(major,minor,tracks: Byte): Boolean;
 begin
  Result:=False;
+ case major of
+  0:      //Create DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   begin
+    FDisc:=FormatDFS(minor,tracks);
+    Result:=True;
+   end;
+  1: exit;//Create ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Create Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Create Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Create AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -2646,6 +2665,58 @@ begin
   //And return a success
   Result:=True;
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Create DFS blank image
+-------------------------------------------------------------------------------}
+function TDiscImage.FormatDFS(minor,tracks: Byte): TDisc;
+var
+ s: Byte;
+ t: Integer;
+ side_size: Cardinal;
+begin
+ //Blank everything
+ ResetVariables;
+ //Set the format
+ FFormat:=$00+minor;
+ //Set the filename
+ imagefilename:='Untitled.'+FormatExt;
+ //How many sides?
+ if (FFormat AND $1)=1 then //Double sided image
+  SetLength(Result,2)
+ else                       //Single sided image
+  SetLength(Result,1);
+ //Setup the data area
+ SetLength(FData,$200*(minor+1)); //$200 for the header, per side. $400 for Watford
+ //Fill with zeros
+ for t:=0 to Length(FData)-1 do FData[t]:=0;
+ s:=0;
+ repeat
+  //Reset the array
+  ResetDir(Result[s]);
+  //Number of entries on disc side
+  SetLength(Result[s].Entries,0);
+  //Directory name - as DFS only has $, this will be the drive number + '$'
+  Result[s].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
+  //Get the disc title(s)
+  Result[s].Title:='';
+  if s>0 then disc_name:=disc_name+' and ';
+  disc_name:=disc_name+Result[s].Title;
+  //Disc Size
+  side_size:=0;
+  if tracks=0 then side_size:=$190; //40T
+  if tracks=1 then side_size:=$320; //80T
+  //Initialise the disc
+  WriteByte(side_size div $100,ConvertSector($106,s));
+  WriteByte(side_size mod $100,ConvertSector($107,s));
+  inc(disc_size,side_size*$100);
+  //Directory size
+  inc(free_space,$200);
+  //Next side
+  if (FFormat AND $1=1) then inc(s) else s:=2;
+ until s=2;
+ free_space:=disc_size-free_space;
 end;
 
 //++++++++++++++++++ Commodore +++++++++++++++++++++++++++++++++++++++++++++++++
