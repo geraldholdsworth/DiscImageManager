@@ -45,3 +45,16 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * File attributes no longer displayed next to the filename in the File Details panel but have been moved to tick boxes at the bottom of the panel.
 * File Details panel tidied up: fields have been moved closer together, reducing the overall size of the panel.
 * File attributes can now be changed, for DFS files.
+
+1.05.5
+* Added button for new, blank, image.
+* Added dialogue box to create and format new image.
+* Fixed a bug where saving an image does not update the filename.
+* Tidy up of code.
+* Fixed a bug where the wrong default extension was added when saving an image when the extension was not specified.
+* Added an 'image has changed/not been saved' tracker.
+* Extended the status bar to add in a 'image has changed/not been saved' indicator.
+* Spread the attributes out as they were on over the top of each other in Linux.
+* Status Bar is now blank with no or unknown image type.
+* Spread the file details out again, and resized the labels.
+* Binaries compiled in 'Release' mode to reduce final file size and increase execution speed.
