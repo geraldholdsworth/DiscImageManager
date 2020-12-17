@@ -135,3 +135,15 @@ hdiutil detach -force "/Volumes/${VOLUME}"
 
 hdiutil convert "${VOLUME}.dmg.sparseimage" -format UDBZ -o "${VOLUME}.dmg" -ov -imagekey zlib-level=9
 rm "${VOLUME}.dmg.sparseimage"
+
+#Now we move the files
+if [ -e "lib/x86_64-darwin/$appfolder" ]
+ then
+  rm -r "lib/x86_64-darwin/$appfolder"
+fi
+mv "$appfolder" "lib/x86_64-darwin"
+if [ -e "lib/x86_64-darwin/${VOLUME}.dmg" ]
+ then
+  rm "lib/x86_64-darwin/${VOLUME}.dmg"
+fi
+mv "${VOLUME}.dmg" "lib/x86_64-darwin"
