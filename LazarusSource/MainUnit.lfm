@@ -3,6 +3,7 @@ object MainForm: TMainForm
   Height = 751
   Top = 105
   Width = 921
+  AllowDropFiles = True
   ClientHeight = 751
   ClientWidth = 921
   Color = clAppWorkspace
@@ -4281,6 +4282,7 @@ object MainForm: TMainForm
   }
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
+  OnDropFiles = FormDropFiles
   OnResize = FormResize
   OnShow = FormShow
   Position = poScreenCenter
@@ -5008,14 +5010,15 @@ object MainForm: TMainForm
       Font.Height = -11
       Font.Name = 'Courier New'
       Font.Style = [fsBold]
+      HotTrack = True
+      HotTrackColor = clRed
       Images = FileImages
       Indent = 20
       MultiSelect = True
-      MultiSelectStyle = [msControlSelect, msShiftSelect]
+      MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
       ParentColor = True
       ParentFont = False
       PopupMenu = FIle_Menu
-      RightClickSelect = True
       SelectionColor = clNavy
       ShowLines = False
       TabOrder = 0
@@ -5025,7 +5028,7 @@ object MainForm: TMainForm
       OnEditing = DirListEditing
       OnEditingEnd = DirListEditingEnd
       OnGetImageIndex = DirListGetImageIndex
-      Options = [tvoAllowMultiselect, tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoRightClickSelect, tvoShowButtons, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+      Options = [tvoAllowMultiselect, tvoAutoItemHeight, tvoHideSelection, tvoHotTrack, tvoKeepCollapsedNodes, tvoShowButtons, tvoShowRoot, tvoToolTips, tvoThemedDraw]
     end
   end
   object ImageDetails: TStatusBar

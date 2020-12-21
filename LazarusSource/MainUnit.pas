@@ -105,12 +105,14 @@ type
     procedure AttributeChangeClick(Sender: TObject);
     function GetFilePath(Node: TTreeNode): AnsiString;
     procedure DeleteFile1Click(Sender: TObject);
+    procedure DeleteFile(confirm: Boolean);
     procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
     procedure DirListEditingEnd(Sender: TObject; Node: TTreeNode;
      Cancel: Boolean);
     procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure ParseCommandLine;
     procedure RenameFile1Click(Sender: TObject);
     procedure ResetFileFields;
     procedure ResetSearchFields;
@@ -120,13 +122,16 @@ type
     procedure DownLoadFile(dir,entry: Integer; path: AnsiString);
     procedure DownLoadDirectory(dir,entry: Integer; path: AnsiString);
     procedure btn_OpenImageClick(Sender: TObject);
+    procedure OpenImage(filename: AnsiString);
     procedure ShowNewImage(title: AnsiString);
     function ConvertToKMG(size: Int64): AnsiString;
     function IntToStrComma(size: Int64): AnsiString;
     procedure DirListChange(Sender: TObject; Node: TTreeNode);
     procedure btn_AboutClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure FormDropFiles(Sender: TObject; const FileNames: array of AnsiString);
     procedure BBCtoWin(var f: AnsiString);
+    procedure WintoBBC(var f: AnsiString);
     procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
      const Rect: TRect);
     procedure ValidateFilename(var f: AnsiString);
@@ -136,6 +141,7 @@ type
       var AllowEdit: Boolean);
     procedure DirListDblClick(Sender: TObject);
     procedure AddFile1Click(Sender: TObject);
+    procedure AddFileToImage(filename: AnsiString);
     procedure UpdateImageInfo;
   private
    var
@@ -175,7 +181,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.5';
+    ApplicationVersion = '1.05.6';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -190,12 +196,26 @@ implementation
 
 uses AboutUnit, NewImageUnit;
 
-//Add a new file to the disc image (DFS only at the moment)
+//Add a new file to the disc image
 procedure TMainForm.AddFile1Click(Sender: TObject);
+var
+  i: Integer;
+begin
+ //Open the dialogue box
+ if AddNewFile.Execute then
+  if AddNewFile.Files.Count>0 then
+   //If more than one file selected, iterate through them
+   for i:=0 to AddNewFile.Files.Count-1 do
+    AddFileToImage(AddNewFile.Files[i]);
+
+end;
+
+//Add a file to an image (DFS only at the moment)
+procedure TMainForm.AddFileToImage(filename: AnsiString);
 var
   NewFile        : TDirEntry;
   buffer         : TDIByteArray;
-  i,index        : Integer;
+  index          : Integer;
   side,ptr       : Cardinal;
   importfilename,
   inffile,
@@ -205,29 +225,47 @@ var
   chr            : Char;
   F              : TFileStream;
 begin
- //Find out which side of a DFS disc it is
- if Image.FormatNumber mod 2=1 then //Only for double sided
- //As with DFS we can only Add with the root selected, the index will be the side
-  side:=DirList.Selected.Index
- else
- //Not double sided, so assume side 0
-  side:=0;
- //Open the dialogue box
- if AddNewFile.Execute then
-  if AddNewFile.Files.Count>0 then
-   //If more than one file selected, iterate through them
-   for i:=0 to AddNewFile.Files.Count-1 do
+ //First, if there is no selection, make one
+ if DirList.SelectionCount=0 then
+  DirList.Items[0].Selected:=True;
+ //Make sure that there is a destination selected
+ if DirList.SelectionCount=1 then
+  //And it is a directory
+  if TMyTreeNode(DirList.Selected).IsDir then
+  begin
+   //Find out which side of a DFS disc it is
+   if  (Image.FormatNumber mod 2=1)
+   and (Image.FormatNumber shr 4=0) then //Only for DFS double sided
+   //As with DFS we can only Add with the root selected, the index will be the side
+    side:=DirList.Selected.Index
+   else
+   //Not double sided or DFS, so assume side 0
+    side:=0;
+   //Extract the filename
+   importfilename:=ExtractFileName(filename);
+   //Reject any *.inf files
+   if LowerCase(RightStr(importfilename,4))<>'.inf' then
    begin
-    //Extract the filename
-    importfilename:=ExtractFileName(AddNewFile.Files[i]);
-    //Remove any extraenous specifiers
-    while (importfilename[4]='.') do
-     importfilename:=RightStr(importfilename,Length(importfilename)-2);
-    //If root, remove the directory specifier
-    if (importfilename[2]='.') and (importfilename[1]='$') then
-     importfilename:=RightStr(importfilename,Length(importfilename)-2);
+    if Image.FormatNumber<$20 then //DFS only stuff
+    begin
+     //Remove any extraenous specifiers
+     while (importfilename[4]=Image.DirSep) do
+      importfilename:=RightStr(importfilename,Length(importfilename)-2);
+     //If root, remove the directory specifier
+     if (importfilename[2]=Image.DirSep) and (importfilename[1]='$') then
+      importfilename:=RightStr(importfilename,Length(importfilename)-2);
+    end;
+    //Convert a Windows filename to a BBC filename
+    if Image.FormatNumber<$30 then
+    begin
+     WinToBBC(importfilename);
+     //Check to make sure that a DFS directory hasn't been changed
+     if (Image.FormatNumber<$20) and (importfilename[2]='/') then
+      importfilename[2]:=Image.DirSep;
+    end;
     //Make sure the file does not exist already
-    if not(Image.FileExists(':'+IntToStr(side)+'.$.'+importfilename,ptr)) then
+    if not(Image.FileExists(':'+IntToStr(side)+Image.DirSep+'$'
+                           +Image.DirSep+importfilename,ptr)) then
     begin
      //Initialise the TDirArray
      ResetDirEntry(NewFile);
@@ -237,11 +275,11 @@ begin
      execaddr:='00000000';
      loadaddr:='00000000';
      //Is there an inf file?
-     if FileExists(AddNewFile.Files[i]+'.inf') then
+     if FileExists(filename+'.inf') then
      begin
       inffile:='';
       //Read in the first line
-      F:=TFileStream.Create(AddNewFile.Files[i]+'.inf',fmOpenRead);
+      F:=TFileStream.Create(filename+'.inf',fmOpenRead);
       F.Position:=0;
       while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
        inffile:=inffile+chr;
@@ -261,7 +299,7 @@ begin
      NewFile.LoadAddr:=StrToInt('$'+loadaddr);
      NewFile.Side    :=side;
      //Load the file from the host
-     F:=TFileStream.Create(AddNewFile.Files[i],fmOpenRead);
+     F:=TFileStream.Create(filename,fmOpenRead);
      F.Position:=0;
      SetLength(buffer,F.Size);
      NewFile.Length:=F.Read(buffer[0],F.Size);
@@ -280,9 +318,19 @@ begin
        DirList.Items.AddChildFirst(DirList.Selected,importfilename);
       //And update the free space display
       UpdateImageInfo;
-     end;
-    end;
+     end
+     else//For some reason the operation failed to write the data
+      ShowMessage('Failed writing "'+importfilename+'" to image');
+    end
+    else ShowMessage('File "'+importfilename+'" already exists');
    end;
+  end
+  else ShowMessage('"'+DirList.Selected.Text+'" is not a directory')
+ else
+  if DirList.SelectionCount=0 then
+   ShowMessage('No destination directory selected')
+  else
+   ShowMessage('Cannot add to multiple selection');
  {
  DirList.Items.Insert(<node>,<string>) - inserts a new node before <node>
  DirList.Items.AddChildFirst(<node>,<string>) - inserts a new node as the first child of <node>
@@ -353,7 +401,9 @@ begin
        if s>0 then saver:=True;
        //Download a single file
        if saver then
-        DownLoadFile(dir,entry,ExtractFilePath(ExtractDialogue.FileName));
+        //Do not download if the parent is selected, as this will get downloaded anyway
+        if not DirList.Selections[s].Parent.Selected then
+         DownLoadFile(dir,entry,ExtractFilePath(ExtractDialogue.FileName));
       end
       else
        if DirList.SelectionCount=1 then
@@ -462,13 +512,18 @@ begin
  if QueryUnsaved then
   //Show the open file dialogue box
   if OpenImageFile.Execute then
-  begin
-   //Load the image and create the catalogue
-   Image.LoadFromFile(OpenImageFile.FileName);
-   HasChanged:=False;
-   //Update the display
-   ShowNewImage(Image.Filename);
-  end;
+   //And then open the image
+   OpenImage(OpenImageFile.FileName);
+end;
+
+//Open a disc image from file
+procedure TMainForm.OpenImage(filename: AnsiString);
+begin
+ //Load the image and create the catalogue
+ Image.LoadFromFile(filename);
+ HasChanged:=False;
+ //Update the display
+ ShowNewImage(Image.Filename);
 end;
 
 //Reset the display for a new/loaded image
@@ -594,13 +649,13 @@ var
  ft       : Integer;
  filename,
  filetype,
- location,
- multiple : AnsiString;
+ location : AnsiString;
+ multiple : Char;
 begin
  //Reset the fields to blank
  ResetFileFields;
  //More than one?
- multiple:='';
+ multiple:=' ';
  if DirList.SelectionCount>1 then
   multiple:='s';
  //Change the menu names - we'll change these to 'Directory', if needed, later
@@ -701,7 +756,7 @@ begin
    DeleteFile1.Caption :='&Delete '+filetype;
    btn_Delete.Hint     :='Delete '+filetype;
    //Report if directory is broken and include the error code
-   if Image.Disc[entry].Broken then
+   if (Image.Disc[entry].Broken) and (Image.Disc[entry].ErrorCode<$10) then
     filetype:=filetype+' (BROKEN - 0x'
                       +IntToHex(Image.Disc[entry].ErrorCode,2)+')';
    if dir>=0 then
@@ -894,6 +949,82 @@ begin
  //Reset the tracking variables
  PathBeforeEdit:='';
  NameBeforeEdit:='';
+ //There are some commands
+ if ParamCount>0 then ParseCommandLine;
+end;
+
+procedure TMainForm.ParseCommandLine;
+var
+ i,
+ index  : Integer;
+ option,
+ param,
+ cmd    : AnsiString;
+const DiscFormats =
+ 'DFSS    DFSS40  DFSD    DFSD40  WDFSS   WDFSS40 WDFSD   WDFSD40 ADFSS   ADFSM   '+
+ 'ADFSL   ADFSD   ADFSE   ADFSE+  ADFSF   ADFSF+  C1541   C1571   C1581   AMIGADD '+
+ 'AMIGAHD ';
+ const DiscNumber : array[1..21] of Integer =
+ ($001   ,$000   ,$011   ,$010   ,$021   ,$020   ,$031   ,$030   ,$100   ,$110,
+  $120   ,$130   ,$140   ,$150   ,$160   ,$170   ,$200   ,$210   ,$220   ,$400,
+  $410);
+begin
+ //Collate the parameters
+ for i:=1 to ParamCount do
+ begin
+  cmd:=ParamStr(i);
+  if Pos(':',cmd)>1 then
+  begin
+   //Split the parameter into command and attribute
+   option:=LowerCase(LeftStr (cmd,Pos(':',cmd)-1));
+   param :=RightStr(cmd,Length(cmd)-Pos(':',cmd));
+   //Open command
+   if (option='--insert') or (option='-i') then
+    OpenImage(param);
+   //Add new file command
+   if (option='--add') or (option='-a') then
+    AddFileToImage(param);
+   //New Image command
+   if (option='--new') or (option='-n') then
+   begin
+    index:=(Pos(UpperCase(param),DiscFormats) DIV 8)+1;
+    //Create new image
+    if Image.Format(DiscNumber[index] DIV $100,
+                   (DiscNumber[index] DIV $10)MOD $10,
+                    DiscNumber[index] MOD $10) then
+    begin
+     HasChanged:=True;
+     ShowNewImage(Image.Filename);
+    end;
+   end;
+   //Save image
+   if (option='--save') or (option='-s') then
+   begin
+    if param='' then param:=Image.Filename;
+    Image.SaveToFile(param);
+    Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
+    HasChanged:=False;
+    //Update the status bar
+    UpdateImageInfo
+   end;
+   //Delete selected file
+   if (option='--delete') or (option='-d') then
+    {DeleteFile(false)};
+   //Rename selected file
+   if (option='--rename') or (option='-r') then;
+   //Create a new directory under selected directory (ADFS/Amiga)
+   if (option='--create') or (option='-c') then;
+   //Extract files
+   if (option='--extract') or (option='-e') then;
+  end;
+ end;
+ //Save and close the application as there are commands
+ if HasChanged then
+ begin
+  Image.SaveToFile(Image.Filename);
+  HasChanged:=False;
+ end;
+ MainForm.Close;
 end;
 
 //This is called when the form is created - i.e. when the application is created
@@ -903,6 +1034,20 @@ begin
  Caption:=ApplicationTitle;
  //Create the image instance
  Image:=TDiscImage.Create;
+end;
+
+//Accept dropped files
+procedure TMainForm.FormDropFiles(Sender: TObject; const FileNames: array of AnsiString);
+var
+ FileName: AnsiString;
+begin
+ for FileName in FileNames do
+ begin
+  if Image.Filename='' then //Nothing is loaded, so initiate load
+   OpenImage(FileName)
+  else //Otherwise, add the file to the image, under the selected directory
+   AddFileToImage(FileName);
+ end;
 end;
 
 //Highlight the file in the tree
@@ -1079,8 +1224,6 @@ end;
 //Delete file
 procedure TMainForm.DeleteFile1Click(Sender: TObject);
 var
- filepath: AnsiString;
- i: Integer;
  R: Boolean;
 begin
  //Result of the confirmation - assumed Yes for now
@@ -1090,27 +1233,37 @@ begin
    R:=MessageDlg('Delete '+IntToStr(DirList.SelectionCount)+' files?',
                  mtInformation,[mbYes, mbNo],0)=mrYes;
  //If user does, or single file, continue
- if R then
-  //Go through all the selections (or the only one)
-  for i:=0 to DirList.SelectionCount-1 do
-  begin
-   //Get the full path to the file
-   filepath:=GetFilePath(DirList.Selections[i]);
-   //If singular, check if the user wants to
-   if DirList.SelectionCount=1 then
-    R:=MessageDlg('Delete '+filepath+'?',mtInformation,[mbYes, mbNo],0)=mrYes;
-   //If so, then delete
-   if R then
-    if Image.DeleteFile(filepath) then
-    begin
-     HasChanged:=True;
-     //Update the status bar
-     UpdateImageInfo;
-     //Now update the node and filedetails panel
-     DirList.Selections[i].Delete;
-     ResetFileFields;
-    end;
-  end;
+ if R then DeleteFile(True);
+end;
+
+//Delete selected files
+procedure TMainForm.DeleteFile(confirm: Boolean);
+var
+ i: Integer;
+ R: Boolean;
+ filepath: AnsiString;
+begin
+ //Go through all the selections (or the only one)
+ for i:=0 to DirList.SelectionCount-1 do
+ begin
+  //Get the full path to the file
+  filepath:=GetFilePath(DirList.Selections[i]);
+  //If singular, check if the user wants to
+  if (DirList.SelectionCount=1) and (confirm) then
+   R:=MessageDlg('Delete '+filepath+'?',mtInformation,[mbYes, mbNo],0)=mrYes
+  else R:=True;
+  //If so, then delete
+  if R then
+   if Image.DeleteFile(filepath) then
+   begin
+    HasChanged:=True;
+    //Update the status bar
+    UpdateImageInfo;
+    //Now update the node and filedetails panel
+    DirList.Selections[i].Delete;
+    ResetFileFields;
+   end;
+ end;
 end;
 
 //User has double clicked on the DirList box
@@ -1326,6 +1479,23 @@ begin
   if f[i]='+' then f[i]:='&';
   if f[i]='=' then f[i]:='@';
   if f[i]=';' then f[i]:='%';
+ end;
+end;
+
+//Convert Windows to BBC filename
+procedure TMainForm.WintoBBC(var f: AnsiString);
+var
+ i: Integer;
+begin
+ for i:=1 to Length(f) do
+ begin
+  if f[i]='.' then f[i]:='/';
+  if f[i]='#' then f[i]:='?';
+  if f[i]='$' then f[i]:='<';
+  if f[i]='^' then f[i]:='>';
+  if f[i]='&' then f[i]:='+';
+  if f[i]='@' then f[i]:='=';
+  if f[i]='%' then f[i]:=';';
  end;
 end;
 

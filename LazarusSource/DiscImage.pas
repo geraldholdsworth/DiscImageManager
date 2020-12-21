@@ -122,7 +122,9 @@ type
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: AnsiString; sector: Cardinal): TDir;
-  function DiscAddrToOffset(addr: Cardinal): TFragmentArray;
+  function NewDiscAddrToOffset(addr: Cardinal): TFragmentArray;
+  function OldDiscAddrToOffset(disc_addr: Cardinal): Cardinal;
+  function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
   function ByteChecksum(offset,size: Cardinal): Byte;
   function ReadADFSDisc: TDisc;
   //DFS Routines
@@ -370,6 +372,10 @@ Create and format a new disc image
 function TDiscImage.Format(major,minor,tracks: Byte): Boolean;
 begin
  Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major MOD $10;
+ minor :=minor MOD $10;
+ tracks:=tracks MOD 2;
  case major of
   0:      //Create DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    begin
@@ -487,7 +493,7 @@ begin
      fragptr:=FDisc[dir].Entries[entry].Sector*$100;
     if FMap then //New Map
      //Get the fragment offsets of the file
-     fragments:=DiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
+     fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
    end;
    //Commodore D61/D71/D81
    $2: fragptr:=ConvertDxxTS(FFormat AND $F,
@@ -748,7 +754,7 @@ function TDiscImage.FormatToExt: AnsiString;
 const
  EXT : array[0..4] of array[0..15] of AnsiString =
  (('ssd','dsd','ssd','dsd','','','','','','','','','','','',''),
-  ('adf','adf','adf','adf','adf','adf','adf','adf','','','','','','','','hdf'),
+  ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','','hdf'),
   ('d64','d71','d81','','','','','','','','','','','','',''),
   ('','dsk','','','','','','','','','','','','','',''),
   ('adf','adf','','','','','','','','','','','','','','hdf'));
@@ -1268,16 +1274,31 @@ var
  i   : Cardinal;
  temp: TDIByteArray;
 begin
- //If DFS we need to account for sides
- if FFormat DIV $10>0 then
+ //Everything but DFS and ADFS S,M,& L
+ if ((FFormat shr 4=1) and (FFormat MOD $10>2)) or (FFormat shr 4>1) then
  begin
   //Entire block must be within the length of the data
   Result:=(addr+count)<Cardinal(Length(Fdata));
   if Result then
    //Simply copy from source to destination
    Move(Fdata[addr],buffer,count);
- end
- else
+ end;
+ //ADFS S,M and L
+ if (FFormat shr 4=1) and (FFormat MOD $10<3) then
+ begin
+  //Entire block must be within the length of the data
+  Result:=OldDiscAddrToOffset(addr+count)<Length(Fdata);
+  //Simply copy from source to destination
+  if Result then
+  begin
+   SetLength(temp,count);
+   for i:=0 to count-1 do
+    temp[i]:=ReadByte(OldDiscAddrToOffset(addr+i));
+   Move(temp[0],buffer,count);
+  end;
+ end;
+ //DFS
+ if FFormat shr 4=0 then
  begin
   //Entire block must be within the length of the data
   Result:=ConvertSector(addr+count,side)<Length(Fdata);
@@ -1478,6 +1499,7 @@ begin
       163840: FFormat:=$10; // ADFS S
       327680: FFormat:=$11; // ADFS M
       655360: FFormat:=$12; // ADFS L
+      819200: FFormat:=$13; // ADFS D
      end;
     end;
    end;
@@ -1641,7 +1663,8 @@ begin
  if FMap then
  begin
   //New Map, so the sector will be an internal disc address
-  addr:=DiscAddrToOffset(sector);
+  if dirname=root_name then addr:=NewDiscAddrToOffset(0)
+  else addr:=NewDiscAddrToOffset(sector);
   //But we need it as an offset into the data
   if Length(addr)>0 then
    sector:=addr[0].Offset;
@@ -1651,8 +1674,8 @@ begin
  case FDirType of
   0,1: //Old and New Directory
   begin
-   StartSeq :=ReadByte(emuheader+sector);        //Start Sequence Number to match with end
-   StartName:=ReadString(emuheader+sector+1,-4); //Hugo or Nick
+   StartSeq :=ReadByte(OldDiscAddrToOffset(emuheader+sector));        //Start Sequence Number to match with end
+   StartName:=ReadString(OldDiscAddrToOffset(emuheader+sector+1),-4); //Hugo or Nick
    if FDirType=0 then //Old Directory
    begin
     numentrys:=47;                     //Number of entries per directory
@@ -1689,10 +1712,10 @@ begin
  case FDirType of
   0:
   begin
-   dirtitle:=ReadString(emuheader+sector+tail+$0E,-19);//Title of the directory
-   EndSeq  :=ReadByte(emuheader+sector+tail+$2F);      //End sequence number to match with start
-   EndName :=ReadString(emuheader+sector+tail+$30,-4); //Hugo or Nick
-   dirchk  :=ReadByte(emuheader+sector+tail+$34);      //Directory Check Byte
+   dirtitle:=ReadString(OldDiscAddrToOffset(emuheader+sector+tail+$0E),-19);//Title of the directory
+   EndSeq  :=ReadByte(OldDiscAddrToOffset(emuheader+sector+tail+$2F));      //End sequence number to match with start
+   EndName :=ReadString(OldDiscAddrToOffset(emuheader+sector+tail+$30),-4); //Hugo or Nick
+   dirchk  :=ReadByte(OldDiscAddrToOffset(emuheader+sector+tail+$34));      //Directory Check Byte
   end;
   1:
   begin
@@ -1747,13 +1770,13 @@ begin
    //Read in the entries
    case FDirType of
     0,1: //Old and New Directory
-     if ReadByte(emuheader+offset)<>0 then //0 marks the end of the entries
+     if ReadByte(OldDiscAddrToOffset(emuheader+offset))<>0 then //0 marks the end of the entries
      begin
-      Entry.Filename :=ReadString(emuheader+offset,-10,True);//Filename (including attributes for old)
-      Entry.LoadAddr :=Read32b(emuheader+offset+$0A);  //Load Address (can be timestamp)
-      Entry.ExecAddr :=Read32b(emuheader+offset+$0E);  //Execution Address (can be filetype)
-      Entry.Length   :=Read32b(emuheader+offset+$12);  //Length in bytes
-      Entry.Sector   :=Read24b(emuheader+offset+$16);   //How to find the file
+      Entry.Filename :=ReadString(OldDiscAddrToOffset(emuheader+offset),-10,True);//Filename (including attributes for old)
+      Entry.LoadAddr :=Read32b(OldDiscAddrToOffset(emuheader+offset+$0A));  //Load Address (can be timestamp)
+      Entry.ExecAddr :=Read32b(OldDiscAddrToOffset(emuheader+offset+$0E));  //Execution Address (can be filetype)
+      Entry.Length   :=Read32b(OldDiscAddrToOffset(emuheader+offset+$12));  //Length in bytes
+      Entry.Sector   :=Read24b(OldDiscAddrToOffset(emuheader+offset+$16));   //How to find the file
       temp:='';
       //Old directories - attributes are in the filename's top bit
       if FDirType=0 then
@@ -1908,7 +1931,7 @@ end;
 {-------------------------------------------------------------------------------
 Convert an ADFS New Map address to buffer offset address, with fragment lengths
 -------------------------------------------------------------------------------}
-function TDiscImage.DiscAddrToOffset(addr: Cardinal): TFragmentArray;
+function TDiscImage.NewDiscAddrToOffset(addr: Cardinal): TFragmentArray;
 var
  fragid          : TFragmentArray;
  i,j,sector,id,
@@ -1924,12 +1947,12 @@ begin
  SetLength(Result,0);
  if FMap then //Only works for new maps
  begin
-  if (addr=bootmap+(nzones*secsize*2)) and (FMap) then
+  if addr=0 then //Root
   begin
    //We've been given the address of the root, but we know where this is so no
    //need to calculate it.
    SetLength(Result,1);
-   Result[0].Offset:=addr;
+   Result[0].Offset:=bootmap+(nzones*secsize*2);//addr;
    case FDirType of
     0: Result[0].Length:=$500;
     1: Result[0].Length:=$800;
@@ -2009,6 +2032,78 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Calculate offset into image given the disc address (L only)
+-------------------------------------------------------------------------------}
+function TDiscImage.OldDiscAddrToOffset(disc_addr: Cardinal): Cardinal;
+var
+ tracks,
+ track_size,
+ track,
+ side,
+ oldheads,
+ data_offset,
+ oldsecspertrack,
+ oldsecsize: Cardinal;
+begin
+ Result:=disc_addr;
+ //ADFS L
+ if FFormat=$12 then
+ begin
+  //Number of tracks and heads
+  tracks:=80;
+  oldheads:=2;
+  oldsecspertrack:=16;
+  oldsecsize:=256;
+  //Track Size;
+  track_size:=oldsecspertrack*oldsecsize;
+  //Track number
+  track:=(disc_addr DIV track_size) MOD tracks;
+  //Which side
+  side:=disc_addr DIV (tracks*track_size);
+  //Offset into the sector for the data
+  data_offset:=disc_addr MOD track_size;
+  //Final result
+  Result:= (track_size*side)+(track*track_size*oldheads)+data_offset;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Calculate disc address given the offset into image (L only)
+-------------------------------------------------------------------------------}
+function TDiscImage.OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
+var
+ tracks,
+ track_size,
+ track,
+ side,
+ oldheads,
+ data_offset,
+ oldsecspertrack,
+ oldsecsize: Cardinal;
+begin
+ Result:=offset;
+ //ADFS L
+ if FFormat=$12 then
+ begin
+  //Number of tracks and heads
+  tracks:=80;
+  oldheads:=2;
+  oldsecspertrack:=16;
+  oldsecsize:=256;
+  //Track Size;
+  track_size:=oldsecspertrack*oldsecsize;
+  //Track number
+  track:=offset DIV (track_size*oldheads);
+  //Which side
+  side:=(offset MOD (track_size*oldheads))DIV track_size;
+  //Offset into the sector for the data
+  data_offset:=offset MOD track_size;
+  //Final result
+  Result:= (track*track_size)+(tracks*track_size*side)+data_offset;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
 Calculate Boot Block or Old Map Free Space Checksum
 -------------------------------------------------------------------------------}
 function TDiscImage.ByteChecksum(offset,size: Cardinal): Byte;
@@ -2058,16 +2153,16 @@ begin
    root:=0;
    root_size:=$500;
    repeat
-    if (ReadString(emuheader+(d*$100)+1,-4)='Hugo')
-    or (ReadString(emuheader+(d*$100)+1,-4)='Nick') then root:=d;
+    if (ReadString(OldDiscAddrToOffset(emuheader+(d*$100)+1),-4)='Hugo')
+    or (ReadString(OldDiscAddrToOffset(emuheader+(d*$100)+1),-4)='Nick') then root:=d;
     inc(d);
    until (d=(disc_size div $100)-1) or (root>0);
    if root=0 then
     ResetVariables //Failed to find root, so reset the format
    else
    begin
-    OldName0 :=ReadString(emuheader+$0F7,-5);
-    OldName1 :=ReadString(emuheader+$1F6,-5);
+    OldName0 :=ReadString(OldDiscAddrToOffset(emuheader+$0F7),-5);
+    OldName1 :=ReadString(OldDiscAddrToOffset(emuheader+$1F6),-5);
     //Re-assemble the disc title
     disc_name:='          ';
     if FDirType=1 then //S/M/L do not have disc title
@@ -2083,9 +2178,9 @@ begin
     RemoveSpaces(disc_name);
     //Add up the free space
     d:=0;
-    while d<ReadByte(emuheader+$1FE) do
+    while d<ReadByte(OldDiscAddrToOffset(emuheader+$1FE)) do
     begin
-     inc(free_space,Read24b(emuheader+$100+d)*$100);
+     inc(free_space,Read24b(OldDiscAddrToOffset(emuheader+$100+d)*$100));
      inc(d,3);
     end;
    end;
@@ -2429,11 +2524,11 @@ begin
   SetLength(FDisc[file_details.Side].Entries,l+1);
   Inc(l);
   filen:=0; //File 0 means no space, so add at the beginning
+  size2:=count div $100;//Size, up to the next boundary, of the file being inserted
+  if count mod $100>0 then inc(size2);
   if(l>1)then //Not the first entry?
   begin
    //Find if there is space inside the catalogue to insert the file
-   size2:=count div $100;//Size, up to the next boundary, of the file being inserted
-   if count mod $100>0 then inc(size2);
    for i:=l-2 downto 1 do
    begin
     //Size, up to the next boundary, of the existing file
@@ -2479,9 +2574,10 @@ begin
   //or revert back if not
   else
   begin
-   for i:=filen to l-2 do
-    FDisc[file_details.Side].Entries[i]:=FDisc[file_details.Side].Entries[i+1];
-   SetLength(FDisc,l-1);
+   if l>1 then
+    for i:=filen to l-2 do
+     FDisc[file_details.Side].Entries[i]:=FDisc[file_details.Side].Entries[i+1];
+   SetLength(FDisc[file_details.Side].Entries,l-1);
   end;
   //The data written will get overwritten anyway if failed.
  end;
@@ -2523,7 +2619,7 @@ var
  fn,dn : AnsiString;
  t,f   : Byte;
 begin
- f:=FFormat mod $10;//Subformat 
+ f:=FFormat mod $10;//Subformat
  //Update the number of catalogue entries
  c:=Length(FDisc[side].Entries);
  if c<32 then
@@ -2684,9 +2780,15 @@ begin
  imagefilename:='Untitled.'+FormatExt;
  //How many sides?
  if (FFormat AND $1)=1 then //Double sided image
-  SetLength(Result,2)
+ begin
+  SetLength(Result,2);
+  FDSD:=True;
+ end
  else                       //Single sided image
+ begin
   SetLength(Result,1);
+  FDSD:=False;
+ end;
  //Setup the data area
  SetLength(FData,$200*(minor+1)); //$200 for the header, per side. $400 for Watford
  //Fill with zeros
@@ -3308,3 +3410,4 @@ begin
 end;
 
 end.
+
