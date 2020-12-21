@@ -58,3 +58,13 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * Status Bar is now blank with no or unknown image type.
 * Spread the file details out again, and resized the labels.
 * Binaries compiled in 'Release' mode to reduce final file size and increase execution speed.
+
+1.05.6
+* Fixed a bug where extracting a file from an ADFS image, where the file's indirect address was the same as the offset to the root, the root would be saved instead (and repeated for the length of the file).
+* Fixed a bug where if a directory was selected as part of a multi-selection, and this directories contents where also selected, only the directory would be downloaded. Previously the contents would be downloaded twice.
+* Fixed a bug where ADFS L images (*.adl) were not read interleaved, causing data corruption.
+* Fixed a bug where creating a new double sided DFS image, then writing to it, will cause the data to get written to the image as if it is a single sided image.
+* Adding files will now skip over *.inf files.
+* Images can be opened by dragging them into the application window.
+* Files can be added to images by dragging them into the application window.
+* Command line commands added - this is a work in progress.
