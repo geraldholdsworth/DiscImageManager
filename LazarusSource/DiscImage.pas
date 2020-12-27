@@ -13,6 +13,9 @@ uses Classes;
 type
 //Define the TDIByteArray - saves using the System.Types unit for TByteDynArray
  TDIByteArray = array of Byte;
+//Free space map
+ TTrack = array of TDIByteArray; //TDIByteArray representing the sectors
+ TSide  = array of TTrack;      //Sides
 //Define the records to hold the catalogue
  TDirEntry     = record     //Not all fields are used on all formats
   Parent,                   //Complete path for parent directory (ALL)
@@ -78,16 +81,18 @@ type
   density,                      //Density (Acorn ADFS New)
   idlen,                        //Length of fragment ID in bits (Acorn ADFS New)
   skew,                         //Head skew (Acorn ADFS New)
-  bootoption,                   //*OPT4,n
+//  bootoption,                   //*OPT4,n
   lowsector,                    //Lowest sector number (Acorn ADFS New)
   disctype,                     //Type of disc
   FDirType,                     //Directory Type (Acorn ADFS)
   share_size,                   //Share size (Acorn ADFS New)
   big_flag      : Byte;         //Big flag (Acorn ADFS New)
-  disc_name,
-  root_name,                    //Disc title(s)
+  disc_name,                    //Disc title(s)
+  root_name,                    //Root title
   imagefilename : AnsiString;   //Filename of the disc image
   dir_sep       : Char;         //Directory Separator
+  free_space_map: TSide;        //Free Space Map
+  bootoption    : TDIByteArray; //Boot Option(s)
   procedure ResetVariables;
   function ReadString(ptr,term: Integer): AnsiString; overload;
   function ReadString(ptr,term: Integer;control: Boolean): AnsiString; overload;
@@ -127,9 +132,12 @@ type
   function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
   function ByteChecksum(offset,size: Cardinal): Byte;
   function ReadADFSDisc: TDisc;
+  procedure ADFSFreeSpaceMap;
+  procedure ADFSFillFreeSpaceMap(address: Cardinal;usage: Byte);
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc: TDisc;
+  procedure DFSFreeSpaceMap(LDisc: TDisc);
   function ConvertSector(address,side: Integer): Integer;
   function WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   procedure UpdateDFSCat(side: Integer);
@@ -138,6 +146,8 @@ type
   function DeleteDFSFile(filename: AnsiString):Boolean;
   function UpdateDFSFileAttributes(filename,attributes: AnsiString): Boolean;
   function FormatDFS(minor,tracks: Byte): TDisc;
+  function UpdateDFSDiscTitle(title: AnsiString;side: Byte): Boolean;
+  function UpdateDFSBootOption(option,side: Byte): Boolean;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
@@ -154,7 +164,6 @@ type
  published
   //Methods
   constructor Create;
-  destructor Destroy; override;
   procedure LoadFromFile(filename: AnsiString);
   procedure LoadFromStream(F: TStream);
   procedure SaveToFile(filename: AnsiString);
@@ -175,21 +184,28 @@ type
   function MoveFile(filename, directory: AnsiString): Integer;
   function CopyFile(filename, directory: AnsiString): Integer;
   function UpdateAttributes(filename,attributes: AnsiString): Boolean;
+  function UpdateDiscTitle(title: AnsiString;side: Byte): Boolean;
+  function UpdateBootOption(option,side: Byte): Boolean;
   //Properties
-  property Disc:                TDisc      read FDisc;
-  property FormatString:        AnsiString read FormatToString;
-  property FormatNumber:        Byte       read FFormat;
-  property FormatExt:           AnsiString read FormatToExt;
-  property Title:               AnsiString read disc_name;
-  property DiscSize:            Int64      read disc_size;
-  property FreeSpace:           Int64      read free_space;
-  property DoubleSided:         Boolean    read FDSD;
-  property MapType:             Byte       read MapFlagToByte;
-  property DirectoryType:       Byte       read FDirType;
-  property MapTypeString:       AnsiString read MapTypeToString;
-  property DirectoryTypeString: AnsiString read DirTypeToString;
-  property DirSep:              Char       read dir_sep;
-  property Filename:            AnsiString read imagefilename;
+  property Disc:                TDisc        read FDisc;
+  property FormatString:        AnsiString   read FormatToString;
+  property FormatNumber:        Byte         read FFormat;
+  property FormatExt:           AnsiString   read FormatToExt;
+  property Title:               AnsiString   read disc_name;
+  property DiscSize:            Int64        read disc_size;
+  property FreeSpace:           Int64        read free_space;
+  property DoubleSided:         Boolean      read FDSD;
+  property MapType:             Byte         read MapFlagToByte;
+  property DirectoryType:       Byte         read FDirType;
+  property MapTypeString:       AnsiString   read MapTypeToString;
+  property DirectoryTypeString: AnsiString   read DirTypeToString;
+  property DirSep:              Char         read dir_sep;
+  property Filename:            AnsiString   read imagefilename;
+  property FreeSpaceMap:        TSide        read free_space_map;
+  property BootOpt:             TDIByteArray read bootoption;
+  property RootAddress:         Cardinal     read root;
+ public
+  destructor Destroy; override;
  End;
 
 implementation
@@ -226,25 +242,6 @@ end;
 //++++++++++++++++++ Class definition starts here ++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------
-Create the instance
--------------------------------------------------------------------------------}
-constructor TDiscImage.Create;
-begin
- inherited;
- //This just sets all the global and public variables to zero, or blank.
- ResetVariables;
- SetLength(Fdata,0);
-end;
-
-{-------------------------------------------------------------------------------
-Free the instance
--------------------------------------------------------------------------------}
-destructor TDiscImage.Destroy;
-begin
- inherited;
-end;
-
-{-------------------------------------------------------------------------------
 Reset all the variables
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ResetVariables;
@@ -271,7 +268,8 @@ begin
  density       :=$00;
  idlen         :=$00;
  skew          :=$00;
- bootoption    :=$00;
+ SetLength(bootoption,0);
+// bootoption    :=$00;
  lowsector     :=$00;
  disctype      :=$00;
  FDirType      :=$FF;
@@ -282,111 +280,7 @@ begin
  dir_sep       :='.';
  root_name     :='$';
  imagefilename :='';
-end;
-
-{-------------------------------------------------------------------------------
-Load an image from a file (just calls LoadFromStream)
--------------------------------------------------------------------------------}
-procedure TDiscImage.LoadFromFile(filename: AnsiString);
-var
- FDiscDrive: TFileStream;
-begin
- //Only read the file in if it actually exists (or rather, Windows can find it)
- if SysUtils.FileExists(filename) then
- begin
-  //Create the stream
-  FDiscDrive:=TFileStream.Create(filename,fmOpenRead);
-  //Call the procedure to read from the stream
-  LoadFromStream(FDiscDrive);
-  //Close the stream
-  FDiscDrive.Free;
-  imagefilename:=filename;
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Load an image from a stream (e.g. FileStream)
--------------------------------------------------------------------------------}
-procedure TDiscImage.LoadFromStream(F: TStream);
-begin
- //Blank off the variables
- ResetVariables;
- //Ensure there is enough space in the buffer
- SetLength(Fdata,F.Size);
- //Move to the beginning of the stream
- F.Position:=0;
- UpdateProgress('Loading file');
- //Read the image into the data buffer
- F.Read(Fdata[0],Length(Fdata));
- //This check is done in the ID functions anyway, but we'll do it here also
- if Length(Fdata)>0 then
- begin
-  UpdateProgress('IDing the data');
-  //ID the type of image, from the data contents
-  if ID_DFS      then FDisc:=ReadDFSDisc;     //Acorn DFS
-  if ID_ADFS     then FDisc:=ReadADFSDisc;    //Acorn ADFS
-  if ID_CDR      then FDisc:=ReadCDRDisc;     //Commodore
-  if ID_Sinclair then FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
-  if ID_Amiga    then FDisc:=ReadAmigaDisc;   //Amiga
-  if FFormat=$FF then ResetVariables;
- end;
- UpdateProgress('');
-end;
-
-{-------------------------------------------------------------------------------
-Saves an image to a file
--------------------------------------------------------------------------------}
-procedure TDiscImage.SaveToFile(filename: AnsiString);
-var
- FDiscDrive: TFileStream;
- ext: AnsiString;
-begin
- //Validate the filename
- ext:=ExtractFileExt(filename);
- filename:=LeftStr(filename,Length(filename)-Length(ext));
- filename:=filename+'.'+FormatToExt;
- //Create the stream
- FDiscDrive:=TFileStream.Create(filename,fmCreate);
- //Call the procedure to read from the stream
- SaveToStream(FDiscDrive);
- //Close the stream
- FDiscDrive.Free;
- //Change the image's filename
- imagefilename:=filename;
-end;
-
-{-------------------------------------------------------------------------------
-Saves an image to a stream
--------------------------------------------------------------------------------}
-procedure TDiscImage.SaveToStream(F: TStream);
-begin
- //Move to the beginning of the stream
- F.Position:=0;
- //Read the image into the data buffer
- F.Write(Fdata[0],Length(Fdata));
-end;
-
-{-------------------------------------------------------------------------------
-Create and format a new disc image
--------------------------------------------------------------------------------}
-function TDiscImage.Format(major,minor,tracks: Byte): Boolean;
-begin
- Result:=False;
- //Make sure the numbers are within bounds
- major :=major MOD $10;
- minor :=minor MOD $10;
- tracks:=tracks MOD 2;
- case major of
-  0:      //Create DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   begin
-    FDisc:=FormatDFS(minor,tracks);
-    Result:=True;
-   end;
-  1: exit;//Create ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  2: exit;//Create Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
-  3: exit;//Create Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-  4: exit;//Create AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
- end;
+ SetLength(free_space_map,0);
 end;
 
 {-------------------------------------------------------------------------------
@@ -456,273 +350,6 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Extracts a file, filename contains complete path, directory separator is '.'
--------------------------------------------------------------------------------}
-function TDiscImage.ExtractFile(filename: AnsiString; var buffer: TDIByteArray): Boolean;
-var
- source        : Integer;
- entry,dir,
- frag,dest,
- fragptr,len,
- filelen       : Cardinal;
- fragments     : TFragmentArray;
-begin
- //Does the file actually exist?
- Result:=FileExists(filename,fragptr);
- //Yes, so load it - there is nothing to stop a directory header being extracted
- //if passed in the filename parameter.
- if Result then
- begin
-  //FileExists returns a pointer to the file
-  entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=fragptr div $10000;  //Top 16 bits - directory reference
-  //Make space to receive the file
-  filelen:=FDisc[dir].Entries[entry].Length;
-  SetLength(buffer,filelen);
-  //Default values
-  fragptr:=$0000;
-  frag   :=0;
-  //Get the starting position
-  case FFormat shr 4 of
-   //Acorn DFS
-   $0: fragptr:=FDisc[dir].Entries[entry].Sector*$100; //Side is accounted for later
-   //Acorn ADFS
-   $1:
-   begin
-    if not FMap then //Old Map
-     fragptr:=FDisc[dir].Entries[entry].Sector*$100;
-    if FMap then //New Map
-     //Get the fragment offsets of the file
-     fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
-   end;
-   //Commodore D61/D71/D81
-   $2: fragptr:=ConvertDxxTS(FFormat AND $F,
-                             FDisc[dir].Entries[entry].Track,
-                             FDisc[dir].Entries[entry].Sector);
-   //Commodore Amiga
-   $4: fragptr:=Cardinal(FDisc[dir].Entries[entry].Sector);
-  end;
-  dest  :=0;      //Length pointer/Destination pointer
-  len   :=filelen;//Amount of data to read in
-  source:=fragptr;//Source pointer
-  repeat
-   //Fragmented filing systems, so need to work out source and length
-   case FFormat shr 4 of
-    $1:                           //Acorn ADFS New Map
-    if FMap then
-     if frag<Length(fragments) then
-     begin
-      source:=fragments[frag].Offset;           //Source of data
-      len   :=fragments[frag].Length;           //Amount of data
-     end;
-    $2:                           //Commodore D64/D71/D81
-    begin
-     source:=fragptr+2;                        //Source of data
-     len   :=254;                              //Amount of data
-    end;
-    $4:                           //Commodore Amiga
-    begin
-     source:=Integer(fragptr*secsize)+$18;     //Source of data
-     len   :=Read32b(fragptr*secsize+$C,True);//Amount of data
-    end;
-   end;
-   //Make sure we don't read too much
-   if dest+len>filelen then
-    len:=filelen-dest;
-   //Read the data into the buffer
-   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
-   //Move the size pointer on, by the amount read
-   inc(dest,len);
-   //Get the next block pointer
-   case FFormat shr 4 of
-    //Acorn ADFS - move onto next fragment
-    $1: inc(frag);
-    //Commodore d64/D71/D81 - find next block
-    $2: fragptr:=ConvertDxxTS(FFormat AND $F,
-                              ReadByte(fragptr),
-                              ReadByte(fragptr+1));
-    //Commodore Amiga - find next block
-    $4: fragptr:=Read32b(fragptr*secsize+$10,True);
-   end;
-  until dest>=filelen; //Once we've reached the file length, we're done
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Extract a file into a memory stream
--------------------------------------------------------------------------------}
-function TDiscImage.ExtractFileToStream(filename: AnsiString; F: TStream): Boolean;
-var
- buffer: TDIByteArray;
-begin
- //This just uses the previous function to get the file
- Result:=ExtractFile(filename,buffer);
- if Result then
- begin
-  //Before we save it to the supplied stream
-  F.Position:=0;
-  F.Write(buffer[0],Length(buffer));
-  F.Position:=0;
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Save a file into the disc image, from buffer
--------------------------------------------------------------------------------}
-function TDiscImage.WriteFile(file_details: TDirEntry; var buffer: TDIByteArray): Integer;
-var
- m,f   : Byte;
- count : Integer;
-begin
- //Start with a false result
- Result:=-1;
- //Get the length of data to be written
- count:=file_details.Length;
- //There are only two sides (max)
- file_details.Side:=file_details.Side mod 2;
- //Only write a file if there is actually any data to be written
- if count>0 then
- begin
-  //Can only write a file that will fit on the disc
-  if count<=free_space then
-  begin
-   m:=FFormat DIV $10; //Major format
-   f:=FFormat MOD $10; //Minor format (sub format)
-   case m of
-    0:      //Write DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      Result:=WriteDFSFile(file_details,buffer);
-    1: exit;//Write ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    2: exit;//Write Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
-    3: exit;//Write Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-    4: exit;//Write AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
-   end;
-  end;
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Save a file into the disc image, from stream
--------------------------------------------------------------------------------}
-function TDiscImage.WriteFileFromStream(file_details: TDirEntry;F: TStream): Integer;
-var
- buffer: TDIByteArray;
-begin
- //Copy the stream into a buffer
- SetLength(buffer,F.Size);
- F.Position:=0;
- F.Read(buffer[0],F.Size);
- //Then call the preceeding function to do the work
- Result:=WriteFile(file_details,buffer);
- //Return the pointer to the beginning of the stream
- F.Position:=0;
-end;
-
-{-------------------------------------------------------------------------------
-Rename a file - oldfilename is full path, newfilename has no path
--------------------------------------------------------------------------------}
-function TDiscImage.RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Boolean;
-var
- m,f: Byte;
-begin
- Result:=False;
- m:=FFormat DIV $10; //Major format
- f:=FFormat MOD $10; //Minor format (sub format)
- case m of
-  0:      //Rename DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=RenameDFSFile(oldfilename,newfilename);
-  1: exit;//Rename ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  2: exit;//Rename Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
-  3: exit;//Rename Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-  4: exit;//Rename AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Deletes a file (given full pathname)
--------------------------------------------------------------------------------}
-function TDiscImage.DeleteFile(filename: AnsiString): Boolean;
-var
- m,f: Byte;
-begin
- Result:=False;
- m:=FFormat DIV $10; //Major format
- f:=FFormat MOD $10; //Minor format (sub format)
- case m of
-  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=DeleteDFSFile(filename);
-  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
-  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Moves a file from one directory to another
--------------------------------------------------------------------------------}
-function TDiscImage.MoveFile(filename, directory: AnsiString): Integer;
-begin
- //Moving and copying are the same, essentially
- Result:=CopyFile(filename,directory);
- //We just need to delete the original once copied
- if Result<>-1 then DeleteFile(filename);
-end;
-
-{-------------------------------------------------------------------------------
-Copies a file from one directory to another
--------------------------------------------------------------------------------}
-function TDiscImage.CopyFile(filename, directory: AnsiString): Integer;
-var
- buffer      : TDIByteArray;
- ptr,
- entry,
- dir         : Cardinal;
- file_details: TDirEntry;
-begin
- //Need to extract the filename from the full path...and ensure the file exists
- Result:=-1;
- if FileExists(filename,ptr) then
- begin
-  //FileExists returns a pointer to the file
-  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=ptr div $10000;  //Top 16 bits - directory reference
-  //Make sure that we are not copying onto ourselves
-  if Fdisc[dir].Entries[entry].Parent<>directory then
-  begin
-   //First, get the file into memory
-   if ExtractFile(filename,buffer) then
-   begin
-    //Set up the filedetails
-    file_details:=FDisc[dir].Entries[entry];
-    file_details.Parent:=directory;
-    //Then write it back to the image
-    Result:=WriteFile(file_details,buffer);
-   end;
-  end;
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Set the attributes for a file
--------------------------------------------------------------------------------}
-function TDiscImage.UpdateAttributes(filename,attributes: AnsiString):Boolean;
-var
- m,f: Byte;
-begin
- Result:=False;
- m:=FFormat DIV $10; //Major format
- f:=FFormat MOD $10; //Minor format (sub format)
- case m of
-  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=UpdateDFSFileAttributes(filename,attributes);
-  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
-  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
- end;
-end;
-
-{-------------------------------------------------------------------------------
 Convert a format byte to a string
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToString: AnsiString;
@@ -764,197 +391,6 @@ begin
   Result:=EXT[FFormat DIV $10,FFormat MOD $10];
  end
  else Result:='unk';
-end;
-
-{-------------------------------------------------------------------------------
-Does a file exist?
--------------------------------------------------------------------------------}
-function TDiscImage.FileExists(filename: AnsiString; var Ref: Cardinal): Boolean;
-var
- Path   : array of AnsiString;
- i,j,l,
- ptr,
- level  : Integer;
- test,
- test2  : AnsiString;
-begin
- Result:=False;
- //Not going to search if there is no tree to search in
- if Length(FDisc)>0 then
- begin
-  j:=-1;
-  ptr:=0;
-  //Explode the pathname into an array, without the '.'
-  if FFormat div $10<>$0 then //Not DFS
-   while (Pos(dir_sep,filename)<>0) do
-   begin
-    SetLength(Path,Length(Path)+1);
-    Path[Length(Path)-1]:=Copy(filename,0,Pos(dir_sep,filename)-1);
-    filename:=Copy(filename,Pos(dir_sep,filename)+1,Length(filename));
-   end;
-  if FFormat div $10=$0 then //DFS
-  begin
-   SetLength(Path,2);
-   Path[0]:=Copy(filename,0,Pos(root_name+dir_sep,filename));
-   Path[1]:=Copy(filename,Pos(root_name+dir_sep,filename)
-                         +Length(root_name)+Length(dir_sep),Length(filename));
-  end;
-  //If there is a path, then follow it
-  if Length(Path)>0 then
-  begin
-   //filename gets truncated, so me be zero length at this point
-   if (Length(filename)>0) and (FFormat div $10<>$0) then
-   begin
-    //Otherwise, we'll add it to the end of the Path
-    SetLength(Path,Length(Path)+1);
-    Path[Length(Path)-1]:=filename;
-   end;
-   //Position into the Path array (i.e. directory level)
-   level:=0;
-   //Counters/Pointers
-   i:=0;
-   j:=-1;
-   ptr:=-1;
-   test:=UpperCase(Path[level]);
-   test2:=UpperCase(FDisc[i].Directory);
-   if (FFormat=$01) and (test<>test2) then
-    inc(i);
-   //Using UpperCase makes it a case insensitive search
-   if test=test2 then
-    //Have we found the initial directory (usually '$')
-    repeat
-     //Let's move to the next directory level
-     inc(level);
-     //And search the entries
-     j:=-1;
-     repeat
-      inc(j);
-      test:='';
-      if level<Length(Path) then
-       test2:=UpperCase(Path[level])
-      else
-       test2:='not found';
-      l:=j;
-      //Just to make sure we don't search past the end of the arrays
-      if (i>=0) and (i<Length(FDisc)) then
-      begin
-       if j<Length(FDisc[i].Entries) then
-        test:=UpperCase(FDisc[i].Entries[j].Filename);
-       l:=Length(FDisc[i].Entries)-1;
-      end;
-     until (test2=test) or (j>=l);
-     //So, we found the entry
-     if test2=test then
-     begin
-      //Make a note
-      ptr:=i;
-      //Is it a directory? Then move down to the next level
-      if (i>=0) and (i<Length(FDisc)) then
-       if j<Length(FDisc[i].Entries) then
-       begin
-        test2:=UpperCase(FDisc[i].Entries[j].Filename);
-        i:=FDisc[i].Entries[j].DirRef;
-        //Unless we are looking for a directory
-        if level=Length(Path)-1 then
-          if UpperCase(Path[level])=test2 then
-           i:=-1;
-       end;
-     end
-     else j:=-1;
-    until (i=-1) or (j=-1); //End if it is not a directory, or is not found
-  end;
-   //Found, so return TRUE, with the references
-  if j<>-1 then
-  begin
-   Result:=True;
-   Ref:=ptr*$10000+j;
-  end;
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Searches for a file, and returns the result in a TSearchResults
--------------------------------------------------------------------------------}
-function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
-//Comparison functions...saves a lot of if...then statements
- function CompStr(S1,S2: AnsiString): Byte; //Compares Strings
- begin
-  Result:=0;
-  if (UpperCase(S1)=UpperCase(S2)) and (S1<>'') then Result:=1;
- end;
- function CompCar(S1,S2: Cardinal): Byte; //Compares Cardinals/Integers
- begin
-  Result:=0;
-  if (S1=S2) and (S1<>0) then Result:=1;
- end;
- function CompTSt(S1,S2: TDateTime): Byte; //Compares TDateTime
- begin
-  Result:=0;
-  if (S1=S2) and (S1<>0) then Result:=1;
- end;
-//Function proper starts here
-var
- dir,
- entry  : Integer;
- found,
- target : Byte;
-begin
- //Reset the search results array to empty
- SetLength(Result,0);
- //Work out what the search target is
- target:=0;
- with search do
- begin
-  if Parent       <>'' then inc(target);
-  if Filename     <>'' then inc(target);
-  if Attributes   <>'' then inc(target);
-  if Filetype     <>'' then inc(target);
-  if ShortFiletype<>'' then inc(target);
-  if LoadAddr  <>$0000 then inc(target);
-  if ExecAddr  <>$0000 then inc(target);
-  if Length    <>$0000 then inc(target);
-  if Side      <>$0000 then inc(target);
-  if Track     <>$0000 then inc(target);
-  if Sector    <>$0000 then inc(target);
-  if DirRef    <>$0000 then inc(target);
-  if TimeStamp <>0     then inc(target);
- end;
- //Only seach if there is something to search in
- if Length(FDisc)>0 then
-  for dir:=0 to Length(FDisc)-1 do
-   //Only search directories which have children
-   if Length(FDisc[dir].Entries)>0 then
-    for entry:=0 to Length(FDisc[dir].Entries)-1 do
-    begin
-     //Found counter
-     found:=0;
-     //Search parameters
-     with FDisc[dir].Entries[entry] do
-     begin
-      inc(found,CompStr(search.Parent,       Parent));
-      inc(found,CompStr(search.Filename,     Filename));
-      inc(found,CompStr(search.Attributes,   Attributes));
-      inc(found,CompStr(search.Filetype,     Filetype));
-      inc(found,CompStr(search.ShortFiletype,ShortFiletype));
-      inc(found,CompCar(search.LoadAddr,     LoadAddr));
-      inc(found,CompCar(search.ExecAddr,     ExecAddr));
-      inc(found,CompCar(search.Length,       Length));
-      inc(found,CompCar(search.Side,         Side));
-      inc(found,CompCar(search.Track,        Track));
-      inc(found,CompCar(search.Sector,       Sector));
-      inc(found,CompCar(search.DirRef,       DirRef));
-      inc(found,CompTSt(search.TimeStamp,    TimeStamp));
-     end;
-     //Have we hit the target?
-     //found is the number of matches found, and target is what we're aiming for
-     if found=target then
-     begin
-      //Yes, so add this to the results
-      SetLength(Result,Length(Result)+1);
-      Result[Length(Result)-1]:=FDisc[dir].Entries[entry];
-      //User will still need to call FileExists to get the dir and entry references
-     end;
-    end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1267,6 +703,454 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Update the progress label - no longer used...left in for future possibilities
+-------------------------------------------------------------------------------}
+procedure TDiscImage.UpdateProgress(S: AnsiString);
+begin
+{ if FProgress<>nil then
+  if FProgress.Panels.Count>0 then
+   begin
+    FProgress.Panels[0].Text:=S;
+    FProgress.Update;
+   end; }
+end;
+
+{-------------------------------------------------------------------------------
+Calculate Generic checksum - used by AmigaDOS and ADFS New Map checksums
+-------------------------------------------------------------------------------}
+function TDiscImage.GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
+var
+ pointer,
+ word    : Cardinal;
+ acc     : Int64;
+begin
+ //Reset the accumulator to zero
+ acc:=0;
+ //Start the offset at 0+offset
+ pointer:=start;
+ repeat
+  //Do not include the checksum itself
+  if pointer<>chkloc then
+  begin
+   //Read the word
+   word:=Read32b(offset+pointer,start=0);
+   //Add each word to the accumulator
+   inc(acc,word);
+  end;
+  //Move onto the next word
+  inc(pointer,4);
+  //Until the entire section is done.
+ until pointer>=length;
+ //Reduce from 64 bits to 32 bits
+ word:=(acc MOD $100000000);
+ if carry then inc(word,acc DIV $100000000);
+ //Add the first word, if skipped, ignoreing the first byte (checksum)
+ if start=$4 then
+ begin
+  inc(word,Read32b(offset) AND $FFFFFF00);
+  Result:=((word AND $000000FF)
+      XOR ((word AND $0000FF00) shr  8)
+      XOR ((word AND $00FF0000) shr 16)
+      XOR ((word AND $FF000000) shr 24))AND $FF;
+ end
+ else Result:=word;
+end;
+
+//++++++++++++++++++ Published Methods +++++++++++++++++++++++++++++++++++++++++
+
+{-------------------------------------------------------------------------------
+Create the instance
+-------------------------------------------------------------------------------}
+constructor TDiscImage.Create;
+begin
+ inherited;
+ //This just sets all the global and public variables to zero, or blank.
+ ResetVariables;
+ SetLength(Fdata,0);
+end;
+
+{-------------------------------------------------------------------------------
+Free the instance
+-------------------------------------------------------------------------------}
+destructor TDiscImage.Destroy;
+begin
+ inherited;
+end;
+
+{-------------------------------------------------------------------------------
+Load an image from a file (just calls LoadFromStream)
+-------------------------------------------------------------------------------}
+procedure TDiscImage.LoadFromFile(filename: AnsiString);
+var
+ FDiscDrive: TFileStream;
+begin
+ //Only read the file in if it actually exists (or rather, Windows can find it)
+ if SysUtils.FileExists(filename) then
+ begin
+  //Create the stream
+  FDiscDrive:=TFileStream.Create(filename,fmOpenRead);
+  //Call the procedure to read from the stream
+  LoadFromStream(FDiscDrive);
+  //Close the stream
+  FDiscDrive.Free;
+  imagefilename:=filename;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Load an image from a stream (e.g. FileStream)
+-------------------------------------------------------------------------------}
+procedure TDiscImage.LoadFromStream(F: TStream);
+begin
+ //Blank off the variables
+ ResetVariables;
+ //Ensure there is enough space in the buffer
+ SetLength(Fdata,F.Size);
+ //Move to the beginning of the stream
+ F.Position:=0;
+ UpdateProgress('Loading file');
+ //Read the image into the data buffer
+ F.Read(Fdata[0],Length(Fdata));
+ //This check is done in the ID functions anyway, but we'll do it here also
+ if Length(Fdata)>0 then
+ begin
+  UpdateProgress('IDing the data');
+  //ID the type of image, from the data contents
+  if ID_DFS      then FDisc:=ReadDFSDisc;     //Acorn DFS
+  if ID_ADFS     then FDisc:=ReadADFSDisc;    //Acorn ADFS
+  if ID_CDR      then FDisc:=ReadCDRDisc;     //Commodore
+  if ID_Sinclair then FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
+  if ID_Amiga    then FDisc:=ReadAmigaDisc;   //Amiga
+  if FFormat=$FF then ResetVariables;
+ end;
+ UpdateProgress('');
+end;
+
+{-------------------------------------------------------------------------------
+Saves an image to a file
+-------------------------------------------------------------------------------}
+procedure TDiscImage.SaveToFile(filename: AnsiString);
+var
+ FDiscDrive: TFileStream;
+ ext: AnsiString;
+begin
+ //Validate the filename
+ ext:=ExtractFileExt(filename);
+ filename:=LeftStr(filename,Length(filename)-Length(ext));
+ filename:=filename+'.'+FormatToExt;
+ //Create the stream
+ FDiscDrive:=TFileStream.Create(filename,fmCreate);
+ //Call the procedure to read from the stream
+ SaveToStream(FDiscDrive);
+ //Close the stream
+ FDiscDrive.Free;
+ //Change the image's filename
+ imagefilename:=filename;
+end;
+
+{-------------------------------------------------------------------------------
+Saves an image to a stream
+-------------------------------------------------------------------------------}
+procedure TDiscImage.SaveToStream(F: TStream);
+begin
+ //Move to the beginning of the stream
+ F.Position:=0;
+ //Read the image into the data buffer
+ F.Write(Fdata[0],Length(Fdata));
+end;
+
+{-------------------------------------------------------------------------------
+Create and format a new disc image
+-------------------------------------------------------------------------------}
+function TDiscImage.Format(major,minor,tracks: Byte): Boolean;
+begin
+ Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major MOD $10;
+ minor :=minor MOD $10;
+ tracks:=tracks MOD 2;
+ case major of
+  0:      //Create DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   begin
+    FDisc:=FormatDFS(minor,tracks);
+    Result:=True;
+   end;
+  1: exit;//Create ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Create Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Create Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Create AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Extracts a file, filename contains complete path, directory separator is '.'
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractFile(filename: AnsiString; var buffer: TDIByteArray): Boolean;
+var
+ source        : Integer;
+ entry,dir,
+ frag,dest,
+ fragptr,len,
+ filelen       : Cardinal;
+ fragments     : TFragmentArray;
+begin
+ //Does the file actually exist?
+ Result:=FileExists(filename,fragptr);
+ //Yes, so load it - there is nothing to stop a directory header being extracted
+ //if passed in the filename parameter.
+ if Result then
+ begin
+  //FileExists returns a pointer to the file
+  entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=fragptr div $10000;  //Top 16 bits - directory reference
+  //Make space to receive the file
+  filelen:=FDisc[dir].Entries[entry].Length;
+  SetLength(buffer,filelen);
+  //Default values
+  fragptr:=$0000;
+  frag   :=0;
+  //Get the starting position
+  case FFormat shr 4 of
+   //Acorn DFS
+   $0: fragptr:=FDisc[dir].Entries[entry].Sector*$100; //Side is accounted for later
+   //Acorn ADFS
+   $1:
+   begin
+    if not FMap then //Old Map
+     fragptr:=FDisc[dir].Entries[entry].Sector*$100;
+    if FMap then //New Map
+     //Get the fragment offsets of the file
+     fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
+   end;
+   //Commodore D61/D71/D81
+   $2: fragptr:=ConvertDxxTS(FFormat AND $F,
+                             FDisc[dir].Entries[entry].Track,
+                             FDisc[dir].Entries[entry].Sector);
+   //Commodore Amiga
+   $4: fragptr:=Cardinal(FDisc[dir].Entries[entry].Sector);
+  end;
+  dest  :=0;      //Length pointer/Destination pointer
+  len   :=filelen;//Amount of data to read in
+  source:=fragptr;//Source pointer
+  repeat
+   //Fragmented filing systems, so need to work out source and length
+   case FFormat shr 4 of
+    $1:                           //Acorn ADFS New Map
+    if FMap then
+     if frag<Length(fragments) then
+     begin
+      source:=fragments[frag].Offset;           //Source of data
+      len   :=fragments[frag].Length;           //Amount of data
+     end;
+    $2:                           //Commodore D64/D71/D81
+    begin
+     source:=fragptr+2;                        //Source of data
+     len   :=254;                              //Amount of data
+    end;
+    $4:                           //Commodore Amiga
+    begin
+     source:=Integer(fragptr*secsize)+$18;     //Source of data
+     len   :=Read32b(fragptr*secsize+$C,True);//Amount of data
+    end;
+   end;
+   //Make sure we don't read too much
+   if dest+len>filelen then
+    len:=filelen-dest;
+   //Read the data into the buffer
+   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
+   //Move the size pointer on, by the amount read
+   inc(dest,len);
+   //Get the next block pointer
+   case FFormat shr 4 of
+    //Acorn ADFS - move onto next fragment
+    $1: inc(frag);
+    //Commodore d64/D71/D81 - find next block
+    $2: fragptr:=ConvertDxxTS(FFormat AND $F,
+                              ReadByte(fragptr),
+                              ReadByte(fragptr+1));
+    //Commodore Amiga - find next block
+    $4: fragptr:=Read32b(fragptr*secsize+$10,True);
+   end;
+  until dest>=filelen; //Once we've reached the file length, we're done
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Extract a file into a memory stream
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractFileToStream(filename: AnsiString; F: TStream): Boolean;
+var
+ buffer: TDIByteArray;
+begin
+ //This just uses the previous function to get the file
+ Result:=ExtractFile(filename,buffer);
+ if Result then
+ begin
+  //Before we save it to the supplied stream
+  F.Position:=0;
+  F.Write(buffer[0],Length(buffer));
+  F.Position:=0;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Save a file into the disc image, from buffer
+-------------------------------------------------------------------------------}
+function TDiscImage.WriteFile(file_details: TDirEntry; var buffer: TDIByteArray): Integer;
+var
+ m     : Byte;
+ count : Integer;
+begin
+ //Start with a false result
+ Result:=-1;
+ //Get the length of data to be written
+ count:=file_details.Length;
+ //There are only two sides (max)
+ file_details.Side:=file_details.Side mod 2;
+ //Only write a file if there is actually any data to be written
+ if count>0 then
+ begin
+  //Can only write a file that will fit on the disc
+  if count<=free_space then
+  begin
+   m:=FFormat DIV $10; //Major format
+   case m of
+    0:      //Write DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      Result:=WriteDFSFile(file_details,buffer);
+    1: exit;//Write ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    2: exit;//Write Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+    3: exit;//Write Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+    4: exit;//Write AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+   end;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Save a file into the disc image, from stream
+-------------------------------------------------------------------------------}
+function TDiscImage.WriteFileFromStream(file_details: TDirEntry;F: TStream): Integer;
+var
+ buffer: TDIByteArray;
+begin
+ //Copy the stream into a buffer
+ SetLength(buffer,F.Size);
+ F.Position:=0;
+ F.Read(buffer[0],F.Size);
+ //Then call the preceeding function to do the work
+ Result:=WriteFile(file_details,buffer);
+ //Return the pointer to the beginning of the stream
+ F.Position:=0;
+end;
+
+{-------------------------------------------------------------------------------
+Does a file exist?
+-------------------------------------------------------------------------------}
+function TDiscImage.FileExists(filename: AnsiString; var Ref: Cardinal): Boolean;
+var
+ Path   : array of AnsiString;
+ i,j,l,
+ ptr,
+ level  : Integer;
+ test,
+ test2  : AnsiString;
+begin
+ Result:=False;
+ //Not going to search if there is no tree to search in
+ if Length(FDisc)>0 then
+ begin
+  SetLength(Path,0);
+  j:=-1;
+  ptr:=0;
+  //Explode the pathname into an array, without the '.'
+  if FFormat div $10<>$0 then //Not DFS
+   while (Pos(dir_sep,filename)<>0) do
+   begin
+    SetLength(Path,Length(Path)+1);
+    Path[Length(Path)-1]:=Copy(filename,0,Pos(dir_sep,filename)-1);
+    filename:=Copy(filename,Pos(dir_sep,filename)+1,Length(filename));
+   end;
+  if FFormat div $10=$0 then //DFS
+  begin
+   SetLength(Path,2);
+   Path[0]:=Copy(filename,0,Pos(root_name+dir_sep,filename));
+   Path[1]:=Copy(filename,Pos(root_name+dir_sep,filename)
+                         +Length(root_name)+Length(dir_sep),Length(filename));
+  end;
+  //If there is a path, then follow it
+  if Length(Path)>0 then
+  begin
+   //filename gets truncated, so me be zero length at this point
+   if (Length(filename)>0) and (FFormat div $10<>$0) then
+   begin
+    //Otherwise, we'll add it to the end of the Path
+    SetLength(Path,Length(Path)+1);
+    Path[Length(Path)-1]:=filename;
+   end;
+   //Position into the Path array (i.e. directory level)
+   level:=0;
+   //Counters/Pointers
+   i:=0;
+   j:=-1;
+   ptr:=-1;
+   test:=UpperCase(Path[level]);
+   test2:=UpperCase(FDisc[i].Directory);
+   if (FFormat=$01) and (test<>test2) then
+    inc(i);
+   //Using UpperCase makes it a case insensitive search
+   if test=test2 then
+    //Have we found the initial directory (usually '$')
+    repeat
+     //Let's move to the next directory level
+     inc(level);
+     //And search the entries
+     j:=-1;
+     repeat
+      inc(j);
+      test:='';
+      if level<Length(Path) then
+       test2:=UpperCase(Path[level])
+      else
+       test2:='not found';
+      l:=j;
+      //Just to make sure we don't search past the end of the arrays
+      if (i>=0) and (i<Length(FDisc)) then
+      begin
+       if j<Length(FDisc[i].Entries) then
+        test:=UpperCase(FDisc[i].Entries[j].Filename);
+       l:=Length(FDisc[i].Entries)-1;
+      end;
+     until (test2=test) or (j>=l);
+     //So, we found the entry
+     if test2=test then
+     begin
+      //Make a note
+      ptr:=i;
+      //Is it a directory? Then move down to the next level
+      if (i>=0) and (i<Length(FDisc)) then
+       if j<Length(FDisc[i].Entries) then
+       begin
+        test2:=UpperCase(FDisc[i].Entries[j].Filename);
+        i:=FDisc[i].Entries[j].DirRef;
+        //Unless we are looking for a directory
+        if level=Length(Path)-1 then
+          if UpperCase(Path[level])=test2 then
+           i:=-1;
+       end;
+     end
+     else j:=-1;
+    until (i=-1) or (j=-1); //End if it is not a directory, or is not found
+  end;
+   //Found, so return TRUE, with the references
+  if j<>-1 then
+  begin
+   Result:=True;
+   Ref:=ptr*$10000+j;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
 Direct access to disc data
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadDiscData(addr,count,side: Cardinal; var buffer): Boolean;
@@ -1378,57 +1262,228 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Update the progress label - no longer used...left in for future possibilities
+Searches for a file, and returns the result in a TSearchResults
 -------------------------------------------------------------------------------}
-procedure TDiscImage.UpdateProgress(S: AnsiString);
+function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
+//Comparison functions...saves a lot of if...then statements
+ function CompStr(S1,S2: AnsiString): Byte; //Compares Strings
+ begin
+  Result:=0;
+  if (UpperCase(S1)=UpperCase(S2)) and (S1<>'') then Result:=1;
+ end;
+ function CompCar(S1,S2: Cardinal): Byte; //Compares Cardinals/Integers
+ begin
+  Result:=0;
+  if (S1=S2) and (S1<>0) then Result:=1;
+ end;
+ function CompTSt(S1,S2: TDateTime): Byte; //Compares TDateTime
+ begin
+  Result:=0;
+  if (S1=S2) and (S1<>0) then Result:=1;
+ end;
+//Function proper starts here
+var
+ dir,
+ entry  : Integer;
+ found,
+ target : Byte;
 begin
-{ if FProgress<>nil then
-  if FProgress.Panels.Count>0 then
-   begin
-    FProgress.Panels[0].Text:=S;
-    FProgress.Update;
-   end; }
+ //Reset the search results array to empty
+ SetLength(Result,0);
+ //Work out what the search target is
+ target:=0;
+ with search do
+ begin
+  if Parent       <>'' then inc(target);
+  if Filename     <>'' then inc(target);
+  if Attributes   <>'' then inc(target);
+  if Filetype     <>'' then inc(target);
+  if ShortFiletype<>'' then inc(target);
+  if LoadAddr  <>$0000 then inc(target);
+  if ExecAddr  <>$0000 then inc(target);
+  if Length    <>$0000 then inc(target);
+  if Side      <>$0000 then inc(target);
+  if Track     <>$0000 then inc(target);
+  if Sector    <>$0000 then inc(target);
+  if DirRef    <>$0000 then inc(target);
+  if TimeStamp <>0     then inc(target);
+ end;
+ //Only seach if there is something to search in
+ if Length(FDisc)>0 then
+  for dir:=0 to Length(FDisc)-1 do
+   //Only search directories which have children
+   if Length(FDisc[dir].Entries)>0 then
+    for entry:=0 to Length(FDisc[dir].Entries)-1 do
+    begin
+     //Found counter
+     found:=0;
+     //Search parameters
+     with FDisc[dir].Entries[entry] do
+     begin
+      inc(found,CompStr(search.Parent,       Parent));
+      inc(found,CompStr(search.Filename,     Filename));
+      inc(found,CompStr(search.Attributes,   Attributes));
+      inc(found,CompStr(search.Filetype,     Filetype));
+      inc(found,CompStr(search.ShortFiletype,ShortFiletype));
+      inc(found,CompCar(search.LoadAddr,     LoadAddr));
+      inc(found,CompCar(search.ExecAddr,     ExecAddr));
+      inc(found,CompCar(search.Length,       Length));
+      inc(found,CompCar(search.Side,         Side));
+      inc(found,CompCar(search.Track,        Track));
+      inc(found,CompCar(search.Sector,       Sector));
+      inc(found,CompCar(search.DirRef,       DirRef));
+      inc(found,CompTSt(search.TimeStamp,    TimeStamp));
+     end;
+     //Have we hit the target?
+     //found is the number of matches found, and target is what we're aiming for
+     if found=target then
+     begin
+      //Yes, so add this to the results
+      SetLength(Result,Length(Result)+1);
+      Result[Length(Result)-1]:=FDisc[dir].Entries[entry];
+      //User will still need to call FileExists to get the dir and entry references
+     end;
+    end;
 end;
 
 {-------------------------------------------------------------------------------
-Calculate Generic checksum - used by AmigaDOS and ADFS New Map checksums
+Rename a file - oldfilename is full path, newfilename has no path
 -------------------------------------------------------------------------------}
-function TDiscImage.GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
+function TDiscImage.RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Boolean;
 var
- pointer,
- word    : Cardinal;
- acc     : Int64;
+ m: Byte;
 begin
- //Reset the accumulator to zero
- acc:=0;
- //Start the offset at 0+offset
- pointer:=start;
- repeat
-  //Do not include the checksum itself
-  if pointer<>chkloc then
-  begin
-   //Read the word
-   word:=Read32b(offset+pointer,start=0);
-   //Add each word to the accumulator
-   inc(acc,word);
-  end;
-  //Move onto the next word
-  inc(pointer,4);
-  //Until the entire section is done.
- until pointer>=length;
- //Reduce from 64 bits to 32 bits
- word:=(acc MOD $100000000);
- if carry then inc(word,acc DIV $100000000);
- //Add the first word, if skipped, ignoreing the first byte (checksum)
- if start=$4 then
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0:      //Rename DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Result:=RenameDFSFile(oldfilename,newfilename);
+  1: exit;//Rename ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Rename Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Rename Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Rename AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Deletes a file (given full pathname)
+-------------------------------------------------------------------------------}
+function TDiscImage.DeleteFile(filename: AnsiString): Boolean;
+var
+ m: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Result:=DeleteDFSFile(filename);
+  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Moves a file from one directory to another
+-------------------------------------------------------------------------------}
+function TDiscImage.MoveFile(filename, directory: AnsiString): Integer;
+begin
+ //Moving and copying are the same, essentially
+ Result:=CopyFile(filename,directory);
+ //We just need to delete the original once copied
+ if Result<>-1 then DeleteFile(filename);
+end;
+
+{-------------------------------------------------------------------------------
+Copies a file from one directory to another
+-------------------------------------------------------------------------------}
+function TDiscImage.CopyFile(filename, directory: AnsiString): Integer;
+var
+ buffer      : TDIByteArray;
+ ptr,
+ entry,
+ dir         : Cardinal;
+ file_details: TDirEntry;
+begin
+ //Need to extract the filename from the full path...and ensure the file exists
+ Result:=-1;
+ if FileExists(filename,ptr) then
  begin
-  inc(word,Read32b(offset) AND $FFFFFF00);
-  Result:=((word AND $000000FF)
-      XOR ((word AND $0000FF00) shr  8)
-      XOR ((word AND $00FF0000) shr 16)
-      XOR ((word AND $FF000000) shr 24))AND $FF;
- end
- else Result:=word;
+  //FileExists returns a pointer to the file
+  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  //Make sure that we are not copying onto ourselves
+  if Fdisc[dir].Entries[entry].Parent<>directory then
+  begin
+   //First, get the file into memory
+   if ExtractFile(filename,buffer) then
+   begin
+    //Set up the filedetails
+    file_details:=FDisc[dir].Entries[entry];
+    file_details.Parent:=directory;
+    //Then write it back to the image
+    Result:=WriteFile(file_details,buffer);
+   end;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Set the attributes for a file
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateAttributes(filename,attributes: AnsiString):Boolean;
+var
+ m: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Result:=UpdateDFSFileAttributes(filename,attributes);
+  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Set the disc title
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateDiscTitle(title: AnsiString;side: Byte): Boolean;
+var
+ m: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Result:=UpdateDFSDiscTitle(title,side);
+  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Set the boot option
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateBootOption(option,side: Byte): Boolean;
+var
+ m: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    Result:=UpdateDFSBootOption(option,side);
+  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
+  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+ end;
 end;
 
 //++++++++++++++++++ Acorn ADFS ++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1465,7 +1520,7 @@ begin
    begin
     //Checks are successful, now find out which type of disc: S/M/L/D
     Result:=True;
-    FFormat:=$10; //Default to ADFS S
+    //FFormat:=$1F; //Default to ADFS Hard drive
     FMap:=False;  //Set to old map
     FDirType:=0;  //Set to old directory
     ctr:=0;
@@ -1494,13 +1549,37 @@ begin
     begin
      //Not a reliable way of determining disc shape. However, there are three
      //different sizes of the same format.
-     FFormat:=$1F; //Default to hard drive
      case disc_size of
       163840: FFormat:=$10; // ADFS S
       327680: FFormat:=$11; // ADFS M
       655360: FFormat:=$12; // ADFS L
-      819200: FFormat:=$13; // ADFS D
+      //819200: FFormat:=$13; // ADFS D
      end;
+     if (FFormat=$FF) and (disc_size>819200) then FFormat:=$1F; //Hard drive
+    end;
+    if FFormat mod $10<3 then //ADFS S,M,L
+    begin
+     //Set the number of sectors per track - this is not held in the disc
+     secspertrack:= 16;
+     //Size of the sectors in bytes
+     secsize     :=256;
+    end;
+    if FFormat mod $10=3 then //ADFS D
+    begin
+     //Set the number of sectors per track - this is not held in the disc
+     secspertrack:=   5;
+     //Size of the sectors in bytes
+     secsize     :=1024;
+    end;
+    if FFormat mod $10=$F then //ADFS Hard drive
+    begin
+     secspertrack:= 16;
+     secsize     :=256;
+     //Make sure that we get a whole number of sectors on every track
+     if disc_size mod (secspertrack*secsize)>0 then
+      secspertrack:=Round(secspertrack
+                   *((disc_size  /  (secspertrack*secsize))
+                   - (disc_size div (secspertrack*secsize))));
     end;
    end;
    if not Result then
@@ -1581,6 +1660,7 @@ begin
     end;
    end;
   end;
+  Result:=FFormat<>$FF;
   if not Result then
    ResetVariables;
  end;
@@ -1658,6 +1738,7 @@ begin
  NewDirAtts      :=$00;
  dirchk          :=0;
  namesize        :=$00;
+ dirtitle        :='';
  SetLength(addr,0);
  //Get the offset address
  if FMap then
@@ -1708,6 +1789,8 @@ begin
  end;
  //Now we know the size of the directory, we can read in the tail
  tail:=dirsize-tail;
+ //And mark it on the Free Space Map
+ for amt:=sector to sector+dirsize do ADFSFillFreeSpaceMap(amt,$FD);
  //Not all of the tail is read in
  case FDirType of
   0:
@@ -1732,6 +1815,8 @@ begin
    dirchk  :=ReadByte(emuheader+sector+tail+$07);      //Directory Check Byte
   end;
  end;
+ //Save the directory title
+ Result.Title:=dirtitle;
  //Check for broken directory
  //This can result in having a valid directory structure, but a broken directory
  //ADFS normally refuses to list broken directories, but we will list them anyway,
@@ -1816,12 +1901,6 @@ begin
     end;
    end;
    RemoveControl(Entry.Filename);
-   //Add up the used space
-   if FMap then
-    if Entry.Length mod secsize>0 then
-     inc(free_space,(((Entry.Length)div secsize)+1)*secsize)
-    else
-     inc(free_space,Entry.Length);
    //Attributes for New and Big
    if FDirType>0 then
    begin
@@ -2041,9 +2120,7 @@ var
  track,
  side,
  oldheads,
- data_offset,
- oldsecspertrack,
- oldsecsize: Cardinal;
+ data_offset : Cardinal;
 begin
  Result:=disc_addr;
  //ADFS L
@@ -2052,10 +2129,8 @@ begin
   //Number of tracks and heads
   tracks:=80;
   oldheads:=2;
-  oldsecspertrack:=16;
-  oldsecsize:=256;
   //Track Size;
-  track_size:=oldsecspertrack*oldsecsize;
+  track_size:=secspertrack*secsize;
   //Track number
   track:=(disc_addr DIV track_size) MOD tracks;
   //Which side
@@ -2077,9 +2152,7 @@ var
  track,
  side,
  oldheads,
- data_offset,
- oldsecspertrack,
- oldsecsize: Cardinal;
+ data_offset : Cardinal;
 begin
  Result:=offset;
  //ADFS L
@@ -2088,10 +2161,8 @@ begin
   //Number of tracks and heads
   tracks:=80;
   oldheads:=2;
-  oldsecspertrack:=16;
-  oldsecsize:=256;
   //Track Size;
-  track_size:=oldsecspertrack*oldsecsize;
+  track_size:=secspertrack*secsize;
   //Track number
   track:=offset DIV (track_size*oldheads);
   //Which side
@@ -2149,6 +2220,9 @@ begin
   //ADFS Old Map
   if not FMap then
   begin
+   //Set up boot option
+   SetLength(bootoption,1);
+   bootoption[0]:=ReadByte(OldDiscAddrToOffset(emuheader+$1FD));
    d:=2;
    root:=0;
    root_size:=$500;
@@ -2169,25 +2243,19 @@ begin
     begin
      root_size:=$800;
      if Length(OldName0)>0 then
-      for d:=0 to Length(OldName0)-1 do
-       disc_name[ d*2 ]  :=OldName0[d];
+      for d:=1 to Length(OldName0) do
+       disc_name[(d*2)-1]  :=chr(ord(OldName0[d])AND$7F);
      if Length(OldName1)>0 then
-      for d:=0 to Length(OldName1)-1 do
-       disc_name[(d*2)+1]:=OldName1[d];
+      for d:=1 to Length(OldName1) do
+       disc_name[ d*2   ]  :=chr(ord(OldName1[d])AND$7F);
     end;
     RemoveSpaces(disc_name);
-    //Add up the free space
-    d:=0;
-    while d<ReadByte(OldDiscAddrToOffset(emuheader+$1FE)) do
-    begin
-     inc(free_space,Read24b(OldDiscAddrToOffset(emuheader+$100+d)*$100));
-     inc(d,3);
-    end;
    end;
   end;
   //ADFS New Map
   if FMap then
   begin
+   SetLength(bootoption,1);
    //Disc description starts at offset 4 and is 60 bytes long
    //Not all of these values will be used
    secsize     :=1 shl ReadByte(emuheader+bootmap+$04);
@@ -2197,7 +2265,7 @@ begin
    idlen       :=ReadByte(emuheader+bootmap+$08);
    bpmb        :=1 shl ReadByte(emuheader+bootmap+$09);
    skew        :=ReadByte(emuheader+bootmap+$0A);
-   bootoption  :=ReadByte(emuheader+bootmap+$0B);
+   bootoption[0]:=ReadByte(emuheader+bootmap+$0B);
    lowsector   :=ReadByte(emuheader+bootmap+$0C);
    nzones      :=ReadByte(emuheader+bootmap+$0D);
    zone_spare  :=Read16b(emuheader+bootmap+$0E);
@@ -2224,20 +2292,8 @@ begin
    SetLength(Result,1);
    //Blank the values
    ResetDir(Result[0]);
-   if FMap then
-   begin
-    //First 0x1000 bytes of the image hold the defect map and disc record
-    free_space:=$1000;
-    //Add the size of the root to the used space
-    if root_size>0 then
-     inc(free_space,root_size)
-    else
-     inc(free_space,$800);
-    //Add the size of the zones
-    inc(free_space,secsize*nzones*2);
-    //It is easier to add up the length of files to work out the free space
-    //rather than get this info from the byte allocation map
-   end;
+   //Calculate the Free Space Map
+   ADFSFreeSpaceMap;
    //Read the root
    Result[0]:=ReadADFSDir(root_name,root);
    //Now iterate through the entries and find the sub-directories
@@ -2270,8 +2326,154 @@ begin
    until d=Cardinal(Length(Result));
   end;
  end;
- //Turn the used space into amount of free space
- if FMap then free_space:=disc_size-free_space;
+end;
+
+{-------------------------------------------------------------------------------
+Works out how much free space there is, and creates the free space map
+-------------------------------------------------------------------------------}
+procedure TDiscImage.ADFSFreeSpaceMap;
+var
+ d,f,p,
+ ptr,c,
+ finish,
+ freelink,
+ nextfreelink,
+ address,len      : Cardinal;
+ freeend          : Byte;
+const
+ dr_size = $40; //Size of disc record + header (zone 0)
+begin
+ //Reset the free space counter
+ free_space:=0;
+ //Reset the array
+ if (secspertrack>0) and (secsize>0) then //As long as these have been set
+ begin
+  //Number of sides
+  SetLength(free_space_map,1);
+  //Number of tracks
+  SetLength(free_space_map[0],disc_size div (secspertrack*secsize));
+  for c:=0 to Length(free_space_map[0])-1 do
+  begin
+   //Number of sectors per track
+   if FMap then
+    SetLength(free_space_map[0,c],(secspertrack*secsize)DIV bpmb)
+   else
+    SetLength(free_space_map[0,c],secspertrack*(secsize div $100));
+   //Set them all to be uesd, for now.
+   for d:=0 to Length(free_space_map[0,c])-1 do
+    free_space_map[0,c,d]:=$FF;
+  end;
+ end;
+ //Old Map (ADFS S,M,L, and D)
+ if not FMap then
+ begin
+  ptr:=(root*$100)+root_size; //Pointer to the first free space area
+  //Set the system area on the FSM
+  for address:=0 to ptr-1 do
+   ADFSFillFreeSpaceMap(address,$FE);
+  //Now the free space
+  d:=0;//Counter into the map
+  freeend:=ReadByte(OldDiscAddrToOffset(emuheader+$1FE));//Number of entries
+  //Continue for as many entries as there is
+  while d<freeend do
+  begin
+   p:=Read24b(OldDiscAddrToOffset(emuheader+d))*$100;      //Pointer
+   f:=Read24b(OldDiscAddrToOffset(emuheader+$100+d))*$100; //Size
+   //If the read pointer is between the last area, discard
+   if p>ptr then //Just being careful...shouldn't be required
+   begin
+    //Update the array
+    if (secspertrack>0) and (secsize>0) then
+     for address:=p to (p+f)-1 do
+      ADFSFillFreeSpaceMap(address,$00);
+    //Update the pointer to the end of the current area
+    ptr:=p+f;
+    //Add it to the total
+    inc(free_space,f);
+   end;
+   //Move to the next entry
+   inc(d,3);
+  end;
+ end;
+ //New Map (ADFS E,E+,F,F+)
+ if FMap then
+ begin
+  c:=0;//Counter for current zone
+  while c<nzones do //Go through each zone
+  begin
+   //Get the start of the zone
+   freelink:=bootmap+(c*secsize)+1;
+   //Get the first freelink of the zone
+   nextfreelink:=(Read16b(emuheader+freelink)AND $7FFF)DIV 8;
+   //We will continue while nextfreelink is not $0000
+   while nextfreelink<>0 do
+   begin
+    //We're going to count the length, starting after the nextfreelink
+    len:=1;
+    repeat
+     inc(len)
+    until ReadByte(emuheader+freelink+nextfreelink+len)<>0; //Until we find a bit set
+    //Add another to count the first byte
+    inc(len);
+    //Calculate the disc address from where the free space starts
+    address:=((freelink+nextfreelink)-(bootmap+dr_size)-(zone_spare DIV 8)*c)*8*bpmb;
+    //And where it ends
+    finish:=((freelink+nextfreelink+len)-(bootmap+dr_size)-(zone_spare DIV 8)*c)*8*bpmb;
+    //Now just go through and fill it with zeros
+    while address<finish do
+    begin
+     //Mark it as empty
+     ADFSFillFreeSpaceMap(address,$00);
+     //Add to the free space counter
+     if address<disc_size then inc(free_space,bpmb);
+     //Advance the address
+     inc(address,bpmb);
+    end;
+    //Move the freelink pointer to where the nextfreelink was
+    freelink:=freelink+nextfreelink;
+    //And read what is there
+    nextfreelink:=(Read16b(emuheader+freelink)AND $7FFF)DIV 8;
+   end;
+   //Next zone
+   inc(c);
+  end;
+  //Mark the system area
+  for address:=bootmap to bootmap+(nzones*secsize*2) do //Two copies of the map
+   ADFSFillFreeSpaceMap(address,$FE);
+ end;
+end;
+
+procedure TDiscImage.ADFSFillFreeSpaceMap(address: Cardinal;usage: Byte);
+var
+ t,s: Cardinal;
+begin
+ if not FMap then
+ begin
+  //Track
+  t:=address div (secspertrack*secsize);
+  //Sector
+  if t>0 then
+   s:=(address mod (t*secspertrack*secsize))div secsize
+  else
+   s:=address div secsize;
+ end;
+ //New Map
+ If FMap then
+ begin
+  //Track of where we are looking
+  t:=address DIV (secspertrack*secsize);
+  //bpmb chunk into this track
+  if t>0 then
+   s:=(address MOD (t*secspertrack*secsize))DIV bpmb
+  else
+   s:=address DIV bpmb;
+ end;
+ //Make sure we haven't overshot the end of the disc
+ if t<Length(free_space_map[0]) then
+  //Or the end of the current track
+  if s<Length(free_space_map[0,t]) then
+   //Set the chunk as system
+   free_space_map[0,t,s]:=usage;
 end;
 
 //++++++++++++++++++ Acorn DFS +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2283,33 +2485,33 @@ function TDiscImage.ID_DFS: Boolean;
 var
  c,i   : Byte;
  t0,t1 : Integer;
+ chk   : Boolean;
 begin
- Result:=False;
  if FFormat=$FF then
  begin
   UpdateProgress('Checking for DFS');
   //Is there actually any data?
   if Length(Fdata)>0 then
   begin
-   Result:=True;
+   chk:=True;
    // Offset 0x0001 should have 9 bytes without top bit set and >31
    c:=0;
    for i:=0 to 8 do
     if ((ReadByte($0001+i)>31) AND (ReadByte($0001+i)<127))
     or (ReadByte($0001+i)=0) then inc(c);
-   if c<>9 then Result:=False;
+   if c<>9 then chk:=False;
    // Offset 0x0100 should have 4 bytes without top bit set and >31
    c:=0;
    for i:=0 to 3 do
     if ((ReadByte($0100+i)>31) AND (ReadByte($0100+i)<127))
     or (ReadByte($0100+i)=0) then inc(c);
-   if c<>4 then Result:=False;
+   if c<>4 then chk:=False;
    // Offset 0x0105 should have bits 0,1 and 2 clear
-   if (ReadByte($0105) AND $7)<>0 then Result:=False;
+   if (ReadByte($0105) AND $7)<>0 then chk:=False;
    // Offset 0x0106 should have bits 2,3,6 and 7 clear
-   if (ReadByte($0106) AND $CC)<>0 then Result:=False;
+   if (ReadByte($0106) AND $CC)<>0 then chk:=False;
    //Above checks have passed
-   if Result then
+   if chk then
    begin
     FDSD:=True; //Double sided flag
     // Offset 0x0A01 should have 9 bytes without top bit set and >31
@@ -2337,7 +2539,7 @@ begin
      t1:=t0;
     //Number of tracks needs to be a multiple of 10
     if (t0 mod 10<>0) and (t1 mod 10<>0) then
-     Result:=False
+     chk:=False
     else
     //Valid numbers of tracks (40 or 80)
     if  ((t0 div 10=40) or (t0 div 10=80))
@@ -2348,7 +2550,7 @@ begin
       FFormat:=$00;
    end;
    //Test for Watford DFS - we'll only test one side.
-   if Result then
+   if chk then
    begin
     // Offset 0x0200 should have 8 bytes of 0xAA
     c:=0;
@@ -2359,10 +2561,12 @@ begin
      if ReadByte($0300+i)=$00 then inc(c);
     // Disc size should match also
     if  (c=12) and (Read16b($306)=Read16b($106)) then
-     inc(FFormat,2);
+     if FFormat shr 4=0 then
+      inc(FFormat,2);
    end;
   end;
  end;
+ Result:=FFormat<>$FF;
 end;
 
 {-------------------------------------------------------------------------------
@@ -2395,14 +2599,20 @@ var
  s,t,c,f,
  locked,
  ptr,amt,
- diroff  : Integer;
- temp    : AnsiString;
+ diroff    : Integer;
+ temp      : AnsiString;
 begin
  UpdateProgress('Reading DFS Catalogue');
  if (FFormat AND $1)=1 then //Double sided image
-  SetLength(Result,2)
+ begin
+  SetLength(Result,2);
+  SetLength(bootoption,2);
+ end
  else                       //Single sided image
+ begin
   SetLength(Result,1);
+  SetLength(bootoption,1);
+ end;
  s:=0;
  repeat
   ResetDir(Result[s]);
@@ -2420,11 +2630,11 @@ begin
   RemoveControl(Result[s].Title);
   if s>0 then disc_name:=disc_name+' and ';
   disc_name:=disc_name+Result[s].Title;
+  //Boot Option
+  bootoption[s]:=(ReadByte(ConvertSector($106,s)) AND $30)shr 4;
   //Disc Size
   inc(disc_size, (ReadByte(ConvertSector($107,s))
-               +((ReadByte(ConvertSector($106,s)) AND $3)shl 8))*$100);
-  //Directory size
-  inc(free_space,$200);
+               +((ReadByte(ConvertSector($106,s)) AND $03)shl 8))*$100);
   //Read the catalogue
   for f:=1 to t do
   begin
@@ -2474,8 +2684,6 @@ begin
    Result[s].Entries[f-1].Length:=
                   (((ReadByte(ConvertSector(diroff+$106+($08*ptr),s))AND $30)shl 12)*$55)
                   +  Read16b( ConvertSector(diroff+$104+($08*ptr),s));
-   inc(free_space,(Result[s].Entries[f-1].Length div $100)*$100);
-   if Result[s].Entries[f-1].Length mod $100>0 then inc(free_space,$100);
    //Sector of start of data
    Result[s].Entries[f-1].Sector:=
                   ((ReadByte(ConvertSector(diroff+$106+($08*ptr),s))AND $3)shl 8)
@@ -2488,6 +2696,57 @@ begin
   //Next side
   if (FFormat AND $1=1) then inc(s) else s:=2;
  until s=2;
+ DFSFreeSpaceMap(Result);
+end;
+
+{-------------------------------------------------------------------------------
+Update the DFS Free Space Map, and update the free space counter
+-------------------------------------------------------------------------------}
+procedure TDiscImage.DFSFreeSpaceMap(LDisc: TDisc);
+var
+ f,s,c,e,fs: Cardinal;
+begin
+ //Set up the arrays
+ if (FFormat AND $1)=1 then //Double sided image
+  SetLength(free_space_map,2)
+ else                       //Single sided image
+  SetLength(free_space_map,1);
+ //Reset the counter
+ free_space:=0;
+ for s:=0 to Length(free_space_map)-1 do
+ begin
+  //Directory size
+  inc(free_space,$200);
+  if FFormat mod $10>1 then inc(free_space,$200); //Watford DFS
+  //Free Space Map
+  SetLength(free_space_map[s],disc_size DIV $A00); //Number of tracks
+  for f:=0 to Length(free_space_map[s])-1 do
+  begin
+   SetLength(free_space_map[s,f],10); //Number of sectors per track
+   for c:=0 to 9 do
+    free_space_map[s,f,c]:=$00;
+  end;
+  //First two sectors are used
+  free_space_map[s,0,0]:=$FE;
+  free_space_map[s,0,1]:=$FE;
+  if FFormat mod $10>1 then //Watford DFS
+  begin
+   free_space_map[s,0,2]:=$FE;
+   free_space_map[s,0,3]:=$FE;
+  end;
+  if Length(LDisc[s].Entries)>0 then
+   for e:=0 to Length(LDisc[s].Entries)-1 do
+   begin
+    inc(free_space,(LDisc[s].Entries[e].Length div $100)*$100);
+    if LDisc[s].Entries[e].Length mod $100>0 then inc(free_space,$100);
+    //Add it to the free space map
+    c:=LDisc[s].Entries[e].Length div $100;
+    if LDisc[s].Entries[e].Length mod $100>0 then inc(c);
+    for fs:=0 to c-1 do
+     free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10,
+                      (LDisc[s].Entries[e].Sector+fs) mod 10]:=$FF;
+   end;
+ end;
  free_space:=disc_size-free_space;
 end;
 
@@ -2496,7 +2755,7 @@ Write Acorn DFS File
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
 var
- t,m,f  : Byte;
+ f      : Byte;
  i,l,
  pos,
  count,
@@ -2504,12 +2763,11 @@ var
  filen,
  size1,
  size2 : Integer;
- fn,dn : AnsiString;
  success: Boolean;
 begin
  Result:=-1;
  count:=file_details.Length;
- m:=FFormat DIV $10; //Major format
+ //m:=FFormat DIV $10; //Major format
  f:=FFormat MOD $10; //Minor format (sub format)
  //Overwrite the parent
  file_details.Parent:=':'+IntToStr(file_details.Side*2)+dir_sep+root_name;
@@ -2564,10 +2822,10 @@ begin
   //Update the catalogue, if successful
   if success then
   begin
-   //Update the free space
-   dec(free_space,file_details.Length);
    //Update the catalogue
    UpdateDFSCat(file_details.Side);
+   //Update the free space
+   DFSFreeSpaceMap(FDisc);
    //Pointer to where it was inserted
    Result:=filen;
   end
@@ -2734,6 +2992,8 @@ begin
   SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);
   //Update the catalogue
   UpdateDFSCat(dir);
+  //Update the free space
+  DFSFreeSpaceMap(FDisc);
   Result:=True;
  end;
 end;
@@ -2790,7 +3050,7 @@ begin
   FDSD:=False;
  end;
  //Setup the data area
- SetLength(FData,$200*(minor+1)); //$200 for the header, per side. $400 for Watford
+ SetLength(FData,$200*(minor+1)); // $200 for the header, per side. $400 for Watford
  //Fill with zeros
  for t:=0 to Length(FData)-1 do FData[t]:=0;
  s:=0;
@@ -2818,7 +3078,50 @@ begin
   //Next side
   if (FFormat AND $1=1) then inc(s) else s:=2;
  until s=2;
- free_space:=disc_size-free_space;
+ //Update the free space
+ DFSFreeSpaceMap(Result);
+end;
+
+{-------------------------------------------------------------------------------
+Set the DFS disc title
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateDFSDiscTitle(title: AnsiString;side: Byte): Boolean;
+var
+ a  : Cardinal;
+ b,c: Byte;
+begin
+ //Set the DFS root directory title
+ FDisc[side].Title:=title;
+ //Set the disc_name for both sides
+ if Length(FDisc)>1 then
+  disc_name:=FDisc[0].Title+' and '+FDisc[1].Title
+ else
+  disc_name:=FDisc[0].Title;
+ //Update the data
+ for c:=0 to 11 do
+ begin
+  a:=$000;               //First 8 characters
+  if c>7 then a:=$100-8; //Last 4 characters
+  b:=32;                 //Pad with spaces
+  if c<Length(title) then b:=Ord(title[c+1])AND$7F; //Chr, no top bit set
+  if b<32 then b:=32;    //Ensure no control characters
+  WriteByte(b,ConvertSector(a+c,side)); //Write it
+ end;
+ Result:=True;
+end;
+
+{-------------------------------------------------------------------------------
+Set the DFS boot option
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateDFSBootOption(option,side: Byte): Boolean;
+var
+ b: Byte;
+begin
+ bootoption[side]:=option AND $3;
+ b:=ReadByte(ConvertSector($106,side));
+ b:=(b AND $CF) OR ((option AND $3)shl 4);
+ WriteByte(b,ConvertSector($106,side));
+ Result:=True;
 end;
 
 //++++++++++++++++++ Commodore +++++++++++++++++++++++++++++++++++++++++++++++++

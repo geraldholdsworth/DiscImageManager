@@ -7,7 +7,8 @@ uses
   MainUnit in 'MainUnit.pas',
   DiscImage in 'DiscImage.pas',
   AboutUnit in 'AboutUnit.pas',
-  NewImageUnit in 'NewImageUnit.pas';
+  NewImageUnit in 'NewImageUnit.pas',
+  ImageDetailUnit in 'ImageDetailUnit.pas';
 
 {$R *.res}
 
@@ -18,5 +19,6 @@ begin
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TAboutForm, AboutForm);
   Application.CreateForm(TNewImageForm, NewImageForm);
+  Application.CreateForm(TImageDetailForm, ImageDetailForm);
   Application.Run;
 end.

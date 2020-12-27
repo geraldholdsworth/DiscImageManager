@@ -56,6 +56,7 @@ type
     btn_Rename: TToolButton;
     btn_AddFiles: TToolButton;
     btn_NewImage: TToolButton;
+    btn_ImageDetails: TToolButton;
     ToolButton3: TToolButton;
     btn_download: TToolButton;
     ToolButton5: TToolButton;
@@ -98,6 +99,7 @@ type
     ImageDetails: TStatusBar;
     AddFile1: TMenuItem;
     NewDirectory1: TMenuItem;
+    procedure btn_ImageDetailsClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     function QueryUnsaved: Boolean;
     procedure btn_NewImageClick(Sender: TObject);
@@ -181,7 +183,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.6';
+    ApplicationVersion = '1.05.7';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -194,7 +196,7 @@ implementation
 
 {$R *.lfm}
 
-uses AboutUnit, NewImageUnit;
+uses AboutUnit, NewImageUnit, ImageDetailUnit;
 
 //Add a new file to the disc image
 procedure TMainForm.AddFile1Click(Sender: TObject);
@@ -605,6 +607,8 @@ begin
    UpdateImageInfo;
    //Enable the controls
    btn_SaveImage.Enabled:=True;
+   if Length(Image.FreeSpaceMap)>0 then
+    btn_ImageDetails.Enabled:=True;
    //Enable the search area
    ed_filenamesearch.Enabled:=True;
    ed_lengthsearch.Enabled  :=True;
@@ -620,11 +624,15 @@ end;
 procedure TMainForm.UpdateImageInfo;
 var
  i: Integer;
+ title: AnsiString;
 begin
  if Image.FormatNumber<>$FF then
  begin
   ImageDetails.Panels[1].Text:=Image.FormatString;
-  ImageDetails.Panels[2].Text:=Image.Title;
+  title:=Image.Title;
+  for i:=1 to Length(title) do
+   title[i]:=chr(ord(title[i])AND$7F);
+  ImageDetails.Panels[2].Text:=title;
   ImageDetails.Panels[3].Text:=ConvertToKMG(Image.DiscSize)
                            +' ('+IntToStrComma(Image.DiscSize)+' Bytes)';
   ImageDetails.Panels[4].Text:=ConvertToKMG(Image.FreeSpace)
@@ -741,26 +749,44 @@ begin
   if TMyTreeNode(Node).IsDir then
   begin
    //Determine if it is a Directory or an ADFS Application
-   if filename='' then
-     filename:=Image.Disc[entry].Directory;
-   if  (Copy(filename,1,1)='!') //Application indicated by '!' as first char
-   and (Image.FormatNumber>$12) and (Image.FormatNumber<$1F) then //RISC OS
-    filetype:='Application'
-   else
-    filetype:='Directory';
-   //Change the menu text
-   ExtractFile1.Caption:='&Extract '+filetype;
-   btn_download.Hint   :='Extract '+filetype;
-   RenameFile1.Caption :='&Rename '+filetype;
-   btn_Rename.Hint     :='Rename '+filetype;
-   DeleteFile1.Caption :='&Delete '+filetype;
-   btn_Delete.Hint     :='Delete '+filetype;
-   //Report if directory is broken and include the error code
-   if (Image.Disc[entry].Broken) and (Image.Disc[entry].ErrorCode<$10) then
-    filetype:=filetype+' (BROKEN - 0x'
-                      +IntToHex(Image.Disc[entry].ErrorCode,2)+')';
    if dir>=0 then
-    lb_title.Caption:=Image.Disc[dir].Title;
+   begin
+    if filename='' then
+      filename:=Image.Disc[dir].Directory;
+    if  (Copy(filename,1,1)='!') //Application indicated by '!' as first char
+    and (Image.FormatNumber>$12) and (Image.FormatNumber<$1F) then //RISC OS
+     filetype:='Application'
+    else
+     filetype:='Directory';
+    //Change the menu text
+    ExtractFile1.Caption:='&Extract '+filetype;
+    btn_download.Hint   :='Extract '+filetype;
+    RenameFile1.Caption :='&Rename '+filetype;
+    btn_Rename.Hint     :='Rename '+filetype;
+    DeleteFile1.Caption :='&Delete '+filetype;
+    btn_Delete.Hint     :='Delete '+filetype;
+    //Report if directory is broken and include the error code
+    if Image.Disc[dir].Entries[entry].DirRef>=0 then
+    begin
+     if Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken then
+      filetype:=filetype+' (BROKEN - 0x'
+               +IntToHex(
+                  Image.Disc[Image.Disc[dir].Entries[entry].DirRef].ErrorCode
+                  ,2)+')';
+     //Title of the subdirectory
+     lb_title.Caption:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
+    end;
+   end
+   else
+   begin //Root directory
+    filename:=Image.Disc[0].Directory;
+    filetype:='Root Directory';
+    lb_title.Caption:=Image.Disc[0].Title; //Title
+    //Report if directory is broken and include the error code
+    if Image.Disc[0].Broken then
+     filetype:=filetype+' (BROKEN - 0x'
+                       +IntToHex(Image.Disc[0].ErrorCode,2)+')';
+   end;
   end
   else //Can only add files to a directory
   begin
@@ -824,6 +850,18 @@ begin
    //DFS - indicates which side also
    if Image.FormatNumber<=$0F then
     location:=location+'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side);
+   lb_location.Caption:=location;
+  end;
+  if dir=-1 then
+  begin
+   //Location of root - varies between formats
+   location:='';
+   //ADFS Old map - Sector is an offset
+   if Image.MapType=$00 then
+    location:='Offset: 0x'+IntToHex(Image.RootAddress,8);
+   //ADFS New map - Sector is an indirect address (fragment and sector)
+   if Image.MapType=$01 then
+    location:='Indirect address: 0x'+IntToHex(Image.RootAddress,8);
    lb_location.Caption:=location;
   end;
   //Update the image
@@ -919,6 +957,7 @@ begin
  //Enable or disable buttons
  btn_OpenImage.Enabled    :=True;
  btn_SaveImage.Enabled    :=False;
+ btn_ImageDetails.Enabled :=False;
  btn_About.Enabled        :=True;
  btn_download.Enabled     :=False;
  btn_Delete.Enabled       :=False;
@@ -1006,6 +1045,30 @@ begin
     HasChanged:=False;
     //Update the status bar
     UpdateImageInfo
+   end;
+   //Update title for side 0
+   if (option='--title') or (option='-t') then
+    Image.UpdateDiscTitle(param,0);
+   //Update title for side 1
+   if (option='--title1') or (option='-t1') then
+    Image.UpdateDiscTitle(param,1);
+   //Update boot option for side 0
+   if (option='--opt') or (option='-o') then
+   begin
+    if LowerCase(param)='none' then param:='0';
+    if LowerCase(param)='load' then param:='1';
+    if LowerCase(param)='run'  then param:='2';
+    if LowerCase(param)='exec' then param:='3';
+    Image.UpdateBootOption(StrToIntDef(param,0)mod$10,0);
+   end;
+   //Update boot option for side 1
+   if (option='--opt1') or (option='-o1') then
+   begin
+    if LowerCase(param)='none' then param:='0';
+    if LowerCase(param)='load' then param:='1';
+    if LowerCase(param)='run'  then param:='2';
+    if LowerCase(param)='exec' then param:='3';
+    Image.UpdateBootOption(StrToIntDef(param,0)mod$10,1);
    end;
    //Delete selected file
    if (option='--delete') or (option='-d') then
@@ -1129,6 +1192,141 @@ end;
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
  CanClose:=QueryUnsaved;
+end;
+
+//Image Detail Display
+procedure TMainForm.btn_ImageDetailsClick(Sender: TObject);
+var
+ t,s,d,side: Integer;
+ col       : TColor;
+ FSM       : array of TImage;
+ FSMlabel  : array of TLabel;
+ titles    : array[0..1] of TEdit;
+ boots     : array[0..1] of TComboBox;
+ bootlbs   : array[0..1] of TLabel;
+ title     : AnsiString;
+ numsides  : Byte;
+const size = 2;
+begin
+ //Add the editable controls to arrays - makes it easier later on
+ titles[0] :=ImageDetailForm.edDiscTitle0;
+ titles[1] :=ImageDetailForm.edDiscTitle1;
+ boots[0]  :=ImageDetailForm.cbBootOption0;
+ boots[1]  :=ImageDetailForm.cbBootOption1;
+ bootlbs[0]:=ImageDetailForm.lbBootOption0;
+ bootlbs[1]:=ImageDetailForm.lbBootOption1;
+ //How many sides
+ numsides:=Length(Image.FreeSpaceMap);
+ //Show the Free Space Map graphic
+ if numsides>0 then //Is there a free space map?
+ begin
+  //Setup the TImage array for all sides
+  SetLength(FSM,numsides);
+  SetLength(FSMlabel,numsides);
+  for side:=0 to numsides-1 do
+  begin
+   //Create the image and give it a parent
+   FSM[side]:=TImage.Create(ImageDetailForm);
+   FSM[side].Parent:=ImageDetailForm;
+   //FSM[side].Canvas.PixelFormat:=pf4bit;
+   //Position it
+   FSM[side].Top:=20;
+   FSM[side].Left:=4+(204*side);
+   //Create the image label and give it a parent
+   FSMlabel[side]:=TLabel.Create(ImageDetailForm);
+   FSMlabel[side].Parent:=ImageDetailForm;
+   //Position it
+   FSMlabel[side].Top:=0;
+   FSMlabel[side].Left:=4+(204*side);
+   //We'll stretch it later
+   FSM[side].Stretch:=False;
+   //Set the initial size
+   t:=Length(Image.FreeSpaceMap[0])*size;
+   s:=Length(Image.FreeSpaceMap[0,0])*size;
+   FSM[side].Height:=t;//Length(Image.FreeSpaceMap[0])*size;
+   FSM[side].Width:=s;//Length(Image.FreeSpaceMap[0,0])*size;
+   //Now draw all the sectors in tracks
+   for t:=0 to Length(Image.FreeSpaceMap[side])-1 do
+    for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
+    begin
+     //Colour for free space
+     col:=ImageDetailForm.colFree.Brush.Color;
+     //Other colours
+     if Image.FreeSpaceMap[side,t,s]=$FF then
+      col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
+     if Image.FreeSpaceMap[side,t,s]=$FE then
+      col:=ImageDetailForm.colSystem.Brush.Color;    //System
+     if Image.FreeSpaceMap[side,t,s]=$FD then
+      col:=ImageDetailForm.colDir.Brush.Color;       //Directories
+     //Change the canvas colour
+     FSM[side].Canvas.Pen.Color:=col;
+     FSM[side].Canvas.Brush.Color:=col;
+     //Now draw a rectangle to represent the sector
+     FSM[side].Canvas.Rectangle(s*size,t*size,(s+1)*size,(t+1)*size);
+    end;
+   //Stretch the image
+   FSM[side].Stretch:=True;
+   //And resize to fit the window
+   FSM[side].Height:=ImageDetailForm.ClientHeight-24;
+   FSM[side].Width:=200;
+   //Set the label size
+   FSMlabel[side].Height:=20;
+   FSMlabel[side].Width:=200;
+   FSMlabel[side].Alignment:=taCenter;
+   FSMlabel[side].AutoSize:=False;
+   //And fill in the details
+   FSMlabel[side].Font.Style:=[fsBold];
+   FSMlabel[side].Caption:='Free Space Map Side '+IntToStr(side);
+   //Disc Title
+   if Image.FormatNumber shr 4=0 then title:=Image.Disc[side].Title
+   else title:=Image.Title;
+   //Remove top bit - this can cause havoc with Mac OS
+   for d:=1 to Length(title) do
+    title[d]:=chr(ord(title[d])AND$7F);
+   //Set the edit box
+   titles[side].Text:=title;
+   titles[0].Enabled:=True;
+   //Limit the length
+   if Image.FormatNumber shr 4=0 then titles[0].MaxLength:=12; //DFS
+   if Image.FormatNumber shr 4=1 then //ADFS
+   begin
+    titles[0].MaxLength:=10; //ADFS S,M, and L have no disc name
+    if Image.FormatNumber mod $10<3 then titles[0].Enabled:=False;
+   end;
+   //Boot Option
+   boots[side].Visible  :=True;
+   if Length(Image.BootOpt)>0 then
+    boots[side].ItemIndex:=Image.BootOpt[side]
+   else
+    boots[side].Visible:=False;
+   bootlbs[side].Visible:=boots[side].Visible;
+   end;
+  //Change the dialogue box width
+  ImageDetailForm.ClientWidth:=(Length(Image.FreeSpaceMap)*204)
+                              +4+ImageDetailForm.Legend.Width;
+  //Show/Hide the second detail panel
+  ImageDetailForm.pnSide1.Visible:=numsides>1;
+  //Show the window, modally
+  if ImageDetailForm.ShowModal=mrOK then
+  begin
+   for side:=0 to numsides-1 do
+   begin
+    //Update Disc Title
+    if Image.UpdateDiscTitle(titles[side].Text,side) then
+     HasChanged:=True;
+    //Update Boot Option
+    if Image.UpdateBootOption(boots[side].ItemIndex,side) then
+     HasChanged:=True;
+   end;
+   UpdateImageInfo;
+  end;
+  //Clear up and close
+  for side:=0 to numsides-1 do
+  begin
+   FSM[side].Free;
+   FSMlabel[side].Free;
+  end;
+ end;
 end;
 
 //Create a new blank image
