@@ -3,22 +3,25 @@ Command line options
 Long form				Short form
 --insert:<filename>			-i		- Opens image file <filename>
 --new:<format>				-n		- Creates a blank image file for format <format> with <T> tracks (see below for format numbers) 
---add:<filename>[<destination>]		-a		- Adds files to the open image in <destination> directory. Assumes drive 0 and root if nothing selected or not found.
---delete:<filename>			-d		- Deletes file/directory from inside image
-*--rename:<oldfilename>:<newfilename>	-r		- Renames <oldfilename> to <newfilename>
+1--add:<filename>[<destination>]	-a		- Adds files to the open image in <destination> directory. Assumes drive 0 and root if nothing selected or not found.
+2--delete:<filename>			-d		- Deletes file/directory from inside image
+2--rename:<oldfilename>:<newfilename>	-r		- Renames <oldfilename> to <newfilename>
 --save:[<filename>]			-s		- Saves image file as <filename>
-*--create:<directory>			-c		- Creates a new directory, in the image.
-*--extract:<filename>			-e		- Extracts file(s) to local path.
-*--title:<disc title>			-t		- Sets the title for the disc
-*--title1:<disc title>			-t1		- Sets the title for the disc, side 1
-*--opt:<opt>				-o		- Sets the boot option for the disc
-*--opt1:<opt>				-o1		- Sets the boot option for the disc, side 1
+2--create:<directory>			-c		- Creates a new directory, in the image.
+2--extract:<filename>			-e		- Extracts file(s) to local path.
+--title:<disc title>			-t		- Sets the title for the disc
+--title1:<disc title>			-t1		- Sets the title for the disc, side 1
+--opt:<opt>				-o		- Sets the boot option for the disc
+--opt1:<opt>				-o1		- Sets the boot option for the disc, side 1
 
 The image will be saved, if changed, after all operations are complete, using the filename specified with --insert or --save, or Untitled with --new.
 
-* Still to be written
+Notes:
+1 'add' command currently does not accept a second parameter.
+2 Still to be written.
+3 There is currently only minor error checking.
 
-Formats:
+<format> can be:
 DFSS	: Acorn DFS single sided 80 track
 DFSS40	: Acorn DFS single sided 40 track
 DFSD	: Acorn DFS double sided 80 track
@@ -40,3 +43,11 @@ C1571	: Commodore 1571
 C1581	: Commodore 1581
 AMIGADD	: Commodore Amiga DD
 AMIGAHD	: Commodore Amiga HD
+
+<opt> can be:
+0 or none	:	*OPT4,0
+1 or load	:	*OPT4,1
+2 or run	:	*OPT4,2
+3 or exec	:	*OPT4,3
+
+
