@@ -68,3 +68,14 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * Images can be opened by dragging them into the application window.
 * Files can be added to images by dragging them into the application window.
 * Command line commands added - this is a work in progress.
+
+1.05.7
+* Fixed a bug where the free space for ADFS old map are miscalculated.
+* Added *.dat and *.dsc extensions for ADFS to the Open Image dialogue.
+* Improved the DFS and ADFS ID routines.
+* Graphical display for Free Space Map for DFS and ADFS.
+* Added functionality to change disc title and boot option.
+* Correctly displays the selected directory title.
+* Now displays the root address for ADFS images.
+* Fixed a bug where the disc title on an ADFS D was not displayed correctly.
+* Free space is now calculated from the free space map and not by adding up the length of files and directories.
