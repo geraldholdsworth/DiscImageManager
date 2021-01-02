@@ -79,3 +79,22 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * Now displays the root address for ADFS images.
 * Fixed a bug where the disc title on an ADFS D was not displayed correctly.
 * Free space is now calculated from the free space map and not by adding up the length of files and directories.
+
+1.05.8
+* ADFS old map discs were being IDed wrongly, based on inaccurate information. This has been fixed.
+* Small bug with calculating the free-space map fixed.
+* A bug where extraenous spaces were not removed from the end of the disc title has been fixed.
+* In an attempt to get the colours uniform across platforms, they have been changed from a platform specific colour to a standard colour.
+* Fixed a bug where selecting an item from the search window will result in a purple box on the file details section.
+* If an ADFS directory check byte is zero, this is now ignored.
+* Added facility to create a new, blank, ADFS floppy disc image.
+* More improvements on the ADFS ID process - if an image has a boot block (F, F+ and some Hard Discs) then it will have a checksum. This is now checked.
+* Added facility to re-title an ADFS image.
+* Added facility to change boot option on an ADFS image.
+* Saves an inf file to the spec laid out on Stardot forum.
+* Now creates an inf file for directories in additition to the files within.
+* Extracting files will now work if the root is selected.
+* Added a main menu.
+* Added some sanity checks to the command line features.
+* Added facility to create a new, blank, Commodore 1541, 1571 and 1581 floppy disc image.
+* Changed some of the label sizes, and fonts sizes, so that the application looks OK on Linux.
