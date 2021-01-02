@@ -21,8 +21,10 @@ type
   Spectrum: TRadioGroup;
   btn_OK: TSpeedButton;
   btn_Cancel: TSpeedButton;
+  procedure ADFSClick(Sender: TObject);
   procedure btn_CancelClick(Sender: TObject);
   procedure btn_OKClick(Sender: TObject);
+  procedure C64Click(Sender: TObject);
   procedure FormShow(Sender: TObject);
   procedure MainFormatClick(Sender: TObject);
  private
@@ -59,7 +61,9 @@ begin
  end;
  DFSTracks.Visible:=DFS.Visible;
  //Currently, only certain types of format can be created
- btn_OK.Enabled:=MainFormat.ItemIndex=0;//DFS
+ btn_OK.Enabled:=(MainFormat.ItemIndex=0)//DFS
+               OR(MainFormat.ItemIndex=1)//ADFS
+               OR(MainFormat.ItemIndex=2);//C64
 end;
 
 //Form is being displayed
@@ -90,10 +94,23 @@ begin
  ModalResult:=mrCancel;
 end;
 
+//Select type of ADFS disc
+procedure TNewImageForm.ADFSClick(Sender: TObject);
+begin
+ //Currently, only certain types of format can be created
+ btn_OK.Enabled:=ADFS.ItemIndex<8; //Not hard drive yet
+end;
+
 //User has clicked on create
 procedure TNewImageForm.btn_OKClick(Sender: TObject);
 begin
  ModalResult:=mrOK;
+end;
+
+//Select type of C64 disc
+procedure TNewImageForm.C64Click(Sender: TObject);
+begin
+ //btn_OK.Enabled:=C64.ItemIndex<2; //So far, only 1541 and 1571
 end;
 
 end.

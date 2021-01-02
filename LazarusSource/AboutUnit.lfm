@@ -1,14 +1,14 @@
 object AboutForm: TAboutForm
   Left = 403
   Height = 136
-  Top = 317
+  Top = 316
   Width = 520
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About'
   ClientHeight = 136
   ClientWidth = 520
-  Color = clBtnFace
+  Color = 15527148
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
@@ -57,7 +57,7 @@ object AboutForm: TAboutForm
     end
     object lb_Version: TLabel
       Left = 1
-      Height = 19
+      Height = 17
       Top = 54
       Width = 518
       Align = alTop
@@ -72,11 +72,12 @@ object AboutForm: TAboutForm
     end
     object Label14: TLabel
       Left = 1
-      Height = 19
-      Top = 73
+      Height = 20
+      Top = 71
       Width = 518
       Align = alTop
       Alignment = taCenter
+      AutoSize = False
       BorderSpacing.Bottom = 4
       Caption = 'http://www.geraldholdsworth.co.uk'
       Font.Color = clNavy
@@ -88,11 +89,12 @@ object AboutForm: TAboutForm
     end
     object Label15: TLabel
       Left = 1
-      Height = 19
-      Top = 96
+      Height = 20
+      Top = 95
       Width = 518
       Align = alTop
       Alignment = taCenter
+      AutoSize = False
       BorderSpacing.Bottom = 4
       Caption = 'https://github.com/geraldholdsworth/DiscImageManager'
       Font.Color = clNavy
@@ -104,7 +106,7 @@ object AboutForm: TAboutForm
     end
     object Label16: TLabel
       Left = 1
-      Height = 13
+      Height = 12
       Top = 119
       Width = 518
       Align = alTop

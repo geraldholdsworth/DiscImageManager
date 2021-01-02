@@ -18,11 +18,7 @@ type
   cbBootOption1: TComboBox;
   edDiscTitle0: TEdit;
   edDiscTitle1: TEdit;
-  imgfsm0: TImage;
-  imgfsm1: TImage;
   Label6: TLabel;
-  lbfsm0: TLabel;
-  lbfsm1: TLabel;
   lbBootOption0: TLabel;
   Label8: TLabel;
   lbBootOption1: TLabel;

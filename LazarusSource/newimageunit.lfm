@@ -1,12 +1,14 @@
 object NewImageForm: TNewImageForm
   Left = 380
   Height = 211
-  Top = 187
+  Top = 186
   Width = 490
   BorderStyle = bsDialog
-  Caption = 'NewImageForm'
+  Caption = 'Create Blank Image'
   ClientHeight = 211
   ClientWidth = 490
+  Color = 15527148
+  Font.Height = -11
   OnShow = FormShow
   Position = poMainFormCenter
   LCLVersion = '2.0.10.0'
@@ -24,8 +26,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 110
-    ClientWidth = 241
+    ClientHeight = 113
+    ClientWidth = 247
     ItemIndex = 0
     Items.Strings = (
       'Disc Filing System (DFS)'
@@ -51,8 +53,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 87
-    ClientWidth = 232
+    ClientHeight = 90
+    ClientWidth = 238
     ItemIndex = 0
     Items.Strings = (
       'Acorn single sided'
@@ -76,8 +78,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 191
-    ClientWidth = 232
+    ClientHeight = 194
+    ClientWidth = 238
     ItemIndex = 0
     Items.Strings = (
       'S (160K, Old Map, Old Directory)'
@@ -90,6 +92,7 @@ object NewImageForm: TNewImageForm
       'F+ (1.6M, New Map, Big Directory)'
       'Hard Disc'
     )
+    OnClick = ADFSClick
     TabOrder = 2
     Visible = False
   end
@@ -107,14 +110,15 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 63
-    ClientWidth = 232
+    ClientHeight = 66
+    ClientWidth = 238
     ItemIndex = 0
     Items.Strings = (
       '1541'
       '1571'
       '1581'
     )
+    OnClick = C64Click
     TabOrder = 3
     Visible = False
   end
@@ -132,8 +136,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 39
-    ClientWidth = 232
+    ClientHeight = 42
+    ClientWidth = 238
     ItemIndex = 0
     Items.Strings = (
       'DSK'
@@ -146,7 +150,7 @@ object NewImageForm: TNewImageForm
     Left = 248
     Height = 88
     Top = 0
-    Width = 241
+    Width = 240
     AutoFill = True
     Caption = 'Commodore Amiga'
     ChildSizing.LeftRightSpacing = 6
@@ -156,8 +160,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 70
-    ClientWidth = 233
+    ClientHeight = 73
+    ClientWidth = 238
     ItemIndex = 0
     Items.Strings = (
       'AmigaDOS DD'
@@ -173,6 +177,7 @@ object NewImageForm: TNewImageForm
     Top = 128
     Width = 82
     Caption = 'Create'
+    Color = clSilver
     Enabled = False
     Flat = True
     Glyph.Data = {
@@ -219,6 +224,7 @@ object NewImageForm: TNewImageForm
     Top = 128
     Width = 80
     Caption = 'Cancel'
+    Color = clSilver
     Flat = True
     Glyph.Data = {
       36040000424D3604000000000000360000002800000010000000100000000100
@@ -272,8 +278,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 47
-    ClientWidth = 232
+    ClientHeight = 50
+    ClientWidth = 238
     ItemIndex = 1
     Items.Strings = (
       '40 Track'
