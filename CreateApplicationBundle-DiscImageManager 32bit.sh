@@ -54,7 +54,7 @@ plistfile="$appfolder/Contents/Info.plist"
 #
 # Ask the user for the project's binary
 echo "Enter your project's bin filename"
-appfile='DiscImageReader'
+appfile='DiscImageManager'
 #read appfile
 echo $appfile
 # Make sure it exists
