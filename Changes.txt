@@ -98,3 +98,22 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * Added some sanity checks to the command line features.
 * Added facility to create a new, blank, Commodore 1541, 1571 and 1581 floppy disc image.
 * Changed some of the label sizes, and fonts sizes, so that the application looks OK on Linux.
+
+1.05.9
+* Changed the reading in of an *.inf file to match that which is saved out.
+* Free space map is now calculated for Commodore 1541, 1571 and 1581 images.
+* Free space map scale now changes depending on the number of tracks, meaning that it will not look 'out of focus'.
+* Can update the disc name on Commodore 1541, 1571 and 1581 images.
+* Major change to how data is read and written from/to the image which could slow down access but reduce bugs.
+* Added facility to add files to ADFS S, M, L, & D images.
+* Added facility to create new directories on ADFS S, M, L, & D images.
+* Ironed out a couple of ADFS ID-ing bugs.
+* Added facility to rename files and directories on ADFS S, M, L & D images.
+* Will now import entire directories (if enough space, of course) into ADFS S, M, L & D images.
+* ADFS S, M, L and D Directories can now be re-titled, including the root.
+* Files and entire directories can now be deleted from ADFS S, M, L and D images.
+* Fixed a bug where the image file size was not extended to the full extent of the disc size when adding files or directories.
+* Changed some assumptions when ID-ing DFS images (number of tracks no longer has to be 40 or 80). Due to this have had to introduce an extra check (number of sectors >0) when ID-ing DFS images.
+* Changed the order of ID-ing images as Commodore and Amiga could now be mistaken for DFS.
+* Can now compile for Linux 32 bit as well as Linux 64 bit, Windows 32 and 64 bit, and macOS 32 and 64 bit.
+* Fixed a bug when ID-ing formats to ensure one already 'claimed' for a platform does not undergo further checks for other formats.

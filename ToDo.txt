@@ -1,14 +1,44 @@
 To Do
 -----
+In no particular order
 
+General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
-* Write/Delete/Rename files/directories to ADFS images
-* Write/Delete/Rename files to Commodore images
-* Write/Delete/Rename files/directories to Amiga images
-* Create blank Amiga images
-* Copy/Move files within an image
-* Drag and Drop files within an image
-* Create Free Space Map for Commodore and Amiga
-* Double click on a file to open to display the contents as a hex dump
-* Edit directory titles
-* Conversion between formats - e.g. ssd to adf; ssd to dsd; dsd to 2xssd;etc.
+* Copy/Move files within an image.
+* Drag and Drop files within an image.
+* Double click on a file to open to display the contents as a hex dump.
+* Conversion between formats - e.g. ssd to adf;adf to ssd;etc.
+* Command line - add option to load and run commands from file.
+
+Coding Issues
+* Move, and separate, function for extracting files into their own respective modules.
+* Create a DiscImageUtils module for general handlers and move the creation and decoding of INF files in, validating filenames, etc.
+* Produce error codes instead of success or failure for reading/writing functions.
+
+DFS
+* Defrag.
+* Convert dsd to two ssd.
+* Merge two ssd to a single dsd.
+
+ADFS
+* Write/Delete/Rename files/directories to ADFS New Map images.
+* Fix broken ADFS directories.
+* Date stamp newly created directories, or imported files, when none exist for New and Big Directories.
+* Free space consolidation (Old map).
+* Defrag (New map).
+
+Commodore
+* Write/Delete/Rename files to Commodore images.
+* Add support for Commodore 1541 images with 40 tracks.
+* Change file attributes for Commodore files.
+
+Amiga
+* Write/Delete/Rename files/directories to Amiga images.
+* Create blank Amiga images.
+* Create Free Space Map for Amiga.
+
+Spectrum/Amstrad
+* Write entire module.
+
+CFS
+* Write entire module.
