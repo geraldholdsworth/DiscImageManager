@@ -13,6 +13,7 @@ begin
  Result:=False;
  if FFormat=$FF then
  begin
+  ResetVariables;
   //Is there actually any data?
   if Length(Fdata)>0 then
   begin
@@ -80,7 +81,7 @@ begin
     if ctr=16 then FFormat:=$22; //1581
    end;
    FDSD  :=(FFormat>$20)and(FFormat<$2F); //Set/reset the DoubleSided flag
-   Result:=FFormat<>$FF;                  //Return TRUE if succesful ID
+   Result:=FFormat shr 4=2;               //Return TRUE if succesful ID
    If Result then FMap:=False;            //and reset the NewMap flag
   end;
  end;
@@ -92,11 +93,6 @@ Converts a track and sector address into a file offset address (Commodore)
 function TDiscImage.ConvertDxxTS(format,track,sector: Integer): Integer;
 var
  x,c: Integer;
-const
- //When the change of number of sectors occurs
- hightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
- //Number of sectors per track
- numsects  : array[0..7] of Integer = (17,18,19,21,17,18,19,21);
 begin
  Result:=0;
  c:=0;
@@ -112,19 +108,19 @@ begin
  if (format=1) AND (track>70) then track:=-1;
  case format of
   0,1: //1541 & 1571
-   if track<hightrack[0] then
+   if track<CDRhightrack[0] then
    begin
     //Start at the end
     x:=7;
-    while track>hightrack[x] do
+    while track>CDRhightrack[x] do
     begin
      //Increase the tally by the number of sectors
-     inc(Result,(hightrack[x]-hightrack[x+1])*numsects[x]);
+     inc(Result,(CDRhightrack[x]-CDRhightrack[x+1])*CDRnumsects[x]);
      //Move to next entry
      dec(x);
     end;
     //Then add on the number of tracks * sectors
-    inc(Result,(track+c-hightrack[x+1])*numsects[x]);
+    inc(Result,(track+c-CDRhightrack[x+1])*CDRnumsects[x]);
    end;
   2: Result:=(track-1)*40; //1581
  end;
@@ -152,7 +148,6 @@ const
  'DELDeleted' ,'SEQSequence','PRGProgram' ,'USRUser File','RELRelative',
  'CBMCBM'     );
 begin
- UpdateProgress('Reading D64/D71/D81 catalogue');
  SetLength(Result,1);
  ResetDir(Result[0]);
  //Get the format
@@ -167,7 +162,7 @@ begin
  for ch:=0 to 15 do
  begin
   p:=ReadByte(ptr+c+ch);
-  if (p>32) and (p<>$A0) then temp:=temp+chr(p);
+  if (p>32) and (p<>$A0) then temp:=temp+chr(p AND $7F);
  end;
  RemoveControl(temp);
  disc_name:=temp;
@@ -182,24 +177,8 @@ begin
  //Get the location of the directory
  t:=ReadByte(ptr+0);
  s:=ReadByte(ptr+1);
- //Calculate the free space (D64/D71)
- if f<2 then
- begin
-  //Free space, side 0
-  for c:=1 to 35 do //35 tracks
-   inc(free_space,ReadByte(ptr+c*4)*$100);
-  //Free space, side 1 (D71 - D64 will be zeros anyway)
-  for c:=0 to 34 do //another 35 tracks
-   inc(free_space,ReadByte(ptr+$DD+c)*$100);
- end;
- //Calculate the free space (D81)
- if f=2 then
-  for ch:=1 to 2 do //Sector (0 is header, 1 is BAM side 0, 2 is BAM side 1)
-  begin
-   ptr:=ConvertDxxTS(f,dirTr,ch);
-   for c:=0 to 39 do //40 tracks
-    inc(free_space,ReadByte(ptr+$10+c*6)*$100);
-  end;
+ //Calculate the free space and map
+ CDRFreeSpaceMap;
  //Calculate where the first directory is
  ptr:=ConvertDxxTS(f,t,s);
  amt:=0;
@@ -245,7 +224,7 @@ begin
     for ch:=0 to 15 do
     begin
      p:=ReadByte(ptr+(c*$20)+5+ch);
-     if (p>32) and (p<>$A0) then temp:=temp+chr(p);
+     if (p>32) and (p<>$A0) then temp:=temp+chr(p AND $7F);
     end;
     Result[0].Entries[amt].Filename:=temp;
     //Not a directory - not used by D64/D71/D81
@@ -262,12 +241,7 @@ Create a new, blank, disc
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatCDR(minor: Byte): TDisc;
 var
- t,i,s: Integer;
-const
- //When the change of number of sectors occurs
- hightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
- //Number of sectors per track
- numsects  : array[0..7] of Integer = (17,18,19,21,17,18,19,21);
+ t,i    : Integer;
 begin
  //Blank everything
  ResetVariables;
@@ -293,26 +267,26 @@ begin
   //Sides
   WriteByte($80*minor,$16503);
   //BAM Entries
-  i:=Length(hightrack)-2;
+  i:=Length(CDRhightrack)-2;
   for t:=1 to 35 do
   begin
-   if t=hightrack[i] then dec(i);
+   if t=CDRhightrack[i] then dec(i);
    if t<>18 then
    begin
     //Sectors free
-    WriteByte(numsects[i],$16500+(t*4));
+    WriteByte(CDRnumsects[i],$16500+(t*4));
     //Free areas
     WriteByte($FF,$16501+(t*4));
    end;
    if t=18 then //Track 18 - BAM location
    begin
     //Sectors free
-    WriteByte(numsects[i]-2,$16500+(t*4));
+    WriteByte(CDRnumsects[i]-2,$16500+(t*4));
     //Free areas
     WriteByte($FC,$16501+(t*4));
    end;
    WriteByte($FF,$16502+(t*4));
-   WriteByte((1 shl (numsects[i]-16))-1,$16503+(t*4));
+   WriteByte((1 shl (CDRnumsects[i]-16))-1,$16503+(t*4));
   end;
   //Disc Name
   for t:=0 to 15 do WriteByte($A0,$16590+t);
@@ -333,19 +307,19 @@ begin
   begin
    FDSD:=True;
    //BAM Entries
-   i:=Length(hightrack)-2;
-   while hightrack[i]<>36 do dec(i);
+   i:=Length(CDRhightrack)-2;
+   while CDRhightrack[i]<>36 do dec(i);
    for t:=36 to 70 do
    begin
-    if t=hightrack[i] then dec(i);
+    if t=CDRhightrack[i] then dec(i);
     if t<>53 then
     begin
      //Sectors free
-     WriteByte(numsects[i],$165DD+(t-36));
+     WriteByte(CDRnumsects[i],$165DD+(t-36));
      //Free areas
      WriteByte($FF,$41000+((t-36)*3));
      WriteByte($FF,$41001+((t-36)*3));
-     WriteByte((1 shl (numsects[i]-16))-1,$41002+((t-36)*3));
+     WriteByte((1 shl (CDRnumsects[i]-16))-1,$41002+((t-36)*3));
     end;
    end;
   end;
@@ -399,4 +373,174 @@ begin
   WriteByte($FF,$61B01);
  end;
  Result:=ReadCDRDisc;
+end;
+
+{-------------------------------------------------------------------------------
+Calculate the free space map
+-------------------------------------------------------------------------------}
+procedure TDiscImage.CDRFreeSpaceMap;
+var
+ c,ch,f,sec,x,
+ dirTr,dirTr1  : Byte;
+ ptr,ptr1,s    : Cardinal;
+begin
+ //Get the format
+ f:=FFormat AND $F; //'f' is the format - 0: D64, 1: D71, 2: D81
+ dirTr:=18; //D64 and D71 disc info is on track 18, sector 0
+ if f=2 then dirTr:=40; //D81 disc info is on track 40, sector 0
+ //BAM for side 1 (D71 only)
+ dirTr1:=dirTr;
+ if f=1 then dirTr1:=53;
+ //Read the Header
+ ptr :=ConvertDxxTS(f,dirTr ,0); //Get the offset address of the header
+ ptr1:=ConvertDxxTS(f,dirTr1,0); //and the BAM for side 1 (D71)
+ //Set up the variables
+ free_space:=0;
+ SetLength(free_space_map,1);
+ if f=0 then SetLength(free_space_map[0],35); //35 tracks for D64
+ if f=1 then SetLength(free_space_map[0],70); //70 tracks for D71
+ if f=2 then SetLength(free_space_map[0],80); //80 tracks for D81
+ sec:=Length(CDRhightrack)-2;
+ for c:=0 to Length(free_space_map[0])-1 do
+ begin
+  //D64 and D71 have differing number of sectors per track
+  if f<2 then
+  begin
+   if c+1=CDRhightrack[sec] then dec(sec);
+   SetLength(free_space_map[0,c],CDRnumsects[sec]);
+  end //But 1581 have 40 sectors per track on every track
+  else SetLength(free_space_map[0,c],40);
+  //Set it as used (or system)
+  for ch:=0 to Length(free_space_map[0,c])-1 do
+   if ((c=dirTr-1) AND (ch<2) AND (f<2))
+   OR ((c=dirTr1-1)AND (ch=0) AND (f=1))
+   OR ((c=dirTr-1) AND (ch<4) AND (f=2)) then
+    free_space_map[0,c,ch]:=$FE  //Specify as system
+   else
+    free_space_map[0,c,ch]:=$FF; //Specify as files
+ end;
+ //Calculate the free space (D64/D71)
+ if f<2 then
+ begin
+  //Free space, side 0
+  for c:=1 to 35 do //35 tracks
+  begin
+   //First byte is number of free sectors
+   inc(free_space,ReadByte(ptr+c*4)*$100);
+   for ch:=0 to 23 do
+   begin
+    //Next 4 are the free sectors - 1 bit per sector
+    s:=ReadByte(ptr+(1+(ch DIV 8))+(c*4));
+    x:=1 shl(ch MOD 8);
+    if (s AND x=x) AND (ch<Length(free_space_map[0,c-1])) then
+     free_space_map[0,c-1,ch]:=$00;
+   end;
+  end;
+  //Free space, side 1 (D71 - D64 will be zeros anyway)
+  if f=1 then
+   for c:=0 to 34 do //another 35 tracks
+   begin 
+    //First byte is number of free sectors
+    inc(free_space,ReadByte(ptr+$DD+c)*$100);
+    for ch:=0 to 23 do
+    begin
+     //Next 4 are the free sectors - 1 bit per sector
+     s:=ReadByte(ptr1+(ch DIV 8)+(c*3));
+     x:=1 shl(ch MOD 8);
+     if (s AND 1 shl ch=1 shl ch) AND (ch<Length(free_space_map[0,c+35])) then
+      free_space_map[0,c+35,ch]:=$00;
+    end;
+   end;
+ end;
+ //Calculate the free space (D81)
+ if f=2 then
+  for ch:=1 to 2 do //Sector (0 is header, 1 is BAM side 0, 2 is BAM side 1)
+  begin
+   //Get the offset address for the sector
+   ptr:=ConvertDxxTS(f,dirTr,ch);
+   for c:=0 to 39 do //40 tracks
+   begin
+    //First byte is number of free sectors
+    inc(free_space,ReadByte(ptr+$10+c*6)*$100);
+    for sec:=0 to 39 do //40 sectors per track
+    begin
+     //Next 5 are the free sectors - 1 bit per sector
+     s:=ReadByte(ptr+($11+(sec DIV 8))+(c*6));
+     x:=1 shl(sec MOD 8);
+     if(s AND x=x) then
+      free_space_map[0,c+(ch-1)*40,sec]:=$00;
+    end;
+   end;
+  end;
+end;
+
+{-------------------------------------------------------------------------------
+Update the disc title
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateCDRDiscTitle(title: AnsiString): Boolean;
+var
+ ptr: Cardinal;
+ i: Byte;
+begin
+ disc_name:=title;
+ //Get the location of the disc title, less one
+ if FFormat mod $10<2 then ptr:=ConvertDxxTS(FFormat mod $10,18,0)+$8F;
+ if FFormat mod $10=2 then ptr:=ConvertDxxTS(FFormat mod $10,40,0)+$03;
+ //Fill the 16 bytes
+ for i:=1 to 16 do
+ begin
+  //If shorter than 16 characters, pad with 0xA0
+  if i>Length(title) then WriteByte($A0,ptr+i)
+  //Otherwise write the character
+  else WriteByte(ord(title[i]),ptr+i);
+ end;
+ //Return a succesful result
+ Result:=True;
+end;
+
+{-------------------------------------------------------------------------------
+Write a file to Commodore image
+-------------------------------------------------------------------------------}
+function TDiscImage.WriteCDRFile(file_details: TDirEntry;
+                             var buffer: TDIByteArray): Integer;
+var
+ count,
+ ptr       : Cardinal;
+ f,frag,i  : Byte;
+ block     : TDIByteArray;
+ fragments : TFragmentArray;
+begin
+ Result:=-1;
+ count:=file_details.Length;
+ f:=FFormat MOD $10; //Minor format (sub format)
+ //Overwrite the parent
+ file_details.Parent:=root_name;
+ //Check that the filename is valid
+ file_details.Filename:=ValidateDFSFilename(file_details.Filename);
+ //Make sure the file does not already exist
+ if not(FileExists(file_details.Parent+dir_sep+file_details.Filename,ptr))then
+ begin
+  //How many fragments to split the file into
+  frag:=count div 254;
+  if count mod 254>0 then inc(frag);
+  //Where to put them - fragments are tended to be put around the root.
+  //So we search backwards, then forwards, then backwards, etc.
+  SetLength(fragments,frag);
+  for i:=0 to frag-1 do
+   fragments[i].Length:=254;
+  if count mod 254>0 then fragments[frag-1].Length:=count mod 254;
+ end;
+end;
+
+function TDiscImage.RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+begin
+ Result:=False;
+end;
+function TDiscImage.DeleteCDRFile(filename: AnsiString):Boolean;
+begin
+ Result:=False;
+end; 
+function TDiscImage.UpdateCDRFileAttributes(filename,attributes: AnsiString):Boolean;
+begin
+ Result:=False;
 end;

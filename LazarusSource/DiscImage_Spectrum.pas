@@ -24,3 +24,37 @@ function TDiscImage.ReadSinclairDisc: TDisc;
 begin
  {This functionality is not written yet}
 end;
+
+{-------------------------------------------------------------------------------
+Write a file to Spectrum image
+-------------------------------------------------------------------------------}
+function TDiscImage.WriteSpectrumFile(file_details: TDirEntry;
+                             var buffer: TDIByteArray): Integer;
+begin
+ Result:=-1;
+end;
+
+{-------------------------------------------------------------------------------
+Create a new Spectrum image
+-------------------------------------------------------------------------------}
+function TDiscImage.FormatSpectrum(minor: Byte): TDisc;
+begin
+ //
+end;
+
+function TDiscImage.RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+begin
+ Result:=False;
+end;
+function TDiscImage.DeleteSinclairFile(filename: AnsiString):Boolean;
+begin
+ Result:=False;
+end;
+function TDiscImage.UpdateSinclairFileAttributes(filename,attributes: AnsiString):Boolean;
+begin
+ Result:=False;
+end;
+function TDiscImage.UpdateSinclairDiscTitle(title: AnsiString): Boolean;
+begin
+ Result:=False;
+end;

@@ -11,7 +11,7 @@ var
 begin
  if FFormat=$FF then
  begin
-  UpdateProgress('Checking for DFS');
+  ResetVariables;
   //Is there actually any data?
   if Length(Fdata)>0 then
   begin
@@ -60,16 +60,22 @@ begin
     else
      t1:=t0;
     //Number of tracks needs to be a multiple of 10
-    if (t0 mod 10<>0) and (t1 mod 10<>0) then
+{    if (t0 mod 10<>0) and (t1 mod 10<>0) then
      chk:=False
     else
     //Valid numbers of tracks (40 or 80)
     if  ((t0 div 10=40) or (t0 div 10=80))
-    and ((t1 div 10=40) or (t1 div 10=80)) then
+    and ((t1 div 10=40) or (t1 div 10=80)) then}
      if FDSD then
       FFormat:=$01
      else
       FFormat:=$00;
+    //Number of sectors should be >0
+    if (t0=0) or (t1=0) then
+    begin
+     FFormat:=$FF;
+     chk:=False;
+    end;
    end;
    //Test for Watford DFS - we'll only test one side.
    if chk then
@@ -88,7 +94,7 @@ begin
    end;
   end;
  end;
- Result:=FFormat<>$FF;
+ Result:=FFormat shr 4=0;
 end;
 
 {-------------------------------------------------------------------------------
@@ -124,7 +130,7 @@ var
  diroff    : Integer;
  temp      : AnsiString;
 begin
- UpdateProgress('Reading DFS Catalogue');
+// UpdateProgress('Reading DFS Catalogue');
  if (FFormat AND $1)=1 then //Double sided image
  begin
   SetLength(Result,2);
@@ -284,82 +290,86 @@ var
  newlen,
  filen,
  size1,
- size2 : Integer;
+ size2  : Integer;
+ ptr    : Cardinal;
  success: Boolean;
 begin
  Result:=-1;
  count:=file_details.Length;
- //m:=FFormat DIV $10; //Major format
  f:=FFormat MOD $10; //Minor format (sub format)
  //Overwrite the parent
  file_details.Parent:=':'+IntToStr(file_details.Side*2)+dir_sep+root_name;
  //Check that the filename is valid
  file_details.Filename:=ValidateDFSFilename(file_details.Filename);
- //Can the catalogue be extended?
- l:=Length(FDisc[file_details.Side].Entries);
- if ((l<31) and (f<2))         // Max 31 entries for Acorn DFS
- or ((l<62) and (f>1)) then    // and 62 entries for Watford DFS
+ //Make sure the file does not already exist
+ if not(FileExists(file_details.Parent+dir_sep+file_details.Filename,ptr))then
  begin
-  //Extend the catalogue by 1
-  SetLength(FDisc[file_details.Side].Entries,l+1);
-  Inc(l);
-  filen:=0; //File 0 means no space, so add at the beginning
-  size2:=count div $100;//Size, up to the next boundary, of the file being inserted
-  if count mod $100>0 then inc(size2);
-  if(l>1)then //Not the first entry?
+  //Can the catalogue be extended?
+  l:=Length(FDisc[file_details.Side].Entries);
+  if ((l<31) and (f<2))         // Max 31 entries for Acorn DFS
+  or ((l<62) and (f>1)) then    // and 62 entries for Watford DFS
   begin
-   //Find if there is space inside the catalogue to insert the file
-   for i:=l-2 downto 1 do
+   //Extend the catalogue by 1
+   SetLength(FDisc[file_details.Side].Entries,l+1);
+   Inc(l);
+   filen:=0; //File 0 means no space, so add at the beginning
+   size2:=count div $100;//Size, up to the next boundary, of the file being inserted
+   if count mod $100>0 then inc(size2);
+   if(l>1)then //Not the first entry?
    begin
-    //Size, up to the next boundary, of the existing file
-    size1:=FDisc[file_details.Side].Entries[i].Length div $100;
-    if FDisc[file_details.Side].Entries[i].Length mod $100>0 then inc(size1);
-    //Check to see if it will fit above this file
-    if FDisc[file_details.Side].Entries[i].Sector+size1+size2
-                   <=FDisc[file_details.Side].Entries[i-1].Sector then filen:=i;
+    //Find if there is space inside the catalogue to insert the file
+    for i:=l-2 downto 1 do
+    begin
+     //Size, up to the next boundary, of the existing file
+     size1:=FDisc[file_details.Side].Entries[i].Length div $100;
+     if FDisc[file_details.Side].Entries[i].Length mod $100>0 then inc(size1);
+     //Check to see if it will fit above this file
+     if FDisc[file_details.Side].Entries[i].Sector+size1+size2
+                    <=FDisc[file_details.Side].Entries[i-1].Sector then filen:=i;
+    end;
+    //Move everything above this down by 1
+    for i:=l-1 downto filen+1 do
+     FDisc[file_details.Side].Entries[i]:=FDisc[file_details.Side].Entries[i-1];
+    //Find the next available sector, from the previous entry in the catalogue
+    pos:=FDisc[file_details.Side].Entries[filen+1].Length div $100;
+    if FDisc[file_details.Side].Entries[filen+1].Length mod $100>0 then inc(pos);
+    pos:=pos+FDisc[file_details.Side].Entries[filen+1].Sector;
+   end
+   else
+   begin //First sector for the data, if first entry
+    if f<2 then pos:=2; //Acorn DFS is sector 2
+    if f>1 then pos:=4; //Watford DFS is sector 4
    end;
-   //Move everything above this down by 1
-   for i:=l-1 downto filen+1 do
-    FDisc[file_details.Side].Entries[i]:=FDisc[file_details.Side].Entries[i-1];
-   //Find the next available sector, from the previous entry in the catalogue
-   pos:=FDisc[file_details.Side].Entries[filen+1].Length div $100;
-   if FDisc[file_details.Side].Entries[filen+1].Length mod $100>0 then inc(pos);
-   pos:=pos+FDisc[file_details.Side].Entries[filen+1].Sector;
-  end
-  else
-  begin //First sector for the data, if first entry
-   if f<2 then pos:=2; //Acorn DFS is sector 2
-   if f>1 then pos:=4; //Watford DFS is sector 4
+   //Add the entry at the insert point
+   FDisc[file_details.Side].Entries[filen]:=file_details;
+   //and update the entry we're writing to point to this sector
+   FDisc[file_details.Side].Entries[filen].Sector:=pos;
+   //Extend the image size, if necessary (image size != data size)
+   newlen:=size2*$100;
+   if ConvertSector(pos*$100+newlen,file_details.Side)>Length(Fdata) then
+    SetLength(FData,ConvertSector(pos*$100+newlen,file_details.Side));
+   //Then write the actual data
+   success:=WriteDiscData(pos*$100,file_details.Side,buffer,count);
+   //Update the catalogue, if successful
+   if success then
+   begin
+    //Update the catalogue
+    UpdateDFSCat(file_details.Side);
+    //Update the free space
+    DFSFreeSpaceMap(FDisc);
+    //Pointer to where it was inserted
+    Result:=filen;
+   end
+   //or revert back if not
+   else
+   begin
+    if l>1 then
+     for i:=filen to l-2 do
+      FDisc[file_details.Side].Entries[i]:=FDisc[file_details.Side].Entries[i+1];
+    SetLength(FDisc[file_details.Side].Entries,l-1);
+   end;
+   //The data written will get overwritten anyway if failed.
   end;
-  //Add the entry at the insert point
-  FDisc[file_details.Side].Entries[filen]:=file_details;
-  //and update the entry we're writing to point to this sector
-  FDisc[file_details.Side].Entries[filen].Sector:=pos;
-  //Extend the image size, if necessary (image size != data size)
-  newlen:=size2*$100;
-  if ConvertSector(pos*$100+newlen,file_details.Side)>Length(Fdata) then
-   SetLength(FData,ConvertSector(pos*$100+newlen,file_details.Side));
-  //Then write the actual data
-  success:=WriteDiscData(pos*$100,file_details.Side,buffer,count);
-  //Update the catalogue, if successful
-  if success then
-  begin
-   //Update the catalogue
-   UpdateDFSCat(file_details.Side);
-   //Update the free space
-   DFSFreeSpaceMap(FDisc);
-   //Pointer to where it was inserted
-   Result:=filen;
-  end
-  //or revert back if not
-  else
-  begin
-   if l>1 then
-    for i:=filen to l-2 do
-     FDisc[file_details.Side].Entries[i]:=FDisc[file_details.Side].Entries[i+1];
-   SetLength(FDisc[file_details.Side].Entries,l-1);
-  end;
-  //The data written will get overwritten anyway if failed.
  end;
 end;
 
@@ -369,6 +379,8 @@ Validate a filename
 function TDiscImage.ValidateDFSFilename(filename: AnsiString): AnsiString;
 var
  i: Integer;
+const
+  illegal = '#*:!';
 begin
   for i:=1 to Length(filename) do
  begin
@@ -387,6 +399,9 @@ begin
   filename:=Copy(filename,1,9)
  else
   filename:=Copy(filename,1,7);
+ //Remove any forbidden characters
+ for i:=1 to Length(filename) do
+  if Pos(filename[i],illegal)>0 then filename[i]:='_';
  Result:=filename;
 end;
 

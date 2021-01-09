@@ -11,7 +11,7 @@ object NewImageForm: TNewImageForm
   Font.Height = -11
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.0.10.0'
+  LCLVersion = '2.0.11.0'
   object MainFormat: TRadioGroup
     Left = 0
     Height = 128
@@ -26,8 +26,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 113
-    ClientWidth = 247
+    ClientHeight = 110
+    ClientWidth = 241
     ItemIndex = 0
     Items.Strings = (
       'Disc Filing System (DFS)'
@@ -53,8 +53,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 90
-    ClientWidth = 238
+    ClientHeight = 87
+    ClientWidth = 232
     ItemIndex = 0
     Items.Strings = (
       'Acorn single sided'
@@ -78,8 +78,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 194
-    ClientWidth = 238
+    ClientHeight = 191
+    ClientWidth = 232
     ItemIndex = 0
     Items.Strings = (
       'S (160K, Old Map, Old Directory)'
@@ -110,15 +110,14 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 66
-    ClientWidth = 238
+    ClientHeight = 63
+    ClientWidth = 232
     ItemIndex = 0
     Items.Strings = (
       '1541'
       '1571'
       '1581'
     )
-    OnClick = C64Click
     TabOrder = 3
     Visible = False
   end
@@ -136,8 +135,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 42
-    ClientWidth = 238
+    ClientHeight = 39
+    ClientWidth = 232
     ItemIndex = 0
     Items.Strings = (
       'DSK'
@@ -160,8 +159,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 73
-    ClientWidth = 238
+    ClientHeight = 70
+    ClientWidth = 232
     ItemIndex = 0
     Items.Strings = (
       'AmigaDOS DD'
@@ -278,8 +277,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 50
-    ClientWidth = 238
+    ClientHeight = 47
+    ClientWidth = 232
     ItemIndex = 1
     Items.Strings = (
       '40 Track'

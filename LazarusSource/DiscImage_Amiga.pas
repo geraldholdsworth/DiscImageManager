@@ -15,6 +15,7 @@ begin
  Result:=False;
  if FFormat=$FF then
  begin
+  ResetVariables;
   //Only continue if there is data
   if Length(Fdata)>0 then
   begin
@@ -100,7 +101,7 @@ begin
       ResetVariables;
     end;
    end;
-   Result:=FFormat<>$FF;
+   Result:=FFormat shr 4=4;
   end;
  end;
 end;
@@ -119,7 +120,7 @@ var
 begin
  //Initialise some variables
  SetLength(Result,0);
- UpdateProgress('Reading Commodore Amiga Disc');
+// UpdateProgress('Reading Commodore Amiga Disc');
  if FFormat<>$FF then
  begin
   //Total number of sectors will be double where the root is
@@ -129,7 +130,7 @@ begin
   //Disc name
   disc_name :=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
   //Work out the free space
-  UpdateProgress('Calculating Free Space');
+//  UpdateProgress('Calculating Free Space');
   free_space:=secsize*2; //Allow for the boot block, even if there isn't one
   dec(sectors,2);        //The first two sectors will still be allocated for one
   //Free Space Map pointer - starts at the root block
@@ -298,4 +299,54 @@ Calculate Amiga regular checksum
 function TDiscImage.AmigaChecksum(offset: Cardinal): Cardinal;
 begin
  Result:=-GeneralChecksum(offset,$200,$014,0,False);
+end;
+
+{-------------------------------------------------------------------------------
+Write a file to Amiga image
+-------------------------------------------------------------------------------}
+function TDiscImage.WriteAmigaFile(var file_details: TDirEntry;
+                             var buffer: TDIByteArray): Integer;
+begin
+ Result:=-1;
+end;
+
+{-------------------------------------------------------------------------------
+Create a directory on an Amiga image
+-------------------------------------------------------------------------------}
+function TDiscImage.CreateAmigaDirectory(var dirname,parent,attributes: AnsiString): Integer;
+begin
+ Result:=-1;
+end;
+
+{-------------------------------------------------------------------------------
+Retitle an Amiga directory
+-------------------------------------------------------------------------------}
+function TDiscImage.RetitleAmigaDirectory(filename,newtitle: AnsiString): Boolean;
+begin
+ Result:=False;
+end;
+
+{-------------------------------------------------------------------------------
+Create a new Amiga image
+-------------------------------------------------------------------------------}
+function TDiscImage.FormatAmiga(minor: Byte): TDisc;
+begin
+ //
+end;
+
+function TDiscImage.RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+begin
+ Result:=False;
+end;
+function TDiscImage.DeleteAmigaFile(filename: AnsiString):Boolean;
+begin
+ Result:=False;
+end;
+function TDiscImage.UpdateAmigaFileAttributes(filename,attributes: AnsiString):Boolean;
+begin
+ Result:=False;
+end;
+function TDiscImage.UpdateAmigaDiscTitle(title: AnsiString): Boolean;
+begin
+ Result:=False;
 end;

@@ -1,11 +1,11 @@
 object MainForm: TMainForm
   Left = 295
   Height = 751
-  Top = 19
-  Width = 921
+  Top = 22
+  Width = 1042
   AllowDropFiles = True
-  ClientHeight = 727
-  ClientWidth = 921
+  ClientHeight = 751
+  ClientWidth = 1042
   Color = 15527148
   Font.Height = -11
   Icon.Data = {
@@ -4281,7 +4281,7 @@ object MainForm: TMainForm
     00000FE00000000000000FE00000000000000FE00000000000000FE000000000
     00000FE00000000000000FE00000000000000F
   }
-  Menu = MainMenu1
+  Menu = Main_Menu
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDropFiles = FormDropFiles
@@ -4289,15 +4289,15 @@ object MainForm: TMainForm
   OnShow = FormShow
   Position = poScreenCenter
   ShowHint = True
-  LCLVersion = '2.0.10.0'
+  LCLVersion = '2.0.11.0'
   Scaled = False
   object ToolPanel: TPanel
-    Left = 464
-    Height = 673
+    Left = 585
+    Height = 696
     Top = 37
     Width = 457
     Align = alRight
-    ClientHeight = 673
+    ClientHeight = 696
     ClientWidth = 457
     TabOrder = 0
     object FileInfoPanel: TPanel
@@ -4524,6 +4524,7 @@ object MainForm: TMainForm
         Font.Style = [fsBold]
         ParentColor = False
         ParentFont = False
+        OnClick = lb_titleClick
       end
       object Label13: TLabel
         Left = 16
@@ -4586,9 +4587,9 @@ object MainForm: TMainForm
       end
       object cb_ownerwrite: TCheckBox
         Left = 128
-        Height = 23
+        Height = 18
         Top = 194
-        Width = 59
+        Width = 53
         Caption = 'Write'
         Font.Color = clBlack
         Font.Height = -11
@@ -4600,9 +4601,9 @@ object MainForm: TMainForm
       end
       object cb_ownerread: TCheckBox
         Left = 190
-        Height = 23
+        Height = 18
         Top = 194
-        Width = 56
+        Width = 51
         Caption = 'Read'
         Font.Color = clBlack
         Font.Height = -11
@@ -4614,9 +4615,9 @@ object MainForm: TMainForm
       end
       object cb_ownerlocked: TCheckBox
         Left = 253
-        Height = 23
+        Height = 18
         Top = 194
-        Width = 70
+        Width = 61
         Caption = 'Locked'
         Font.Color = clBlack
         Font.Height = -11
@@ -4628,9 +4629,9 @@ object MainForm: TMainForm
       end
       object cb_ownerexecute: TCheckBox
         Left = 324
-        Height = 23
+        Height = 18
         Top = 194
-        Width = 75
+        Width = 66
         Caption = 'Execute'
         Font.Color = clBlack
         Font.Height = -11
@@ -4643,9 +4644,9 @@ object MainForm: TMainForm
       object cb_publicread: TCheckBox
         Tag = 1
         Left = 190
-        Height = 23
+        Height = 18
         Top = 212
-        Width = 56
+        Width = 51
         Caption = 'Read'
         Font.Color = clBlack
         Font.Height = -11
@@ -4658,9 +4659,9 @@ object MainForm: TMainForm
       object cb_publicwrite: TCheckBox
         Tag = 1
         Left = 128
-        Height = 23
+        Height = 18
         Top = 212
-        Width = 59
+        Width = 53
         Caption = 'Write'
         Font.Color = clBlack
         Font.Height = -11
@@ -4673,9 +4674,9 @@ object MainForm: TMainForm
       object cb_publicexecute: TCheckBox
         Tag = 1
         Left = 253
-        Height = 23
+        Height = 18
         Top = 212
-        Width = 75
+        Width = 66
         Caption = 'Execute'
         Font.Color = clBlack
         Font.Height = -11
@@ -4718,9 +4719,9 @@ object MainForm: TMainForm
       object cb_private: TCheckBox
         Tag = 2
         Left = 324
-        Height = 23
+        Height = 18
         Top = 212
-        Width = 69
+        Width = 62
         Caption = 'Private'
         Font.Color = clBlack
         Font.Height = -11
@@ -4730,28 +4731,45 @@ object MainForm: TMainForm
         ParentFont = False
         TabOrder = 7
       end
+      object ed_title: TEdit
+        Left = 126
+        Height = 18
+        Top = 154
+        Width = 321
+        AutoSize = False
+        BorderStyle = bsNone
+        Enabled = False
+        Font.Height = -11
+        Font.Name = 'Courier New'
+        Font.Style = [fsBold]
+        MaxLength = 19
+        OnEditingDone = ed_titleEditingDone
+        OnExit = ed_titleEditingDone
+        ParentColor = True
+        ParentFont = False
+        TabOrder = 8
+        Visible = False
+      end
     end
     object SearchPanel: TPanel
       Left = 1
-      Height = 437
+      Height = 460
       Top = 235
       Width = 455
       Align = alClient
-      ClientHeight = 437
+      ClientHeight = 460
       ClientWidth = 455
       TabOrder = 1
       object lb_searchresults: TListBox
         Left = 1
-        Height = 332
+        Height = 355
         Top = 104
         Width = 453
         Align = alClient
         Color = clBtnFace
         ItemHeight = 0
         OnClick = lb_searchresultsClick
-        ScrollWidth = 451
         TabOrder = 0
-        TopIndex = -1
       end
       object Panel1: TPanel
         Left = 1
@@ -4979,18 +4997,18 @@ object MainForm: TMainForm
   end
   object ImageContentsPanel: TPanel
     Left = 0
-    Height = 673
+    Height = 696
     Top = 37
-    Width = 464
+    Width = 585
     Align = alClient
-    ClientHeight = 673
-    ClientWidth = 464
+    ClientHeight = 696
+    ClientWidth = 585
     TabOrder = 1
     object lb_contents: TLabel
       Left = 1
       Height = 35
       Top = 1
-      Width = 462
+      Width = 583
       Align = alTop
       Alignment = taCenter
       AutoSize = False
@@ -5004,9 +5022,9 @@ object MainForm: TMainForm
     end
     object DirList: TTreeView
       Left = 1
-      Height = 636
+      Height = 659
       Top = 36
-      Width = 462
+      Width = 583
       Align = alClient
       BackgroundColor = 15527148
       BorderStyle = bsNone
@@ -5038,9 +5056,9 @@ object MainForm: TMainForm
   end
   object ImageDetails: TStatusBar
     Left = 0
-    Height = 17
-    Top = 710
-    Width = 921
+    Height = 18
+    Top = 733
+    Width = 1042
     Font.Height = -11
     Panels = <    
       item
@@ -5086,7 +5104,7 @@ object MainForm: TMainForm
     Left = 0
     Height = 37
     Top = 0
-    Width = 921
+    Width = 1042
     ButtonHeight = 37
     ButtonWidth = 37
     Caption = 'ToolBar1'
@@ -5179,6 +5197,7 @@ object MainForm: TMainForm
       Caption = 'btn_NewDirectory'
       Enabled = False
       ImageIndex = 9
+      OnClick = btn_NewDirectoryClick
     end
   end
   object OpenImageFile: TOpenDialog
@@ -15529,6 +15548,7 @@ object MainForm: TMainForm
     object NewDirectory1: TMenuItem
       Caption = '&New Directory'
       Enabled = False
+      OnClick = btn_NewDirectoryClick
     end
   end
   object AddNewFile: TOpenDialog
@@ -17037,10 +17057,10 @@ object MainForm: TMainForm
       FFFE00BEFFFF00C0FFFC00C6FF86
     }
   end
-  object MainMenu1: TMainMenu
+  object Main_Menu: TMainMenu
     Left = 152
     Top = 96
-    object MenuItem1: TMenuItem
+    object FileMenu: TMenuItem
       Caption = 'File'
       object menuNewImage: TMenuItem
         Caption = 'New Image'
@@ -17061,7 +17081,7 @@ object MainForm: TMainForm
         OnClick = btn_ImageDetailsClick
       end
     end
-    object MenuItem2: TMenuItem
+    object ImageMenu: TMenuItem
       Caption = 'Image'
       object menuExtractFile: TMenuItem
         Caption = 'Extract File(s)'
@@ -17081,6 +17101,7 @@ object MainForm: TMainForm
       object menuNewDir: TMenuItem
         Caption = 'New Directory'
         Enabled = False
+        OnClick = btn_NewDirectoryClick
       end
       object menuDeleteFile: TMenuItem
         Caption = 'Delete File(s)'
@@ -17088,7 +17109,7 @@ object MainForm: TMainForm
         OnClick = DeleteFile1Click
       end
     end
-    object MenuItem3: TMenuItem
+    object HelpMenu: TMenuItem
       Caption = 'Help'
       object menuAbout: TMenuItem
         Caption = 'About'

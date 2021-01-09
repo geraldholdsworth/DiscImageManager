@@ -33,20 +33,21 @@ type
    cb_publicread: TCheckBox;
    cb_publicwrite: TCheckBox;
    cb_publicexecute: TCheckBox;
+   ed_title: TEdit;
     ed_filenamesearch: TEdit;
     ed_filetypesearch: TEdit;
     ed_lengthsearch: TEdit;
     icons: TImageList;
     Label15: TLabel;
     Label7: TLabel;
-    MainMenu1: TMainMenu;
-    MenuItem1: TMenuItem;
+    Main_Menu: TMainMenu;
+    FileMenu: TMenuItem;
     menuRenameFile: TMenuItem;
     menuNewDir: TMenuItem;
     menuDeleteFile: TMenuItem;
     menuAbout: TMenuItem;
-    MenuItem2: TMenuItem;
-    MenuItem3: TMenuItem;
+    ImageMenu: TMenuItem;
+    HelpMenu: TMenuItem;
     menuNewImage: TMenuItem;
     menuOpenImage: TMenuItem;
     menuSaveImage: TMenuItem;
@@ -115,7 +116,11 @@ type
     AddFile1: TMenuItem;
     NewDirectory1: TMenuItem;
     procedure btn_ImageDetailsClick(Sender: TObject);
+    procedure btn_NewDirectoryClick(Sender: TObject);
+    function CreateDirectory(dirname,attr: AnsiString): TTreeNode;
+    procedure ed_titleEditingDone(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
+    procedure lb_titleClick(Sender: TObject);
     function QueryUnsaved: Boolean;
     procedure btn_NewImageClick(Sender: TObject);
     procedure btn_SaveImageClick(Sender: TObject);
@@ -159,6 +164,8 @@ type
       var AllowEdit: Boolean);
     procedure DirListDblClick(Sender: TObject);
     procedure AddFile1Click(Sender: TObject);
+    procedure AddDirectoryToImage(dirname: AnsiString);
+    function BreakDownInf(s: AnsiString): TStringArray;
     procedure AddFileToImage(filename: AnsiString);
     procedure UpdateImageInfo;
   private
@@ -199,7 +206,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.8';
+    ApplicationVersion = '1.05.9';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -225,31 +232,176 @@ begin
   if AddNewFile.Files.Count>0 then
    //If more than one file selected, iterate through them
    for i:=0 to AddNewFile.Files.Count-1 do
-    AddFileToImage(AddNewFile.Files[i]);
-
+    if not DirectoryExists(AddNewFile.Files[i]) then
+     AddFileToImage(AddNewFile.Files[i]) //Add a single file
+    else
+     AddDirectoryToImage(AddNewFile.Files[i]); //Add a directory and the contents
 end;
 
 {------------------------------------------------------------------------------}
-//Add a file to an image (DFS only at the moment)
+//Accept dropped files
+{------------------------------------------------------------------------------}
+procedure TMainForm.FormDropFiles(Sender: TObject; const FileNames: array of AnsiString);
+var
+ FileName: AnsiString;
+begin
+ for FileName in FileNames do
+ begin
+  if not DirectoryExists(Filename) then
+   if Image.Filename='' then //Nothing is loaded, so initiate load
+    OpenImage(FileName)
+   else //Otherwise, add the file to the image, under the selected directory
+    AddFileToImage(FileName) //This will try and add image files to an image
+  else //Bulk add from a directory
+   AddDirectoryToImage(FileName);
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//Add a directory to an image
+{------------------------------------------------------------------------------}
+procedure TMainForm.AddDirectoryToImage(dirname: AnsiString);
+var
+ OriginalNode,
+ NewNode      : TTreeNode;
+ inffile,
+ attr,
+ importname   : AnsiString;
+ F            : TFileStream;
+ chr          : Char;
+ fields       : array of AnsiString;
+ Dir          : TSearchRec;
+begin
+ //First, if there is no selection, make one, or if multiple, select the root
+ if (DirList.SelectionCount=0) OR (DirList.SelectionCount>1) then
+ begin
+  DirList.ClearSelection;
+  DirList.Items[0].Selected:=True;
+ end;
+ OriginalNode:=DirList.Selected;
+ //If ADFS, create the directory, then select it
+ if Image.FormatNumber shr 4=1 then
+ begin
+  importname:=ExtractFilename(dirname);
+  attr      :='DLR';
+  //Is there an inf file?
+  if FileExists(dirname+'.inf') then
+  begin
+   inffile:='';
+   //Read in the first line
+   F:=TFileStream.Create(dirname+'.inf',fmOpenRead);
+   F.Position:=0;
+   while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
+    inffile:=inffile+chr;
+   F.Free;
+   fields:=BreakDownInf(inffile);
+   //Then extract the fields
+   if Length(fields)>0 then importname:=fields[0];
+   if Length(fields)>4 then attr      :=fields[4];
+  end;
+  //Convert a Windows filename to a BBC filename
+  WinToBBC(importname);
+  //Remove spaces for non-big directories, and ensure is 10 chars or less
+  if Image.DirectoryType<>2 then
+  begin
+   importname:=ReplaceStr(importname,' ','_');
+   importname:=LeftStr(importname,10);
+  end;
+  //Create the directory
+  NewNode:=CreateDirectory(importname,attr);
+  if NewNode<>nil then //Success
+  begin
+   //And select it
+   DirList.ClearSelection;
+   NewNode.Selected:=True;
+   //Now we import everything inside this
+   FindFirst(dirname+pathdelim+'*',faDirectory,Dir);
+   repeat
+    if (Dir.Name<>'.') and (Dir.Name<>'..') then
+    begin
+     if (Dir.Attr AND faDirectory)=faDirectory then
+      AddDirectoryToImage(dirname+pathdelim+Dir.Name)
+     else
+      AddFileToImage(dirname+pathdelim+Dir.Name);
+    end;
+   until FindNext(Dir)<>0;
+   FindClose(Dir);
+  end;
+ end;
+ //Revert to the original selection
+ DirList.ClearSelection;
+ OriginalNode.Selected:=True;
+end;
+
+{------------------------------------------------------------------------------}
+//Break down an *.inf file entry
+{------------------------------------------------------------------------------}
+function TMainForm.BreakDownInf(s: AnsiString): TStringArray;
+var
+ i: Integer;
+ f: AnsiString;
+begin
+ f:='';
+ //Remove leading spaces, if any
+ if s[1]=' ' then
+ begin
+  i:=0;
+  while s[i+1]=' ' do inc(i);
+  s:=RightStr(s,Length(s)-i);
+ end;
+ //First field has opening quote
+ if s[1]='"' then
+ begin
+  //Remove it
+  s:=RightStr(s,Length(s)-1);
+  //Find the closing quote
+  if Pos('"',s)>0 then //Assuming it has one
+  begin
+   i:=1;
+   while s[i]<>'"' do inc(i);
+   //Extract the field
+   f:=LeftStr(s,i-1);
+   //And replace with a non-quoted field
+   s:='filename '+RightStr(s,Length(s)-i);
+  end;
+ end;
+ //Remove double spaces
+ while Pos('  ',s)>0 do s:=ReplaceStr(s,'  ',' ');
+ //Then split the string into fields
+ Result:=s.Split(' ');
+ //If we previously found a quoted field, replace the first one with it
+ if f<>'' then Result[0]:=f;
+end;
+
+{------------------------------------------------------------------------------}
+//Add a file to an image
 {------------------------------------------------------------------------------}
 procedure TMainForm.AddFileToImage(filename: AnsiString);
 var
   NewFile        : TDirEntry;
   buffer         : TDIByteArray;
   index          : Integer;
-  side,ptr       : Cardinal;
+  side           : Cardinal;
+  attr2          : Byte;
   importfilename,
   inffile,
   execaddr,
-  loadaddr       : AnsiString;
+  loadaddr,
+  filelen,
+  attr1,
+  attributes     : AnsiString;
   fields         : array of AnsiString;
   chr            : Char;
   F              : TFileStream;
+  Node           : TTreeNode;
 begin
- //First, if there is no selection, make one
- if DirList.SelectionCount=0 then
+ //First, if there is no selection, make one, or if multiple, select the root
+ if (DirList.SelectionCount=0) OR (DirList.SelectionCount>1) then
+ begin
+  DirList.ClearSelection;
   DirList.Items[0].Selected:=True;
- //Make sure that there is a destination selected
+ end;
+ //Make sure that there is a destination selected - should be after last command
  if DirList.SelectionCount=1 then
   //And it is a directory
   if TMyTreeNode(DirList.Selected).IsDir then
@@ -267,6 +419,30 @@ begin
    //Reject any *.inf files
    if LowerCase(RightStr(importfilename,4))<>'.inf' then
    begin
+    //Initialise the strings
+    execaddr:='00000000';
+    loadaddr:='00000000';
+    filelen :='00000000';
+    attr1   :='00';
+    attr2   :=$00;
+    //Is there an inf file?
+    if FileExists(filename+'.inf') then
+    begin
+     inffile:='';
+     //Read in the first line
+     F:=TFileStream.Create(filename+'.inf',fmOpenRead);
+     F.Position:=0;
+     while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
+      inffile:=inffile+chr;
+     F.Free;
+     fields:=BreakDownInf(inffile);
+     //Then extract the fields
+     if Length(fields)>0 then importfilename:=fields[0];
+     if Length(fields)>1 then loadaddr      :=fields[1];
+     if length(fields)>2 then execaddr      :=fields[2];
+     if Length(fields)>3 then filelen       :=fields[3];
+     if Length(fields)>4 then attr1         :=fields[4];
+    end;
     if Image.FormatNumber<$20 then //DFS only stuff
     begin
      //Remove any extraenous specifiers
@@ -283,67 +459,87 @@ begin
      //Check to make sure that a DFS directory hasn't been changed
      if (Image.FormatNumber<$20) and (importfilename[2]='/') then
       importfilename[2]:=Image.DirSep;
+     //Remove any spaces, unless it is a big directory
+     if Image.DirectoryType<>2 then
+      importfilename:=ReplaceStr(importfilename,' ','_');
     end;
-    //Make sure the file does not exist already
-    if not(Image.FileExists(':'+IntToStr(side)+Image.DirSep+'$'
-                           +Image.DirSep+importfilename,ptr)) then
+    //Initialise the TDirArray
+    ResetDirEntry(NewFile);
+    //Initialise the buffer
+    SetLength(buffer,0);
+    //Decode the attributes
+    attributes        :=''; //Default
+    if Image.FormatNumber shr 4=$1 then attributes:='WR';//Default for ADFS
+    //Is it a hex number?
+    if IntToHex(StrtoIntDef('$'+attr1,0),2)=UpperCase(attr1) then
+    begin //Yes
+     attr2:=StrToInt('$'+attr1);
+     attr1:='';
+    end;
+    //Read each attribute and build the string
+    if Image.FormatNumber shr 4<$3 then //ADFS and DFS
+     if (Pos('L',attr1)>0)OR(attr2 AND$08=$08) then attributes:=attributes+'L';
+    if Image.FormatNumber shr 4=$2 then //ADFS only
     begin
-     //Initialise the TDirArray
-     ResetDirEntry(NewFile);
-     //Initialise the buffer
-     SetLength(buffer,0);
-     //Initialise the addresses
-     execaddr:='00000000';
-     loadaddr:='00000000';
-     //Is there an inf file?
-     if FileExists(filename+'.inf') then
-     begin
-      inffile:='';
-      //Read in the first line
-      F:=TFileStream.Create(filename+'.inf',fmOpenRead);
-      F.Position:=0;
-      while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
-       inffile:=inffile+chr;
-      F.Free;
-      //Decode the line - first we get rid of double spaces
-      while Pos('  ',inffile)<>0 do
-       inffile:=ReplaceStr(inffile,'  ',' ');
-      //Now split the string at the spaces
-      fields:=inffile.Split(' ');
-      //Then extract the fields
-      if Length(fields)>1 then loadaddr:=fields[1];
-      if length(fields)>2 then execaddr:=fields[2];
-     end;
-     //Setup the record
-     NewFile.Filename:=importfilename;
-     NewFile.ExecAddr:=StrToInt('$'+execaddr);
-     NewFile.LoadAddr:=StrToInt('$'+loadaddr);
-     NewFile.Side    :=side;
-     //Load the file from the host
-     F:=TFileStream.Create(filename,fmOpenRead);
-     F.Position:=0;
-     SetLength(buffer,F.Size);
-     NewFile.Length:=F.Read(buffer[0],F.Size);
-     F.Free;
-     //Write the File
-     index:=Image.WriteFile(NewFile,buffer);
-     if index<>-1 then //File added OK
-     begin
-      HasChanged:=True;
-      //Now add the entry to the Directory List
-      if DirList.Selected.HasChildren then
-       //Insert it before the one specified
-       DirList.Items.Insert(DirList.Selected.Items[index],importfilename)
-      else
-       //Is the first child, so just add it
-       DirList.Items.AddChildFirst(DirList.Selected,importfilename);
-      //And update the free space display
-      UpdateImageInfo;
-     end
-     else//For some reason the operation failed to write the data
-      ShowMessage('Failed writing "'+importfilename+'" to image');
+     if (Pos('R',attr1)>0)OR(attr2 AND$01=$01) then attributes:=attributes+'R';
+     if (Pos('W',attr1)>0)OR(attr2 AND$02=$02) then attributes:=attributes+'W';
+     if (Pos('E',attr1)>0)OR(attr2 AND$04=$04) then attributes:=attributes+'E';
+     if (Pos('r',attr1)>0)OR(attr2 AND$10=$10) then attributes:=attributes+'r';
+     if (Pos('w',attr1)>0)OR(attr2 AND$20=$20) then attributes:=attributes+'w';
+     if (Pos('e',attr1)>0)OR(attr2 AND$40=$40) then attributes:=attributes+'e';
+     if (Pos('l',attr1)>0)OR(attr2 AND$80=$80) then attributes:=attributes+'l';
+    end;
+    //Setup the record
+    NewFile.Filename  :=importfilename;
+    NewFile.ExecAddr  :=StrToInt('$'+execaddr);
+    NewFile.LoadAddr  :=StrToInt('$'+loadaddr);
+    NewFile.Side      :=side;
+    NewFile.Attributes:=attributes;
+    NewFile.DirRef    :=-1; //Not a directory
+    if Image.FormatNumber shr 4=1 then //Need the selected directory for ADFS
+     if DirList.Selected.Text='$' then NewFile.Parent:='$'
+     else
+      NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).Dir,
+                                           DirList.Selected.Index);
+    //Load the file from the host
+    F:=TFileStream.Create(filename,fmOpenRead);
+    F.Position:=0;
+    //If the supplied file length is zero, use the system size
+    if StrToIntDef('$'+filelen,F.Size)=0 then filelen:=IntToHex(F.Size,8);
+    //Set the buffer length to either the length supplied, or what the host returns
+    SetLength(buffer,StrToIntDef('$'+filelen,F.Size));
+    //Set the length to the actual number of bytes read in
+    NewFile.Length    :=F.Read(buffer[0],StrToIntDef('$'+filelen,F.Size));
+    F.Free;
+    //Write the File
+    index:=Image.WriteFile(NewFile,buffer);
+    //Function returns pointer to next item (or parent if no children)
+    if index<>-1 then //File added OK
+    begin
+     HasChanged:=True;
+     //The filename might have changed
+     importfilename:=NewFile.Filename;
+     //Now add the entry to the Directory List
+     if DirList.Selected.HasChildren then
+      //Insert it before the one specified
+      if index<DirList.Selected.Count then
+       Node:=DirList.Items.Insert(DirList.Selected.Items[index],importfilename)
+      else //Unless this is the last one
+       Node:=DirList.Items.AddChild(DirList.Selected,importfilename)
+     else
+      //Is the first child, so just add it
+      Node:=DirList.Items.AddChildFirst(DirList.Selected,importfilename);
+     if DirList.Selected.Parent<>nil then
+      TMyTreeNode(Node).Dir:=Image.Disc[TMyTreeNode(DirList.Selected).Dir].
+                                         Entries[DirList.Selected.Index].DirRef
+     else
+      TMyTreeNode(Node).Dir:=0;
+     TMyTreeNode(Node).IsDir:=False;
+     //And update the free space display
+     UpdateImageInfo;
     end
-    else ShowMessage('File "'+importfilename+'" already exists');
+    else//For some reason the operation failed to write the data
+     ShowMessage('Failed writing "'+filename+'" to image');
    end;
   end
   else ShowMessage('"'+DirList.Selected.Text+'" is not a directory')
@@ -485,8 +681,11 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.GetImageFilename(dir,entry: Integer): AnsiString;
 begin
- Result:=Image.Disc[dir].Entries[entry].Parent+Image.DirSep
-        +Image.Disc[dir].Entries[entry].Filename;
+ if Length(Image.Disc[dir].Entries)=0 then
+  Result:=Image.Disc[dir].Directory
+ else
+  Result:=Image.Disc[dir].Entries[entry].Parent+Image.DirSep
+         +Image.Disc[dir].Entries[entry].Filename;
 end;
 
 {------------------------------------------------------------------------------}
@@ -816,12 +1015,15 @@ begin
  btn_Delete.Enabled     :=DirList.SelectionCount>0;
  menuDeleteFile.Enabled :=DirList.SelectionCount>0;
  //Disable the Add Files and Rename menu
- AddFile1.Enabled      :=False;
- btn_AddFiles.Enabled  :=False;
- menuAddFile.Enabled   :=False;
- RenameFile1.Enabled   :=False;
- btn_Rename.Enabled    :=False;
- menuRenameFile.Enabled:=False;
+ AddFile1.Enabled        :=False;
+ btn_AddFiles.Enabled    :=False;
+ menuAddFile.Enabled     :=False;
+ RenameFile1.Enabled     :=False;
+ btn_Rename.Enabled      :=False;
+ menuRenameFile.Enabled  :=False;
+ NewDirectory1.Enabled   :=False;
+ btn_NewDirectory.Enabled:=False;
+ menuNewDir.Enabled      :=False;
  //If only a single item selected
  if (Node<>nil) and (DirList.SelectionCount=1) then
  begin
@@ -834,6 +1036,12 @@ begin
   RenameFile1.Enabled   :=True;
   btn_Rename.Enabled    :=True;
   menuRenameFile.Enabled:=True;
+  if(Image.FormatNumber shr 4=1)OR(Image.FormatNumber shr 4=4)then //ADFS and Amiga
+  begin
+   NewDirectory1.Enabled   :=True;
+   btn_NewDirectory.Enabled:=True;
+   menuNewDir.Enabled      :=True;
+  end;
   //Get the entry and dir references
   entry:=Node.Index;
   dir:=-1;
@@ -915,7 +1123,8 @@ begin
     menuDeleteFile.Caption :='&Delete '+filetype;
     btn_Delete.Hint        :='Delete '+filetype;
     //Report if directory is broken and include the error code
-    if Image.Disc[dir].Entries[entry].DirRef>=0 then
+    if (Image.Disc[dir].Entries[entry].DirRef>=0)
+    and(Image.Disc[dir].Entries[entry].DirRef<Length(Image.Disc))then
     begin
      if Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken then
       filetype:=filetype+' (BROKEN - 0x'
@@ -924,6 +1133,7 @@ begin
                   ,2)+')';
      //Title of the subdirectory
      lb_title.Caption:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
+     ed_title.Enabled:=True; //Can be edited
     end;
    end
    else
@@ -933,6 +1143,7 @@ begin
     title:=Image.Disc[0].Title;
     RemoveTopBit(title);
     lb_title.Caption:=title; //Title
+    ed_title.Enabled:=True; //Can be edited
     //Report if directory is broken and include the error code
     if Image.Disc[0].Broken then
      filetype:=filetype+' (BROKEN - 0x'
@@ -941,9 +1152,12 @@ begin
   end
   else //Can only add files to a directory
   begin
-   AddFile1.Enabled    :=False;
-   btn_AddFiles.Enabled:=False;
-   menuAddFile.Enabled :=False;
+   AddFile1.Enabled        :=False;
+   btn_AddFiles.Enabled    :=False;
+   menuAddFile.Enabled     :=False;
+   NewDirectory1.Enabled   :=False;
+   btn_NewDirectory.Enabled:=False;
+   menuNewDir.Enabled      :=False;
   end;
   //Filename
   lb_FileName.Caption:=filename;
@@ -974,12 +1188,13 @@ begin
     lb_timestamp.Caption:=FormatDateTime('hh:nn:ss dd mmm yyyy',
                                        Image.Disc[dir].Entries[entry].TimeStamp)
    else
-   begin
-    //Load address
-    lb_loadaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
-    //Execution address
-    lb_execaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
-   end;
+    if Image.Disc[dir].Entries[entry].DirRef=-1 then
+    begin
+     //Load address
+     lb_loadaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
+     //Execution address
+     lb_execaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
+    end;
    //Length
    lb_length.Caption:=ConvertToKMG(Image.Disc[dir].Entries[entry].Length)+
                    ' (0x'+IntToHex(Image.Disc[dir].Entries[entry].Length,8)+')';
@@ -1016,6 +1231,8 @@ begin
     location:='Indirect address: 0x'+IntToHex(Image.RootAddress,8);
    lb_location.Caption:=location;
   end;
+{  Caption:=IntToStr(dir)+','+IntToStr(entry);
+  if dir<>-1 then Caption:=Caption+':'+IntToStr(Image.Disc[dir].Entries[entry].DirRef);}
  end;
 end;
 
@@ -1108,7 +1325,7 @@ end;
 procedure TMainForm.FormShow(Sender: TObject);
 begin
  //Initial width and height of form
- Width:=921;
+ Width:=1042;
  Height:=751;
  //Enable or disable buttons
  btn_NewImage.Enabled     :=True;
@@ -1280,22 +1497,6 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Accept dropped files
-{------------------------------------------------------------------------------}
-procedure TMainForm.FormDropFiles(Sender: TObject; const FileNames: array of AnsiString);
-var
- FileName: AnsiString;
-begin
- for FileName in FileNames do
- begin
-  if Image.Filename='' then //Nothing is loaded, so initiate load
-   OpenImage(FileName)
-  else //Otherwise, add the file to the image, under the selected directory
-   AddFileToImage(FileName);
- end;
-end;
-
-{------------------------------------------------------------------------------}
 //Highlight the file in the tree
 {------------------------------------------------------------------------------}
 procedure TMainForm.lb_searchresultsClick(Sender: TObject);
@@ -1387,6 +1588,49 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//User has clicked on directory title
+{------------------------------------------------------------------------------}
+procedure TMainForm.lb_titleClick(Sender: TObject);
+begin
+ //If there is only one selection
+ if DirList.SelectionCount=1 then
+  //And it is a directory
+  if TMyTreeNode(DirList.Selected).IsDir then
+   //And the editor is enabled
+   if ed_title.Enabled then
+   begin //Then show it, with the title text
+    ed_title.Visible  :=True;
+    ed_title.Text     :=lb_title.Caption;
+    ed_title.SetFocus; //Put the cursor in the control
+    lb_title.Visible  :=False;
+   end;
+end;
+
+{------------------------------------------------------------------------------}
+//User has done editing directory title
+{------------------------------------------------------------------------------}
+procedure TMainForm.ed_titleEditingDone(Sender: TObject);
+var
+ filename,
+ newtitle  : AnsiString;
+begin
+ //Get the filename of the directory being edited
+ filename:=lb_Filename.Caption;
+ //Add the path, if there is one
+ if lb_Parent.Caption<>'' then
+  filename:=lb_Parent.Caption+Image.DirSep+filename;
+ //Then send to be retitled
+ newtitle:=ed_title.Text;
+ if Image.RetitleDirectory(filename,newtitle) then
+ begin
+  lb_title.Caption:=newtitle; //If success, then change the text
+  HasChanged:=True;
+ end;
+ lb_title.Visible:=True;
+ ed_title.Visible:=False;
+end;
+
+{------------------------------------------------------------------------------}
 //Image Detail Display
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_ImageDetailsClick(Sender: TObject);
@@ -1399,9 +1643,10 @@ var
  boots     : array[0..1] of TComboBox;
  bootlbs   : array[0..1] of TLabel;
  title     : AnsiString;
- numsides  : Byte;
-const size = 2;
+ numsides,
+ size      : Byte;
 begin
+ size:=8; //Pixel size
  //Add the editable controls to arrays - makes it easier later on
  titles[0] :=ImageDetailForm.edDiscTitle0;
  titles[1] :=ImageDetailForm.edDiscTitle1;
@@ -1435,6 +1680,7 @@ begin
    //We'll stretch it later
    FSM[side].Stretch:=False;
    //Set the initial size
+   while (size>1) AND (Length(Image.FreeSpaceMap[0])*size>100000) do dec(size);
    t:=Length(Image.FreeSpaceMap[0])*size;
    s:=Length(Image.FreeSpaceMap[0,0])*size;
    FSM[side].Height:=t;//Length(Image.FreeSpaceMap[0])*size;
@@ -1519,6 +1765,77 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Create a new directory click
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_NewDirectoryClick(Sender: TObject);
+var
+ dirname,
+ parentdir : AnsiString;
+ x         : Integer;
+ ref       : Cardinal;
+begin
+ //Assume the root, for now
+ parentdir:='$';
+ if DirList.Selected.Text<>'$' then //If not the root, get the parent directory
+  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selected).Dir,
+                                          DirList.Selected.Index);
+ //Default name
+ dirname:='NewDir';
+ //Make sure it doesn't exist
+ x:=0;
+ while Image.FileExists(parentdir+Image.DirSep+dirname+IntToStr(x),ref) do
+  inc(x);
+ dirname:=dirname+IntToStr(x);
+ //Create the directory
+ CreateDirectory(dirname,'DLR');
+end;
+
+{------------------------------------------------------------------------------}
+//Create a new directory
+{------------------------------------------------------------------------------}
+function TMainForm.CreateDirectory(dirname, attr: AnsiString): TTreeNode;
+var
+ parentdir: AnsiString;
+ index    : Integer;
+ Node     : TTreeNode;
+begin
+ Result:=nil;
+ //Assume the root, for now
+ parentdir:='$';
+ if DirList.Selected.Text<>'$' then //If not the root, get the parent directory
+  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selected).Dir,
+                                          DirList.Selected.Index);
+ //Add it
+ index:=Image.CreateDirectory(dirname,parentdir,attr);
+ //Function returns pointer to next item (or parent if no children)
+ if index<>-1 then //Directory added OK
+ begin
+  HasChanged:=True;
+  //Now add the entry to the Directory List
+  if DirList.Selected.HasChildren then
+   //Insert it before the one specified
+   if index<DirList.Selected.Count then
+    Node:=DirList.Items.Insert(DirList.Selected.Items[index],dirname)
+   else //Unless this is the last one
+    Node:=DirList.Items.AddChild(DirList.Selected,dirname)
+  else
+   //Is the first child, so just add it
+   Node:=DirList.Items.AddChildFirst(DirList.Selected,dirname);
+  if DirList.Selected.Parent<>nil then
+   TMyTreeNode(Node).Dir:=Image.Disc[TMyTreeNode(DirList.Selected).Dir].
+                                     Entries[DirList.Selected.Index].DirRef
+  else
+   TMyTreeNode(Node).Dir:=0;
+  TMyTreeNode(Node).IsDir:=True;
+  //And update the free space display
+  UpdateImageInfo;
+  Result:=Node;
+ end
+  else//For some reason the operation failed to write the data
+   ShowMessage('Failed creating directory');
+end;
+
+{------------------------------------------------------------------------------}
 //Create a new blank image
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
@@ -1576,6 +1893,7 @@ begin
    if cb_publicread.Checked    then att:=att+'r';
    if cb_publicexecute.Checked then att:=att+'e';
    if cb_private.Checked       then att:=att+'P';
+   if TMyTreeNode(DirList.Selected).IsDir then att:=att+'D';
    //Get the file path
    filepath:=GetFilePath(DirList.Selected);
    //Update the attributes for the file
@@ -1730,7 +2048,7 @@ begin
    UpdateImageInfo;
    //Otherwise change the text on the tree and the file details panel
    Node.Text:=newfilename;
-   lb_Filename.Caption:=newfilename;
+   DirListChange(Sender,Node);
   end;
  //Reset the tracking variables
  PathBeforeEdit:='';
@@ -1751,6 +2069,9 @@ begin
  lb_timestamp.Caption:='';
  lb_parent.Caption   :='';
  lb_title.Caption    :='';
+ lb_title.Visible    :=True;
+ ed_title.Visible    :=False;
+ ed_title.Enabled    :=False;
  lb_location.Caption :='';
  img_FileType.Picture.Bitmap:=nil;
  //Disable the access tick boxes

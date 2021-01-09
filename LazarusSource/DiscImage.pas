@@ -55,6 +55,11 @@ type
  TFragmentArray= array of TFragment;
  procedure ResetDirEntry(var Entry: TDirEntry);
  procedure RemoveTopBit(var title: AnsiString);
+const
+ //When the change of number of sectors occurs on Commodore discs
+ CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
+ //Number of sectors per track
+ CDRnumsects  : array[0..7] of Integer = (17,18,19,21,17,18,19,21);
 //The class definition
 type
  TDiscImage    = Class
@@ -122,7 +127,6 @@ type
   function MapFlagToByte: Byte;
   function MapTypeToString: AnsiString;
   function DirTypeToString: AnsiString;
-  procedure UpdateProgress(S: AnsiString);
   function GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
   //ADFS Routines
   function ID_ADFS: Boolean;
@@ -138,6 +142,15 @@ type
   function FormatADFS(minor: Byte): TDisc;
   function UpdateADFSDiscTitle(title: AnsiString): Boolean;
   function UpdateADFSBootOption(option: Byte): Boolean;
+  function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function CreateADFSDirectory(var dirname,parent,attributes: AnsiString): Integer;
+  procedure UpdateADFSCat(directory: AnsiString);
+  function UpdateADFSFileAttributes(filename,attributes: AnsiString): Boolean;
+  function ValidateADFSFilename(filename: AnsiString): AnsiString;
+  function RetitleADFSDirectory(filename,newtitle: AnsiString): Boolean;
+  function RenameADFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  procedure ConsolodateADFSFreeSpaceMap;
+  function DeleteADFSFile(filename: AnsiString):Boolean;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc: TDisc;
@@ -157,15 +170,35 @@ type
   function ConvertDxxTS(format,track,sector: Integer): Integer;
   function ReadCDRDisc: TDisc;
   function FormatCDR(minor: Byte): TDisc;
+  procedure CDRFreeSpaceMap;
+  function UpdateCDRDiscTitle(title: AnsiString): Boolean;
+  function WriteCDRFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function DeleteCDRFile(filename: AnsiString):Boolean;
+  function UpdateCDRFileAttributes(filename,attributes: AnsiString): Boolean;
   //Sinclair Spectrum +3/Amstrad Routines
   function ID_Sinclair: Boolean;
   function ReadSinclairDisc: TDisc;
+  function FormatSpectrum(minor: Byte): TDisc;
+  function WriteSpectrumFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function DeleteSinclairFile(filename: AnsiString):Boolean;
+  function UpdateSinclairFileAttributes(filename,attributes: AnsiString): Boolean;
+  function UpdateSinclairDiscTitle(title: AnsiString): Boolean;
   //Commodore Amiga Routines
   function ID_Amiga: Boolean;
   function ReadAmigaDisc: TDisc;
   function ReadAmigaDir(dirname: AnsiString; offset: Cardinal): TDir;
   function AmigaBootChecksum(offset: Cardinal): Cardinal;
   function AmigaChecksum(offset: Cardinal): Cardinal;
+  function FormatAmiga(minor: Byte): TDisc;
+  function WriteAmigaFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function CreateAmigaDirectory(var dirname,parent,attributes: AnsiString): Integer;
+  function RetitleAmigaDirectory(filename, newtitle: AnsiString): Boolean;
+  function RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function DeleteAmigaFile(filename: AnsiString):Boolean;
+  function UpdateAmigaFileAttributes(filename,attributes: AnsiString): Boolean;
+  function UpdateAmigaDiscTitle(title: AnsiString): Boolean;
  published
   //Methods
   constructor Create;
@@ -176,8 +209,8 @@ type
   function Format(major,minor,tracks: Byte): Boolean;
   function ExtractFile(filename: AnsiString; var buffer: TDIByteArray): Boolean;
   function ExtractFileToStream(filename: AnsiString;F: TStream): Boolean;
-  function WriteFile(file_details: TDirEntry; var buffer: TDIByteArray): Integer;
-  function WriteFileFromStream(file_details: TDirEntry;F: TStream): Integer;
+  function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
+  function WriteFileFromStream(var file_details: TDirEntry;F: TStream): Integer;
   function FileExists(filename: AnsiString; var Ref: Cardinal): Boolean;
   function ReadDiscData(addr,count,side: Cardinal; var buffer): Boolean;
   function ReadDiscDataToStream(addr,count,side: Cardinal; F: TStream): Boolean;
@@ -191,6 +224,8 @@ type
   function UpdateAttributes(filename,attributes: AnsiString): Boolean;
   function UpdateDiscTitle(title: AnsiString;side: Byte): Boolean;
   function UpdateBootOption(option,side: Byte): Boolean;
+  function CreateDirectory(var filename,parent,attributes: AnsiString): Integer;
+  function RetitleDirectory(var filename,newtitle: AnsiString): Boolean;
   //Properties
   property Disc:                TDisc        read FDisc;
   property FormatString:        AnsiString   read FormatToString;
@@ -489,19 +524,18 @@ end;
 function TDiscImage.Read32b(offset: Cardinal; bigendian: Boolean): Cardinal;
 begin
  Result:=$FFFFFFFF; //Default value
- if offset<Cardinal(Length(Fdata)) then
-  //Big Endian
-  if bigendian then
-   Result:=Fdata[offset+3]
-          +Fdata[offset+2]*$100
-          +Fdata[offset+1]*$10000
-          +Fdata[offset+0]*$1000000
-  else
-   //Little Endian
-   Result:=Fdata[offset+0]
-          +Fdata[offset+1]*$100
-          +Fdata[offset+2]*$10000
-          +Fdata[offset+3]*$1000000;
+ //Big Endian
+ if bigendian then
+  Result:=ReadByte(offset+3)
+         +ReadByte(offset+2)*$100
+         +ReadByte(offset+1)*$10000
+         +ReadByte(offset+0)*$1000000
+ else
+  //Little Endian
+  Result:=ReadByte(offset+0)
+         +ReadByte(offset+1)*$100
+         +ReadByte(offset+2)*$10000
+         +ReadByte(offset+3)*$1000000;
 end;
 
 {-------------------------------------------------------------------------------
@@ -514,17 +548,16 @@ end;
 function TDiscImage.Read24b(offset: Cardinal; bigendian: Boolean): Cardinal;
 begin
  Result:=$FFFFFF; //Default value
- if offset<Cardinal(Length(Fdata)) then
-  //Big Endian
-  if bigendian then
-   Result:=Fdata[offset+2]
-          +Fdata[offset+1]*$100
-          +Fdata[offset+0]*$10000
-  else
-   //Little Endian
-   Result:=Fdata[offset+0]
-          +Fdata[offset+1]*$100
-          +Fdata[offset+2]*$10000;
+ //Big Endian
+ if bigendian then
+  Result:=ReadByte(offset+2)
+         +ReadByte(offset+1)*$100
+         +ReadByte(offset+0)*$10000
+ else
+  //Little Endian
+  Result:=ReadByte(offset+0)
+         +ReadByte(offset+1)*$100
+         +ReadByte(offset+2)*$10000;
 end;
 
 {-------------------------------------------------------------------------------
@@ -537,15 +570,14 @@ end;
 function TDiscImage.Read16b(offset: Cardinal; bigendian: Boolean): Word;
 begin
  Result:=$FFFF; //Default value
- if offset<Cardinal(Length(Fdata)) then
-  //Big Endian
-  if bigendian then
-   Result:=Fdata[offset+1]
-          +Fdata[offset+0]*$100
-  else
-   //Little Endian
-   Result:=Fdata[offset+0]
-          +Fdata[offset+1]*$100;
+ //Big Endian
+ if bigendian then
+  Result:=ReadByte(offset+1)
+         +ReadByte(offset+0)*$100
+ else
+  //Little Endian
+  Result:=ReadByte(offset+0)
+         +ReadByte(offset+1)*$100;
 end;
 
 {-------------------------------------------------------------------------------
@@ -554,6 +586,11 @@ Read in a byte
 function TDiscImage.ReadByte(offset: Cardinal): Byte;
 begin
  Result:=$FF; //Default value
+ //Compensate for interleaving (ADFS L)
+ if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
+ //Compensate for emulator header
+ inc(offset,emuheader);
+ //If we are inside the data, read the byte
  if offset<Cardinal(Length(Fdata)) then
   Result:=Fdata[offset];
 end;
@@ -567,23 +604,22 @@ begin
 end;
 procedure TDiscImage.Write32b(value, offset: Cardinal; bigendian: Boolean);
 begin
- if offset<Cardinal(Length(Fdata)) then
-  if bigendian then
-  begin
-   //Big Endian
-   Fdata[offset+3]:= value mod $100;
-   Fdata[offset+2]:=(value div $100)    mod $100;
-   Fdata[offset+1]:=(value div $10000)  mod $100;
-   Fdata[offset+0]:=(value div $1000000)mod $100;
-  end
-  else
-  begin
-   //Little Endian
-   Fdata[offset+0]:= value mod $100;
-   Fdata[offset+1]:=(value div $100)    mod $100;
-   Fdata[offset+2]:=(value div $10000)  mod $100;
-   Fdata[offset+3]:=(value div $1000000)mod $100;
-  end;
+ if bigendian then
+ begin
+  //Big Endian
+  WriteByte( value mod $100             ,offset+3);
+  WriteByte((value div $100)    mod $100,offset+2);
+  WriteByte((value div $10000)  mod $100,offset+1);
+  WriteByte((value div $1000000)mod $100,offset+0);
+ end
+ else
+ begin
+  //Little Endian
+  WriteByte( value mod $100,             offset+0);
+  WriteByte((value div $100)    mod $100,offset+1);
+  WriteByte((value div $10000)  mod $100,offset+2);
+  WriteByte((value div $1000000)mod $100,offset+3);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -595,21 +631,20 @@ begin
 end;
 procedure TDiscImage.Write24b(value,offset: Cardinal; bigendian: Boolean);
 begin
- if offset<Cardinal(Length(Fdata)) then
-  if bigendian then
-  begin
-   //Big Endian
-   Fdata[offset+2]:= value mod $100;
-   Fdata[offset+1]:=(value div $100)    mod $100;
-   Fdata[offset+0]:=(value div $10000)  mod $100;
-  end
-  else
-  begin
-   //Little Endian
-   Fdata[offset+0]:= value mod $100;
-   Fdata[offset+1]:=(value div $100)    mod $100;
-   Fdata[offset+2]:=(value div $10000)  mod $100;
-  end;
+ if bigendian then
+ begin
+  //Big Endian
+  WriteByte( value mod $100             ,offset+2);
+  WriteByte((value div $100)    mod $100,offset+1);
+  WriteByte((value div $10000)  mod $100,offset+0);
+ end
+ else
+ begin
+  //Little Endian
+  WriteByte( value mod $100             ,offset+0);
+  WriteByte((value div $100)    mod $100,offset+1);
+  WriteByte((value div $10000)  mod $100,offset+2);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -621,19 +656,18 @@ begin
 end;
 procedure TDiscImage.Write16b(value: Word; offset: Cardinal; bigendian: Boolean);
 begin
- if offset<Cardinal(Length(Fdata)) then
-  if bigendian then
-  begin
-   //Big Endian
-   Fdata[offset+1]:= value mod $100;
-   Fdata[offset+0]:=(value div $100)    mod $100;
-  end
-  else
-  begin
-   //Little Endian
-   Fdata[offset+0]:= value mod $100;
-   Fdata[offset+1]:=(value div $100)    mod $100;
-  end
+ if bigendian then
+ begin
+  //Big Endian
+  WriteByte( value mod $100             ,offset+1);
+  WriteByte((value div $100)    mod $100,offset+0);
+ end
+ else
+ begin
+  //Little Endian
+  WriteByte( value mod $100             ,offset+0);
+  WriteByte((value div $100)    mod $100,offset+1);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -641,6 +675,11 @@ Write byte
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteByte(value: Byte; offset: Cardinal);
 begin
+ //Compensate for interleaving (ADFS L)
+ if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
+ //Compensate for emulator header
+ inc(offset,emuheader);
+ //Write the byte
  if offset<Cardinal(Length(Fdata)) then
   Fdata[offset]:=value;
 end;
@@ -714,19 +753,6 @@ begin
   $10: Result:='AmigaDOS Directory';
   $11: Result:='AmigaDOS Directory Cache';
  end;
-end;
-
-{-------------------------------------------------------------------------------
-Update the progress label - no longer used...left in for future possibilities
--------------------------------------------------------------------------------}
-procedure TDiscImage.UpdateProgress(S: AnsiString);
-begin
-{ if FProgress<>nil then
-  if FProgress.Panels.Count>0 then
-   begin
-    FProgress.Panels[0].Text:=S;
-    FProgress.Update;
-   end; }
 end;
 
 {-------------------------------------------------------------------------------
@@ -822,22 +848,24 @@ begin
  SetLength(Fdata,F.Size);
  //Move to the beginning of the stream
  F.Position:=0;
- UpdateProgress('Loading file');
+// UpdateProgress('Loading file');
  //Read the image into the data buffer
  F.Read(Fdata[0],Length(Fdata));
  //This check is done in the ID functions anyway, but we'll do it here also
  if Length(Fdata)>0 then
  begin
-  UpdateProgress('IDing the data');
   //ID the type of image, from the data contents
-  if ID_DFS      then FDisc:=ReadDFSDisc;     //Acorn DFS
+  //These need to be ID-ed in a certain order as one type can look like another
   if ID_ADFS     then FDisc:=ReadADFSDisc;    //Acorn ADFS
   if ID_CDR      then FDisc:=ReadCDRDisc;     //Commodore
-  if ID_Sinclair then FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
   if ID_Amiga    then FDisc:=ReadAmigaDisc;   //Amiga
+  if ID_DFS      then FDisc:=ReadDFSDisc;     //Acorn DFS
+  if ID_Sinclair then FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
   if FFormat=$FF then ResetVariables;
+  //Just by the ID process:
+  //ADFS 'F' can get mistaken for Commodore
+  //Commodore and Amiga can be mistaken for DFS
  end;
- UpdateProgress('');
 end;
 
 {-------------------------------------------------------------------------------
@@ -884,23 +912,31 @@ begin
  minor :=minor MOD $10;
  tracks:=tracks MOD 2;
  case major of
-  0:      //Create DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  0://Create DFS
    begin
     FDisc:=FormatDFS(minor,tracks);
     Result:=Length(FDisc)>0;
    end;
-  1:      //Create ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  1://Create ADFS
    begin
     FDisc:=FormatADFS(minor);
     Result:=Length(FDisc)>0;
    end;
-  2:      //Create Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
+  2://Create Commodore 64/128
    begin
     FDisc:=FormatCDR(minor);
     Result:=Length(FDisc)>0;
    end;
-  3: exit;//Create Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-  4: exit;//Create AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+  3://Create Sinclair/Amstrad
+   begin
+    FDisc:=FormatSpectrum(minor);
+    Result:=Length(FDisc)>0;
+   end;
+  4://Create AmigaDOS
+   begin
+    FDisc:=FormatAmiga(minor);
+    Result:=Length(FDisc)>0;
+   end;
  end;
 end;
 
@@ -995,6 +1031,7 @@ begin
    end;
   until dest>=filelen; //Once we've reached the file length, we're done
  end;
+ Result:=True;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1018,7 +1055,7 @@ end;
 {-------------------------------------------------------------------------------
 Save a file into the disc image, from buffer
 -------------------------------------------------------------------------------}
-function TDiscImage.WriteFile(file_details: TDirEntry; var buffer: TDIByteArray): Integer;
+function TDiscImage.WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
 var
  m     : Byte;
  count : Integer;
@@ -1037,21 +1074,62 @@ begin
   begin
    m:=FFormat DIV $10; //Major format
    case m of
-    0:      //Write DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      Result:=WriteDFSFile(file_details,buffer);
-    1: exit;//Write ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    2: exit;//Write Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
-    3: exit;//Write Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-    4: exit;//Write AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+    0:Result:=WriteDFSFile(file_details,buffer);     //Write DFS
+    1:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
+    2:Result:=WriteCDRFile(file_details,buffer);     //Write Commodore 64/128
+    3:Result:=WriteSpectrumFile(file_details,buffer);//Write Sinclair/Amstrad
+    4:Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
    end;
   end;
  end;
 end;
 
 {-------------------------------------------------------------------------------
+Create a directory
+-------------------------------------------------------------------------------}
+function TDiscImage.CreateDirectory(var filename,parent,attributes: AnsiString): Integer;
+var
+ m     : Byte;
+begin
+ //Start with a false result
+ Result:=-1;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0: exit;//Can't create directories on DFS
+  1:      //Create directory on ADFS
+    Result:=CreateADFSDirectory(filename,parent,attributes);
+  2: exit;//Can't create directories on Commodore
+  3: exit;//Can't create directories on Sinclair/Amstrad
+  4:      //Create directory on AmigaDOS
+    Result:=CreateAmigaDirectory(filename,parent,attributes);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Retitle a directory
+-------------------------------------------------------------------------------}
+function TDiscImage.RetitleDirectory(var filename,newtitle: AnsiString): Boolean;
+var
+ m     : Byte;
+begin
+ //Start with a false result
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0: exit;//DFS doesn't have directories
+  1:      //Retitle ADFS directory
+    Result:=RetitleADFSDirectory(filename,newtitle);
+  2: exit;//Commodore doesn't have directories
+  3: exit;//Sinclair/Amstrad doesn't have directories
+  4:      //Retitle AmigaDOS directory
+    Result:=RetitleAmigaDirectory(filename,newtitle);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
 Save a file into the disc image, from stream
 -------------------------------------------------------------------------------}
-function TDiscImage.WriteFileFromStream(file_details: TDirEntry;F: TStream): Integer;
+function TDiscImage.WriteFileFromStream(var file_details: TDirEntry;F: TStream): Integer;
 var
  buffer: TDIByteArray;
 begin
@@ -1180,43 +1258,24 @@ var
  i   : Cardinal;
  temp: TDIByteArray;
 begin
- //Everything but DFS and ADFS S,M,& L
- if ((FFormat shr 4=1) and (FFormat MOD $10>2)) or (FFormat shr 4>1) then
+ //Simply copy from source to destination
+ //ReadByte will compensate if offset is out of range
+ //All but DFS
+ if FFormat shr 4<>0 then
  begin
-  //Entire block must be within the length of the data
-  Result:=(addr+count)<Cardinal(Length(Fdata));
-  if Result then
-   //Simply copy from source to destination
-   Move(Fdata[addr],buffer,count);
- end;
- //ADFS S,M and L
- if (FFormat shr 4=1) and (FFormat MOD $10<3) then
- begin
-  //Entire block must be within the length of the data
-  Result:=OldDiscAddrToOffset(addr+count)<Length(Fdata);
-  //Simply copy from source to destination
-  if Result then
-  begin
-   SetLength(temp,count);
-   for i:=0 to count-1 do
-    temp[i]:=ReadByte(OldDiscAddrToOffset(addr+i));
-   Move(temp[0],buffer,count);
-  end;
+  SetLength(temp,count);
+  for i:=0 to count-1 do
+   temp[i]:=ReadByte(addr+i);
  end;
  //DFS
  if FFormat shr 4=0 then
  begin
-  //Entire block must be within the length of the data
-  Result:=ConvertSector(addr+count,side)<Length(Fdata);
-  //Simply copy from source to destination
-  if Result then
-  begin
-   SetLength(temp,count);
-   for i:=0 to count-1 do
-    temp[i]:=ReadByte(ConvertSector(addr+i,side));
-   Move(temp[0],buffer,count);
-  end;
+  SetLength(temp,count);
+  for i:=0 to count-1 do
+   temp[i]:=ReadByte(ConvertSector(addr+i,side));
  end;
+ Move(temp[0],buffer,count);
+ Result:=True;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1246,6 +1305,8 @@ function TDiscImage.WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray; 
 var
  i   : Cardinal;
 begin
+ //Sometimes the image file is smaller than the actual disc size
+ if Length(FData)<disc_size then SetLength(FData,disc_size);
  if FFormat DIV $10>0 then //not DFS
  begin
   //Ensure that the entire block will fit into the available space
@@ -1378,12 +1439,11 @@ begin
  Result:=False;
  m:=FFormat DIV $10; //Major format
  case m of
-  0:      //Rename DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=RenameDFSFile(oldfilename,newfilename);
-  1: exit;//Rename ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  2: exit;//Rename Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
-  3: exit;//Rename Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-  4: exit;//Rename AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+  0:Result:=RenameDFSFile(oldfilename,newfilename);     //Rename DFS
+  1:Result:=RenameADFSFile(oldfilename,newfilename);    //Rename ADFS
+  2:Result:=RenameCDRFile(oldfilename,newfilename);     //Rename Commodore 64/128
+  3:Result:=RenameSpectrumFile(oldfilename,newfilename);//Rename Sinclair/Amstrad
+  4:Result:=RenameAmigaFile(oldfilename,newfilename);   //Rename AmigaDOS
  end;
 end;
 
@@ -1397,12 +1457,11 @@ begin
  Result:=False;
  m:=FFormat DIV $10; //Major format
  case m of
-  0:      //Delete DFS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=DeleteDFSFile(filename);
-  1: exit;//Delete ADFS +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  2: exit;//Delete Commodore 64/128 +++++++++++++++++++++++++++++++++++++++++++
-  3: exit;//Delete Sinclair/Amstrad +++++++++++++++++++++++++++++++++++++++++++
-  4: exit;//Delete AmigaDOS +++++++++++++++++++++++++++++++++++++++++++++++++++
+  0:Result:=DeleteDFSFile(filename);     //Delete DFS
+  1:Result:=DeleteADFSFile(filename);    //Delete ADFS
+  2:Result:=DeleteCDRFile(filename);     //Delete Commodore 64/128
+  3:Result:=DeleteSinclairFile(filename);//Delete Sinclair/Amstrad
+  4:Result:=DeleteAmigaFile(filename);   //Delete AmigaDOS
  end;
 end;
 
@@ -1461,12 +1520,11 @@ begin
  Result:=False;
  m:=FFormat DIV $10; //Major format
  case m of
-  0:      //Update DFS attributes +++++++++++++++++++++++++++++++++++++++++++++
-    Result:=UpdateDFSFileAttributes(filename,attributes);
-  1: exit;//Update ADFS attributes ++++++++++++++++++++++++++++++++++++++++++++
-  2: exit;//Update Commodore 64/128 attributes ++++++++++++++++++++++++++++++++
-  3: exit;//Update Sinclair/Amstrad attributes ++++++++++++++++++++++++++++++++
-  4: exit;//Update AmigaDOS attributes ++++++++++++++++++++++++++++++++++++++++
+  0:Result:=UpdateDFSFileAttributes(filename,attributes);     //Update DFS attributes
+  1:Result:=UpdateADFSFileAttributes(filename,attributes);    //Update ADFS attributes
+  2:Result:=UpdateCDRFileAttributes(filename,attributes);     //Update Commodore 64/128 attributes
+  3:Result:=UpdateSinclairFileAttributes(filename,attributes);//Update Sinclair/Amstrad attributes
+  4:Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
  end;
 end;
 
@@ -1480,13 +1538,11 @@ begin
  Result:=False;
  m:=FFormat DIV $10; //Major format
  case m of
-  0:      //Title DFS Disc ++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=UpdateDFSDiscTitle(title,side);
-  1:      //Title ADFS Disc +++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=UpdateADFSDiscTitle(title);
-  2: exit;//Title Commodore 64/128 Disc +++++++++++++++++++++++++++++++++++++++
-  3: exit;//Title Sinclair/Amstrad Disc +++++++++++++++++++++++++++++++++++++++
-  4: exit;//Title AmigaDOS Disc +++++++++++++++++++++++++++++++++++++++++++++++
+  0:Result:=UpdateDFSDiscTitle(title,side);//Title DFS Disc
+  1:Result:=UpdateADFSDiscTitle(title);    //Title ADFS Disc
+  2:Result:=UpdateCDRDiscTitle(title);     //Title Commodore 64/128 Disc
+  3:Result:=UpdateSinclairDiscTitle(title);//Title Sinclair/Amstrad Disc
+  4:Result:=UpdateAmigaDiscTitle(title);   //Title AmigaDOS Disc
  end;
 end;
 
@@ -1500,10 +1556,8 @@ begin
  Result:=False;
  m:=FFormat DIV $10; //Major format
  case m of
-  0:      //Update DFS Boot +++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=UpdateDFSBootOption(option,side);
-  1:      //Update ADFS Boot ++++++++++++++++++++++++++++++++++++++++++++++++++
-    Result:=UpdateADFSBootOption(option);
+  0:Result:=UpdateDFSBootOption(option,side);//Update DFS Boot
+  1:Result:=UpdateADFSBootOption(option);    //Update ADFS Boot
   2: exit;//Update Commodore 64/128 Boot ++++++++++++++++++++++++++++++++++++++
   3: exit;//Update Sinclair/Amstrad Boot ++++++++++++++++++++++++++++++++++++++
   4: exit;//Update AmigaDOS Boot ++++++++++++++++++++++++++++++++++++++++++++++
@@ -1517,4 +1571,3 @@ end;
 {$INCLUDE 'DiscImage_Amiga.pas'}
 
 end.
-

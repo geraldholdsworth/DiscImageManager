@@ -24,7 +24,6 @@ type
   procedure ADFSClick(Sender: TObject);
   procedure btn_CancelClick(Sender: TObject);
   procedure btn_OKClick(Sender: TObject);
-  procedure C64Click(Sender: TObject);
   procedure FormShow(Sender: TObject);
   procedure MainFormatClick(Sender: TObject);
  private
@@ -105,12 +104,6 @@ end;
 procedure TNewImageForm.btn_OKClick(Sender: TObject);
 begin
  ModalResult:=mrOK;
-end;
-
-//Select type of C64 disc
-procedure TNewImageForm.C64Click(Sender: TObject);
-begin
- //btn_OK.Enabled:=C64.ItemIndex<2; //So far, only 1541 and 1571
 end;
 
 end.
