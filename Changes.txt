@@ -108,12 +108,27 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * Added facility to add files to ADFS S, M, L, & D images.
 * Added facility to create new directories on ADFS S, M, L, & D images.
 * Ironed out a couple of ADFS ID-ing bugs.
-* Added facility to rename files and directories on ADFS S, M, L & D images.
+* Added facility to rename files and directories on ADFS S, M, L, D, E and F images.
 * Will now import entire directories (if enough space, of course) into ADFS S, M, L & D images.
-* ADFS S, M, L and D Directories can now be re-titled, including the root.
+* ADFS S, M, L, D, E and F Directories can now be re-titled, including the root.
 * Files and entire directories can now be deleted from ADFS S, M, L and D images.
 * Fixed a bug where the image file size was not extended to the full extent of the disc size when adding files or directories.
 * Changed some assumptions when ID-ing DFS images (number of tracks no longer has to be 40 or 80). Due to this have had to introduce an extra check (number of sectors >0) when ID-ing DFS images.
 * Changed the order of ID-ing images as Commodore and Amiga could now be mistaken for DFS.
 * Can now compile for Linux 32 bit as well as Linux 64 bit, Windows 32 and 64 bit, and macOS 32 and 64 bit.
 * Fixed a bug when ID-ing formats to ensure one already 'claimed' for a platform does not undergo further checks for other formats.
+
+1.05.10
+* Creation of new module, introducing separate layer between the UI and the class.
+* Move of some type definitions and functions/procedure from the class module to the utils module.
+* Move of some functions/procedures from the UI module to the utils module.
+* Found, and fixed, a major bug whereby if a file was fragmented on an ADFS New Map image, the resultant extraction of the file could be corrupted.
+* Moved, and separated, function for extracting files into their own respective modules.
+* Fixed a bug (or more accurately, an oversight) where the checksums where not computed and saved when retitling New Directory directories, resulting in Broken Directory errors.
+* Can now write files and directories to New Map ADFS images (E and F).
+* Improved the accuracy of gathering the free space map for ADFS New Map images.
+* Fails, without crashing, if the application fails to open or create a file.
+* The files are now opened non-exclusively (i.e. another application can open the file at the same time).
+* Can now delete files and directories from New Map ADFS Images (E and F).
+* Fixed a bug where new directories being added in ADFS New Directory formats were not getting their checksum updated, resulting in a Broken Directory.
+* Updated the ADFS directory checksum checking - now only ignores a zero checksum for old directories.

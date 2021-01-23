@@ -11,8 +11,6 @@ General
 * Command line - add option to load and run commands from file.
 
 Coding Issues
-* Move, and separate, function for extracting files into their own respective modules.
-* Create a DiscImageUtils module for general handlers and move the creation and decoding of INF files in, validating filenames, etc.
 * Produce error codes instead of success or failure for reading/writing functions.
 
 DFS
@@ -21,7 +19,7 @@ DFS
 * Merge two ssd to a single dsd.
 
 ADFS
-* Write/Delete/Rename files/directories to ADFS New Map images.
+* Write/Delete/Rename files/directories to ADFS Big Dir images.
 * Fix broken ADFS directories.
 * Date stamp newly created directories, or imported files, when none exist for New and Big Directories.
 * Free space consolidation (Old map).
