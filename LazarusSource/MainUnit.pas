@@ -7,8 +7,8 @@ unit MainUnit;
 interface
 
 uses
-  SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,ExtCtrls,
-  Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils;
+  SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,
+  DiscImageUtils,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -153,8 +153,6 @@ type
     procedure btn_AboutClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDropFiles(Sender: TObject; const FileNames: array of AnsiString);
-    procedure BBCtoWin(var f: AnsiString);
-    procedure WintoBBC(var f: AnsiString);
     procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
      const Rect: TRect);
     procedure ValidateFilename(var f: AnsiString);
@@ -206,7 +204,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.9';
+    ApplicationVersion = '1.05.10';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -289,15 +287,19 @@ begin
   begin
    inffile:='';
    //Read in the first line
-   F:=TFileStream.Create(dirname+'.inf',fmOpenRead);
-   F.Position:=0;
-   while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
-    inffile:=inffile+chr;
-   F.Free;
-   fields:=BreakDownInf(inffile);
-   //Then extract the fields
-   if Length(fields)>0 then importname:=fields[0];
-   if Length(fields)>4 then attr      :=fields[4];
+   try
+    F:=TFileStream.Create(dirname+'.inf',fmOpenRead OR fmShareDenyNone);
+    F.Position:=0;
+    while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
+     inffile:=inffile+chr;
+    F.Free;
+    fields:=BreakDownInf(inffile);
+    //Then extract the fields
+    if Length(fields)>0 then importname:=fields[0];
+    if Length(fields)>4 then attr      :=fields[4];
+   except
+    //Could not load
+   end;
   end;
   //Convert a Windows filename to a BBC filename
   WinToBBC(importname);
@@ -334,7 +336,7 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Break down an *.inf file entry
+//Break down an *.inf file entry - MOVE INTO THE UTILS MODULE
 {------------------------------------------------------------------------------}
 function TMainForm.BreakDownInf(s: AnsiString): TStringArray;
 var
@@ -430,18 +432,22 @@ begin
     begin
      inffile:='';
      //Read in the first line
-     F:=TFileStream.Create(filename+'.inf',fmOpenRead);
-     F.Position:=0;
-     while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
-      inffile:=inffile+chr;
-     F.Free;
-     fields:=BreakDownInf(inffile);
-     //Then extract the fields
-     if Length(fields)>0 then importfilename:=fields[0];
-     if Length(fields)>1 then loadaddr      :=fields[1];
-     if length(fields)>2 then execaddr      :=fields[2];
-     if Length(fields)>3 then filelen       :=fields[3];
-     if Length(fields)>4 then attr1         :=fields[4];
+     try
+      F:=TFileStream.Create(filename+'.inf',fmOpenRead OR fmShareDenyNone);
+      F.Position:=0;
+      while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
+       inffile:=inffile+chr;
+      F.Free;
+      fields:=BreakDownInf(inffile);
+      //Then extract the fields
+      if Length(fields)>0 then importfilename:=fields[0];
+      if Length(fields)>1 then loadaddr      :=fields[1];
+      if length(fields)>2 then execaddr      :=fields[2];
+      if Length(fields)>3 then filelen       :=fields[3];
+      if Length(fields)>4 then attr1         :=fields[4];
+     except
+      //Could not load
+     end;
     end;
     if Image.FormatNumber<$20 then //DFS only stuff
     begin
@@ -502,17 +508,21 @@ begin
       NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).Dir,
                                            DirList.Selected.Index);
     //Load the file from the host
-    F:=TFileStream.Create(filename,fmOpenRead);
-    F.Position:=0;
-    //If the supplied file length is zero, use the system size
-    if StrToIntDef('$'+filelen,F.Size)=0 then filelen:=IntToHex(F.Size,8);
-    //Set the buffer length to either the length supplied, or what the host returns
-    SetLength(buffer,StrToIntDef('$'+filelen,F.Size));
-    //Set the length to the actual number of bytes read in
-    NewFile.Length    :=F.Read(buffer[0],StrToIntDef('$'+filelen,F.Size));
-    F.Free;
-    //Write the File
-    index:=Image.WriteFile(NewFile,buffer);
+    try
+     F:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
+     F.Position:=0;
+     //If the supplied file length is zero, use the system size
+     if StrToIntDef('$'+filelen,F.Size)=0 then filelen:=IntToHex(F.Size,8);
+     //Set the buffer length to either the length supplied, or what the host returns
+     SetLength(buffer,StrToIntDef('$'+filelen,F.Size));
+     //Set the length to the actual number of bytes read in
+     NewFile.Length    :=F.Read(buffer[0],StrToIntDef('$'+filelen,F.Size));
+     F.Free;
+     //Write the File
+     index:=Image.WriteFile(NewFile,buffer);
+    except
+     index:=-1;//Could not load
+    end;
     //Function returns pointer to next item (or parent if no children)
     if index<>-1 then //File added OK
     begin
@@ -677,7 +687,7 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Create an Image filename
+//Create an Image filename - MOVE INTO THE UTILS MODULE
 {------------------------------------------------------------------------------}
 function TMainForm.GetImageFilename(dir,entry: Integer): AnsiString;
 begin
@@ -689,7 +699,7 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Create a Windows filename
+//Create a Windows filename - MOVE INTO THE UTILS MODULE
 {------------------------------------------------------------------------------}
 function TMainForm.GetWindowsFilename(dir,entry: Integer): AnsiString;
 begin
@@ -726,11 +736,15 @@ begin
   if Image.ExtractFile(imagefilename,buffer) then
   begin
    //Save the buffer to the file
-   F:=TFileStream.Create(path+windowsfilename,fmCreate);
-   F.Position:=0;
-   F.Write(buffer[0],Length(buffer));
-   F.Free;
-   CreateINFFile(dir,entry,path);
+   try
+    F:=TFileStream.Create(path+windowsfilename,fmCreate OR fmShareDenyNone);
+    F.Position:=0;
+    F.Write(buffer[0],Length(buffer));
+    F.Free;
+    CreateINFFile(dir,entry,path);
+   except
+    //Could not create file
+   end;
   end
   //Happens if the file could not be located
   else ShowMessage('Could not locate file "'+imagefilename+'"');
@@ -739,7 +753,7 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Create an inf file
+//Create an inf file - MOVE INTO THE UTILS MODULE
 {------------------------------------------------------------------------------}
 procedure TMainForm.CreateINFFile(dir,entry: Integer; path: AnsiString);
 var
@@ -774,10 +788,14 @@ begin
      inc(attributes,1 shl t);
   inffile:=inffile+' '+IntToHex(attributes,2);
   //Create the inf file
-  F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate);
-  F.Position:=0;
-  F.Write(inffile[1],Length(inffile));
-  F.Free;
+  try
+   F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
+   F.Position:=0;
+   F.Write(inffile[1],Length(inffile));
+   F.Free;
+  except
+   //Could not create
+  end;
  end;
 end;
 
@@ -2199,44 +2217,6 @@ end;
 function TMainForm.IntToStrComma(size: Int64): AnsiString;
 begin
  Result:=Format('%.0n',[1.0*size]);
-end;
-
-{------------------------------------------------------------------------------}
-//Convert BBC to Windows filename
-{------------------------------------------------------------------------------}
-procedure TMainForm.BBCtoWin(var f: AnsiString);
-var
- i: Integer;
-begin
- for i:=1 to Length(f) do
- begin
-  if f[i]='/' then f[i]:='.';
-  if f[i]='?' then f[i]:='#';
-  if f[i]='<' then f[i]:='$';
-  if f[i]='>' then f[i]:='^';
-  if f[i]='+' then f[i]:='&';
-  if f[i]='=' then f[i]:='@';
-  if f[i]=';' then f[i]:='%';
- end;
-end;
-
-{------------------------------------------------------------------------------}
-//Convert Windows to BBC filename
-{------------------------------------------------------------------------------}
-procedure TMainForm.WintoBBC(var f: AnsiString);
-var
- i: Integer;
-begin
- for i:=1 to Length(f) do
- begin
-  if f[i]='.' then f[i]:='/';
-  if f[i]='#' then f[i]:='?';
-  if f[i]='$' then f[i]:='<';
-  if f[i]='^' then f[i]:='>';
-  if f[i]='&' then f[i]:='+';
-  if f[i]='@' then f[i]:='=';
-  if f[i]='%' then f[i]:=';';
- end;
 end;
 
 {------------------------------------------------------------------------------}

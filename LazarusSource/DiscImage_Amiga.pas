@@ -118,9 +118,9 @@ var
  fsmptr  : Cardinal;
  b,c     : Byte;
 begin
+ Result:=nil;
  //Initialise some variables
  SetLength(Result,0);
-// UpdateProgress('Reading Commodore Amiga Disc');
  if FFormat<>$FF then
  begin
   //Total number of sectors will be double where the root is
@@ -130,7 +130,6 @@ begin
   //Disc name
   disc_name :=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
   //Work out the free space
-//  UpdateProgress('Calculating Free Space');
   free_space:=secsize*2; //Allow for the boot block, even if there isn't one
   dec(sectors,2);        //The first two sectors will still be allocated for one
   //Free Space Map pointer - starts at the root block
@@ -225,6 +224,8 @@ const
    ' ',' ',' ',' ',' ',' ',' ',' ',
    ' ',' ',' ',' ',' ',' ',' ',' ');
 begin
+ //Initialise the return variable (this just stops the compiler from warning)
+ Result.Directory:='';
  ResetDir(Result);
  //If the checksum checks out, read in the contents
  if Read32b(offset*secsize+$14,True)=AmigaChecksum(offset*secsize) then
@@ -299,6 +300,50 @@ Calculate Amiga regular checksum
 function TDiscImage.AmigaChecksum(offset: Cardinal): Cardinal;
 begin
  Result:=-GeneralChecksum(offset,$200,$014,0,False);
+end;
+
+{-------------------------------------------------------------------------------
+Extracts a file, filename contains complete path
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractAmigaFile(filename: AnsiString;
+                                             var buffer: TDIByteArray): Boolean;
+var
+ source        : Integer;
+ entry,dir,
+ dest,
+ fragptr,len,
+ filelen       : Cardinal;
+begin
+ Result:=False;
+ if FileExists(filename,fragptr) then //Does the file actually exist?
+ //Yes, so load it - there is nothing to stop a directory header being extracted
+ //if passed in the filename parameter.
+ begin
+  //FileExists returns a pointer to the file
+  entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=fragptr div $10000;  //Top 16 bits - directory reference
+  //Make space to receive the file
+  filelen:=FDisc[dir].Entries[entry].Length;
+  SetLength(buffer,filelen);
+  //Get the starting position
+  fragptr:=Cardinal(FDisc[dir].Entries[entry].Sector);
+  dest  :=0;      //Length pointer/Destination pointer
+  repeat
+   //Fragmented filing system, so need to work out source and length
+   source:=Integer(fragptr*secsize)+$18;     //Source of data
+   len   :=Read32b(fragptr*secsize+$C,True);//Amount of data
+   //Make sure we don't read too much
+   if dest+len>filelen then
+    len:=filelen-dest;
+   //Read the data into the buffer
+   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
+   //Move the size pointer on, by the amount read
+   inc(dest,len);
+   //Get the next block pointer
+   fragptr:=Read32b(fragptr*secsize+$10,True);
+  until dest>=filelen; //Once we've reached the file length, we're done
+ end;
+ Result:=True;
 end;
 
 {-------------------------------------------------------------------------------

@@ -130,7 +130,7 @@ var
  diroff    : Integer;
  temp      : AnsiString;
 begin
-// UpdateProgress('Reading DFS Catalogue');
+ Result:=nil;
  if (FFormat AND $1)=1 then //Double sided image
  begin
   SetLength(Result,2);
@@ -569,6 +569,7 @@ var
  t: Integer;
  side_size: Cardinal;
 begin
+ Result:=nil;
  //Blank everything
  ResetVariables;
  //Set the format
@@ -659,4 +660,36 @@ begin
  b:=(b AND $CF) OR ((option AND $3)shl 4);
  WriteByte(b,ConvertSector($106,side));
  Result:=True;
+end;
+
+{-------------------------------------------------------------------------------
+Extracts a file, filename contains complete path
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractDFSFile(filename: AnsiString;
+                                             var buffer: TDIByteArray): Boolean;
+var
+ source,side   : Integer;
+ entry,dir,
+ fragptr,
+ filelen       : Cardinal;
+begin
+ Result:=False;
+ if FileExists(filename,fragptr) then //Does the file actually exist? 
+ //Yes, so load it - there is nothing to stop a directory header being extracted
+ //if passed in the filename parameter.
+ begin
+  //FileExists returns a pointer to the file
+  entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=fragptr div $10000;  //Top 16 bits - directory reference
+  //Make space to receive the file
+  filelen:=FDisc[dir].Entries[entry].Length;
+  SetLength(buffer,filelen);
+  //Work out where it is coming from
+  source:=FDisc[dir].Entries[entry].Sector*$100;
+  side:=FDisc[dir].Entries[entry].Side;
+  //Read the data into the buffer
+  ReadDiscData(source,filelen,side,buffer[0]);
+  //Return positive
+  Result:=True;
+ end;
 end;

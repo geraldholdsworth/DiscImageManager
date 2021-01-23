@@ -7,6 +7,8 @@ object MainForm: TMainForm
   ClientHeight = 751
   ClientWidth = 1042
   Color = 15527148
+  Constraints.MinHeight = 634
+  Constraints.MinWidth = 664
   Font.Height = -11
   Icon.Data = {
     CF15020000000100060000000000010020006190000066000000101000000100

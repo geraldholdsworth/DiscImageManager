@@ -6,63 +6,32 @@ unit DiscImage;
 
 interface
 
-uses Classes;
+uses Classes,DiscImageUtils;
 
 {$M+}
 
-type
-//Define the TDIByteArray - saves using the System.Types unit for TByteDynArray
- TDIByteArray = array of Byte;
-//Free space map
- TTrack = array of TDIByteArray; //TDIByteArray representing the sectors
- TSide  = array of TTrack;      //Sides
-//Define the records to hold the catalogue
- TDirEntry     = record     //Not all fields are used on all formats
-  Parent,                   //Complete path for parent directory (ALL)
-  Filename,                 //Filename (ALL)
-  Attributes,               //File attributes (ADFS/DFS/D64/D71/D81/AmigaDOS)
-  Filetype,                 //Full name filetype (ADFS/D64/D71/D81)
-  ShortFileType: AnsiString;//Filetype shortname (ADFS/D64/D71/D81)
-  LoadAddr,                 //Load Address (ADFS/DFS)
-  ExecAddr,                 //Execution Address (ADFS/DFS)
-  Length,                   //Total length (ALL)
-  Side,                     //Side of disc of location of data (DFS)
-  Track,                    //Track of location of data (D64/D71/D81)
-  DataFile,                 //Reserved for use by Repton Map Display
-  ImageAddress: Cardinal;   //Reserved for use by Repton Map Display
-  Sector,                   //Sector of disc of location of data (DFS/D64/D71/D81/AmigaDOS file)
-                            //Sector of disc of location of header (AmigaDOS directory)
-                            //Address of location of data (ADFS S/M/L)
-                            //Indirect disc address of data (ADFS D/E/F/E+/F+)
-  DirRef      : Integer;    //Reference to directory, if directory (ADFS/AmigaDOS)
-  TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
-  EOR         : Byte;       //Reserved for use by Repton Map Display
- end;
- TSearchResults =array of TDirEntry;
- TDir          = record
-  Directory,                       //Directory name (ALL)
-  Title       : AnsiString;        //Directory title (DFS/ADFS)
-  Entries     : array of TDirEntry;//Entries (above)
-  Broken      : Boolean;           //Flag if directory is broken (ADFS)
-  ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
- end;
- TDisc         = array of TDir;
-//For retrieving the ADFS E/F fragment information
- TFragment     = record
-  Offset,
-  Length      : Cardinal;
- end;
- TFragmentArray= array of TFragment;
- procedure ResetDirEntry(var Entry: TDirEntry);
- procedure RemoveTopBit(var title: AnsiString);
-const
- //When the change of number of sectors occurs on Commodore discs
- CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
- //Number of sectors per track
- CDRnumsects  : array[0..7] of Integer = (17,18,19,21,17,18,19,21);
 //The class definition
 type
  TDiscImage    = Class
+ private
+  type
+  //Free space map
+  TTrack = array of TDIByteArray; //TDIByteArray representing the sectors
+  TSide  = array of TTrack;      //Sides
+  TDir          = record
+   Directory,                       //Directory name (ALL)
+   Title       : AnsiString;        //Directory title (DFS/ADFS)
+   Entries     : array of TDirEntry;//Entries (above)
+   Broken      : Boolean;           //Flag if directory is broken (ADFS)
+   ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
+  end;
+  TDisc         = array of TDir;
+  TFragment     = record        //For retrieving the ADFS E/F fragment information
+   Offset,
+   Length,
+   Zone         : Cardinal;
+  end;
+  TFragmentArray= array of TFragment;
  private
   FDisc         : TDisc;        //Container for the entire catalogue
   Fdata         : TDIByteArray; //Container for the image to be loaded into
@@ -99,28 +68,18 @@ type
   free_space_map: TSide;        //Free Space Map
   bootoption    : TDIByteArray; //Boot Option(s)
   procedure ResetVariables;
-  function ReadString(ptr,term: Integer): AnsiString; overload;
-  function ReadString(ptr,term: Integer;control: Boolean): AnsiString; overload;
-  procedure RemoveSpaces(var s: AnsiString);
-  procedure RemoveControl(var s: AnsiString);
+  function ReadString(ptr,term: Integer;control: Boolean=True): AnsiString;
   function FormatToString: AnsiString;
   function FormatToExt: AnsiString;
   function ReadBits(offset,start,length: Cardinal): Cardinal;
-  function IsBitSet(v,b: Integer): Boolean;
   function ConvertTimeDate(filedatetime: Int64): TDateTime;
-  function Read32b(offset: Cardinal): Cardinal; overload;
-  function Read32b(offset: Cardinal; bigendian: Boolean): Cardinal; overload;
-  function Read24b(offset: Cardinal): Cardinal; overload;
-  function Read24b(offset: Cardinal; bigendian: Boolean): Cardinal; overload;
-  function Read16b(offset: Cardinal): Word; overload;
-  function Read16b(offset: Cardinal; bigendian: Boolean): Word; overload;
+  function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+  function Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+  function Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
   function ReadByte(offset: Cardinal): Byte;
-  procedure Write32b(value, offset: Cardinal); overload;
-  procedure Write32b(value, offset: Cardinal; bigendian: Boolean); overload;
-  procedure Write24b(value, offset: Cardinal); overload;
-  procedure Write24b(value, offset: Cardinal; bigendian: Boolean); overload;
-  procedure Write16b(value: Word; offset: Cardinal); overload;
-  procedure Write16b(value: Word; offset: Cardinal; bigendian: Boolean); overload;
+  procedure Write32b(value, offset: Cardinal; bigendian: Boolean=False);
+  procedure Write24b(value, offset: Cardinal; bigendian: Boolean=False);
+  procedure Write16b(value: Word; offset: Cardinal; bigendian: Boolean=False);
   procedure WriteByte(value: Byte; offset: Cardinal);
   function ROR13(v: Cardinal): Cardinal;
   procedure ResetDir(var Entry: TDir);
@@ -132,7 +91,7 @@ type
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: AnsiString; sector: Cardinal): TDir;
   function CalculateADFSDirCheck(sector,EndOfChk,tail,dirsize: Cardinal): Byte;
-  function NewDiscAddrToOffset(addr: Cardinal): TFragmentArray;
+  function NewDiscAddrToOffset(addr: Cardinal;offset:Boolean=True): TFragmentArray;
   function OldDiscAddrToOffset(disc_addr: Cardinal): Cardinal;
   function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
   function ByteChecksum(offset,size: Cardinal): Byte;
@@ -142,6 +101,7 @@ type
   function FormatADFS(minor: Byte): TDisc;
   function UpdateADFSDiscTitle(title: AnsiString): Boolean;
   function UpdateADFSBootOption(option: Byte): Boolean;
+  function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
   function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   function CreateADFSDirectory(var dirname,parent,attributes: AnsiString): Integer;
   procedure UpdateADFSCat(directory: AnsiString);
@@ -151,6 +111,7 @@ type
   function RenameADFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
   procedure ConsolodateADFSFreeSpaceMap;
   function DeleteADFSFile(filename: AnsiString):Boolean;
+  function ExtractADFSFile(filename: AnsiString;var buffer: TDIByteArray): Boolean;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc: TDisc;
@@ -165,6 +126,7 @@ type
   function FormatDFS(minor,tracks: Byte): TDisc;
   function UpdateDFSDiscTitle(title: AnsiString;side: Byte): Boolean;
   function UpdateDFSBootOption(option,side: Byte): Boolean;
+  function ExtractDFSFile(filename: AnsiString;var buffer: TDIByteArray): Boolean;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
@@ -172,7 +134,10 @@ type
   function FormatCDR(minor: Byte): TDisc;
   procedure CDRFreeSpaceMap;
   function UpdateCDRDiscTitle(title: AnsiString): Boolean;
+  function ExtractCDRFile(filename:AnsiString;var buffer:TDIByteArray): Boolean;
   function WriteCDRFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function CDRFindNextSector(var track,sector: Byte): Boolean;
+  function CDRFindNextTrack(var track,sector: Byte): Boolean;
   function RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
   function DeleteCDRFile(filename: AnsiString):Boolean;
   function UpdateCDRFileAttributes(filename,attributes: AnsiString): Boolean;
@@ -185,12 +150,14 @@ type
   function DeleteSinclairFile(filename: AnsiString):Boolean;
   function UpdateSinclairFileAttributes(filename,attributes: AnsiString): Boolean;
   function UpdateSinclairDiscTitle(title: AnsiString): Boolean;
+  function ExtractSpectrumFile(filename:AnsiString;var buffer:TDIByteArray):Boolean;
   //Commodore Amiga Routines
   function ID_Amiga: Boolean;
   function ReadAmigaDisc: TDisc;
   function ReadAmigaDir(dirname: AnsiString; offset: Cardinal): TDir;
   function AmigaBootChecksum(offset: Cardinal): Cardinal;
   function AmigaChecksum(offset: Cardinal): Cardinal;
+  function ExtractAmigaFile(filename:AnsiString;var buffer:TDIByteArray):Boolean;
   function FormatAmiga(minor: Byte): TDisc;
   function WriteAmigaFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   function CreateAmigaDirectory(var dirname,parent,attributes: AnsiString): Integer;
@@ -199,6 +166,11 @@ type
   function DeleteAmigaFile(filename: AnsiString):Boolean;
   function UpdateAmigaFileAttributes(filename,attributes: AnsiString): Boolean;
   function UpdateAmigaDiscTitle(title: AnsiString): Boolean;
+  const
+   //When the change of number of sectors occurs on Commodore discs
+   CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
+   //Number of sectors per track
+   CDRnumsects  : array[0..7] of Integer = (17,18,19,21,17,18,19,21);
  published
   //Methods
   constructor Create;
@@ -214,7 +186,8 @@ type
   function FileExists(filename: AnsiString; var Ref: Cardinal): Boolean;
   function ReadDiscData(addr,count,side: Cardinal; var buffer): Boolean;
   function ReadDiscDataToStream(addr,count,side: Cardinal; F: TStream): Boolean;
-  function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray; count: Cardinal): Boolean;
+  function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
+                                    count: Cardinal;start: Cardinal=0): Boolean;
   function WriteDiscDataFromStream(addr,side: Cardinal; F: TStream): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
   function RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Boolean;
@@ -252,42 +225,6 @@ implementation
 
 uses
  SysUtils,DateUtils;
-
-{-------------------------------------------------------------------------------
-Reset a TDirEntry to blank (not part of the TDiscImage class)
--------------------------------------------------------------------------------}
-procedure ResetDirEntry(var Entry: TDirEntry);
-begin
- with Entry do
- begin
-  Parent       :='';
-  Filename     :='';
-  Attributes   :='';
-  Filetype     :='';
-  ShortFiletype:='';
-  LoadAddr     :=$0000;
-  ExecAddr     :=$0000;
-  Length       :=$0000;
-  Side         :=$0000;
-  Track        :=$0000;
-  DataFile     :=$0000;
-  ImageAddress :=$0000;
-  Sector       :=$0000;
-  DirRef       :=$0000;
-  TimeStamp    :=0;
-  EOR          :=$00;
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Remove top bit set characters
--------------------------------------------------------------------------------}
-procedure RemoveTopBit(var title: AnsiString);
-var
- t: Integer;
-begin
- for t:=1 to Length(title) do title[t]:=chr(ord(title[t])AND$7F);
-end;
 
 //++++++++++++++++++ Class definition starts here ++++++++++++++++++++++++++++++
 
@@ -335,11 +272,7 @@ end;
 {-------------------------------------------------------------------------------
 Extract a string from ptr to the next chr(term) or length(-term)
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadString(ptr,term: Integer): AnsiString;
-begin
- Result:=ReadString(ptr,term,True);
-end;
-function TDiscImage.ReadString(ptr,term: Integer;control: Boolean): AnsiString;
+function TDiscImage.ReadString(ptr,term: Integer;control: Boolean=True): AnsiString;
 var
  x : Integer;
  c,
@@ -361,41 +294,6 @@ begin
   inc(x);                //Increase the counter
   r:=ReadByte(ptr+x);    //Read the next character
  end;
-end;
-
-{-------------------------------------------------------------------------------
-Removes trailing spaces from a string
--------------------------------------------------------------------------------}
-procedure TDiscImage.RemoveSpaces(var s: AnsiString);
-var
- x: Integer;
-begin
- //Start at the end
- x:=Length(s);
- if x>0 then
- begin
-  while (s[x]=' ') and (x>0) do //Continue while the last character is a space
-   dec(x);       //Move down the string
-  s:=Copy(s,1,x);//Finally, remove the spaces
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Removes control characters from a string
--------------------------------------------------------------------------------}
-procedure TDiscImage.RemoveControl(var s: AnsiString);
-var
- x: Integer;
- o: AnsiString;
-begin
- //New String
- o:='';
- //Iterate through the old string
- for x:=1 to Length(s) do
-  //Only add the character to the new string if it is not a control character
-  if ord(s[x])>31 then o:=o+s[x];
- //Change the old string to the new string
- s:=o;
 end;
 
 {-------------------------------------------------------------------------------
@@ -481,21 +379,6 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Check to see if bit b is set in word v
--------------------------------------------------------------------------------}
-function TDiscImage.IsBitSet(v,b: Integer): Boolean;
-var
- x: Integer;
-begin
- Result:=False;
- if (b>=0) and (b<32) then
- begin
-  x:=1 shl b;
-  Result:=((v AND x)=x);
- end;
-end;
-
-{-------------------------------------------------------------------------------
 Converts a RISC OS Time/Date to a Delphi TDateTime
 -------------------------------------------------------------------------------}
 function TDiscImage.ConvertTimeDate(filedatetime: Int64): TDateTime;
@@ -517,11 +400,7 @@ end;
 {-------------------------------------------------------------------------------
 Read in 4 bytes (word)
 -------------------------------------------------------------------------------}
-function TDiscImage.Read32b(offset: Cardinal): Cardinal;
-begin
- Result:=Read32b(offset,False);
-end;
-function TDiscImage.Read32b(offset: Cardinal; bigendian: Boolean): Cardinal;
+function TDiscImage.Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
 begin
  Result:=$FFFFFFFF; //Default value
  //Big Endian
@@ -541,11 +420,7 @@ end;
 {-------------------------------------------------------------------------------
 Read in 3 bytes
 -------------------------------------------------------------------------------}
-function TDiscImage.Read24b(offset: Cardinal): Cardinal;
-begin
- Result:=Read24b(offset,False);
-end;
-function TDiscImage.Read24b(offset: Cardinal; bigendian: Boolean): Cardinal;
+function TDiscImage.Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
 begin
  Result:=$FFFFFF; //Default value
  //Big Endian
@@ -563,11 +438,7 @@ end;
 {-------------------------------------------------------------------------------
 Read in 2 bytes
 -------------------------------------------------------------------------------}
-function TDiscImage.Read16b(offset: Cardinal): Word;
-begin
- Result:=Read16b(offset,False);
-end;
-function TDiscImage.Read16b(offset: Cardinal; bigendian: Boolean): Word;
+function TDiscImage.Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
 begin
  Result:=$FFFF; //Default value
  //Big Endian
@@ -598,11 +469,7 @@ end;
 {-------------------------------------------------------------------------------
 Write 4 bytes (word)
 -------------------------------------------------------------------------------}
-procedure TDiscImage.Write32b(value, offset: Cardinal);
-begin
- Write32b(value,offset,False);
-end;
-procedure TDiscImage.Write32b(value, offset: Cardinal; bigendian: Boolean);
+procedure TDiscImage.Write32b(value, offset: Cardinal; bigendian: Boolean=False);
 begin
  if bigendian then
  begin
@@ -625,11 +492,7 @@ end;
 {-------------------------------------------------------------------------------
 Write 3 bytes
 -------------------------------------------------------------------------------}
-procedure TDiscImage.Write24b(value, offset: Cardinal);
-begin
- Write24b(value,offset,False);
-end;
-procedure TDiscImage.Write24b(value,offset: Cardinal; bigendian: Boolean);
+procedure TDiscImage.Write24b(value,offset: Cardinal; bigendian: Boolean=False);
 begin
  if bigendian then
  begin
@@ -650,11 +513,7 @@ end;
 {-------------------------------------------------------------------------------
 Write 2 bytes
 -------------------------------------------------------------------------------}
-procedure TDiscImage.Write16b(value: Word; offset: Cardinal);
-begin
- Write16b(value,offset,False);
-end;
-procedure TDiscImage.Write16b(value: Word; offset: Cardinal; bigendian: Boolean);
+procedure TDiscImage.Write16b(value: Word; offset: Cardinal; bigendian: Boolean=False);
 begin
  if bigendian then
  begin
@@ -828,12 +687,16 @@ begin
  if SysUtils.FileExists(filename) then
  begin
   //Create the stream
-  FDiscDrive:=TFileStream.Create(filename,fmOpenRead);
-  //Call the procedure to read from the stream
-  LoadFromStream(FDiscDrive);
-  //Close the stream
-  FDiscDrive.Free;
-  imagefilename:=filename;
+  try
+   FDiscDrive:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
+   //Call the procedure to read from the stream
+   LoadFromStream(FDiscDrive);
+   //Close the stream
+   FDiscDrive.Free;
+   imagefilename:=filename;
+  except
+   FDiscDrive:=nil;
+  end;
  end;
 end;
 
@@ -881,13 +744,17 @@ begin
  filename:=LeftStr(filename,Length(filename)-Length(ext));
  filename:=filename+'.'+FormatToExt;
  //Create the stream
- FDiscDrive:=TFileStream.Create(filename,fmCreate);
- //Call the procedure to read from the stream
- SaveToStream(FDiscDrive);
- //Close the stream
- FDiscDrive.Free;
- //Change the image's filename
- imagefilename:=filename;
+ try
+  FDiscDrive:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
+  //Call the procedure to read from the stream
+  SaveToStream(FDiscDrive);
+  //Close the stream
+  FDiscDrive.Free;
+  //Change the image's filename
+  imagefilename:=filename;
+ except
+  //Could not create
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -941,10 +808,23 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Extracts a file, filename contains complete path, directory separator is '.'
+Extracts a file, filename contains complete path
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtractFile(filename: AnsiString; var buffer: TDIByteArray): Boolean;
 var
+ m: Byte;
+begin
+ //Start with a false result
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0:Result:=ExtractDFSFile(filename,buffer);     //Extract DFS
+  1:Result:=ExtractADFSFile(filename,buffer);    //Extract ADFS
+  2:Result:=ExtractCDRFile(filename,buffer);     //Extract Commodore 64/128
+  3:Result:=ExtractSpectrumFile(filename,buffer);//Extract Sinclair/Amstrad
+  4:Result:=ExtractAmigaFile(filename,buffer);   //Extract AmigaDOS
+ end;
+{var
  source        : Integer;
  entry,dir,
  frag,dest,
@@ -1031,7 +911,7 @@ begin
    end;
   until dest>=filelen; //Once we've reached the file length, we're done
  end;
- Result:=True;
+ Result:=True;}
 end;
 
 {-------------------------------------------------------------------------------
@@ -1301,29 +1181,35 @@ end;
 {-------------------------------------------------------------------------------
 Direct access writing to disc
 -------------------------------------------------------------------------------}
-function TDiscImage.WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray; count: Cardinal): Boolean;
+function TDiscImage.WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
+                                    count: Cardinal;start: Cardinal=0): Boolean;
 var
  i   : Cardinal;
 begin
- //Sometimes the image file is smaller than the actual disc size
- if Length(FData)<disc_size then SetLength(FData,disc_size);
- if FFormat DIV $10>0 then //not DFS
+ Result:=False;
+ //Make sure the numbers fit
+ if start+count<=Length(buffer) then
  begin
-  //Ensure that the entire block will fit into the available space
-  Result:=(addr+count)<=Cardinal(Length(Fdata));
-  //Simply copy from source to destination
-  if Result then
-   for i:=0 to count-1 do
-    WriteByte(buffer[i],addr+i);
- end
- else //DFS
- begin
-  //Ensure that the entire block will fit into the available space
-  Result:=ConvertSector(addr+count,side)<=Length(Fdata);
-  //Simply copy from source to destination
-  if Result then
-   for i:=0 to count-1 do
-    WriteByte(buffer[i],ConvertSector(addr+i,side));
+  //Sometimes the image file is smaller than the actual disc size
+  if Length(FData)<disc_size then SetLength(FData,disc_size);
+  if FFormat DIV $10>0 then //not DFS
+  begin
+   //Ensure that the entire block will fit into the available space
+   Result:=(addr+count)<=Cardinal(Length(Fdata));
+   //Simply copy from source to destination
+   if Result then
+    for i:=0 to count-1 do
+     WriteByte(buffer[start+i],addr+i);
+  end
+  else //DFS
+  begin
+   //Ensure that the entire block will fit into the available space
+   Result:=ConvertSector(addr+count,side)<=Length(Fdata);
+   //Simply copy from source to destination
+   if Result then
+    for i:=0 to count-1 do
+     WriteByte(buffer[start+i],ConvertSector(addr+i,side));
+  end;
  end;
 end;
 
@@ -1371,6 +1257,7 @@ var
  found,
  target : Byte;
 begin
+ Result:=nil;
  //Reset the search results array to empty
  SetLength(Result,0);
  //Work out what the search target is

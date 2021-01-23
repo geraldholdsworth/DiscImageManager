@@ -22,6 +22,7 @@ Read Spectrum Disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadSinclairDisc: TDisc;
 begin
+ Result:=nil;
  {This functionality is not written yet}
 end;
 
@@ -39,7 +40,7 @@ Create a new Spectrum image
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatSpectrum(minor: Byte): TDisc;
 begin
- //
+ Result:=nil;
 end;
 
 function TDiscImage.RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
@@ -55,6 +56,11 @@ begin
  Result:=False;
 end;
 function TDiscImage.UpdateSinclairDiscTitle(title: AnsiString): Boolean;
+begin
+ Result:=False;
+end;
+function TDiscImage.ExtractSpectrumFile(filename: AnsiString;
+                                             var buffer: TDIByteArray): Boolean;
 begin
  Result:=False;
 end;

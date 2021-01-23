@@ -148,6 +148,7 @@ const
  'DELDeleted' ,'SEQSequence','PRGProgram' ,'USRUser File','RELRelative',
  'CBMCBM'     );
 begin
+ Result:=nil;
  SetLength(Result,1);
  ResetDir(Result[0]);
  //Get the format
@@ -499,6 +500,54 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Extracts a file, filename contains complete path
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractCDRFile(filename: AnsiString;
+                                             var buffer: TDIByteArray): Boolean;
+var
+ source        : Integer;
+ entry,dir,
+ dest,
+ fragptr,len,
+ filelen       : Cardinal;
+begin
+ Result:=False;
+ if FileExists(filename,fragptr) then //Does the file actually exist?
+ //Yes, so load it - there is nothing to stop a directory header being extracted
+ //if passed in the filename parameter.
+ begin
+  //FileExists returns a pointer to the file
+  entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=fragptr div $10000;  //Top 16 bits - directory reference
+  //Make space to receive the file
+  filelen:=FDisc[dir].Entries[entry].Length;
+  SetLength(buffer,filelen);
+  //Get the starting position
+  fragptr:=ConvertDxxTS(FFormat AND $F,
+                        FDisc[dir].Entries[entry].Track,
+                        FDisc[dir].Entries[entry].Sector);
+  dest  :=0;      //Length pointer/Destination pointer
+  repeat
+   //Fragmented filing systems, so need to work out source and length
+   source:=fragptr+2;                        //Source of data
+   len   :=254;                              //Amount of data
+   //Make sure we don't read too much
+   if dest+len>filelen then
+    len:=filelen-dest;
+   //Read the data into the buffer
+   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
+   //Move the size pointer on, by the amount read
+   inc(dest,len);
+   //Get the next block pointer
+   fragptr:=ConvertDxxTS(FFormat AND $F,
+                         ReadByte(fragptr),
+                         ReadByte(fragptr+1));
+  until dest>=filelen; //Once we've reached the file length, we're done
+ end;
+ Result:=True;
+end;
+
+{-------------------------------------------------------------------------------
 Write a file to Commodore image
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteCDRFile(file_details: TDirEntry;
@@ -506,7 +555,10 @@ function TDiscImage.WriteCDRFile(file_details: TDirEntry;
 var
  count,
  ptr       : Cardinal;
- f,frag,i  : Byte;
+ s:AnsiString;
+ f,frag,i,
+ track,
+ sector    : Byte;
  block     : TDIByteArray;
  fragments : TFragmentArray;
 begin
@@ -523,13 +575,108 @@ begin
   //How many fragments to split the file into
   frag:=count div 254;
   if count mod 254>0 then inc(frag);
-  //Where to put them - fragments are tended to be put around the root.
-  //So we search backwards, then forwards, then backwards, etc.
+  //Split the file
   SetLength(fragments,frag);
   for i:=0 to frag-1 do
    fragments[i].Length:=254;
   if count mod 254>0 then fragments[frag-1].Length:=count mod 254;
+  //Where to put them - fragments are tended to be put around the root.
+  //So we search backwards, then forwards, then backwards, etc.
+  if count<free_space then //Will it actually fit?
+  begin
+   track:=18; //Value of this is unimportant
+   sector:=0; //Sector to start looking
+   i:=0;
+   while (CDRFindNextTrack(track,sector)) AND (i<frag) do
+   begin
+    //Make a note and move on
+    fragments[i].Offset:=track*$100+sector;
+    //Mark as used
+    free_space_map[0,track-1,sector]:=$FF;
+    inc(i);
+   end;
+  end;
+  s:='';
+  for i:=0 to frag-1 do
+   s:=s+IntToHex(fragments[i].Offset,4)+'>';
  end;
+  Result:=-1;//Not needed - just using as a stop point
+end;
+
+{-------------------------------------------------------------------------------
+Find the next free sector (converted directly from the 1541 code)
+-------------------------------------------------------------------------------}
+function TDiscImage.CDRFindNextSector(var track,sector: Byte): Boolean;
+var
+ BAM_free_blocks,s: Byte;
+begin
+ BAM_free_blocks:=0;
+ for s:=0 to Length(free_space_map[0,track-1])-1 do
+  if free_space_map[0,track-1,s]=$00 then inc(BAM_free_blocks);
+ if free_space_map[0,track-1,sector]<>$00 then
+  if BAM_free_blocks>0 then
+  begin
+   inc(sector,10);
+   if sector>=Length(free_space_map[0,track-1]) then
+   begin
+    dec(sector,Length(free_space_map[0,track-1]));
+    if sector>0 then dec(sector);
+   end;
+   while (free_space_map[0,track-1,sector]<>$00) and (sector<Length(free_space_map[0,track-1])-1) do
+    inc(sector);
+  end;
+ if (sector>=Length(free_space_map[0,track-1])) or (BAM_free_blocks=0) then
+  Result:=False
+ else
+  Result:=True;
+end;
+
+{-------------------------------------------------------------------------------
+Find the next free track
+-------------------------------------------------------------------------------}
+function TDiscImage.CDRFindNextTrack(var track,sector: Byte): Boolean;
+var
+ starttrack,
+ counter,
+ hightrack,
+ lowtrack,
+ cycles,i    : Byte;
+ freesecs    : Boolean;
+begin
+ if FFormat mod $10=1 then cycles:=2 else cycles:=1;
+ i:=0;
+ while i<cycles do
+ begin
+  if FFormat mod $10<2 then
+   if i=0 then
+    begin
+     starttrack:=18;
+     lowtrack:=0;
+     hightrack:=36;
+    end
+    else
+    begin
+     starttrack:=53;
+     lowtrack:=36;
+     hightrack:=70;
+    end
+  else
+  begin
+   starttrack:=40;
+   lowtrack:=0;
+   hightrack:=80;
+  end;
+  counter:=1;
+  repeat
+   track:=starttrack-counter;
+   if track<=lowtrack then
+    track:=starttrack+counter;
+   inc(counter);
+   freesecs:=CDRFindNextSector(track,sector);
+  until (freesecs) OR (track>=hightrack);
+  if not freesecs then inc(i) else i:=cycles;
+ end;
+ Result:=freesecs;
 end;
 
 function TDiscImage.RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
