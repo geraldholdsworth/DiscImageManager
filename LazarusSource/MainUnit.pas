@@ -7,7 +7,7 @@ unit MainUnit;
 interface
 
 uses
-  SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,
+  SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
   DiscImageUtils,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils;
 
 type
@@ -21,9 +21,6 @@ type
    property IsDir   : Boolean read FIsDir write FIsDir; //Is it a directory
  end;
  //Form definition
-
-  { TMainForm }
-
   TMainForm = class(TForm)
    cb_private: TCheckBox;
    cb_ownerwrite: TCheckBox;
@@ -34,138 +31,144 @@ type
    cb_publicwrite: TCheckBox;
    cb_publicexecute: TCheckBox;
    ed_title: TEdit;
-    ed_filenamesearch: TEdit;
-    ed_filetypesearch: TEdit;
-    ed_lengthsearch: TEdit;
-    icons: TImageList;
-    Label15: TLabel;
-    Label7: TLabel;
-    Main_Menu: TMainMenu;
-    FileMenu: TMenuItem;
-    menuRenameFile: TMenuItem;
-    menuNewDir: TMenuItem;
-    menuDeleteFile: TMenuItem;
-    menuAbout: TMenuItem;
-    ImageMenu: TMenuItem;
-    HelpMenu: TMenuItem;
-    menuNewImage: TMenuItem;
-    menuOpenImage: TMenuItem;
-    menuSaveImage: TMenuItem;
-    menuImageDetails: TMenuItem;
-    menuExtractFile: TMenuItem;
-    menuAddFile: TMenuItem;
-    ToolBarImages: TImageList;
-    Label10: TLabel;
-    Label14: TLabel;
-    Label8: TLabel;
-    Label9: TLabel;
-    AddNewFile: TOpenDialog;
-    Panel1: TPanel;
-    SaveImage: TSaveDialog;
-    sb_search: TSpeedButton;
-    searchresultscount: TLabel;
-    ToolBar1: TToolBar;
-    btn_OpenImage: TToolButton;
-    btn_SaveImage: TToolButton;
-    btn_Delete: TToolButton;
-    btn_Rename: TToolButton;
-    btn_AddFiles: TToolButton;
-    btn_NewImage: TToolButton;
-    btn_ImageDetails: TToolButton;
-    btn_NewDirectory: TToolButton;
-    ToolButton3: TToolButton;
-    btn_download: TToolButton;
-    ToolButton5: TToolButton;
-    btn_About: TToolButton;
-    ToolPanel: TPanel;
-    OpenImageFile: TOpenDialog;
-    ExtractDialogue: TSaveDialog;
-    DirList: TTreeView;
-    FileImages: TImageList;
-    FullSizeTypes: TImageList;
-    FileInfoPanel: TPanel;
-    img_FileType: TImage;
-    lb_FileName: TLabel;
-    Label1: TLabel;
-    lb_FileType: TLabel;
-    Label3: TLabel;
-    Label2: TLabel;
-    lb_execaddr: TLabel;
-    lb_loadaddr: TLabel;
-    Label6: TLabel;
-    lb_timestamp: TLabel;
-    Label5: TLabel;
-    Label11: TLabel;
-    lb_length: TLabel;
-    lb_Parent: TLabel;
-    Label12: TLabel;
-    lb_title: TLabel;
-    Label13: TLabel;
-    Label4: TLabel;
-    lb_location: TLabel;
-    Label21: TLabel;
-    ImageContentsPanel: TPanel;
-    lb_contents: TLabel;
-    SearchPanel: TPanel;
-    lb_searchresults: TListBox;
-    FIle_Menu: TPopupMenu;
-    ExtractFile1: TMenuItem;
-    RenameFile1: TMenuItem;
-    DeleteFile1: TMenuItem;
-    ImageDetails: TStatusBar;
-    AddFile1: TMenuItem;
-    NewDirectory1: TMenuItem;
-    procedure btn_ImageDetailsClick(Sender: TObject);
-    procedure btn_NewDirectoryClick(Sender: TObject);
-    function CreateDirectory(dirname,attr: AnsiString): TTreeNode;
-    procedure ed_titleEditingDone(Sender: TObject);
-    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
-    procedure lb_titleClick(Sender: TObject);
-    function QueryUnsaved: Boolean;
-    procedure btn_NewImageClick(Sender: TObject);
-    procedure btn_SaveImageClick(Sender: TObject);
-    procedure AttributeChangeClick(Sender: TObject);
-    function GetFilePath(Node: TTreeNode): AnsiString;
-    procedure DeleteFile1Click(Sender: TObject);
-    procedure DeleteFile(confirm: Boolean);
-    procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
-    procedure DirListEditingEnd(Sender: TObject; Node: TTreeNode;
-     Cancel: Boolean);
-    procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
-    procedure FormResize(Sender: TObject);
-    procedure FormShow(Sender: TObject);
-    procedure ParseCommandLine;
-    procedure RenameFile1Click(Sender: TObject);
-    procedure ResetFileFields;
-    procedure ResetSearchFields;
-    procedure btn_downloadClick(Sender: TObject);
-    function GetImageFilename(dir,entry: Integer): AnsiString;
-    function GetWindowsFilename(dir,entry: Integer): AnsiString;
-    procedure DownLoadFile(dir,entry: Integer; path: AnsiString);
-    procedure CreateINFFile(dir,entry: Integer; path: AnsiString);
-    procedure DownLoadDirectory(dir,entry: Integer; path: AnsiString);
-    procedure btn_OpenImageClick(Sender: TObject);
-    procedure OpenImage(filename: AnsiString);
-    procedure ShowNewImage(title: AnsiString);
-    function ConvertToKMG(size: Int64): AnsiString;
-    function IntToStrComma(size: Int64): AnsiString;
-    procedure DirListChange(Sender: TObject; Node: TTreeNode);
-    procedure btn_AboutClick(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
-    procedure FormDropFiles(Sender: TObject; const FileNames: array of AnsiString);
-    procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
-     const Rect: TRect);
-    procedure ValidateFilename(var f: AnsiString);
-    procedure sb_searchClick(Sender: TObject);
-    procedure lb_searchresultsClick(Sender: TObject);
-    procedure DirListEditing(Sender: TObject; Node: TTreeNode;
-      var AllowEdit: Boolean);
-    procedure DirListDblClick(Sender: TObject);
-    procedure AddFile1Click(Sender: TObject);
-    procedure AddDirectoryToImage(dirname: AnsiString);
-    function BreakDownInf(s: AnsiString): TStringArray;
-    procedure AddFileToImage(filename: AnsiString);
-    procedure UpdateImageInfo;
+   ed_filenamesearch: TEdit;
+   ed_filetypesearch: TEdit;
+   ed_lengthsearch: TEdit;
+   icons: TImageList;
+   Label15: TLabel;
+   Label7: TLabel;
+   Main_Menu: TMainMenu;
+   FileMenu: TMenuItem;
+   MenuItem1: TMenuItem;
+   menuCloseImage: TMenuItem;
+   menuRenameFile: TMenuItem;
+   menuNewDir: TMenuItem;
+   menuDeleteFile: TMenuItem;
+   menuAbout: TMenuItem;
+   ImageMenu: TMenuItem;
+   HelpMenu: TMenuItem;
+   menuNewImage: TMenuItem;
+   menuOpenImage: TMenuItem;
+   menuSaveImage: TMenuItem;
+   menuImageDetails: TMenuItem;
+   menuExtractFile: TMenuItem;
+   menuAddFile: TMenuItem;
+   ToolBarImages: TImageList;
+   Label10: TLabel;
+   Label14: TLabel;
+   Label8: TLabel;
+   Label9: TLabel;
+   AddNewFile: TOpenDialog;
+   Panel1: TPanel;
+   SaveImage: TSaveDialog;
+   sb_search: TSpeedButton;
+   searchresultscount: TLabel;
+   ToolBar1: TToolBar;
+   btn_OpenImage: TToolButton;
+   btn_SaveImage: TToolButton;
+   btn_Delete: TToolButton;
+   btn_Rename: TToolButton;
+   btn_AddFiles: TToolButton;
+   btn_NewImage: TToolButton;
+   btn_ImageDetails: TToolButton;
+   btn_NewDirectory: TToolButton;
+   btn_CloseImage: TToolButton;
+   ToolButton3: TToolButton;
+   btn_download: TToolButton;
+   ToolButton5: TToolButton;
+   btn_About: TToolButton;
+   ToolPanel: TPanel;
+   OpenImageFile: TOpenDialog;
+   ExtractDialogue: TSaveDialog;
+   DirList: TTreeView;
+   FileImages: TImageList;
+   FullSizeTypes: TImageList;
+   FileInfoPanel: TPanel;
+   img_FileType: TImage;
+   lb_FileName: TLabel;
+   Label1: TLabel;
+   lb_FileType: TLabel;
+   Label3: TLabel;
+   Label2: TLabel;
+   lb_execaddr: TLabel;
+   lb_loadaddr: TLabel;
+   Label6: TLabel;
+   lb_timestamp: TLabel;
+   Label5: TLabel;
+   Label11: TLabel;
+   lb_length: TLabel;
+   lb_Parent: TLabel;
+   Label12: TLabel;
+   lb_title: TLabel;
+   Label13: TLabel;
+   Label4: TLabel;
+   lb_location: TLabel;
+   Label21: TLabel;
+   ImageContentsPanel: TPanel;
+   lb_contents: TLabel;
+   SearchPanel: TPanel;
+   lb_searchresults: TListBox;
+   FIle_Menu: TPopupMenu;
+   ExtractFile1: TMenuItem;
+   RenameFile1: TMenuItem;
+   DeleteFile1: TMenuItem;
+   ImageDetails: TStatusBar;
+   AddFile1: TMenuItem;
+   NewDirectory1: TMenuItem;
+   procedure btn_CloseImageClick(Sender: TObject);
+   procedure btn_ImageDetailsClick(Sender: TObject);
+   procedure btn_NewDirectoryClick(Sender: TObject);
+   function CreateDirectory(dirname,attr: AnsiString): TTreeNode;
+   procedure ed_titleEditingDone(Sender: TObject);
+   procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
+   procedure lb_titleClick(Sender: TObject);
+   function QueryUnsaved: Boolean;
+   procedure btn_NewImageClick(Sender: TObject);
+   procedure btn_SaveImageClick(Sender: TObject);
+   procedure AttributeChangeClick(Sender: TObject);
+   function GetFilePath(Node: TTreeNode): AnsiString;
+   procedure DeleteFile1Click(Sender: TObject);
+   procedure DeleteFile(confirm: Boolean);
+   procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
+   procedure DirListEditingEnd(Sender: TObject; Node: TTreeNode;
+    Cancel: Boolean);
+   procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
+   procedure FormResize(Sender: TObject);
+   procedure FormShow(Sender: TObject);
+   procedure DisableControls;
+   procedure ParseCommandLine(cmd: AnsiString);
+   procedure RenameFile1Click(Sender: TObject);
+   procedure ResetFileFields;
+   procedure ResetSearchFields;
+   procedure btn_downloadClick(Sender: TObject);
+   function GetImageFilename(dir,entry: Integer): AnsiString;
+   function GetWindowsFilename(dir,entry: Integer): AnsiString;
+   procedure DownLoadFile(dir,entry: Integer; path: AnsiString);
+   procedure CreateINFFile(dir,entry: Integer; path: AnsiString);
+   procedure DownLoadDirectory(dir,entry: Integer; path: AnsiString);
+   procedure btn_OpenImageClick(Sender: TObject);
+   procedure OpenImage(filename: AnsiString);
+   procedure ShowNewImage(title: AnsiString);
+   function ConvertToKMG(size: Int64): AnsiString;
+   function IntToStrComma(size: Int64): AnsiString;
+   procedure DirListChange(Sender: TObject; Node: TTreeNode);
+   procedure btn_AboutClick(Sender: TObject);
+   procedure FormCreate(Sender: TObject);
+   procedure FormDropFiles(Sender: TObject; const FileNames: array of AnsiString);
+   procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
+    const Rect: TRect);
+   procedure ValidateFilename(var f: AnsiString);
+   procedure sb_searchClick(Sender: TObject);
+   procedure lb_searchresultsClick(Sender: TObject);
+   procedure SelectNode(filename: AnsiString);
+   procedure DirListEditing(Sender: TObject; Node: TTreeNode;
+     var AllowEdit: Boolean);
+   procedure DirListDblClick(Sender: TObject);
+   procedure AddFile1Click(Sender: TObject);
+   procedure AddDirectoryToImage(dirname: AnsiString);
+   procedure AddFileToImage(filename: AnsiString);
+   procedure UpdateImageInfo;
+   procedure ReportError(error: AnsiString);
   private
    var
     //To keep track of renames
@@ -174,7 +177,7 @@ type
     //Stop the checkbox OnClick from firing when just changing the values
     DoNotUpdate   :Boolean;
     //Has the image changed since last saved?
-    HasChanged       :Boolean;
+    HasChanged    :Boolean;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..50] of AnsiString =
@@ -185,10 +188,16 @@ type
                                'FEB','FEC','FED','FF2','FF4','FF5','FF6','FF7',
                                'FF8','FF9','FFA','FFB','FFC','FFD','FFE','FFF');
     //Windows extension - used to translate from RISC OS to Windows
-    Extensions: array[1..12] of AnsiString =
-                              ('69Cbmp','ADFpdf' ,'B60png','C46tar',   'C85jpg',
-                               'DDCzip','FF0tiff','FF6ttf','FF9sprite','FFBbas',
-                               'FFDdat','FFFtxt');
+    Extensions: array[1..41] of AnsiString =
+                         ('004aim' ,'132ico' ,'190dsk'   ,'198z80'    ,'1A6CPM',
+                          '692img' ,'693iff' ,'695gif'   ,'697pcx'    ,'698qrt',
+                          '699mtv' ,'69Cbmp' ,'69Epbm'   ,'A91zip'    ,'AADsvg',
+                          'ABFcab' ,'ADFpdf' ,'B60png'   ,'BBCrom'    ,'C46tar',
+                          'C85jpg' ,'C85jpeg','DDCarc'   ,'DDCarchive','DEAdxf',
+                          'F76edid','F78jng' ,'F79css'   ,'F81js'     ,'F83mng',
+                          'F91uri' ,'FAFhtm' ,'FAFhtml'  ,'FE4dos'    ,'FF0tif',
+                          'FF0tiff','FF6ttf' ,'FF9sprite','FFBbas'    ,'FFDdat',
+                          'FFFtxt');
     //These point to certain icons used when no filetype is found, or non-ADFS
     application =  0;
     directory   =  1;
@@ -204,7 +213,7 @@ type
     cbmfile     = 54;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.10';
+    ApplicationVersion = '1.05.11';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -218,6 +227,7 @@ implementation
 {$R *.lfm}
 
 uses AboutUnit, NewImageUnit, ImageDetailUnit;
+
 {------------------------------------------------------------------------------}
 //Add a new file to the disc image
 {------------------------------------------------------------------------------}
@@ -336,46 +346,6 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Break down an *.inf file entry - MOVE INTO THE UTILS MODULE
-{------------------------------------------------------------------------------}
-function TMainForm.BreakDownInf(s: AnsiString): TStringArray;
-var
- i: Integer;
- f: AnsiString;
-begin
- f:='';
- //Remove leading spaces, if any
- if s[1]=' ' then
- begin
-  i:=0;
-  while s[i+1]=' ' do inc(i);
-  s:=RightStr(s,Length(s)-i);
- end;
- //First field has opening quote
- if s[1]='"' then
- begin
-  //Remove it
-  s:=RightStr(s,Length(s)-1);
-  //Find the closing quote
-  if Pos('"',s)>0 then //Assuming it has one
-  begin
-   i:=1;
-   while s[i]<>'"' do inc(i);
-   //Extract the field
-   f:=LeftStr(s,i-1);
-   //And replace with a non-quoted field
-   s:='filename '+RightStr(s,Length(s)-i);
-  end;
- end;
- //Remove double spaces
- while Pos('  ',s)>0 do s:=ReplaceStr(s,'  ',' ');
- //Then split the string into fields
- Result:=s.Split(' ');
- //If we previously found a quoted field, replace the first one with it
- if f<>'' then Result[0]:=f;
-end;
-
-{------------------------------------------------------------------------------}
 //Add a file to an image
 {------------------------------------------------------------------------------}
 procedure TMainForm.AddFileToImage(filename: AnsiString);
@@ -384,14 +354,15 @@ var
   buffer         : TDIByteArray;
   index          : Integer;
   side           : Cardinal;
-  attr2          : Byte;
+  attr2,i        : Byte;
   importfilename,
   inffile,
   execaddr,
   loadaddr,
   filelen,
   attr1,
-  attributes     : AnsiString;
+  attributes,
+  filetype       : AnsiString;
   fields         : array of AnsiString;
   chr            : Char;
   F              : TFileStream;
@@ -427,40 +398,61 @@ begin
     filelen :='00000000';
     attr1   :='00';
     attr2   :=$00;
-    //Is there an inf file?
-    if FileExists(filename+'.inf') then
+    filetype:='';
+    //Does the filename contain the filetype?
+    if ((Pos(',',importfilename)>0)
+    or  (Pos('.',importfilename)>0))
+    and((Image.FormatNumber shr 4=1)      //ADFS
+    or  (Image.FormatNumber shr 4=2))then //Commodore
     begin
-     inffile:='';
-     //Read in the first line
-     try
-      F:=TFileStream.Create(filename+'.inf',fmOpenRead OR fmShareDenyNone);
-      F.Position:=0;
-      while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
-       inffile:=inffile+chr;
-      F.Free;
-      fields:=BreakDownInf(inffile);
-      //Then extract the fields
-      if Length(fields)>0 then importfilename:=fields[0];
-      if Length(fields)>1 then loadaddr      :=fields[1];
-      if length(fields)>2 then execaddr      :=fields[2];
-      if Length(fields)>3 then filelen       :=fields[3];
-      if Length(fields)>4 then attr1         :=fields[4];
-     except
-      //Could not load
+     i:=Length(importfilename);
+     while (importfilename[i]<>'.')and(importfilename[i]<>',')do dec(i);
+     //Get the filetype
+     filetype:=LowerCase(Copy(importfilename,i+1));
+     //And remove it from the filename
+     importfilename:=LeftStr(importfilename,i-1);//Length(importfilename)-4);
+     //Decode the filetype - convert it to hex
+     for index:=1 to Length(Extensions) do
+      if Copy(Extensions[index],4)=LowerCase(filetype) then
+       filetype:=LeftStr(Extensions[index],3);
+     //ADFS
+     if Image.FormatNumber shr 4=1 then
+     begin
+      filetype:=IntToHex(StrToIntDef('$'+filetype,0),3);
+      if filetype='000' then filetype:='';//None, so reset
      end;
     end;
-    if Image.FormatNumber<$20 then //DFS only stuff
+    if Image.FormatNumber<$20 then //ADFS and DFS only stuff
     begin
+     //Is there an inf file?
+     if FileExists(filename+'.inf') then
+     begin
+      inffile:='';
+      //Read in the first line
+      try
+       F:=TFileStream.Create(filename+'.inf',fmOpenRead OR fmShareDenyNone);
+       F.Position:=0;
+       while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
+        inffile:=inffile+chr;
+       F.Free;
+       fields:=BreakDownInf(inffile);
+       //Then extract the fields
+       if Length(fields)>0 then importfilename:=fields[0];
+       if Length(fields)>1 then loadaddr      :=fields[1];
+       if length(fields)>2 then execaddr      :=fields[2];
+       if Length(fields)>3 then filelen       :=fields[3];
+       if Length(fields)>4 then attr1         :=fields[4];
+      except
+       //Could not load
+      end;
+     end;
      //Remove any extraenous specifiers
      while (importfilename[4]=Image.DirSep) do
       importfilename:=RightStr(importfilename,Length(importfilename)-2);
      //If root, remove the directory specifier
      if (importfilename[2]=Image.DirSep) and (importfilename[1]='$') then
       importfilename:=RightStr(importfilename,Length(importfilename)-2);
-    end;
-    //Convert a Windows filename to a BBC filename
-    if Image.FormatNumber<$30 then
-    begin
+     //Convert a Windows filename to a BBC filename
      WinToBBC(importfilename);
      //Check to make sure that a DFS directory hasn't been changed
      if (Image.FormatNumber<$20) and (importfilename[2]='/') then
@@ -476,6 +468,7 @@ begin
     //Decode the attributes
     attributes        :=''; //Default
     if Image.FormatNumber shr 4=$1 then attributes:='WR';//Default for ADFS
+    if Image.FormatNumber shr 4=$3 then attributes:='C' ;//Default for Commodore
     //Is it a hex number?
     if IntToHex(StrtoIntDef('$'+attr1,0),2)=UpperCase(attr1) then
     begin //Yes
@@ -496,12 +489,13 @@ begin
      if (Pos('l',attr1)>0)OR(attr2 AND$80=$80) then attributes:=attributes+'l';
     end;
     //Setup the record
-    NewFile.Filename  :=importfilename;
-    NewFile.ExecAddr  :=StrToInt('$'+execaddr);
-    NewFile.LoadAddr  :=StrToInt('$'+loadaddr);
-    NewFile.Side      :=side;
-    NewFile.Attributes:=attributes;
-    NewFile.DirRef    :=-1; //Not a directory
+    NewFile.Filename     :=importfilename;
+    NewFile.ExecAddr     :=StrToInt('$'+execaddr);
+    NewFile.LoadAddr     :=StrToInt('$'+loadaddr);
+    NewFile.Side         :=side;
+    NewFile.Attributes   :=attributes;
+    NewFile.DirRef       :=-1; //Not a directory
+    NewFile.ShortFileType:=filetype;
     if Image.FormatNumber shr 4=1 then //Need the selected directory for ADFS
      if DirList.Selected.Text='$' then NewFile.Parent:='$'
      else
@@ -524,7 +518,7 @@ begin
      index:=-1;//Could not load
     end;
     //Function returns pointer to next item (or parent if no children)
-    if index<>-1 then //File added OK
+    if index>-1 then //File added OK
     begin
      HasChanged:=True;
      //The filename might have changed
@@ -548,24 +542,27 @@ begin
      //And update the free space display
      UpdateImageInfo;
     end
-    else//For some reason the operation failed to write the data
-     ShowMessage('Failed writing "'+filename+'" to image');
+    else
+    begin
+     //For some reason the operation failed to write the data
+     if index=-1 then ReportError('Could not load "'+filename+'"');
+     if index=-2 then ReportError('Could not add file - image full');
+     if index=-3 then ReportError('File already exists in image');
+     if index=-4 then ReportError('Catalogue full');
+     if index=-5 then ReportError('Could not write file - error unknown');
+     if index=-6 then ReportError('Destination directory does not exist');
+     If index=-7 then ReportError('Could not write file - map full');
+     if index=-8 then ReportError('Could not write file - nothing to write');
+     if index=-9 then ReportError('id lengths other than 15 bits is unsupported at this time');
+    end;
    end;
   end
-  else ShowMessage('"'+DirList.Selected.Text+'" is not a directory')
+  else ReportError('"'+DirList.Selected.Text+'" is not a directory')
  else
   if DirList.SelectionCount=0 then
-   ShowMessage('No destination directory selected')
+   ReportError('No destination directory selected')
   else
-   ShowMessage('Cannot add to multiple selection');
- {
- DirList.Items.Insert(<node>,<string>) - inserts a new node before <node>
- DirList.Items.AddChildFirst(<node>,<string>) - inserts a new node as the first child of <node>
- DirList.Items.Add(<node>,<string>) - inserts a new node as the last child of <node>
- DirList.Selected.GetFirstChild - gets the first child node
- See:
- http://docs.embarcadero.com/products/rad_studio/radstudio2007/RS2007_helpupdates/HUpdate3/EN/html/delphivclwin32/!!MEMBERTYPE_Methods_ComCtrls_TTreeNodes.html
- }
+   ReportError('Cannot add to multiple selection');
 end;
 
 {------------------------------------------------------------------------------}
@@ -580,16 +577,22 @@ begin
  //Determine the current platform (compile time directive)
  platform:='';
  {$IFDEF Darwin}
- platform:=' macOS';            //Apple Mac OS X (64 bit only)
+ platform:=' macOS';            //Apple Mac OS X
  {$ENDIF}
- {$IFDEF Win32}
- platform:=' Windows 32 bit';   //Microsoft Windows 32 bit
- {$ENDIF}
- {$IFDEF Win64}
- platform:=' Windows 64 bit';   //Microsoft Windows 64 bit
+ {$IFDEF Windows}
+ platform:=' Windows';          //Microsoft Windows
  {$ENDIF}
  {$IFDEF Linux}
- platform:=' Linux';            //Linux, all flavours (64 bit only)
+ platform:=' Linux';            //Linux
+ {$ENDIF}
+ {$IFDEF CPU32}
+ platform:=platform+' 32 bit';  //32 bit CPU
+ {$ENDIF}
+ {$IFDEF CPU64}
+ platform:=platform+' 64 bit';  //64 bit CPU
+ {$ENDIF}
+ {$IFDEF CPUARM}
+ platform:=platform+' ARM';     //ARM CPU
  {$ENDIF}
  //Update the Application Version
  AboutForm.lb_Version.Caption:='Version '+ApplicationVersion+platform;
@@ -687,7 +690,7 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Create an Image filename - MOVE INTO THE UTILS MODULE
+//Create an Image filename
 {------------------------------------------------------------------------------}
 function TMainForm.GetImageFilename(dir,entry: Integer): AnsiString;
 begin
@@ -699,20 +702,27 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Create a Windows filename - MOVE INTO THE UTILS MODULE
+//Create a Windows filename
 {------------------------------------------------------------------------------}
 function TMainForm.GetWindowsFilename(dir,entry: Integer): AnsiString;
+var
+ extsep: Char;
 begin
  //Get the filename
  Result:=Image.Disc[dir].Entries[entry].Filename;
- //Add the filetype to the end, if any (but not directories)
- if (Image.Disc[dir].Entries[entry].ShortFileType<>'')
- and(Image.Disc[dir].Entries[entry].DirRef=-1) then
-  Result:=Result+','+Image.Disc[dir].Entries[entry].ShortFileType;
  //Convert BBC chars to PC
  BBCtoWin(Result);
  //Replace any non-valid characters
  ValidateFilename(Result);
+ //Add the filetype to the end, if any (but not directories)
+ if (Image.Disc[dir].Entries[entry].ShortFileType<>'')
+ and(Image.Disc[dir].Entries[entry].DirRef=-1) then
+ begin
+  if Image.FormatNumber shr 4<2 then extsep:=','; //DFS and ADFS
+  if(Image.FormatNumber shr 4=2)                  //Commodore
+  or(Image.FormatNumber shr 4=4)then extsep:='.'; //Amiga
+  Result:=Result+extsep+Image.Disc[dir].Entries[entry].ShortFileType;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -747,7 +757,7 @@ begin
    end;
   end
   //Happens if the file could not be located
-  else ShowMessage('Could not locate file "'+imagefilename+'"');
+  else ReportError('Could not locate file "'+imagefilename+'"');
  end
  else DownLoadDirectory(dir,entry,path+windowsfilename);
 end;
@@ -831,7 +841,7 @@ begin
    DownLoadFile(s,c,path+windowsfilename);
  end
  //Happens if the file could not be located
- else ShowMessage('Could not locate directory "'+imagefilename+'"');
+ else ReportError('Could not locate directory "'+imagefilename+'"');
 end;
 
 {------------------------------------------------------------------------------}
@@ -852,10 +862,16 @@ end;
 procedure TMainForm.OpenImage(filename: AnsiString);
 begin
  //Load the image and create the catalogue
- Image.LoadFromFile(filename);
- HasChanged:=False;
- //Update the display
- ShowNewImage(Image.Filename);
+ if Image.LoadFromFile(filename) then
+ begin
+  HasChanged:=False;
+  //Update the display
+  ShowNewImage(Image.Filename);
+ end
+ else
+  ReportError('"'+filename
+                        +'" has not been recognised as a valid disc image that '
+                        +ApplicationTitle+' can open.');
 end;
 
 {------------------------------------------------------------------------------}
@@ -897,7 +913,8 @@ begin
   //Clear the search fields
   ResetSearchFields;
   //Change the application title (what appears on SHIFT+TAB, etc.)
-  Caption:=ApplicationTitle+' - '+ExtractFileName(title);
+  Caption:=ApplicationTitle;
+  if title<>'' then Caption:=Caption+' - '+ExtractFileName(title);
   //If the format is a recognised one
   if Image.FormatString<>'' then
   begin
@@ -940,6 +957,8 @@ begin
    //Enable the controls
    btn_SaveImage.Enabled:=True;
    menuSaveImage.Enabled:=True;
+   btn_CloseImage.Enabled:=True;
+   menuCloseImage.Enabled:=True;
    if Length(Image.FreeSpaceMap)>0 then
    begin
     btn_ImageDetails.Enabled:=True;
@@ -1079,25 +1098,33 @@ begin
    cb_ownerread.Checked    :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_ownerlocked.Checked  :=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_ownerexecute.Checked :=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
+   cb_ownerexecute.Checked :=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_publicwrite.Checked  :=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_publicread.Checked   :=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_publicexecute.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_private.Checked      :=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
    //Enable whichever tickboxes are appropriate to the system
-   if Image.FormatNumber div $10=0 then //DFS
-    cb_ownerlocked.Enabled   :=True;
-   if Image.FormatNumber div $10=1 then //ADFS
+   if (Image.FormatNumber div $10=0)      //DFS
+   or (Image.FormatNumber div $10=2) then //Commodore
+    cb_ownerlocked.Visible   :=True;
+   cb_ownerexecute.Caption   :='Execute';
+   if Image.FormatNumber div $10=2 then   //Commodore
    begin
-    cb_ownerwrite.Enabled    :=True;
-    cb_ownerread.Enabled     :=True;
-    cb_ownerlocked.Enabled   :=True;
-    cb_publicwrite.Enabled   :=True;
-    cb_publicread.Enabled    :=True;
+    cb_ownerexecute.Visible  :=True;
+    cb_ownerexecute.Caption  :='Closed';
+   end;
+   if Image.FormatNumber div $10=1 then   //ADFS
+   begin
+    cb_ownerwrite.Visible    :=True;
+    cb_ownerread.Visible     :=True;
+    cb_ownerlocked.Visible   :=True;
+    cb_publicwrite.Visible   :=True;
+    cb_publicread.Visible    :=True;
     if Image.FormatNumber mod $10<3 then //ADFS Old Directory
     begin
-     cb_ownerexecute.Enabled  :=True;
-     cb_publicexecute.Enabled :=True;
-     cb_private.Enabled       :=True;
+     cb_ownerexecute.Visible  :=True;
+     cb_publicexecute.Visible :=True;
+     cb_private.Visible       :=True;
     end;
    end;
    DoNotUpdate   :=False;  //Re-enable the event firing
@@ -1249,8 +1276,6 @@ begin
     location:='Indirect address: 0x'+IntToHex(Image.RootAddress,8);
    lb_location.Caption:=location;
   end;
-{  Caption:=IntToStr(dir)+','+IntToStr(entry);
-  if dir<>-1 then Caption:=Caption+':'+IntToStr(Image.Disc[dir].Entries[entry].DirRef);}
  end;
 end;
 
@@ -1341,14 +1366,48 @@ end;
 //Initialise Form
 {------------------------------------------------------------------------------}
 procedure TMainForm.FormShow(Sender: TObject);
+var
+ i: Integer;
 begin
  //Initial width and height of form
  Width:=1042;
  Height:=751;
  //Enable or disable buttons
+ DisableControls;
+ //Reset the file details panel
+ ResetFileFields;
+ //Clear the search fields
+ ResetSearchFields;
+ //Clear the status bar
+ UpdateImageInfo;
+ //Reset the tracking variables
+ PathBeforeEdit           :='';
+ NameBeforeEdit           :='';
+ //There are some commands
+ if ParamCount>0 then
+ begin
+  //Parse each one
+  for i:=1 to ParamCount do ParseCommandLine(ParamStr(i));
+  //Save and close the application as there are commands
+  if HasChanged then
+  begin
+   Image.SaveToFile(Image.Filename);
+   HasChanged:=False;
+  end;
+  MainForm.Close;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//Disable/Enable all the controls for initialisation
+{------------------------------------------------------------------------------}
+procedure TMainForm.DisableControls;
+begin
+ //Enable or disable buttons
  btn_NewImage.Enabled     :=True;
  btn_OpenImage.Enabled    :=True;
  btn_SaveImage.Enabled    :=False;
+ btn_CloseImage.Enabled   :=False;
  btn_ImageDetails.Enabled :=False;
  btn_About.Enabled        :=True;
  btn_download.Enabled     :=False;
@@ -1366,6 +1425,7 @@ begin
  menuNewImage.Enabled     :=True;
  menuOpenImage.Enabled    :=True;
  menuSaveImage.Enabled    :=False;
+ menuCloseImage.Enabled   :=False;
  menuImageDetails.Enabled :=False;
  menuExtractFile.Enabled  :=False;
  menuRenameFile.Enabled   :=False;
@@ -1383,29 +1443,19 @@ begin
  DirList.Enabled          :=False;
  //Reset the changed variable
  HasChanged               :=False;
- //Reset the file details panel
- ResetFileFields;
- //Clear the search fields
- ResetSearchFields;
- //Clear the status bar
- UpdateImageInfo;
- //Reset the tracking variables
- PathBeforeEdit           :='';
- NameBeforeEdit           :='';
- //There are some commands
- if ParamCount>0 then ParseCommandLine;
 end;
 
 {------------------------------------------------------------------------------}
 //Parse any command line options
 {------------------------------------------------------------------------------}
-procedure TMainForm.ParseCommandLine;
+procedure TMainForm.ParseCommandLine(cmd: AnsiString);
 var
- i,
  index  : Integer;
  option,
  param,
- cmd    : AnsiString;
+ param2 : AnsiString;
+ Dir    : TSearchRec;
+ F      : TFileStream;
 const DiscFormats = //Accepted format strings
  'DFSS    DFSS40  DFSD    DFSD40  WDFSS   WDFSS40 WDFSD   WDFSD40 ADFSS   ADFSM   '+
  'ADFSL   ADFSD   ADFSE   ADFSE+  ADFSF   ADFSF+  C1541   C1571   C1581   AMIGADD '+
@@ -1416,91 +1466,153 @@ const DiscFormats = //Accepted format strings
   $410);
 begin
  //Collate the parameters
- for i:=1 to ParamCount do
+ option:=cmd;
+ param :='';
+ param2:='';
+ //Split the parameter into command and attribute
+ if Pos(':',option)>1 then
  begin
-  cmd:=ParamStr(i);
-  if Pos(':',cmd)>1 then
+  param :=RightStr(option,Length(option)-Pos(':',option));
+  option:=LowerCase(LeftStr (option,Pos(':',option)-1));
+ end;
+ if param<>'' then
+ begin
+  //Remove any quotes from the second parameter
+  if (param[1]='"')and(param[Length(param)]='"') then
+   param:=Copy(param,2,Length(param)-2);
+  //Is there a second paramter?
+  if(Pos('"|"',param)>1)and(Pos('"|"',param)<Length(param)-3)then
   begin
-   //Split the parameter into command and attribute
-   option:=LowerCase(LeftStr (cmd,Pos(':',cmd)-1));
-   param :=RightStr(cmd,Length(cmd)-Pos(':',cmd));
-   //Open command
-   if (option='--insert') or (option='-i') then
-    OpenImage(param);
-   //Add new file command
-   if (option='--add') or (option='-a') then
-    if Image.FormatNumber<>$FF then
-     AddFileToImage(param);
-   //New Image command
-   if (option='--new') or (option='-n') then
-   begin
-    index:=(Pos(UpperCase(param),DiscFormats) DIV 8)+1;
-    //Create new image
-    if Image.Format(DiscNumber[index] DIV $100,
-                   (DiscNumber[index] DIV $10)MOD $10,
-                    DiscNumber[index] MOD $10) then
-    begin
-     HasChanged:=True;
-     ShowNewImage(Image.Filename);
-    end;
+   param2:=Copy(param,Pos('"|"',param)+3);   //Get the right most part
+   param :=LeftStr(param,Pos('"|"',param)-1);//Get the left most part
+  end else
+  if(Pos('|',param)>1)and(Pos('|',param)<Length(param)-1)then
+  begin
+   param2:=Copy(param,Pos('|',param)+1);   //Get the right most part
+   param :=LeftStr(param,Pos('|',param)-1);//Get the left most part
+  end;
+  //Commands that require at least one parameter -------------------------------
+  //Run commands from file command
+  if (option='--cmdfile') or (option='-f') then
+  begin
+   try
+    F:=TFileStream.Create(param,fmOpenRead OR fmShareDenyNone);
+    F.Position:=0;
+    while ReadLine(F,option) do ParseCommandLine(option);
+    F.Free;
+   finally
+    // Runs after the above, even if an error occurs
    end;
-   //Save image
-   if (option='--save') or (option='-s') then
-    if Image.FormatNumber<>$FF then
-     begin
-      if param='' then param:=Image.Filename;
-      Image.SaveToFile(param);
-      Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
-      HasChanged:=False;
-      //Update the status bar
-      UpdateImageInfo
+  end;
+  //Open command +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (option='--insert') or (option='-i') then
+   OpenImage(param);
+  //New Image command ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (option='--new') or (option='-n') then
+  begin
+   index:=(Pos(UpperCase(param),DiscFormats) DIV 8)+1;
+   //Create new image
+   if Image.Format(DiscNumber[index] DIV $100,
+                  (DiscNumber[index] DIV $10)MOD $10,
+                   DiscNumber[index] MOD $10) then
+   begin
+    HasChanged:=True;
+    ShowNewImage(Image.Filename);
+   end;
+  end;
+  //Commands that require at least one parameter and an image ------------------
+  if Image.FormatNumber<>$FF then
+  begin
+   //Add new file command +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   if (option='--add') or (option='-a') then
+   begin
+    //Select destination directory
+    if param2<>'' then
+     SelectNode(param2);
+    //param can contain a wild card
+    FindFirst(param,faDirectory,Dir);
+    repeat
+     if (Dir.Name<>'.') and (Dir.Name<>'..') then //These are previous and top directories
+     begin //Add a directory and the contents
+      if (Dir.Attr AND faDirectory)=faDirectory then
+       AddDirectoryToImage(ExtractFilePath(param)+Dir.Name)
+      else //Add a single file
+       AddFileToImage(ExtractFilePath(param)+Dir.Name);
      end;
-   //Update title for side 0
+    until FindNext(Dir)<>0;
+    FindClose(Dir);
+   end;
+   //Update title for side 0 ++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--title') or (option='-t') then
-    if Image.FormatNumber<>$FF then
-     Image.UpdateDiscTitle(param,0);
-   //Update title for side 1
+    Image.UpdateDiscTitle(param,0);
+   //Update title for side 1 ++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--title1') or (option='-t1') then
-    if (Image.FormatNumber<>$FF) and (Length(Image.Disc)>1) then
+    if Length(Image.Disc)>1 then
      Image.UpdateDiscTitle(param,1);
-   //Update boot option for side 0
+   //Update boot option for side 0 ++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--opt') or (option='-o') then
-    if Image.FormatNumber<>$FF then
-     begin
-      if LowerCase(param)='none' then param:='0';
-      if LowerCase(param)='load' then param:='1';
-      if LowerCase(param)='run'  then param:='2';
-      if LowerCase(param)='exec' then param:='3';
-      Image.UpdateBootOption(StrToIntDef(param,0)mod$10,0);
-     end;
-   //Update boot option for side 1
+   begin
+    if LowerCase(param)='none' then param:='0';
+    if LowerCase(param)='load' then param:='1';
+    if LowerCase(param)='run'  then param:='2';
+    if LowerCase(param)='exec' then param:='3';
+    Image.UpdateBootOption(StrToIntDef(param,0)mod$10,0);
+   end;
+   //Update boot option for side 1 ++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--opt1') or (option='-o1') then
-    if (Image.FormatNumber<>$FF) and (Length(Image.Disc)>1) then
-     begin
-      if LowerCase(param)='none' then param:='0';
-      if LowerCase(param)='load' then param:='1';
-      if LowerCase(param)='run'  then param:='2';
-      if LowerCase(param)='exec' then param:='3';
-      Image.UpdateBootOption(StrToIntDef(param,0)mod$10,1);
-     end;
-   //Delete selected file
+    if Length(Image.Disc)>1 then
+    begin
+     if LowerCase(param)='none' then param:='0';
+     if LowerCase(param)='load' then param:='1';
+     if LowerCase(param)='run'  then param:='2';
+     if LowerCase(param)='exec' then param:='3';
+     Image.UpdateBootOption(StrToIntDef(param,0)mod$10,1);
+    end;
+   //Delete selected file +++++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--delete') or (option='-d') then
-    {DeleteFile(false)};
-   //Rename selected file
-   if (option='--rename') or (option='-r') then;
-   //Create a new directory under selected directory (ADFS/Amiga)
-   if (option='--create') or (option='-c') then;
-   //Extract files
-   if (option='--extract') or (option='-e') then;
+   begin
+    //Select the file
+    SelectNode(param);
+    //Now delete it - no confirmations
+    DeleteFile(false);
+   end;
+   //Extract files ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   if (option='--extract') or (option='-e') then
+   begin
+    //Select the file
+    SelectNode(param);
+   end;
+   //Commands that require a second parameter -----------------------------------
+   if param2<>'' then
+   begin
+    //Rename selected file ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    if (option='--rename') or (option='-r') then
+     //Rename the file. If it fails, it will return false.
+     HasChanged:=HasChanged OR Image.RenameFile(param,param2);
+   end;
   end;
  end;
- //Save and close the application as there are commands
- if HasChanged then
+ //Commands that do not require any parameters ---------------------------------
+ //Create a new directory under selected directory (ADFS/Amiga) ++++++++++++++++
+ if (option='--create') or (option='-c') then
  begin
-  Image.SaveToFile(Image.Filename);
-  HasChanged:=False;
+  //Select the parent, if one is specified
+  if param2<>'' then SelectNode(param2);
+  //Then create the directory
+  if param='' then param:='NewDir'; //Default name, if none supplied
+  if CreateDirectory(param,'DLR')<>nil then HasChanged:=True;
  end;
- MainForm.Close;
+ //Save image ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ if (option='--save') or (option='-s') then
+  if Image.FormatNumber<>$FF then
+  begin
+   if param='' then param:=Image.Filename;
+   Image.SaveToFile(param);
+   Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
+   HasChanged:=False;
+   //Update the status bar
+   UpdateImageInfo
+  end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1519,12 +1631,8 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.lb_searchresultsClick(Sender: TObject);
 var
- i,s,
- dir,
- entry : Integer;
- ptr   : Cardinal;
+ i,s : Integer;
 begin
- ptr:=0;
  //Selected item: -1 for none
  s:=-1;
  //Find the selected item
@@ -1533,21 +1641,32 @@ begin
  //Found? So highlight it
  if s>=0 then
  begin
-  //First, get the reference
-  Image.FileExists(lb_searchresults.Items[s],ptr);
-  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=ptr div $10000;  //Top 16 bits - directory reference
-  //Then find the node
-  for i:=0 to DirList.Items.Count-1 do
-   if  (TMyTreeNode(DirList.Items[i]).Dir=dir)
-   and (DirList.Items[i].Index=entry) then
-    //and select it
-    DirList.Items[i].Selected:=True;
-  //Deselect the item in the search window
-  lb_searchresults.Selected[s]:=False;
-  //We'll need to give the tree focus, so it shows up
-  DirList.SetFocus;
+  SelectNode(lb_searchresults.Items[s]);
+  lb_searchresults.Selected[s]:=False; //Deselect in the search window
  end;
+end;
+
+{------------------------------------------------------------------------------}
+//Select a node
+{------------------------------------------------------------------------------}
+procedure TMainForm.SelectNode(filename: AnsiString);
+var
+ entry,
+ dir,i : Integer;
+ ptr   : Cardinal;
+begin
+ //First, get the reference
+ Image.FileExists(filename,ptr);
+ entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
+ dir  :=ptr div $10000;  //Top 16 bits - directory reference
+ //Then find the node
+ for i:=0 to DirList.Items.Count-1 do
+  if  (TMyTreeNode(DirList.Items[i]).Dir=dir)
+  and (DirList.Items[i].Index=entry) then
+   //and select it
+   DirList.Items[i].Selected:=True;
+ //We'll need to give the tree focus, so it shows up
+ DirList.SetFocus;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1783,6 +1902,20 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Close currently open image
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_CloseImageClick(Sender: TObject);
+begin
+ if QueryUnsaved then
+ begin
+  Image.Close;
+  ShowNewImage('');
+  UpdateImageInfo;
+  DisableControls;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
 //Create a new directory click
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewDirectoryClick(Sender: TObject);
@@ -1826,7 +1959,7 @@ begin
  //Add it
  index:=Image.CreateDirectory(dirname,parentdir,attr);
  //Function returns pointer to next item (or parent if no children)
- if index<>-1 then //Directory added OK
+ if index>-1 then //Directory added OK
  begin
   HasChanged:=True;
   //Now add the entry to the Directory List
@@ -1847,10 +1980,23 @@ begin
   TMyTreeNode(Node).IsDir:=True;
   //And update the free space display
   UpdateImageInfo;
+  //Select the new node
+  DirList.ClearSelection;
+  Node.Selected:=True;
+  //Return the newly created directory as a node
   Result:=Node;
  end
-  else//For some reason the operation failed to write the data
-   ShowMessage('Failed creating directory');
+  else
+  begin//For some reason the operation failed to write the data
+   if index=-1 then ReportError('Cannot create a directory on this platform');
+   if index=-2 then ReportError('Could not add directory - image full');
+   if index=-3 then ReportError('Directory already exists in image');
+   if index=-4 then ReportError('Catalogue full');
+   if index=-5 then ReportError('Could not write directory - error unknown');
+   if index=-6 then ReportError('Destination directory does not exist');
+   If index=-7 then ReportError('Could not write directory - map full');
+   if index=-8 then ReportError('Could not write directory - nothing to write');
+  end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1887,7 +2033,7 @@ begin
     ShowNewImage(Image.Filename);  //This updates the status bar
    end
    else
-    ShowMessage('Failed to create image');
+    ReportError('Failed to create image');
   end;
  end;
 end;
@@ -1903,14 +2049,16 @@ begin
  begin
   att:='';
    //Attributes
-   if cb_ownerwrite.Checked    then att:=att+'W';
-   if cb_ownerread.Checked     then att:=att+'R';
-   if cb_ownerlocked.Checked   then att:=att+'L';
-   if cb_ownerexecute.Checked  then att:=att+'E';
-   if cb_publicwrite.Checked   then att:=att+'w';
-   if cb_publicread.Checked    then att:=att+'r';
-   if cb_publicexecute.Checked then att:=att+'e';
-   if cb_private.Checked       then att:=att+'P';
+   if cb_ownerwrite.Checked       then att:=att+'W';
+   if cb_ownerread.Checked        then att:=att+'R';
+   if cb_ownerlocked.Checked      then att:=att+'L';
+   if cb_ownerexecute.Checked     then
+    if Image.FormatNumber shr 4=1 then att:=att+'E'
+                                  else att:=att+'C';
+   if cb_publicwrite.Checked      then att:=att+'w';
+   if cb_publicread.Checked       then att:=att+'r';
+   if cb_publicexecute.Checked    then att:=att+'e';
+   if cb_private.Checked          then att:=att+'P';
    if TMyTreeNode(DirList.Selected).IsDir then att:=att+'D';
    //Get the file path
    filepath:=GetFilePath(DirList.Selected);
@@ -2093,14 +2241,14 @@ begin
  lb_location.Caption :='';
  img_FileType.Picture.Bitmap:=nil;
  //Disable the access tick boxes
- cb_ownerwrite.Enabled    :=False;
- cb_ownerread.Enabled     :=False;
- cb_ownerlocked.Enabled   :=False;
- cb_ownerexecute.Enabled  :=False;
- cb_publicwrite.Enabled   :=False;
- cb_publicread.Enabled    :=False;
- cb_publicexecute.Enabled :=False;
- cb_private.Enabled       :=False;
+ cb_ownerwrite.Visible    :=False;
+ cb_ownerread.Visible     :=False;
+ cb_ownerlocked.Visible   :=False;
+ cb_ownerexecute.Visible  :=False;
+ cb_publicwrite.Visible   :=False;
+ cb_publicread.Visible    :=False;
+ cb_publicexecute.Visible :=False;
+ cb_private.Visible       :=False;
  //And untick them
  cb_ownerwrite.Checked    :=False;
  cb_ownerread.Checked     :=False;
@@ -2131,33 +2279,24 @@ procedure TMainForm.sb_searchClick(Sender: TObject);
 var
  search : TDirEntry;
  results: TSearchResults;
- t1,t2  : AnsiString;
  i      : Integer;
 begin
  ResetDirEntry(search);
  SetLength(results,0);
- //Get the search criteria: you can search on more fields than this - these three
- //are just used as a demonstration. To search on more fields, just enter them
- //into the appropriate field in the 'search' structure - blank or zero fields
- //are not used in the search.
+ //Get the search criteria
  search.Filename:=ed_filenamesearch.Text;
  search.Filetype:=ed_filetypesearch.Text;
- //Validate that the length entered is a hex number
- t1:=UpperCase(ed_lengthsearch.Text);
- if Length(t1)>0 then
- begin
-  t2:='0x';
-  for i:=1 to Length(t1) do
-   if ((ord(t1[i])>47) and (ord(t1[i])<58))
-   or ((ord(t1[i])>64) and (ord(t1[i])<71)) then
-    t2:=t2+t1[i];
-  search.Length:=StrToInt(t2);
- end;
+ //Validate that the length entered is a hex number or zero if not
+ search.Length:=StrToIntDef('$'+ed_lengthsearch.Text,0);
+ //Search for files
  results:=Image.FileSearch(search);
+ //Clear the results
  lb_searchresults.Clear;
+ //Now populate, if there is anything to add to it
  if Length(results)>0 then
   for i:=0 to Length(results)-1 do
    lb_searchresults.Items.Add(results[i].Parent+'.'+results[i].Filename);
+ //And report how many results
  searchresultscount.Caption:='Number of results found: '+IntToStr(lb_searchresults.Count);
 end;
 
@@ -2224,10 +2363,33 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ImageDetailsDrawPanel(StatusBar: TStatusBar;
  Panel: TStatusPanel; const Rect: TRect);
+var
+ png: Byte;
 begin
  //First panel - we want to put the 'not saved' indicator here
  if (Panel.Index=0) and (HasChanged) then
-  icons.Draw(StatusBar.Canvas,Rect.Left,Rect.Top,0);
+  icons.Draw(StatusBar.Canvas,Rect.Left+2,Rect.Top+2,0);
+ //Second panel - needs a logo
+ if (Panel.Index=1) and (Panel.Text<>'') then
+ begin
+  png:=0;
+  case Image.FormatNumber shr 4 of
+   0: png:=3; //BBC Micro logo for DFS
+   1:
+   begin
+    if(Image.FormatNumber mod $10<>3)
+    and(Image.MapType=0) then png:=1; //Acorn logo for 8 bit ADFS
+    if(Image.FormatNumber mod $10=3)
+    or(Image.MapType=1) then png:=5; //RISC OS logo for 32 bit ADFS
+   end;
+   2: png:=4; //Commodore logo
+   3: png:=6; //Sinclair logo
+   4: png:=2; //Amiga logo
+  end;
+  if png<>0 then icons.Draw(StatusBar.Canvas,Rect.Left+2,Rect.Top+2,png);
+  StatusBar.Canvas.Font:=StatusBar.Font;
+  StatusBar.Canvas.TextRect(Rect,Rect.Left+20,Rect.Top+2,Panel.Text);
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2248,6 +2410,18 @@ begin
   or (f[i]='>')
   or (f[i]='|') then
    f[i]:=' ';
+end;
+
+{------------------------------------------------------------------------------}
+//Report an error to the user
+{------------------------------------------------------------------------------}
+procedure TMainForm.ReportError(error: AnsiString);
+begin
+ //If we are in command line mode, then do not use the GUI
+ if ParamCount>0 then
+  WriteLn(error)
+ else //Otherwise, display a nice window on the screen
+  ShowMessage(error);
 end;
 
 end.

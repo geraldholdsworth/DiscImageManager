@@ -9,7 +9,7 @@ uses
   AboutUnit in 'AboutUnit.pas',
   NewImageUnit in 'NewImageUnit.pas',
   ImageDetailUnit in 'ImageDetailUnit.pas',
-  DiscImageUtils;
+  DiscImageUtils, Global;
 
 {$R *.res}
 

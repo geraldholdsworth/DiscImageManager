@@ -294,7 +294,7 @@ var
  ptr    : Cardinal;
  success: Boolean;
 begin
- Result:=-1;
+ Result:=-3; //File already exists
  count:=file_details.Length;
  f:=FFormat MOD $10; //Minor format (sub format)
  //Overwrite the parent
@@ -304,6 +304,7 @@ begin
  //Make sure the file does not already exist
  if not(FileExists(file_details.Parent+dir_sep+file_details.Filename,ptr))then
  begin
+  Result:=-4;//Catalogue full
   //Can the catalogue be extended?
   l:=Length(FDisc[file_details.Side].Entries);
   if ((l<31) and (f<2))         // Max 31 entries for Acorn DFS
@@ -363,6 +364,7 @@ begin
    //or revert back if not
    else
    begin
+    Result:=-5; //Unknown error
     if l>1 then
      for i:=filen to l-2 do
       FDisc[file_details.Side].Entries[i]:=FDisc[file_details.Side].Entries[i+1];

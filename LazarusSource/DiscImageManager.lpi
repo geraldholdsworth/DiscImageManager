@@ -20,7 +20,7 @@
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
       <MinorVersionNr Value="5"/>
-      <RevisionNr Value="10"/>
+      <RevisionNr Value="11"/>
       <Language Value="0809"/>
       <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.5"/>
     </VersionInfo>
@@ -189,7 +189,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="8">
+    <Units Count="9">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -220,26 +220,27 @@
         <UnitName Value="FileDetailsUnit"/>
       </Unit4>
       <Unit5>
-        <Filename Value="newimageunit.pas"/>
+        <Filename Value="NewImageUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="NewImageForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="NewImageUnit"/>
       </Unit5>
       <Unit6>
-        <Filename Value="imagedetailunit.pas"/>
+        <Filename Value="ImageDetailUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ImageDetailForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="ImageDetailUnit"/>
       </Unit6>
       <Unit7>
-        <Filename Value="discimageutils.pas"/>
+        <Filename Value="DiscImageUtils.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="DiscImageUtils"/>
       </Unit7>
+      <Unit8>
+        <Filename Value="Global.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit8>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -2,8 +2,8 @@
 <CONFIG>
   <ProjectSession>
     <Version Value="11"/>
-    <BuildModes Active="Default"/>
-    <Units Count="13">
+    <BuildModes Active="Release platform native"/>
+    <Units Count="14">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -19,8 +19,8 @@
         <ResourceBaseClass Value="Form"/>
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="769"/>
-        <CursorPos X="7" Y="791"/>
+        <TopLine Value="535"/>
+        <CursorPos X="96" Y="556"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -28,9 +28,9 @@
       <Unit2>
         <Filename Value="DiscImage.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="4"/>
-        <TopLine Value="674"/>
-        <CursorPos X="4" Y="696"/>
+        <EditorIndex Value="5"/>
+        <TopLine Value="830"/>
+        <CursorPos X="16" Y="830"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit2>
@@ -40,7 +40,7 @@
         <ComponentName Value="AboutForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="11"/>
+        <EditorIndex Value="12"/>
         <CursorPos Y="4"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
@@ -56,27 +56,24 @@
         <UsageCount Value="200"/>
       </Unit4>
       <Unit5>
-        <Filename Value="newimageunit.pas"/>
+        <Filename Value="NewImageUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="NewImageForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="NewImageUnit"/>
-        <EditorIndex Value="2"/>
-        <TopLine Value="77"/>
-        <CursorPos Y="108"/>
+        <EditorIndex Value="3"/>
+        <CursorPos Y="110"/>
         <UsageCount Value="215"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="imagedetailunit.pas"/>
+        <Filename Value="ImageDetailUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ImageDetailForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="ImageDetailUnit"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="4"/>
         <TopLine Value="33"/>
         <CursorPos X="24" Y="62"/>
         <UsageCount Value="204"/>
@@ -84,173 +81,184 @@
         <LoadedDesigner Value="True"/>
       </Unit6>
       <Unit7>
-        <Filename Value="discimageutils.pas"/>
+        <Filename Value="DiscImageUtils.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="DiscImageUtils"/>
-        <EditorIndex Value="5"/>
-        <TopLine Value="10"/>
-        <CursorPos X="80" Y="158"/>
+        <EditorIndex Value="6"/>
+        <TopLine Value="192"/>
+        <CursorPos X="5" Y="210"/>
         <UsageCount Value="205"/>
         <Loaded Value="True"/>
       </Unit7>
       <Unit8>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <EditorIndex Value="7"/>
-        <TopLine Value="452"/>
-        <CursorPos X="57" Y="464"/>
-        <UsageCount Value="102"/>
+        <Filename Value="Global.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="2"/>
+        <CursorPos X="9" Y="8"/>
+        <UsageCount Value="122"/>
         <Loaded Value="True"/>
       </Unit8>
       <Unit9>
-        <Filename Value="DiscImage_DFS.pas"/>
-        <EditorIndex Value="6"/>
-        <TopLine Value="564"/>
-        <CursorPos X="14" Y="572"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <EditorIndex Value="8"/>
+        <TopLine Value="2522"/>
+        <CursorPos X="35" Y="2336"/>
         <UsageCount Value="102"/>
         <Loaded Value="True"/>
       </Unit9>
       <Unit10>
-        <Filename Value="DiscImage_C64.pas"/>
-        <EditorIndex Value="8"/>
-        <TopLine Value="542"/>
-        <CursorPos X="2" Y="559"/>
-        <UsageCount Value="101"/>
+        <Filename Value="DiscImage_DFS.pas"/>
+        <EditorIndex Value="7"/>
+        <TopLine Value="600"/>
+        <CursorPos X="30" Y="568"/>
+        <UsageCount Value="102"/>
         <Loaded Value="True"/>
       </Unit10>
       <Unit11>
-        <Filename Value="DiscImage_Amiga.pas"/>
+        <Filename Value="DiscImage_C64.pas"/>
         <EditorIndex Value="9"/>
-        <TopLine Value="210"/>
-        <CursorPos X="78" Y="227"/>
+        <TopLine Value="712"/>
+        <CursorPos X="32" Y="694"/>
         <UsageCount Value="101"/>
         <Loaded Value="True"/>
       </Unit11>
       <Unit12>
-        <Filename Value="DiscImage_Spectrum.pas"/>
+        <Filename Value="DiscImage_Amiga.pas"/>
         <EditorIndex Value="10"/>
+        <TopLine Value="316"/>
+        <CursorPos X="14" Y="383"/>
+        <UsageCount Value="101"/>
+        <Loaded Value="True"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="DiscImage_Spectrum.pas"/>
+        <EditorIndex Value="11"/>
         <TopLine Value="6"/>
         <CursorPos X="14" Y="25"/>
         <UsageCount Value="101"/>
         <Loaded Value="True"/>
-      </Unit12>
+      </Unit13>
     </Units>
-    <JumpHistory Count="29" HistoryIndex="28">
+    <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="650" Column="22" TopLine="620"/>
+        <Caret Line="2229" TopLine="2202"/>
       </Position1>
       <Position2>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="1903" TopLine="1887"/>
+        <Caret Line="2236" TopLine="2214"/>
       </Position2>
       <Position3>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="621" Column="47" TopLine="609"/>
+        <Caret Line="2229" Column="53" TopLine="2214"/>
       </Position3>
       <Position4>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2334" TopLine="2322"/>
+        <Caret Line="2223" TopLine="2214"/>
       </Position4>
       <Position5>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2329" Column="6" TopLine="2207"/>
+        <Caret Line="2235" Column="47" TopLine="2219"/>
       </Position5>
       <Position6>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2340" Column="83" TopLine="2321"/>
+        <Caret Line="2229" Column="35" TopLine="2217"/>
       </Position6>
       <Position7>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2334" TopLine="2321"/>
+        <Caret Line="2233" Column="3" TopLine="2217"/>
       </Position7>
       <Position8>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2339" Column="21" TopLine="2322"/>
+        <Caret Line="2231" Column="15" TopLine="2213"/>
       </Position8>
       <Position9>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2343" TopLine="2322"/>
+        <Caret Line="2220" TopLine="2213"/>
       </Position9>
       <Position10>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2368" Column="11" TopLine="2351"/>
+        <Caret Line="2218" Column="23" TopLine="2210"/>
       </Position10>
       <Position11>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2392" Column="57" TopLine="2369"/>
+        <Caret Line="138" Column="17" TopLine="122"/>
       </Position11>
       <Position12>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2373" Column="21" TopLine="2357"/>
+        <Caret Line="823" TopLine="806"/>
       </Position12>
       <Position13>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="1316" Column="2" TopLine="1311"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="2249" Column="20" TopLine="2226"/>
       </Position13>
       <Position14>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="290" Column="70" TopLine="274"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Column="81"/>
       </Position14>
       <Position15>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="431" Column="73" TopLine="404"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="2293" Column="2" TopLine="2263"/>
       </Position15>
       <Position16>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="503" Column="65" TopLine="476"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="212" Column="12" TopLine="200"/>
       </Position16>
       <Position17>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="727" Column="74" TopLine="699"/>
+        <Filename Value="DiscImage_DFS.pas"/>
+        <Caret Line="516" Column="13" TopLine="506"/>
       </Position17>
       <Position18>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="94" Column="12" TopLine="84"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="2496" Column="27" TopLine="2482"/>
       </Position18>
       <Position19>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="698" Column="20" TopLine="671"/>
+        <Caret Line="910" Column="33" TopLine="900"/>
       </Position19>
       <Position20>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="748" Column="70" TopLine="731"/>
+        <Caret Line="228" Column="27" TopLine="213"/>
       </Position20>
       <Position21>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="776" Column="25" TopLine="750"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1473" Column="33" TopLine="1362"/>
       </Position21>
       <Position22>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="292" TopLine="274"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1208" Column="21" TopLine="1192"/>
       </Position22>
       <Position23>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="437" TopLine="417"/>
+        <Caret Line="1990" Column="76" TopLine="1973"/>
       </Position23>
       <Position24>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="513" TopLine="500"/>
+        <Caret Line="555" Column="78" TopLine="533"/>
       </Position24>
       <Position25>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="741" TopLine="717"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="946" Column="61" TopLine="935"/>
       </Position25>
       <Position26>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="2404" Column="41" TopLine="2386"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="209" Column="19" TopLine="193"/>
       </Position26>
       <Position27>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="1513" TopLine="1500"/>
+        <Filename Value="DiscImage_DFS.pas"/>
+        <Caret Line="367" Column="32" TopLine="346"/>
       </Position27>
       <Position28>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="1515" TopLine="1503"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="2280" Column="26" TopLine="2216"/>
       </Position28>
       <Position29>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="1517" TopLine="1503"/>
+        <Caret Line="2336" Column="35" TopLine="2317"/>
       </Position29>
+      <Position30>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="556" Column="96" TopLine="535"/>
+      </Position30>
     </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>
@@ -260,11 +268,20 @@
     </RunParams>
   </ProjectSession>
   <Debugging>
-    <Watches Count="1">
+    <Watches Count="4">
       <Item1>
-        <Expression Value="dest"/>
-        <DisplayStyle Value="wdfHex"/>
+        <Expression Value="fslinks"/>
       </Item1>
+      <Item2>
+        <Expression Value="p"/>
+      </Item2>
+      <Item3>
+        <Expression Value="i"/>
+      </Item3>
+      <Item4>
+        <Expression Value="start"/>
+        <DisplayStyle Value="wdfHex"/>
+      </Item4>
     </Watches>
   </Debugging>
 </CONFIG>

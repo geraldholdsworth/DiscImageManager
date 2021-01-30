@@ -107,6 +107,7 @@ begin
      if emuheader+dr_ptr+$40<Cardinal(Length(FData)) then
      begin
       secsize   :=1 shl ReadByte(dr_ptr+$00); //Sector size
+      idlen     :=ReadByte(dr_ptr+$04);       //idlen
       bpmb      :=1 shl ReadByte(dr_ptr+$05); //Bits per map bit
       nzones    :=ReadByte(dr_ptr+$09)
                  +ReadByte(dr_ptr+$2A)*$100;  //nzones is 2 bytes, for E+ and F+
@@ -177,6 +178,7 @@ begin
     end;
    end;
   end;
+  //Return a true or false
   Result:=FFormat shr 4=1;
  end;
 end;
@@ -207,24 +209,6 @@ const
  //Attributes
  OldAtts: array[0..9] of Char = ('R','W','L','D','E','r','w','e','P',' ');
  NewAtts: array[0..7] of Char = ('R','W','L','D','r','w',' ',' ');
- //RISC OS Filetypes (as at RISC OS 5.23)
- FileTypes: array[1..79] of AnsiString = (
- '004AIM'     ,'0E1Index'   ,'132ICO'     ,'190DSK'     ,'191PCWDisc' ,
- '194D20Disc' ,'195D2Disc'  ,'196D10Disc' ,'19BMyZ80'   ,'1A6AcornCPM',
- '5F4SparkScr','68EPackdDir','690Clear'   ,'691Degas'   ,'692IMG'     ,
- '693IFF'     ,'694MacPaint','695GIF'     ,'696Pineappl','697PCX'     ,
- '698QRT'     ,'699MTV'     ,'69ACadSoft' ,'69BIrlam'   ,'69CBMP'     ,
- '69EPBMPlus' ,'A91Zip'     ,'ABACPIO'    ,'ABFCabinet' ,'ADFPDF'     ,
- 'AE9Alarms'  ,'AF1Music'   ,'AFFDrawFile','B60PNG'     ,'BBCBBC ROM' ,
- 'BD9DiscP'   ,'BDADisc'    ,'BE8PhotoCD' ,'C46Tar'     ,'C85JPEG'    ,
- 'DDCArchive' ,'DEADXF'     ,'F95Code'    ,'F9DDiscCD'  ,'F9EDiscDP'  ,
- 'F9FDiscD'   ,'FAEResource','FB4DiscR'   ,'FB5NoDisc'  ,'FC3Patch'   ,
- 'FC6PrntDefn','FC8DOSDisc' ,'FCASquash'  ,'FCCDevice'  ,'FCEFloppy'  ,
- 'FCFCache'   ,'FD6TaskExec','FD7TaskObey','FDCSoftLink','FE4DOS'     ,
- 'FE6UNIX Ex' ,'FEADesktop' ,'FEBObey'    ,'FECTemplate','FEDPalette' ,
- 'FF0TIFF'    ,'FF2Config'  ,'FF4Printout','FF5PoScript','FF6Font'    ,
- 'FF7BBC font','FF8Absolute','FF9Sprite'  ,'FFAModule'  ,'FFBBASIC'   ,
- 'FFCUtility' ,'FFDData'    ,'FFECommand' ,'FFFText'                   );
 begin
  RemoveControl(dirname);
  //Store complete path
@@ -447,8 +431,8 @@ begin
       Entry.Filetype:=temp;
      Entry.ShortFiletype:=temp;
      //Now sort the timestamp
-     Entry.TimeStamp:=ConvertTimeDate(Entry.ExecAddr+
-                                     (Entry.LoadAddr AND $FF)*$100000000);
+     Entry.TimeStamp:=RISCOSToTimeDate(Entry.ExecAddr+
+                                      (Entry.LoadAddr AND $FF)*$100000000);
     end;
     //Not a directory - default. Will be determined later
     Entry.DirRef:=-1;
@@ -620,8 +604,7 @@ begin
        else //Offset as number of bits from start of zone
         begin
          //Add the disc record (we are counting from the zone start
-         if zone>0 then
-          inc(off,(dr_size*8));
+         inc(off,(dr_size*8));
          //Remove the other zones
          dec(off,(zone*secsize*8));
          //Remove the intial byte, as we need to point our offset from freelink
@@ -1371,6 +1354,7 @@ function TDiscImage.WriteADFSFile(var file_details: TDirEntry;
                               var buffer: TDIByteArray): Integer;
 var
  dir          : Integer;
+ timestamp    : Int64;
  l,ref,ptr,
  freeptr,
  safilelen,
@@ -1382,8 +1366,14 @@ var
  fragments,
  fsfragments  : TFragmentArray;
 begin
+ //idlen other than 15 bits is unsupported at this time
+ if (FMap)and(idlen<>15)then
+ begin
+  Result:=-9;
+  exit;
+ end;
  //Start with a negative result
- Result:=-1;
+ Result:=-3;//File already exists
  success:=False;
  //Validate the proposed filename
  file_details.Filename:=ValidateADFSFilename(file_details.Filename);
@@ -1403,6 +1393,7 @@ begin
    safilelen:=file_details.Length div secsize;
    if file_details.Length mod secsize>0 then inc(safilelen);
    safilelen:=safilelen*secsize;
+   Result:=-4;//Catalogue full
    //Make sure it will actually fit on the disc
    if free_space>=safilelen then
     //And make sure we can extend the catalogue
@@ -1410,6 +1401,7 @@ begin
     OR (FDirType=1)and(l<77)
     OR (FDirType=2)) then
     begin
+     Result:=-7; //Map full
      //Set some flags
      spacefound:=False;
      success:=False;
@@ -1486,6 +1478,7 @@ begin
      //Write the file to the area
      if spacefound then
      begin
+      Result:=-5;//Unknown error
       //Counter into the data
       ptr:=0;
       //Set to true for now, if one of the writes fails, it will remain at False
@@ -1645,6 +1638,28 @@ begin
       end;
       FDisc[dir].Entries[ptr]:=file_details;
       FDisc[dir].Entries[ptr].DirRef:=-1;
+      //Filetype and Timestamp for Arthur and RISC OS ADFS
+      if (FDisc[dir].Entries[ptr].LoadAddr=0)
+      and(FDisc[dir].Entries[ptr].ExecAddr=0)
+      and(FDirType>0) then //New and Big directories
+      begin
+       FDisc[dir].Entries[ptr].LoadAddr:=$FFF00000;
+       //Set the filetype, if not already set
+       if FDisc[dir].Entries[ptr].ShortFileType<>'' then
+       begin
+        FDisc[dir].Entries[ptr].LoadAddr:=FDisc[dir].Entries[ptr].LoadAddr OR
+           (StrToIntDef(FDisc[dir].Entries[ptr].ShortFileType,0) shl 16);
+        for ref:=1 to Length(FileTypes) do
+         if LeftStr(FileTypes[ref],3)=UpperCase(FDisc[dir].Entries[ptr].ShortFileType) then
+          FDisc[dir].Entries[ptr].FileType:=Copy(FileTypes[ref],4);
+       end;
+       //Timestamp it, if not already done
+       timestamp:=TimeDateToRISCOS(Now);
+       FDisc[dir].Entries[ptr].TimeStamp:=Now;
+       FDisc[dir].Entries[ptr].LoadAddr:=FDisc[dir].Entries[ptr].LoadAddr OR
+           (timestamp DIV $100000000);
+       FDisc[dir].Entries[ptr].ExecAddr:=timestamp MOD $100000000;
+      end;
       //Is the file actually a directory?
       if Pos('D',file_details.Attributes)>0 then
       begin
@@ -1666,7 +1681,7 @@ begin
       ADFSFreeSpaceMap;
      end;
     end;
-  end;
+  end else Result:=-6; //Directory does not exist
 end;
 
 {-------------------------------------------------------------------------------
@@ -1685,7 +1700,13 @@ var
  buffer    : TDIByteArray;
  fileentry : TDirEntry;
 begin
- Result:=-1;
+ //idlen other than 15 bits is unsupported at this time
+ if (FMap)and(idlen<>15)then
+ begin
+  Result:=-9;
+  exit;
+ end;
+ Result:=-3;//Directory already exists
  if (dirname='$') OR (parent='$') then //Creating the root
   parentaddr:=root DIV $100
  else
@@ -1701,6 +1722,7 @@ begin
  //Make sure it does not already exist
  if (not FileExists(parent+dirsep+dirname,ref)) OR (dirname='$') then
  begin
+  Result:=-5;//Unknown error
   //Set as 'D' so it gets added as a directory
   if Pos('D',attributes)=0 then attributes:='D'+attributes;
   if FDirType=0 then //Old Directory
@@ -2136,12 +2158,18 @@ var
  i,j,p,
  start,
  len       : Integer;
+ fslinks   : TFragmentArray;
  FreeEnd   : Byte;
  FreeStart,
  FreeLen   : array[0..81] of Integer;
+ changed   : Boolean;
 begin
+ //idlen other than 15 bits is unsupported at this time
+ if (FMap)and(idlen<>15)then exit;
  if not FMap then //Old map only
  begin
+  //Changed flag
+  changed:=False;
   repeat
    //First, lets clear the array
    for i:=0 to Length(FreeLen)-1 do
@@ -2200,10 +2228,89 @@ begin
    end;
    //And write the counter in
    WriteByte(p*3,$1FE);
+   //Marks as changed
+   changed:=True;
   until FreeEnd=p*3; //Go back and do it again, if things have changed
-  //Run the checksums and we're done
-  WriteByte(ByteCheckSum($0000,$100),$0FF);
-  WriteByte(ByteCheckSum($0100,$100),$1FF);
+  if changed then
+  begin
+   //Run the checksums and we're done
+   WriteByte(ByteCheckSum($0000,$100),$0FF);
+   WriteByte(ByteCheckSum($0100,$100),$1FF);
+  end;
+ end;
+ if FMap then //New Map
+ begin
+  //Flag to mark if anything changed
+  changed:=False;
+  //Get the list of free space links
+  fslinks:=ADFSGetFreeFragments(False);
+  p:=0; //Zone offset counter
+  i:=0; //Freelink counter
+  while i<Length(fslinks)-2 do
+  begin
+   //Zone's match?
+   if fslinks[i].Zone=fslinks[i+1].Zone then
+   begin
+    //Does the current fragment's length equal the next fragment's offset?
+    if fslinks[i].Length=fslinks[i+1].Offset then
+    begin
+     //Work out the disc address for where this fragment is
+     start:=bootmap+1+(fslinks[i].Zone*secsize)+((p+fslinks[i].Offset)DIV 8);
+     //And what the offset should be
+     len:=fslinks[i+1].Length+fslinks[i].Length;
+     //If these are the last two of the zone, then reset the new offset to zero
+     if i<Length(fslinks)-3 then
+      if fslinks[i+2].Zone<>fslinks[i].Zone then len:=0;
+     //Get the top bit of where we are going to write
+     j:=Read16b(start)AND$8000;
+     //And write the new offset, along with the preserved top bit
+     Write16b(len OR j,start);
+     //Work out where the old fragment end pointer is and blank it
+     WriteByte(ReadByte((start-1)+(fslinks[i].Length div 8))AND$7F,
+        (start-1)+(fslinks[i].Length div 8));
+     //And blank the old fragment start pointer
+     Write16b(Read16b(start+(fslinks[i].Length div 8))AND$8000,
+              start+(fslinks[i].Length div 8));
+     //Refresh the array
+     fslinks:=ADFSGetFreeFragments(False);
+     //Set our changed flag
+     changed:=True;
+     //And start again
+     p:=0;
+     i:=0;
+    end else
+    begin
+     //Increase the zone offset counter and the counter into the array
+     inc(p,fslinks[i].Offset);
+     inc(i);
+    end;
+   end else
+   begin
+    //No zone match, so reset the zone offset counter and move onto the next fragment
+    p:=0;
+    inc(i);
+   end;
+  end;
+  if changed then
+  begin
+   //Update the checksums
+   for i:=0 to nzones-1 do
+   begin
+    //Ensure the top bit is set on the first link for each zone
+    WriteByte(ReadByte(bootmap+2+i*secsize)OR$80,bootmap+2+i*secsize);
+    //Zone checks
+    WriteByte(
+          GeneralChecksum(bootmap+$00+(i*secsize),
+                          secsize,
+                          secsize+4,
+                          $4,
+                          true),
+              bootmap+(i*secsize)+$00);
+   end;
+   //Make a copy
+   for p:=0 to (nzones*secsize)-1 do
+    WriteByte(ReadByte(bootmap+p),bootmap+p+nzones*secsize);
+  end;
  end;
 end;
 
@@ -2225,6 +2332,8 @@ var
  fsfragments : TFragmentArray;
 begin
  Result:=False;
+ //idlen other than 15 bits is unsupported at this time
+ if (FMap)and(idlen<>15)then exit;
  //Check that the file exists
  if FileExists(filename,ptr) then
  begin
@@ -2306,8 +2415,6 @@ begin
      inc(FreeEnd,3);
      WriteByte(FreeEnd,$1FE);
     end;
-    //Tidy up the free space map, as we may have missed something
-    ConsolodateADFSFreeSpaceMap;
    end;
    if FMap then //New Map
    begin
@@ -2426,6 +2533,8 @@ begin
     for ptr:=0 to (nzones*secsize)-1 do
      WriteByte(ReadByte(bootmap+ptr),bootmap+ptr+nzones*secsize);
    end;
+   //Tidy up the free space map, as we may have missed something
+   ConsolodateADFSFreeSpaceMap;
    //Update the free space map
    ADFSFreeSpaceMap;
    //Return a success

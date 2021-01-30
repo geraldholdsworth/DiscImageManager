@@ -6,7 +6,7 @@ unit DiscImage;
 
 interface
 
-uses Classes,DiscImageUtils;
+uses Classes,DiscImageUtils,Math;
 
 {$M+}
 
@@ -72,7 +72,8 @@ type
   function FormatToString: AnsiString;
   function FormatToExt: AnsiString;
   function ReadBits(offset,start,length: Cardinal): Cardinal;
-  function ConvertTimeDate(filedatetime: Int64): TDateTime;
+  function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
+  function TimeDateToRISCOS(delphitime: TDateTime): Int64;
   function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
   function Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
   function Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
@@ -133,9 +134,11 @@ type
   function ReadCDRDisc: TDisc;
   function FormatCDR(minor: Byte): TDisc;
   procedure CDRFreeSpaceMap;
+  procedure CDRSetClearBAM(track,sector: Byte;used: Boolean);
   function UpdateCDRDiscTitle(title: AnsiString): Boolean;
   function ExtractCDRFile(filename:AnsiString;var buffer:TDIByteArray): Boolean;
   function WriteCDRFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  procedure UpdateCDRCat;
   function CDRFindNextSector(var track,sector: Byte): Boolean;
   function CDRFindNextTrack(var track,sector: Byte): Boolean;
   function RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
@@ -167,17 +170,42 @@ type
   function UpdateAmigaFileAttributes(filename,attributes: AnsiString): Boolean;
   function UpdateAmigaDiscTitle(title: AnsiString): Boolean;
   const
-   //When the change of number of sectors occurs on Commodore discs
+   //When the change of number of sectors occurs on Commodore 1541/1571 discs
    CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
-   //Number of sectors per track
+   //Number of sectors per track (Commodore 1541/1571)
    CDRnumsects  : array[0..7] of Integer = (17,18,19,21,17,18,19,21);
+   //Commodore 64 Filetypes
+   CDRFileTypes : array[0.. 5] of AnsiString = (
+                                   'DELDeleted'  ,'SEQSequence' ,'PRGProgram'  ,
+                                   'USRUser File','RELRelative' ,'CBMCBM'      );
+   //RISC OS Filetypes (as at RISC OS 5.28)
+   FileTypes: array[1..89] of AnsiString = (
+   '004AIM'     ,'0E1Index'   ,'132ICO'     ,'190DSK'     ,'191PCWDisc' ,
+   '194D20Disc' ,'195D2Disc'  ,'196D10Disc' ,'19BMyZ80'   ,'1A6AcornCPM',
+   '5F4SparkScr','68EPackdDir','690Clear'   ,'691Degas'   ,'692IMG'     ,
+   '693IFF'     ,'694MacPaint','695GIF'     ,'696Pineappl','697PCX'     ,
+   '698QRT'     ,'699MTV'     ,'69ACadSoft' ,'69BIrlam'   ,'69CBMP'     ,
+   '69EPBMPlus' ,'A91Zip'     ,'AADSVG'     ,'ABACPIO'    ,'ABFCabinet' ,
+   'ADFPDF'     ,'AE9Alarms'  ,'AF1Music'   ,'AFFDrawFile','B28URL'     ,
+   'B60PNG'     ,'BBCBBC ROM' ,'BD9DiscP'   ,'BDADisc'    ,'BE8PhotoCD' ,
+   'C46Tar'     ,'C85JPEG'    ,'DDCArchive' ,'DEADXF'     ,'F76EDID'    ,
+   'F78JNG'     ,'F79CSS'     ,'F81JSScript','F83MNG'     ,'F91URI'     ,
+   'F95Code'    ,'F9DDiscCD'  ,'F9EDiscDP'  ,'F9FDiscD'   ,'FAEResource',
+   'FAFHTML'    ,'FB4DiscR'   ,'FB5NoDisc'  ,'FC3Patch'   ,'FC6PrntDefn',
+   'FC8DosDisc' ,'FCASquash'  ,'FCCDevice'  ,'FCDFileCore','FCEFloppy'  ,
+   'FCFCache'   ,'FD6TaskExec','FD7TaskObey','FDCSoftLink','FE4DOS'     ,
+   'FE6UNIX Ex' ,'FEADesktop' ,'FEBObey'    ,'FECTemplate','FEDPalette' ,
+   'FF0TIFF'    ,'FF2Config'  ,'FF4Printout','FF5PoScript','FF6Font'    ,
+   'FF7BBC font','FF8Absolute','FF9Sprite'  ,'FFAModule'  ,'FFBBASIC'   ,
+   'FFCUtility' ,'FFDData'    ,'FFECommand' ,'FFFText'                   );
  published
   //Methods
   constructor Create;
-  procedure LoadFromFile(filename: AnsiString);
-  procedure LoadFromStream(F: TStream);
+  function LoadFromFile(filename: AnsiString): Boolean;
+  function LoadFromStream(F: TStream): Boolean;
   procedure SaveToFile(filename: AnsiString);
   procedure SaveToStream(F: TStream);
+  procedure Close;
   function Format(major,minor,tracks: Byte): Boolean;
   function ExtractFile(filename: AnsiString; var buffer: TDIByteArray): Boolean;
   function ExtractFileToStream(filename: AnsiString;F: TStream): Boolean;
@@ -309,7 +337,7 @@ const
  SUB : array[0..4] of array[0..15] of AnsiString =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','','','','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','','Hard Disc'),
-  ('1541','1571','1581','','','','','','','','','','','','',''),
+  ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
   ('','Extended','','','','','','','','','','','','','',''),
   ('DD','HD','','','','','','','','','','','','','','Hard Disc'));
 begin
@@ -329,7 +357,7 @@ const
  EXT : array[0..4] of array[0..15] of AnsiString =
  (('ssd','dsd','ssd','dsd','','','','','','','','','','','',''),
   ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','','hdf'),
-  ('d64','d71','d81','','','','','','','','','','','','',''),
+  ('d64','d71','d81','d64','d71','','','','','','','','','','',''),
   ('','dsk','','','','','','','','','','','','','',''),
   ('adf','adf','','','','','','','','','','','','','','hdf'));
 begin
@@ -381,7 +409,7 @@ end;
 {-------------------------------------------------------------------------------
 Converts a RISC OS Time/Date to a Delphi TDateTime
 -------------------------------------------------------------------------------}
-function TDiscImage.ConvertTimeDate(filedatetime: Int64): TDateTime;
+function TDiscImage.RISCOSToTimeDate(filedatetime: Int64): TDateTime;
 var
  epoch      : TDateTime;
  riscosdays : Int64;
@@ -395,6 +423,21 @@ begin
  //Convert to Delphi TDateTime
  Result:=riscosdays+epoch                                 //Whole part
         +((filedatetime-riscosdays*dayincsec)/dayincsec); //Fraction part
+end;
+
+{-------------------------------------------------------------------------------
+Converts a Delphi TDateTime to a RISC OS Time/Date
+-------------------------------------------------------------------------------}
+function TDiscImage.TimeDateToRISCOS(delphitime: TDateTime): Int64;
+var
+ days,time  : Int64;
+const
+ dayincsec = 8640000; //24*3600*100 centi seconds = 1 day
+begin
+ days:=Floor(delphitime);
+ time:=Floor((delphitime-days)*dayincsec);
+ dec(days,2);
+ Result:=(days*dayincsec)+time;
 end;
 
 {-------------------------------------------------------------------------------
@@ -679,10 +722,11 @@ end;
 {-------------------------------------------------------------------------------
 Load an image from a file (just calls LoadFromStream)
 -------------------------------------------------------------------------------}
-procedure TDiscImage.LoadFromFile(filename: AnsiString);
+function TDiscImage.LoadFromFile(filename: AnsiString): Boolean;
 var
  FDiscDrive: TFileStream;
 begin
+ Result:=False;
  //Only read the file in if it actually exists (or rather, Windows can find it)
  if SysUtils.FileExists(filename) then
  begin
@@ -690,10 +734,10 @@ begin
   try
    FDiscDrive:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
    //Call the procedure to read from the stream
-   LoadFromStream(FDiscDrive);
+   Result:=LoadFromStream(FDiscDrive);
    //Close the stream
    FDiscDrive.Free;
-   imagefilename:=filename;
+   if Result then imagefilename:=filename;
   except
    FDiscDrive:=nil;
   end;
@@ -703,8 +747,9 @@ end;
 {-------------------------------------------------------------------------------
 Load an image from a stream (e.g. FileStream)
 -------------------------------------------------------------------------------}
-procedure TDiscImage.LoadFromStream(F: TStream);
+function TDiscImage.LoadFromStream(F: TStream): Boolean;
 begin
+ Result:=False;
  //Blank off the variables
  ResetVariables;
  //Ensure there is enough space in the buffer
@@ -729,6 +774,7 @@ begin
   //ADFS 'F' can get mistaken for Commodore
   //Commodore and Amiga can be mistaken for DFS
  end;
+ Result:=FFormat<>$FF;
 end;
 
 {-------------------------------------------------------------------------------
@@ -766,6 +812,14 @@ begin
  F.Position:=0;
  //Read the image into the data buffer
  F.Write(Fdata[0],Length(Fdata));
+end;
+
+{-------------------------------------------------------------------------------
+Closes an image file
+-------------------------------------------------------------------------------}
+procedure TDiscImage.Close;
+begin
+ ResetVariables;
 end;
 
 {-------------------------------------------------------------------------------
@@ -824,94 +878,6 @@ begin
   3:Result:=ExtractSpectrumFile(filename,buffer);//Extract Sinclair/Amstrad
   4:Result:=ExtractAmigaFile(filename,buffer);   //Extract AmigaDOS
  end;
-{var
- source        : Integer;
- entry,dir,
- frag,dest,
- fragptr,len,
- filelen       : Cardinal;
- fragments     : TFragmentArray;
-begin
- //Does the file actually exist?
- Result:=FileExists(filename,fragptr);
- //Yes, so load it - there is nothing to stop a directory header being extracted
- //if passed in the filename parameter.
- if Result then
- begin
-  //FileExists returns a pointer to the file
-  entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=fragptr div $10000;  //Top 16 bits - directory reference
-  //Make space to receive the file
-  filelen:=FDisc[dir].Entries[entry].Length;
-  SetLength(buffer,filelen);
-  //Default values
-  fragptr:=$0000;
-  frag   :=0;
-  //Get the starting position
-  case FFormat shr 4 of
-   //Acorn DFS
-   $0: fragptr:=FDisc[dir].Entries[entry].Sector*$100; //Side is accounted for later
-   //Acorn ADFS
-   $1:
-   begin
-    if not FMap then //Old Map
-     fragptr:=FDisc[dir].Entries[entry].Sector*$100;
-    if FMap then //New Map
-     //Get the fragment offsets of the file
-     fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
-   end;
-   //Commodore D61/D71/D81
-   $2: fragptr:=ConvertDxxTS(FFormat AND $F,
-                             FDisc[dir].Entries[entry].Track,
-                             FDisc[dir].Entries[entry].Sector);
-   //Commodore Amiga
-   $4: fragptr:=Cardinal(FDisc[dir].Entries[entry].Sector);
-  end;
-  dest  :=0;      //Length pointer/Destination pointer
-  len   :=filelen;//Amount of data to read in
-  source:=fragptr;//Source pointer
-  repeat
-   //Fragmented filing systems, so need to work out source and length
-   case FFormat shr 4 of
-    $1:                           //Acorn ADFS New Map
-    if FMap then
-     if frag<Length(fragments) then
-     begin
-      source:=fragments[frag].Offset;           //Source of data
-      len   :=fragments[frag].Length;           //Amount of data
-     end;
-    $2:                           //Commodore D64/D71/D81
-    begin
-     source:=fragptr+2;                        //Source of data
-     len   :=254;                              //Amount of data
-    end;
-    $4:                           //Commodore Amiga
-    begin
-     source:=Integer(fragptr*secsize)+$18;     //Source of data
-     len   :=Read32b(fragptr*secsize+$C,True);//Amount of data
-    end;
-   end;
-   //Make sure we don't read too much
-   if dest+len>filelen then
-    len:=filelen-dest;
-   //Read the data into the buffer
-   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
-   //Move the size pointer on, by the amount read
-   inc(dest,len);
-   //Get the next block pointer
-   case FFormat shr 4 of
-    //Acorn ADFS - move onto next fragment
-    $1: inc(frag);
-    //Commodore d64/D71/D81 - find next block
-    $2: fragptr:=ConvertDxxTS(FFormat AND $F,
-                              ReadByte(fragptr),
-                              ReadByte(fragptr+1));
-    //Commodore Amiga - find next block
-    $4: fragptr:=Read32b(fragptr*secsize+$10,True);
-   end;
-  until dest>=filelen; //Once we've reached the file length, we're done
- end;
- Result:=True;}
 end;
 
 {-------------------------------------------------------------------------------
@@ -941,7 +907,7 @@ var
  count : Integer;
 begin
  //Start with a false result
- Result:=-1;
+ Result:=-2; //Error - disc full
  //Get the length of data to be written
  count:=file_details.Length;
  //There are only two sides (max)

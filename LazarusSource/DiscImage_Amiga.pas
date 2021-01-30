@@ -379,18 +379,33 @@ begin
  //
 end;
 
+{-------------------------------------------------------------------------------
+Rename a file
+-------------------------------------------------------------------------------}
 function TDiscImage.RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
 begin
  Result:=False;
 end;
+
+{-------------------------------------------------------------------------------
+Delete a file
+-------------------------------------------------------------------------------}
 function TDiscImage.DeleteAmigaFile(filename: AnsiString):Boolean;
 begin
  Result:=False;
 end;
+
+{-------------------------------------------------------------------------------
+Update a file's attributes
+-------------------------------------------------------------------------------}
 function TDiscImage.UpdateAmigaFileAttributes(filename,attributes: AnsiString):Boolean;
 begin
  Result:=False;
 end;
+
+{-------------------------------------------------------------------------------
+Update the disc title
+-------------------------------------------------------------------------------}
 function TDiscImage.UpdateAmigaDiscTitle(title: AnsiString): Boolean;
 begin
  Result:=False;

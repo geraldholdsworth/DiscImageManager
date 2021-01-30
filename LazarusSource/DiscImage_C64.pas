@@ -142,11 +142,6 @@ var
  file_ptr,p,
  ch,c,f,dirTr :Integer;
  temp         : AnsiString;
-const
- //Commodore 64 Filetypes
- FileTypes   : array[0.. 5] of AnsiString = (
- 'DELDeleted' ,'SEQSequence','PRGProgram' ,'USRUser File','RELRelative',
- 'CBMCBM'     );
 begin
  Result:=nil;
  SetLength(Result,1);
@@ -200,9 +195,9 @@ begin
     Result[0].Entries[amt].Sector:=ReadByte(ptr+(c*$20)+4);
     //Filetype
     Result[0].Entries[amt].ShortFiletype:=
-                           Copy(FileTypes[ReadByte(ptr+(c*$20)+2) AND $0F],1,3);
+                        LeftStr(CDRFileTypes[ReadByte(ptr+(c*$20)+2) AND $0F],3);
     Result[0].Entries[amt].Filetype:=
-                           Copy(FileTypes[ReadByte(ptr+(c*$20)+2) AND $0F],4);
+                        Copy(CDRFileTypes[ReadByte(ptr+(c*$20)+2) AND $0F],4);
     //Attributes
     if (ReadByte(ptr+(c*$20)+2) AND $40)=$40 then //Locked
      Result[0].Entries[amt].Attributes:=Result[0].Entries[amt].Attributes+'L';
@@ -413,9 +408,9 @@ begin
   else SetLength(free_space_map[0,c],40);
   //Set it as used (or system)
   for ch:=0 to Length(free_space_map[0,c])-1 do
-   if ((c=dirTr-1) AND (ch<2) AND (f<2))
-   OR ((c=dirTr1-1)AND (ch=0) AND (f=1))
-   OR ((c=dirTr-1) AND (ch<4) AND (f=2)) then
+   if ((c=dirTr-1)  AND (f<2))
+   OR ((c=dirTr1-1) AND (f=1))
+   OR ((c=dirTr-1)  AND (f=2)) then
     free_space_map[0,c,ch]:=$FE  //Specify as system
    else
     free_space_map[0,c,ch]:=$FF; //Specify as files
@@ -427,7 +422,8 @@ begin
   for c:=1 to 35 do //35 tracks
   begin
    //First byte is number of free sectors
-   inc(free_space,ReadByte(ptr+c*4)*$100);
+   if c<>dirTr then //But we'll assume that the directory track is used
+    inc(free_space,ReadByte(ptr+c*4)*$100);
    for ch:=0 to 23 do
    begin
     //Next 4 are the free sectors - 1 bit per sector
@@ -442,7 +438,8 @@ begin
    for c:=0 to 34 do //another 35 tracks
    begin 
     //First byte is number of free sectors
-    inc(free_space,ReadByte(ptr+$DD+c)*$100);
+    if c+36<>dirTr1 then //But we'll assume that the directory track is used
+     inc(free_space,ReadByte(ptr+$DD+c)*$100);
     for ch:=0 to 23 do
     begin
      //Next 4 are the free sectors - 1 bit per sector
@@ -462,7 +459,8 @@ begin
    for c:=0 to 39 do //40 tracks
    begin
     //First byte is number of free sectors
-    inc(free_space,ReadByte(ptr+$10+c*6)*$100);
+    if c<>dirTr then //But we'll assume that the directory track is used
+     inc(free_space,ReadByte(ptr+$10+c*6)*$100);
     for sec:=0 to 39 do //40 sectors per track
     begin
      //Next 5 are the free sectors - 1 bit per sector
@@ -473,6 +471,58 @@ begin
     end;
    end;
   end;
+end;
+
+{-------------------------------------------------------------------------------
+Set or clear the BAM (i.e. mark as used or not used)
+-------------------------------------------------------------------------------}
+procedure TDiscImage.CDRSetClearBAM(track,sector: Byte;used: Boolean);
+var
+ f,i,j,
+ fr    : Byte;
+ ptr,
+ ptr1  : Cardinal;
+begin
+ f:=FFormat mod $10;
+ //Pointer to BAM number of free sectors:
+ //ptr will be the number of free sectors
+ //ptr1 will be the allocation bits for the track
+ if (f=0) or ((f=1)and(track<37))then
+ begin //1541 or 1571 side 0
+  ptr:=ConvertDxxTS(f,18,0)+track*4;
+  ptr1:=ptr+1;
+ end;
+ if (f=1)and(track>36) then
+ begin //1571 side 1
+  ptr:=ConvertDxxTS(f,18,0)+$DD+track;
+  ptr1:=ConvertDxxTS(f,53,0)+(track-37)*4;
+ end;
+ if (f=2)and(track<41) then
+ begin //1581 side 0
+  ptr:=ConvertDxxTS(f,40,1)+(track-1)*6;
+  ptr1:=ptr+1;
+ end;
+ if (f=2)and(track>40) then
+ begin //1581 side 1
+  ptr:=ConvertDxxTS(f,40,2)+(track-41)*6;
+  ptr1:=ptr+1;
+ end;
+ //Which bit needs to be clear?
+ i:=ReadByte(ptr1+(sector DIV 8));     //Read the byte
+ if used then
+  i:=i AND($FF XOR(1 shl(sector MOD 8))) //Clear that bit
+ else
+  i:=i OR(1 shl(sector MOD 8)); //Set that bit
+ WriteByte(i,ptr1+(sector DIV 8));     //Write it back
+ //Number of bytes used to store the BAM
+ if f<2 then j:=3 else j:=5;
+ //Count the number of free sectors
+ fr:=0;
+ for i:=0 to j-1 do
+  for f:=0 to 7 do
+   if IsBitSet(ReadByte(ptr1+i),f) then inc(fr);
+ //And store the result
+ WriteByte(fr,ptr);
 end;
 
 {-------------------------------------------------------------------------------
@@ -521,30 +571,33 @@ begin
   dir  :=fragptr div $10000;  //Top 16 bits - directory reference
   //Make space to receive the file
   filelen:=FDisc[dir].Entries[entry].Length;
-  SetLength(buffer,filelen);
-  //Get the starting position
-  fragptr:=ConvertDxxTS(FFormat AND $F,
-                        FDisc[dir].Entries[entry].Track,
-                        FDisc[dir].Entries[entry].Sector);
-  dest  :=0;      //Length pointer/Destination pointer
-  repeat
-   //Fragmented filing systems, so need to work out source and length
-   source:=fragptr+2;                        //Source of data
-   len   :=254;                              //Amount of data
-   //Make sure we don't read too much
-   if dest+len>filelen then
-    len:=filelen-dest;
-   //Read the data into the buffer
-   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
-   //Move the size pointer on, by the amount read
-   inc(dest,len);
-   //Get the next block pointer
+  if filelen>0 then //Make sure there is something to read
+  begin
+   SetLength(buffer,filelen);
+   //Get the starting position
    fragptr:=ConvertDxxTS(FFormat AND $F,
-                         ReadByte(fragptr),
-                         ReadByte(fragptr+1));
-  until dest>=filelen; //Once we've reached the file length, we're done
+                         FDisc[dir].Entries[entry].Track,
+                         FDisc[dir].Entries[entry].Sector);
+   dest  :=0;      //Length pointer/Destination pointer
+   repeat
+    //Fragmented filing systems, so need to work out source and length
+    source:=fragptr+2;                        //Source of data
+    len   :=254;                              //Amount of data
+    //Make sure we don't read too much
+    if dest+len>filelen then
+     len:=filelen-dest;
+    //Read the data into the buffer
+    ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
+    //Move the size pointer on, by the amount read
+    inc(dest,len);
+    //Get the next block pointer
+    fragptr:=ConvertDxxTS(FFormat AND $F,
+                          ReadByte(fragptr),
+                          ReadByte(fragptr+1));
+   until dest>=filelen; //Once we've reached the file length, we're done
+   Result:=True;
+  end;
  end;
- Result:=True;
 end;
 
 {-------------------------------------------------------------------------------
@@ -555,52 +608,258 @@ function TDiscImage.WriteCDRFile(file_details: TDirEntry;
 var
  count,
  ptr       : Cardinal;
- s:AnsiString;
+ success   : Boolean;
  f,frag,i,
  track,
  sector    : Byte;
  block     : TDIByteArray;
  fragments : TFragmentArray;
 begin
- Result:=-1;
+ Result:=-8;//Nothing to write
  count:=file_details.Length;
- f:=FFormat MOD $10; //Minor format (sub format)
- //Overwrite the parent
- file_details.Parent:=root_name;
- //Check that the filename is valid
- file_details.Filename:=ValidateDFSFilename(file_details.Filename);
- //Make sure the file does not already exist
- if not(FileExists(file_details.Parent+dir_sep+file_details.Filename,ptr))then
+ if count>0 then //Make sure that there is something to write
  begin
-  //How many fragments to split the file into
-  frag:=count div 254;
-  if count mod 254>0 then inc(frag);
-  //Split the file
-  SetLength(fragments,frag);
-  for i:=0 to frag-1 do
-   fragments[i].Length:=254;
-  if count mod 254>0 then fragments[frag-1].Length:=count mod 254;
-  //Where to put them - fragments are tended to be put around the root.
-  //So we search backwards, then forwards, then backwards, etc.
-  if count<free_space then //Will it actually fit?
+  f:=FFormat MOD $10; //Minor format (sub format)
+  //Overwrite the parent
+  file_details.Parent:=root_name;
+  //Check that the filename is valid
+  file_details.Filename:=ValidateDFSFilename(file_details.Filename);
+  Result:=-4;//Catalogue full
+  //Is there enough free directory entries for another file?
+  if ((f<2) and (Length(FDisc[0].Entries)<144))
+  or ((f=2) and (Length(FDisc[0].Entries)<296)) then
   begin
-   track:=18; //Value of this is unimportant
-   sector:=0; //Sector to start looking
-   i:=0;
-   while (CDRFindNextTrack(track,sector)) AND (i<frag) do
+   Result:=-3;//File already exists
+   //Make sure the file does not already exist
+   if not(FileExists(file_details.Parent+dir_sep+file_details.Filename,ptr))then
    begin
-    //Make a note and move on
-    fragments[i].Offset:=track*$100+sector;
-    //Mark as used
-    free_space_map[0,track-1,sector]:=$FF;
-    inc(i);
+    Result:=-2;//Disc full
+    //How many fragments to split the file into
+    frag:=count div 254;
+    if count mod 254>0 then inc(frag);
+    //Split the file
+    SetLength(fragments,frag);
+    for i:=0 to frag-1 do
+     fragments[i].Length:=254;
+    if count mod 254>0 then fragments[frag-1].Length:=count mod 254;
+    //Where to put them - fragments are tended to be put around the root(s).
+    //So we search backwards, then forwards, then backwards, etc.
+    if count<free_space then //Will it actually fit?
+    begin
+     track:=18; //Value of this is unimportant, but needs to be set to something
+     sector:=0; //Sector to start looking
+     i:=0;
+     while (CDRFindNextTrack(track,sector)) AND (i<frag) do
+     begin
+      //Make a note and move on
+      fragments[i].Offset:=track*$100+sector;
+      //Mark as used
+      free_space_map[0,track-1,sector]:=$FF;
+      inc(i);
+     end;
+     //Now we have our locations, write the data
+     //Set the length of our block
+     SetLength(block,$100);
+     //Set our succeed flag
+     success:=True;
+     if Length(fragments)>1 then //Only if we have more than one fragment
+      for frag:=0 to Length(fragments)-2 do
+      begin
+       //Put the next t/s link into the block
+       block[0]:=fragments[frag+1].Offset DIV $100; //Track
+       block[1]:=fragments[frag+1].Offset MOD $100; //Sector
+       //And copy the data across
+       for i:=0 to 253 do
+        block[i+2]:=buffer[(frag*254)+i];
+       //Now write it onto the disc
+       success:=success AND WriteDiscData(ConvertDxxTS(f,
+                                                       fragments[frag].Offset DIV $100,
+                                                       fragments[frag].Offset MOD $100)
+                                         ,0,block,$100);
+      end;
+     frag:=Length(fragments)-1;//frag should already be set to this
+     //Set up the final block
+     SetLength(block,fragments[frag].Length+2);
+     //Put the length details in
+     block[0]:=$00;//Last entry
+     block[1]:=fragments[frag].Length;//Size of this entry
+     //As before, copy the data across
+     for i:=0 to fragments[frag].Length-1 do
+      block[i+2]:=buffer[(frag*254)+i];
+     //Now write it onto the disc
+     success:=success AND WriteDiscData(ConvertDxxTS(f,
+                                                      fragments[frag].Offset DIV $100,
+                                                      fragments[frag].Offset MOD $100)
+                                        ,0,block,fragments[frag].Length);
+     Result:=-5;//Unknown error
+     if success then
+     begin
+      //Update the BAM
+      for frag:=0 to Length(fragments)-1 do
+      begin
+       track :=fragments[frag].Offset DIV$100;
+       sector:=fragments[frag].Offset MOD$100;
+       CDRSetClearBAM(track,sector,True);
+      end;
+      //Update the directory entries
+      SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)+1);
+      i:=Length(FDisc[0].Entries)-1;
+      //Copy the details across
+      FDisc[0].Entries[i]:=file_details;
+      //Update the first t/s link
+      FDisc[0].Entries[i].Track        :=fragments[0].Offset DIV$100;
+      FDisc[0].Entries[i].Sector       :=fragments[0].Offset MOD$100;
+      //Make sure it has some attributes
+      if FDisc[0].Entries[i].Attributes='' then
+       FDisc[0].Entries[i].Attributes   :='C';
+      //Filetype - has one been supplied?
+      FDisc[0].Entries[i].Filetype:='';//We're going to overwrite this anyway
+      if FDisc[0].Entries[i].ShortFileType<>'' then
+      //Try and match it up with the known ones
+       for frag:=0 to Length(CDRFileTypes)-1 do
+        if LeftStr(CDRFileTypes[frag],3)=UpperCase(FDisc[0].Entries[i].ShortFileType) then
+        begin
+         FDisc[0].Entries[i].ShortFileType:=LeftStr(CDRFileTypes[frag],3);
+         FDisc[0].Entries[i].Filetype     :=Copy(CDRFileTypes[frag],4);
+        end;
+      //Nothing was supplied, or nothing got matched, so revert to default (PRG)
+      if FDisc[0].Entries[i].FileType='' then
+      begin
+       FDisc[0].Entries[i].ShortFileType:=LeftStr(CDRFileTypes[2],3);
+       FDisc[0].Entries[i].Filetype     :=Copy(CDRFileTypes[2],4);
+      end;
+      //Update the catalogue
+      UpdateCDRCat;
+      //Update the free space map
+      CDRFreeSpaceMap;
+      //Return the index to the calling function
+      Result:=i;
+     end;
+    end;
    end;
   end;
-  s:='';
-  for i:=0 to frag-1 do
-   s:=s+IntToHex(fragments[i].Offset,4)+'>';
  end;
-  Result:=-1;//Not needed - just using as a stop point
+end;
+
+{-------------------------------------------------------------------------------
+Update the catalogue
+-------------------------------------------------------------------------------}
+procedure TDiscImage.UpdateCDRCat;
+var
+ track,
+ sector,
+ dirsector,
+ maxsector,
+ i,j,k,
+ attr      : Byte;
+ c,
+ ptr       : Cardinal;
+ sectors   : TDIByteArray;
+ temp      : AnsiString;
+begin
+ //Track and sector number for the directory
+ track:=18;     //Track where the system is
+ sector:=1;     //Sector where the first directory is
+ maxsector:=19; //Maximum sectors on this track
+ //1581 track and sector number
+ if FFormat mod $10=2 then
+ begin
+  track:=40;
+  sector:=3;
+  maxsector:=40;
+ end;
+ SetLength(sectors,maxsector+1); //Pointer to directories
+ for i:=0 to maxsector do sectors[i]:=$FF;
+ //Clear the FSM for the system track
+ for i:=sector to maxsector do
+ begin
+  free_space_map[0,track-1,i]:=$00;
+  CDRSetClearBAM(track,i,False);
+ end;
+ //Iterate through the entries
+ k:=0;
+ if Length(FDisc[0].Entries)>0 then k:=Length(FDisc[0].Entries)-1;
+ for i:=0 to k do
+ begin
+  //Pointer to this directory entry
+  //Directories are all on the same track, interleaved by 3 sectors (1,4,7,etc)
+  if i MOD 8=0 then
+  begin
+   dirsector:=(((i DIV 8)*3)MOD(maxsector-1))+sector;
+   //Make sure we haven't used it already
+   while free_space_map[0,track-1,dirsector]<>$00 do
+   begin
+    inc(dirsector); //so move to the next
+    dirsector:=dirsector MOD maxsector;//Make sure we don't go over the end
+   end;
+   //Claim this sector
+   free_space_map[0,track-1,dirsector]:=$FE;
+   sectors[i DIV 8]:=dirsector;
+  end;
+  ptr:=ConvertDxxTS(FFormat mod $10,track,dirsector)+(i MOD 8)*$20;
+  //t/s link to next directory - they are all 00/00 except for the first
+  WriteByte($00,ptr  ); //Track
+  WriteByte($00,ptr+1); //Sector
+  //File type and attributes
+  attr:=0;
+  if Length(FDisc[0].Entries)>0 then
+  begin
+   for j:=0 to Length(CDRFileTypes)-1 do
+    if LeftStr(CDRFileTypes[j],3)=FDisc[0].Entries[i].ShortFileType then
+     attr:=j;
+   if Pos('L',FDisc[0].Entries[i].Attributes)>0 then attr:=attr OR $40;
+   if Pos('C',FDisc[0].Entries[i].Attributes)>0 then attr:=attr OR $80;
+  end;
+  WriteByte(attr,ptr+2);
+  //t/s link to first fragment
+  if Length(FDisc[0].Entries)>0 then
+  begin
+   WriteByte(FDisc[0].Entries[i].Track,ptr+3);
+   WriteByte(FDisc[0].Entries[i].Sector,ptr+4);
+  end
+  else
+  begin
+   WriteByte($00,ptr+3);
+   WriteByte($00,ptr+4);
+  end;
+  //Filename
+  temp:='';
+  if Length(FDisc[0].Entries)>0 then temp:=FDisc[0].Entries[i].Filename;
+  for j:=1 to 16 do
+  begin
+   if Length(FDisc[0].Entries)>0 then c:=$A0 else c:=$00;
+   if j<=Length(temp) then c:=ord(temp[j]);
+   WriteByte(c,ptr+4+j);
+  end;
+  //t/s location of side-sector block (REL files) - currently not supported
+  WriteByte($00,ptr+$15); //Track
+  WriteByte($00,ptr+$16); //Sector
+  //REL file length record - currently not supported
+  WriteByte($00,ptr+$17);
+  //Unused bytes
+  for j:=0 to 5 do
+   WriteByte($00,ptr+$18+j);
+  //Approx file size in sectors
+  c:=0;
+  if Length(FDisc[0].Entries)>0 then
+  begin
+   c:=FDisc[0].Entries[i].Length DIV 254;
+   if FDisc[0].Entries[i].Length MOD 254>0 then inc(c);
+  end;
+  Write16b(c,ptr+$1E);
+ end;
+ //Update the t/s links on the first entry of each sector used
+ j:=0;
+ if Length(FDisc[0].Entries)>0 then j:=(Length(FDisc[0].Entries)-1)DIV$8;
+ for i:=0 to j do
+ begin
+  //Pointer to this directory
+  ptr:=ConvertDxxTS(FFormat mod $10,track,sectors[i]);
+  if i=j then WriteByte($00,ptr) else WriteByte(track,ptr);
+  WriteByte(sectors[i+1],ptr+1);
+  //Update the BAM for the system track
+  CDRSetClearBAM(track,sectors[i],True);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -610,25 +869,35 @@ function TDiscImage.CDRFindNextSector(var track,sector: Byte): Boolean;
 var
  BAM_free_blocks,s: Byte;
 begin
+ //Reset the counter
  BAM_free_blocks:=0;
+ //Count up the free blocks/sectors in this track
  for s:=0 to Length(free_space_map[0,track-1])-1 do
   if free_space_map[0,track-1,s]=$00 then inc(BAM_free_blocks);
- if free_space_map[0,track-1,sector]<>$00 then
-  if BAM_free_blocks>0 then
+ //If we have some free sectors, find them
+ if BAM_free_blocks>0 then
+ begin
+  //Following the same algorithm as the 1541 - interlace them by 10 sectors
+  inc(sector,10);
+  //If we have gone over the maximum number of sectors for the track,
+  if sector>=Length(free_space_map[0,track-1]) then
   begin
-   inc(sector,10);
-   if sector>=Length(free_space_map[0,track-1]) then
-   begin
-    dec(sector,Length(free_space_map[0,track-1]));
-    if sector>0 then dec(sector);
-   end;
-   while (free_space_map[0,track-1,sector]<>$00) and (sector<Length(free_space_map[0,track-1])-1) do
-    inc(sector);
+   //Reduce by the maximum number of sectors
+   dec(sector,Length(free_space_map[0,track-1]));
+   //And if not zero, another one
+   if sector>0 then dec(sector);
   end;
+  //If it is not free, move onto the next, until we find a free sector
+  while (free_space_map[0,track-1,sector]<>$00)
+    and (sector<Length(free_space_map[0,track-1])-1) do
+   inc(sector);
+ end;
+ //Return a false result if there are no free sectors in this track
  if (sector>=Length(free_space_map[0,track-1])) or (BAM_free_blocks=0) then
   Result:=False
- else
+ else //Otherwise return a positive
   Result:=True;
+ //Both results will update track and sector
 end;
 
 {-------------------------------------------------------------------------------
@@ -643,51 +912,151 @@ var
  cycles,i    : Byte;
  freesecs    : Boolean;
 begin
+ //Number of sides - also, number of times to repeat main loop
  if FFormat mod $10=1 then cycles:=2 else cycles:=1;
- i:=0;
- while i<cycles do
- begin
-  if FFormat mod $10<2 then
-   if i=0 then
-    begin
-     starttrack:=18;
-     lowtrack:=0;
-     hightrack:=36;
-    end
-    else
-    begin
-     starttrack:=53;
-     lowtrack:=36;
-     hightrack:=70;
-    end
-  else
+ //Counter for distance from root
+ counter:=1;
+ repeat
+  //Counter for number of sides looked at
+  i:=0;
+  //We'll continue for as many sides there are
+  while i<cycles do
   begin
-   starttrack:=40;
-   lowtrack:=0;
-   hightrack:=80;
-  end;
-  counter:=1;
-  repeat
-   track:=starttrack-counter;
-   if track<=lowtrack then
+   //Set up the root, lowest track number and highest track number
+   if FFormat mod $10<2 then //1541 and 1571
+    if i=0 then              //1541 and 1571 side 0
+     begin
+      starttrack:=18;
+      lowtrack:=0;
+      hightrack:=36;
+     end
+     else                    //1571 side 1
+     begin
+      starttrack:=53;
+      lowtrack:=36;
+      hightrack:=70;
+     end
+   else                      //1581
+   begin
+    starttrack:=40;
+    lowtrack:=0;
+    hightrack:=80;
+   end;
+   //We'll start off looking below the root
+   if starttrack-counter>=lowtrack then
+    track:=starttrack-counter
+   else //Unless we have reached the front end, so look after the root
     track:=starttrack+counter;
-   inc(counter);
+   //Get a check on number of free sectors
    freesecs:=CDRFindNextSector(track,sector);
-  until (freesecs) OR (track>=hightrack);
-  if not freesecs then inc(i) else i:=cycles;
- end;
+   //If none found, do it again bu the opposite way round
+   if not freesecs then
+   begin //If we previously looked before the root, look after
+    if track=starttrack-counter then
+     track:=starttrack+counter
+    else //And vice-versa
+     if starttrack-counter>=lowtrack then
+      track:=starttrack-counter;
+    //Another check for number of free sectors
+    freesecs:=CDRFindNextSector(track,sector);
+   end;
+   //If we still have none, move our side counter on
+   if not freesecs then inc(i) else i:=cycles; //Or finish it
+  end;
+  //Move our track counter on
+  inc(counter);
+  //Until we have either some free sectors, or run out of tracks
+ until (freesecs) OR (track>=hightrack);
+ //Return the result of free sectors
  Result:=freesecs;
 end;
 
+{-------------------------------------------------------------------------------
+Rename a file
+-------------------------------------------------------------------------------}
 function TDiscImage.RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+var
+ ptr,entry,dir: Cardinal;
 begin
  Result:=False;
+ //Check that the file exists
+ if FileExists(oldfilename,ptr) then
+ begin
+  //FileExists returns a pointer to the file
+  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  //Make sure the new filename does not already exist
+  if not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr) then
+  begin
+   //Change the entry
+   FDisc[dir].Entries[entry].Filename:=newfilename;
+   //Update the catalogue
+   UpdateCDRCat;
+   Result:=True;
+  end;
+ end;
 end;
+
+{-------------------------------------------------------------------------------
+Delete a file
+-------------------------------------------------------------------------------}
 function TDiscImage.DeleteCDRFile(filename: AnsiString):Boolean;
+var
+ ptr,entry,dir,i: Cardinal;
+ track,sector   : Byte;
 begin
  Result:=False;
-end; 
+ //Check that the file exists
+ if FileExists(filename,ptr) then
+ begin
+  //FileExists returns a pointer to the file
+  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  //Remove all entries from the BAM
+  track:=FDisc[dir].Entries[entry].Track;
+  sector:=FDisc[dir].Entries[entry].Sector;
+  while track<>$00 do
+  begin
+   CDRSetClearBAM(track,sector,False);
+   ptr:=ConvertDxxTS(FFormat MOD$10,track,sector);
+   track:=ReadByte(ptr);
+   sector:=ReadByte(ptr+1);
+   for i:=0 to $FF do WriteByte($00,ptr+i);// Delete the data
+  end;
+  //Remove the filename from the entries by moving the entries below up one
+  for i:=entry+1 to Length(FDisc[dir].Entries)-1 do
+   FDisc[dir].Entries[i-1]:=FDisc[dir].Entries[i];
+  //Reduce the number of entries by 1
+  SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);
+  //Update the catalogue
+  UpdateCDRCat;
+  //Update the free space
+  CDRFreeSpaceMap;
+  Result:=True;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update a file's attribute or filetype
+-------------------------------------------------------------------------------}
 function TDiscImage.UpdateCDRFileAttributes(filename,attributes: AnsiString):Boolean;
+var
+ ptr,
+ dir,
+ entry : Cardinal;
 begin
  Result:=False;
+ //Make sure that the file exists, but also to get the pointer
+ if FileExists(filename,ptr) then
+ begin
+  //FileExists returns a pointer to the file
+  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
+  dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  //Change the attributes on the local copy
+  FDisc[dir].Entries[entry].Attributes:=attributes;
+  //Then update the catalogue
+  UpdateCDRCat;
+  //And return a success
+  Result:=True;
+ end;
 end;
