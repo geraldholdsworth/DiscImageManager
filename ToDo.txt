@@ -8,27 +8,26 @@ General
 * Drag and Drop files within an image.
 * Double click on a file to open to display the contents as a hex dump.
 * Conversion between formats - e.g. ssd to adf;adf to ssd;etc.
-* Command line - add option to load and run commands from file.
+* Progress indicator.
+
+Command Line
+* Extract files.
 
 Coding Issues
-* Produce error codes instead of success or failure for reading/writing functions.
+none
 
 DFS
-* Defrag.
 * Convert dsd to two ssd.
 * Merge two ssd to a single dsd.
 
 ADFS
 * Write/Delete/Rename files/directories to ADFS Big Dir images.
 * Fix broken ADFS directories.
-* Date stamp newly created directories, or imported files, when none exist for New and Big Directories.
-* Free space consolidation (Old map).
-* Defrag (New map).
+* Re-order the files when renaming.
+* Ensure support for idlen other than 15.
 
 Commodore
-* Write/Delete/Rename files to Commodore images.
 * Add support for Commodore 1541 images with 40 tracks.
-* Change file attributes for Commodore files.
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.

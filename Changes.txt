@@ -1,18 +1,15 @@
 Changes History
-
-Up to, and including, version 1.04 the application was called Disc Image Reader and was compiled on Delphi for Windows only. The DiscImage unit had it's own version number and had reached version 1.10.
-
-Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
+---------------
 
 1.05
-* First macOS version.
+* Ported from Delphi 10.3 to Lazarus.
+* Name changed to Disc Image Manager to reflect the application's future facilities to write back to images.
 * First version to appear on GitHub.
 * A few spurious bugs had crept in from the conversion - disc sizes were reported as 0 bytes and the main window became sizeable.
 * StatusBar update no longer functions.
 
 1.05.1
 * Code tidied up and compatibility Delphi removed. Now completely Object Free Pascal.
-* Compiled for Windows and Linux.
 * Version numbers now remain at 1.05 with revision number following.
 
 1.05.2
@@ -115,7 +112,6 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * Fixed a bug where the image file size was not extended to the full extent of the disc size when adding files or directories.
 * Changed some assumptions when ID-ing DFS images (number of tracks no longer has to be 40 or 80). Due to this have had to introduce an extra check (number of sectors >0) when ID-ing DFS images.
 * Changed the order of ID-ing images as Commodore and Amiga could now be mistaken for DFS.
-* Can now compile for Linux 32 bit as well as Linux 64 bit, Windows 32 and 64 bit, and macOS 32 and 64 bit.
 * Fixed a bug when ID-ing formats to ensure one already 'claimed' for a platform does not undergo further checks for other formats.
 
 1.05.10
@@ -132,3 +128,37 @@ Version 1.04 was then used to migrate across to Lazarus and compile on macOS.
 * Can now delete files and directories from New Map ADFS Images (E and F).
 * Fixed a bug where new directories being added in ADFS New Directory formats were not getting their checksum updated, resulting in a Broken Directory.
 * Updated the ADFS directory checksum checking - now only ignores a zero checksum for old directories.
+
+1.05.11
+* Files can now be written to a Commodore 1541, 1571 and 1581 image.
+* Files can now be renamed on a Commodore 1541, 1571 and 1581 image.
+* The system track is no longer included when computing the amount of free space on a Commodore 1541, 1571 or 1581 image.
+* Attributes are now hidden when not required, instead of disabled.
+* Commodore 1541, 1571 and 1581 file attributes are now shown and can be changed.
+* Files extracted from Commodore 1541, 1571 and 1581 now have their filetypes appended as an extension, rather than separated with a comma.
+* Fixed a bug where a zero length file being extracted from an image would cause the application to crash. It now reports a failure, which the front end interprets as 'file not found'.
+* Files added to ADFS New Map and Commodore 1541, 1571 and 1581 images are now filetyped if the filetype is included after the filename (either separated by a comma or by a period).
+* Files and directories added to or created in ADFS New Map images are now timestamped. As are untyped and unstamped files/directories if they do not have a load and execution address.
+* Fixed a bug where deleting a file from ADFS New Map, where the file was in zone 0, would not correctly update the free space map pointers. This showed itself whereby another file could then not be added, even to a blank disc.
+* Can now use wildcards after the --add command line option.
+* More error checking performed on command lines.
+* Second parameters now accepted with command line options.
+* Added/updated command line options: add, create, delete, rename, and cmdfile.
+* Added button to close the currently open image.
+* Added a logo next to the format on the status bar.
+* Made the status bar 2 pixels taller, and the 'Has Changed' panel on the status bar 4 pixels wider.
+* Fixed a bug where if a file failed to open (not recognised, for example), the controls would still be enabled and the filename put in the title bar.
+* When on the command line, errors are now not reported via the GUI, expecting a response, but by a message in the command line.
+* ADFS New Map free space fragments are now consolodated if they are consecutive.
+* Reports an error if any writing function is performed on ADFS New Map images which have an idlen other than 15 bits.
+* Application now reports which platform and architecture the build was built on (e.g. macOS 64 bit) in the About Box.
+
+Platform History
+----------------
+
+Version 1.04 and lower : Windows 32 and 64 bit
+Version 1.05           : macOS 64 bit added
+Version 1.05.1         : Linux 64 bit added
+Version 1.05.3         : macOS 32 bit added
+Version 1.05.9         : Linux 32 bit added
+Version 1.05.10        : Raspbian OS 32 bit added
