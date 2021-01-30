@@ -3,23 +3,23 @@ Command line options
 Long form				Short form
 --insert:<filename>			-i		- Opens image file <filename>
 --new:<format>				-n		- Creates a blank image file for format <format> with <T> tracks (see below for format numbers) 
-1--add:<filename>[<destination>]	-a		- Adds files to the open image in <destination> directory. Assumes drive 0 and root if nothing selected or not found.
-2--delete:<filename>			-d		- Deletes file/directory from inside image
-2--rename:<oldfilename>:<newfilename>	-r		- Renames <oldfilename> to <newfilename>
+--add:<filename>[|<destination>]	-a		- Adds files to the open image in <destination> directory. Assumes drive 0 and root if nothing selected or not found.
+--delete:<filename>			-d		- Deletes file/directory from inside image
+--rename:<oldfilename>|<newfilename>	-r		- Renames <oldfilename> to <newfilename>
 --save:[<filename>]			-s		- Saves image file as <filename>
-2--create:<directory>			-c		- Creates a new directory, in the image.
-2--extract:<filename>			-e		- Extracts file(s) to local path.
+--create:[<newdir>]|[<parentdir>]	-c		- Creates a new directory, <newdir>, in the image as a child of <parentdir>.
+1--extract:<filename>			-e		- Extracts file(s) to local path.
 --title:<disc title>			-t		- Sets the title for the disc
 --title1:<disc title>			-t1		- Sets the title for the disc, side 1
 --opt:<opt>				-o		- Sets the boot option for the disc
 --opt1:<opt>				-o1		- Sets the boot option for the disc, side 1
-
-The image will be saved, if changed, after all operations are complete, using the filename specified with --insert or --save, or Untitled with --new.
+--cmdfile:<filename>			-f		- Reads and executes commands held in a text file
 
 Notes:
-1 'add' command currently does not accept a second parameter.
-2 Still to be written.
-3 There is currently only minor error checking.
+1 Still to be written.
+2 There is currently only minor error checking.
+3 The image will be saved, if changed, after all operations are complete, using the filename specified with --insert or --save, or Untitled with --new.
+4 Any unrecognised commands, or insufficient number of parameters, will be ignored.
 
 <format> can be:
 DFSS	: Acorn DFS single sided 80 track
