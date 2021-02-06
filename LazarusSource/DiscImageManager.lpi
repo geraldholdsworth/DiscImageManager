@@ -7,7 +7,6 @@
       <MainUnit Value="0"/>
       <Title Value="Disc Image Manager"/>
       <Scaled Value="True"/>
-      <ResourceType Value="res"/>
       <UseXPManifest Value="True"/>
       <XPManifest>
         <DpiAware Value="True"/>
@@ -20,7 +19,7 @@
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
       <MinorVersionNr Value="5"/>
-      <RevisionNr Value="11"/>
+      <RevisionNr Value="12"/>
       <Language Value="0809"/>
       <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.5"/>
     </VersionInfo>
@@ -213,33 +212,35 @@
         <ResourceBaseClass Value="Form"/>
       </Unit3>
       <Unit4>
-        <Filename Value="filedetailsunit.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="FileDetailForm"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="FileDetailsUnit"/>
-      </Unit4>
-      <Unit5>
         <Filename Value="NewImageUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="NewImageForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit5>
-      <Unit6>
-        <Filename Value="ImageDetailUnit.pas"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="imagedetailunit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ImageDetailForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+        <UnitName Value="ImageDetailUnit"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="DiscImageUtils.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit6>
       <Unit7>
-        <Filename Value="DiscImageUtils.pas"/>
+        <Filename Value="Global.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit7>
       <Unit8>
-        <Filename Value="Global.pas"/>
+        <Filename Value="progressunit.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="ProgressForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="ProgressUnit"/>
       </Unit8>
     </Units>
   </ProjectOptions>

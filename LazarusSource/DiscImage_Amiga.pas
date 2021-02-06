@@ -382,9 +382,9 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+function TDiscImage.RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
 begin
- Result:=False;
+ Result:=-6; //Unsupported in this format
 end;
 
 {-------------------------------------------------------------------------------

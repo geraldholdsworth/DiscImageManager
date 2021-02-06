@@ -19,6 +19,8 @@ type
   edDiscTitle0: TEdit;
   edDiscTitle1: TEdit;
   Label6: TLabel;
+  Label7: TLabel;
+  lbCRC32: TLabel;
   lbBootOption0: TLabel;
   Label8: TLabel;
   lbBootOption1: TLabel;

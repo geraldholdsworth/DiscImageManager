@@ -974,14 +974,15 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+function TDiscImage.RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
 var
  ptr,entry,dir: Cardinal;
 begin
- Result:=False;
+ Result:=-2; //File does not exist
  //Check that the file exists
  if FileExists(oldfilename,ptr) then
- begin
+ begin                            
+  Result:=-3;//Destination already exists
   //FileExists returns a pointer to the file
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
@@ -992,7 +993,7 @@ begin
    FDisc[dir].Entries[entry].Filename:=newfilename;
    //Update the catalogue
    UpdateCDRCat;
-   Result:=True;
+   Result:=entry;
   end;
  end;
 end;

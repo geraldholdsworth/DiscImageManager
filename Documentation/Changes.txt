@@ -1,0 +1,177 @@
+Changes History
+---------------
+
+1.05
+* Ported from Delphi 10.3 to Lazarus.
+* Name changed to Disc Image Manager to reflect the application's future facilities to write back to images.
+* First version to appear on GitHub.
+* A few spurious bugs had crept in from the conversion - disc sizes were reported as 0 bytes and the main window became sizeable.
+* StatusBar update no longer functions.
+
+1.05.1
+* Code tidied up and compatibility Delphi removed. Now completely Object Free Pascal.
+* Version numbers now remain at 1.05 with revision number following.
+
+1.05.2
+* Main window is no longer sizeable, and you only now have the close button.
+* Buttons are disabled when not needed, and enabled when they can be used.
+* Extracted files now come with an .inf file.
+* Hint for the extract file button changed from "Download File" to "Extract File(s)"
+* Pop-up menu item for "Extract File" changed to "Extract File(s)"
+* Now developed and distributed under the GNU GPL v3 licence.
+* About dialogue window changed to reflect new licence and GitHub web address.
+
+1.05.3
+* Reverted the main window to sizeable.
+* Reverted to the window system icons (maximise and minimise)
+* Set the initial main window size to 921x751px
+* Changed the search panel around so that the search results grows and shrinks with the main window resizing.
+* .inf files only now produced for DFS and ADFS
+* Facility to save images back to disc added (the code had been written just not attached to any buttons or menus)
+* Files can now be added to a DFS image
+
+1.05.4
+* Tidy up of some code.
+* Buttons moved to a ToolBar (along the top).
+* Disc Info panel moved to the Status Bar (along the bottom).
+* Progress parameter removed from DiscImage unit.
+* Fixed a bug where the extra Watford DFS entries would get written to the wrong places.
+* Buttons added to the ToolBar: Add Files, Rename File, Delete File.
+* Can now rename a DFS file.
+* Can now delete DFS file(s).
+* File attributes no longer displayed next to the filename in the File Details panel but have been moved to tick boxes at the bottom of the panel.
+* File Details panel tidied up: fields have been moved closer together, reducing the overall size of the panel.
+* File attributes can now be changed, for DFS files.
+
+1.05.5
+* Added button for new, blank, image.
+* Added dialogue box to create and format new image.
+* Fixed a bug where saving an image does not update the filename.
+* Tidy up of code.
+* Fixed a bug where the wrong default extension was added when saving an image when the extension was not specified.
+* Added an 'image has changed/not been saved' tracker.
+* Extended the status bar to add in a 'image has changed/not been saved' indicator.
+* Spread the attributes out as they were on over the top of each other in Linux.
+* Status Bar is now blank with no or unknown image type.
+* Spread the file details out again, and resized the labels.
+* Binaries compiled in 'Release' mode to reduce final file size and increase execution speed.
+
+1.05.6
+* Fixed a bug where extracting a file from an ADFS image, where the file's indirect address was the same as the offset to the root, the root would be saved instead (and repeated for the length of the file).
+* Fixed a bug where if a directory was selected as part of a multi-selection, and this directories contents where also selected, only the directory would be downloaded. Previously the contents would be downloaded twice.
+* Fixed a bug where ADFS L images (*.adl) were not read interleaved, causing data corruption.
+* Fixed a bug where creating a new double sided DFS image, then writing to it, will cause the data to get written to the image as if it is a single sided image.
+* Adding files will now skip over *.inf files.
+* Images can be opened by dragging them into the application window.
+* Files can be added to images by dragging them into the application window.
+* Command line commands added - this is a work in progress.
+
+1.05.7
+* Fixed a bug where the free space for ADFS old map are miscalculated.
+* Added *.dat and *.dsc extensions for ADFS to the Open Image dialogue.
+* Improved the DFS and ADFS ID routines.
+* Graphical display for Free Space Map for DFS and ADFS.
+* Added functionality to change disc title and boot option.
+* Correctly displays the selected directory title.
+* Now displays the root address for ADFS images.
+* Fixed a bug where the disc title on an ADFS D was not displayed correctly.
+* Free space is now calculated from the free space map and not by adding up the length of files and directories.
+
+1.05.8
+* ADFS old map discs were being IDed wrongly, based on inaccurate information. This has been fixed.
+* Small bug with calculating the free-space map fixed.
+* A bug where extraenous spaces were not removed from the end of the disc title has been fixed.
+* In an attempt to get the colours uniform across platforms, they have been changed from a platform specific colour to a standard colour.
+* Fixed a bug where selecting an item from the search window will result in a purple box on the file details section.
+* If an ADFS directory check byte is zero, this is now ignored.
+* Added facility to create a new, blank, ADFS floppy disc image.
+* More improvements on the ADFS ID process - if an image has a boot block (F, F+ and some Hard Discs) then it will have a checksum. This is now checked.
+* Added facility to re-title an ADFS image.
+* Added facility to change boot option on an ADFS image.
+* Saves an inf file to the spec laid out on Stardot forum.
+* Now creates an inf file for directories in additition to the files within.
+* Extracting files will now work if the root is selected.
+* Added a main menu.
+* Added some sanity checks to the command line features.
+* Added facility to create a new, blank, Commodore 1541, 1571 and 1581 floppy disc image.
+* Changed some of the label sizes, and fonts sizes, so that the application looks OK on Linux.
+
+1.05.9
+* Changed the reading in of an *.inf file to match that which is saved out.
+* Free space map is now calculated for Commodore 1541, 1571 and 1581 images.
+* Free space map scale now changes depending on the number of tracks, meaning that it will not look 'out of focus'.
+* Can update the disc name on Commodore 1541, 1571 and 1581 images.
+* Major change to how data is read and written from/to the image which could slow down access but reduce bugs.
+* Added facility to add files to ADFS S, M, L, & D images.
+* Added facility to create new directories on ADFS S, M, L, & D images.
+* Ironed out a couple of ADFS ID-ing bugs.
+* Added facility to rename files and directories on ADFS S, M, L, D, E and F images.
+* Will now import entire directories (if enough space, of course) into ADFS S, M, L & D images.
+* ADFS S, M, L, D, E and F Directories can now be re-titled, including the root.
+* Files and entire directories can now be deleted from ADFS S, M, L and D images.
+* Fixed a bug where the image file size was not extended to the full extent of the disc size when adding files or directories.
+* Changed some assumptions when ID-ing DFS images (number of tracks no longer has to be 40 or 80). Due to this have had to introduce an extra check (number of sectors >0) when ID-ing DFS images.
+* Changed the order of ID-ing images as Commodore and Amiga could now be mistaken for DFS.
+* Fixed a bug when ID-ing formats to ensure one already 'claimed' for a platform does not undergo further checks for other formats.
+
+1.05.10
+* Creation of new module, introducing separate layer between the UI and the class.
+* Move of some type definitions and functions/procedure from the class module to the utils module.
+* Move of some functions/procedures from the UI module to the utils module.
+* Found, and fixed, a major bug whereby if a file was fragmented on an ADFS New Map image, the resultant extraction of the file could be corrupted.
+* Moved, and separated, function for extracting files into their own respective modules.
+* Fixed a bug (or more accurately, an oversight) where the checksums where not computed and saved when retitling New Directory directories, resulting in Broken Directory errors.
+* Can now write files and directories to New Map ADFS images (E and F).
+* Improved the accuracy of gathering the free space map for ADFS New Map images.
+* Fails, without crashing, if the application fails to open or create a file.
+* The files are now opened non-exclusively (i.e. another application can open the file at the same time).
+* Can now delete files and directories from New Map ADFS Images (E and F).
+* Fixed a bug where new directories being added in ADFS New Directory formats were not getting their checksum updated, resulting in a Broken Directory.
+* Updated the ADFS directory checksum checking - now only ignores a zero checksum for old directories.
+
+1.05.11
+* Files can now be written to a Commodore 1541, 1571 and 1581 image.
+* Files can now be renamed on a Commodore 1541, 1571 and 1581 image.
+* The system track is no longer included when computing the amount of free space on a Commodore 1541, 1571 or 1581 image.
+* Attributes are now hidden when not required, instead of disabled.
+* Commodore 1541, 1571 and 1581 file attributes are now shown and can be changed.
+* Files extracted from Commodore 1541, 1571 and 1581 now have their filetypes appended as an extension, rather than separated with a comma.
+* Fixed a bug where a zero length file being extracted from an image would cause the application to crash. It now reports a failure, which the front end interprets as 'file not found'.
+* Files added to ADFS New Map and Commodore 1541, 1571 and 1581 images are now filetyped if the filetype is included after the filename (either separated by a comma or by a period).
+* Files and directories added to or created in ADFS New Map images are now timestamped. As are untyped and unstamped files/directories if they do not have a load and execution address.
+* Fixed a bug where deleting a file from ADFS New Map, where the file was in zone 0, would not correctly update the free space map pointers. This showed itself whereby another file could then not be added, even to a blank disc.
+* Can now use wildcards after the --add command line option.
+* More error checking performed on command lines.
+* Second parameters now accepted with command line options.
+* Added/updated command line options: add, create, delete, rename, and cmdfile.
+* Added button to close the currently open image.
+* Added a logo next to the format on the status bar.
+* Made the status bar 2 pixels taller, and the 'Has Changed' panel on the status bar 4 pixels wider.
+* Fixed a bug where if a file failed to open (not recognised, for example), the controls would still be enabled and the filename put in the title bar.
+* When on the command line, errors are now not reported via the GUI, expecting a response, but by a message in the command line.
+* ADFS New Map free space fragments are now consolodated if they are consecutive.
+* Reports an error if any writing function is performed on ADFS New Map images which have an idlen other than 15 bits.
+* Application now reports which platform and architecture the build was built on (e.g. macOS 64 bit) in the About Box.
+* More detailed errors are reported when writing files or directories and they fail.
+
+1.05.12
+* Refreshed the graphics. All the RISC OS filetypes have been replaced with RISC OS 5.28 Raspberry Pi filetypes, and have increased from 50 types to 136 types.
+* Added more known filetype names to the DiscImage class - from 89 to 1206.
+* RISC OS disc images (those with New or Big directory types) now show the Application filetype for any directories beginning with '!' in the directory list.
+* A 'Progress Message' window is displayed when opening an image.
+* Made writing to the ADFS free space map compatible with idlen other than 15 bits.
+* When a file or directory is renamed in ADFS, it is now reordered within the catalogue to maintain alphabetical order.
+* Can now drag and drop files within an image to copy or move them. This is limited to ADFS and dual-sided DFS.
+* Fixed a bug where writes to side 1 (:2) of a DFS disc would fail.
+* New feature where a CRC32 is calculated for the image and displayed in the Image Detail window.
+* CRC32 is also now calculated per file and displayed on the file details, and saved out in the *.inf file when extracted from the image.
+
+Platform History
+----------------
+
+Version 1.04 and lower : Windows 32 and 64 bit
+Version 1.05           : macOS 64 bit added
+Version 1.05.1         : Linux 64 bit added
+Version 1.05.3         : macOS 32 bit added
+Version 1.05.9         : Linux 32 bit added
+Version 1.05.10        : Raspbian OS 32 bit added

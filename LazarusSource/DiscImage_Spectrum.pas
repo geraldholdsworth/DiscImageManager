@@ -43,9 +43,9 @@ begin
  Result:=nil;
 end;
 
-function TDiscImage.RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+function TDiscImage.RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
 begin
- Result:=False;
+ Result:=-6; //Unsupported in this format
 end;
 function TDiscImage.DeleteSinclairFile(filename: AnsiString):Boolean;
 begin

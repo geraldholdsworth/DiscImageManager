@@ -1,0 +1,38 @@
+To Do
+-----
+In no particular order
+
+General
+* Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
+* Double click on a file to open to display the contents as a hex dump.
+* Conversion between formats - e.g. ssd to adf;adf to ssd;etc.
+* Extend drag and drop copy/move to multiple selection.
+* Extend copy/move for directories.
+
+Command Line
+* Extract files.
+
+Coding Issues
+* ID a file before loading, without trampling all over the currently loaded image (use a temporary second instance of TDiscImage).
+
+DFS
+* Convert dsd to two ssd.
+* Merge two ssd to a single dsd.
+
+ADFS
+* Write/Delete/Rename files/directories to ADFS Big Dir images.
+* Fix broken ADFS directories.
+
+Commodore
+* Add support for Commodore 1541 images with 40 tracks.
+
+Amiga
+* Write/Delete/Rename files/directories to Amiga images.
+* Create blank Amiga images.
+* Create Free Space Map for Amiga.
+
+Spectrum/Amstrad
+* Write entire module.
+
+CFS
+* Write entire module.

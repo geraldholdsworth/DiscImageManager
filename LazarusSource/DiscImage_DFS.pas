@@ -484,16 +484,17 @@ end;
 {-------------------------------------------------------------------------------
 Rename Acorn DFS File
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+function TDiscImage.RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
 var
  ptr,entry,dir: Cardinal;
 begin
- Result:=False;
+ Result:=-2;//File does not exist
  //Check that the new name meets the required DFS filename specs
  newfilename:=ValidateDFSFilename(newfilename);
  //Check that the file exists
  if FileExists(oldfilename,ptr) then
- begin
+ begin                                    
+  Result:=-3;//Destination already exists
   //FileExists returns a pointer to the file
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
@@ -504,7 +505,7 @@ begin
    FDisc[dir].Entries[entry].Filename:=newfilename;
    //Update the catalogue
    UpdateDFSCat(dir);
-   Result:=True;
+   Result:=entry;
   end;
  end;
 end;

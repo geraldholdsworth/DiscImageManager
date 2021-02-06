@@ -6,7 +6,7 @@ unit DiscImage;
 
 interface
 
-uses Classes,DiscImageUtils,Math;
+uses Classes,DiscImageUtils,Math,crc;
 
 {$M+}
 
@@ -72,6 +72,7 @@ type
   function FormatToString: AnsiString;
   function FormatToExt: AnsiString;
   function ReadBits(offset,start,length: Cardinal): Cardinal;
+  procedure WriteBits(value,offset,start,length: Cardinal);
   function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
   function TimeDateToRISCOS(delphitime: TDateTime): Int64;
   function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
@@ -88,6 +89,7 @@ type
   function MapTypeToString: AnsiString;
   function DirTypeToString: AnsiString;
   function GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
+  function GetImageCrc: AnsiString;
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: AnsiString; sector: Cardinal): TDir;
@@ -109,7 +111,7 @@ type
   function UpdateADFSFileAttributes(filename,attributes: AnsiString): Boolean;
   function ValidateADFSFilename(filename: AnsiString): AnsiString;
   function RetitleADFSDirectory(filename,newtitle: AnsiString): Boolean;
-  function RenameADFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function RenameADFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
   procedure ConsolodateADFSFreeSpaceMap;
   function DeleteADFSFile(filename: AnsiString):Boolean;
   function ExtractADFSFile(filename: AnsiString;var buffer: TDIByteArray): Boolean;
@@ -121,7 +123,7 @@ type
   function WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   procedure UpdateDFSCat(side: Integer);
   function ValidateDFSFilename(filename: AnsiString): AnsiString;
-  function RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
   function DeleteDFSFile(filename: AnsiString):Boolean;
   function UpdateDFSFileAttributes(filename,attributes: AnsiString): Boolean;
   function FormatDFS(minor,tracks: Byte): TDisc;
@@ -141,7 +143,7 @@ type
   procedure UpdateCDRCat;
   function CDRFindNextSector(var track,sector: Byte): Boolean;
   function CDRFindNextTrack(var track,sector: Byte): Boolean;
-  function RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
   function DeleteCDRFile(filename: AnsiString):Boolean;
   function UpdateCDRFileAttributes(filename,attributes: AnsiString): Boolean;
   //Sinclair Spectrum +3/Amstrad Routines
@@ -149,7 +151,7 @@ type
   function ReadSinclairDisc: TDisc;
   function FormatSpectrum(minor: Byte): TDisc;
   function WriteSpectrumFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
-  function RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
   function DeleteSinclairFile(filename: AnsiString):Boolean;
   function UpdateSinclairFileAttributes(filename,attributes: AnsiString): Boolean;
   function UpdateSinclairDiscTitle(title: AnsiString): Boolean;
@@ -165,7 +167,7 @@ type
   function WriteAmigaFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   function CreateAmigaDirectory(var dirname,parent,attributes: AnsiString): Integer;
   function RetitleAmigaDirectory(filename, newtitle: AnsiString): Boolean;
-  function RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Boolean;
+  function RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
   function DeleteAmigaFile(filename: AnsiString):Boolean;
   function UpdateAmigaFileAttributes(filename,attributes: AnsiString): Boolean;
   function UpdateAmigaDiscTitle(title: AnsiString): Boolean;
@@ -178,26 +180,7 @@ type
    CDRFileTypes : array[0.. 5] of AnsiString = (
                                    'DELDeleted'  ,'SEQSequence' ,'PRGProgram'  ,
                                    'USRUser File','RELRelative' ,'CBMCBM'      );
-   //RISC OS Filetypes (as at RISC OS 5.28)
-   FileTypes: array[1..89] of AnsiString = (
-   '004AIM'     ,'0E1Index'   ,'132ICO'     ,'190DSK'     ,'191PCWDisc' ,
-   '194D20Disc' ,'195D2Disc'  ,'196D10Disc' ,'19BMyZ80'   ,'1A6AcornCPM',
-   '5F4SparkScr','68EPackdDir','690Clear'   ,'691Degas'   ,'692IMG'     ,
-   '693IFF'     ,'694MacPaint','695GIF'     ,'696Pineappl','697PCX'     ,
-   '698QRT'     ,'699MTV'     ,'69ACadSoft' ,'69BIrlam'   ,'69CBMP'     ,
-   '69EPBMPlus' ,'A91Zip'     ,'AADSVG'     ,'ABACPIO'    ,'ABFCabinet' ,
-   'ADFPDF'     ,'AE9Alarms'  ,'AF1Music'   ,'AFFDrawFile','B28URL'     ,
-   'B60PNG'     ,'BBCBBC ROM' ,'BD9DiscP'   ,'BDADisc'    ,'BE8PhotoCD' ,
-   'C46Tar'     ,'C85JPEG'    ,'DDCArchive' ,'DEADXF'     ,'F76EDID'    ,
-   'F78JNG'     ,'F79CSS'     ,'F81JSScript','F83MNG'     ,'F91URI'     ,
-   'F95Code'    ,'F9DDiscCD'  ,'F9EDiscDP'  ,'F9FDiscD'   ,'FAEResource',
-   'FAFHTML'    ,'FB4DiscR'   ,'FB5NoDisc'  ,'FC3Patch'   ,'FC6PrntDefn',
-   'FC8DosDisc' ,'FCASquash'  ,'FCCDevice'  ,'FCDFileCore','FCEFloppy'  ,
-   'FCFCache'   ,'FD6TaskExec','FD7TaskObey','FDCSoftLink','FE4DOS'     ,
-   'FE6UNIX Ex' ,'FEADesktop' ,'FEBObey'    ,'FECTemplate','FEDPalette' ,
-   'FF0TIFF'    ,'FF2Config'  ,'FF4Printout','FF5PoScript','FF6Font'    ,
-   'FF7BBC font','FF8Absolute','FF9Sprite'  ,'FFAModule'  ,'FFBBASIC'   ,
-   'FFCUtility' ,'FFDData'    ,'FFECommand' ,'FFFText'                   );
+   {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
  published
   //Methods
   constructor Create;
@@ -218,7 +201,7 @@ type
                                     count: Cardinal;start: Cardinal=0): Boolean;
   function WriteDiscDataFromStream(addr,side: Cardinal; F: TStream): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
-  function RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Boolean;
+  function RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Integer;
   function DeleteFile(filename: AnsiString): Boolean;
   function MoveFile(filename, directory: AnsiString): Integer;
   function CopyFile(filename, directory: AnsiString): Integer;
@@ -227,6 +210,7 @@ type
   function UpdateBootOption(option,side: Byte): Boolean;
   function CreateDirectory(var filename,parent,attributes: AnsiString): Integer;
   function RetitleDirectory(var filename,newtitle: AnsiString): Boolean;
+  function GetFileCRC(filename: AnsiString): AnsiString;
   //Properties
   property Disc:                TDisc        read FDisc;
   property FormatString:        AnsiString   read FormatToString;
@@ -245,6 +229,7 @@ type
   property FreeSpaceMap:        TSide        read free_space_map;
   property BootOpt:             TDIByteArray read bootoption;
   property RootAddress:         Cardinal     read root;
+  property CRC32:               AnsiString   read GetImageCrc;
  public
   destructor Destroy; override;
  End;
@@ -375,7 +360,7 @@ function TDiscImage.ReadBits(offset,start,length: Cardinal): Cardinal;
 var
  start_byte,
  start_bit,
- bit,b,prev : Cardinal;
+ bit,b,pos  : Cardinal;
  lastbyte   : Byte;
 begin
  //Reset the result
@@ -384,7 +369,8 @@ begin
  //(we could use Integers, but these are signed)
  if (length>0) and (length<33) then
  begin
-  prev:=$FFFFFFFF;
+  //Initialise the variables
+  pos:=$FFFFFFFF;
   lastbyte:=0;
   //Iterate through the required number of bits
   for bit:=0 to length-1 do
@@ -394,14 +380,63 @@ begin
    start_bit :=(start+bit) mod 8;
    //And increase the result with the extracted bit, shifted right to account
    //for final position
-   if prev<>offset+start_byte then
+   if pos<>offset+start_byte then
    begin
     //To save re-reading the same byte over and over
-    prev:=offset+start_byte;
-    lastbyte:=ReadByte(prev);
+    pos:=offset+start_byte;
+    lastbyte:=ReadByte(pos);
    end;
-   b:=(lastbyte AND (1 shl start_bit))shr start_bit;
-   inc(Result,b shl bit);
+   b:=(lastbyte AND (1 shl start_bit))shr start_bit; //Read that bit
+   inc(Result,b shl bit);                            //Add to the result
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Write upto 32 bits of data from the buffer, starting at offset(bytes)+start(bits)
+-------------------------------------------------------------------------------}
+procedure TDiscImage.WriteBits(value,offset,start,length: Cardinal);
+var
+ start_byte,
+ start_bit,
+ bit,
+ b,c,
+ pos        : Cardinal;
+ lastbyte,
+ lastcopy   : Byte;
+begin
+ //If the length is 0, nothing to write. Cardinals are 32 bits
+ //(we could use Integers, but these are signed)
+ if (length>0) and (length<33) then
+ begin
+  //Initialise the variables
+  pos:=$FFFFFFFF;
+  lastbyte:=0;
+  lastcopy:=$FF;
+  //Iterate through the required number of bits
+  for bit:=0 to length-1 do
+  begin
+   //Work out the byte offset, and the bit within
+   start_byte:=(start+bit) div 8;
+   start_bit :=(start+bit) mod 8;
+   //And increase the result with the extracted bit, shifted right to account
+   //for final position
+   if pos<>offset+start_byte then
+   begin
+    //To save re-reading the same byte over and over
+    pos:=offset+start_byte;
+    lastbyte:=ReadByte(pos);
+    lastcopy:=lastbyte; //Take a copy to see if we need to write
+   end;
+   b:=((value AND (1 shl bit))shr bit)shl start_bit; //Bit to set
+   c:=(1 shl start_bit)XOR$FF;                       //Bit to clear
+   lastbyte:=(lastbyte AND c)OR b;                   //Set/clear the bit
+   //Then write the byte back, if it has changed
+   if lastbyte<>lastcopy then
+   begin
+    WriteByte(lastbyte,pos);
+    lastcopy:=lastbyte; //Take a copy of the changed byte
+   end;
   end;
  end;
 end;
@@ -745,6 +780,35 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Calculate a CRC-32 for the image
+-------------------------------------------------------------------------------}
+function TDiscImage.GetImageCrc: AnsiString;
+var
+ crcvalue: longword;
+begin
+ crcvalue:=crc.crc32(0,nil,0);
+ crcvalue:=crc.crc32(0,@FData[0],Length(FData));
+ result  :=IntToHex(crcvalue,8);
+end;
+
+{-------------------------------------------------------------------------------
+Calculate a CRC-32 for a file
+-------------------------------------------------------------------------------}
+function TDiscImage.GetFileCrc(filename: AnsiString): AnsiString;
+var
+ crcvalue: longword;
+ buffer: TDIByteArray;
+begin
+ Result:='';
+ if ExtractFile(filename,buffer) then
+ begin
+  crcvalue:=crc.crc32(0,nil,0);
+  crcvalue:=crc.crc32(0,@buffer[0],Length(buffer));
+  Result  :=IntToHex(crcvalue,8);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
 Load an image from a stream (e.g. FileStream)
 -------------------------------------------------------------------------------}
 function TDiscImage.LoadFromStream(F: TStream): Boolean;
@@ -756,7 +820,6 @@ begin
  SetLength(Fdata,F.Size);
  //Move to the beginning of the stream
  F.Position:=0;
-// UpdateProgress('Loading file');
  //Read the image into the data buffer
  F.Read(Fdata[0],Length(Fdata));
  //This check is done in the ID functions anyway, but we'll do it here also
@@ -1041,8 +1104,12 @@ begin
    ptr:=-1;
    test:=UpperCase(Path[level]);
    test2:=UpperCase(FDisc[i].Directory);
+   //DFS - if the test is on the other side
    if (FFormat=$01) and (test<>test2) then
+   begin
     inc(i);
+    test2:=UpperCase(FDisc[i].Directory);
+   end;
    //Using UpperCase makes it a case insensitive search
    if test=test2 then
     //Have we found the initial directory (usually '$')
@@ -1285,11 +1352,11 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file - oldfilename is full path, newfilename has no path
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Boolean;
+function TDiscImage.RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Integer;
 var
  m: Byte;
 begin
- Result:=False;
+ Result:=-1;//Failed to rename
  m:=FFormat DIV $10; //Major format
  case m of
   0:Result:=RenameDFSFile(oldfilename,newfilename);     //Rename DFS
@@ -1326,7 +1393,7 @@ begin
  //Moving and copying are the same, essentially
  Result:=CopyFile(filename,directory);
  //We just need to delete the original once copied
- if Result<>-1 then DeleteFile(filename);
+ if Result>-1 then DeleteFile(filename);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1341,24 +1408,33 @@ var
  file_details: TDirEntry;
 begin
  //Need to extract the filename from the full path...and ensure the file exists
- Result:=-1;
+ Result:=-1; //Could not load file
  if FileExists(filename,ptr) then
  begin
+  Result:=-9;//Can't copy/move to same directory
   //FileExists returns a pointer to the file
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Make sure that we are not copying onto ourselves
   if Fdisc[dir].Entries[entry].Parent<>directory then
   begin
+   Result:=-5;//Unknown error
+   //Are we copying a directory?
+   if Fdisc[dir].Entries[entry].DirRef=-1 then //No, then continue
    //First, get the file into memory
-   if ExtractFile(filename,buffer) then
-   begin
-    //Set up the filedetails
-    file_details:=FDisc[dir].Entries[entry];
-    file_details.Parent:=directory;
-    //Then write it back to the image
-    Result:=WriteFile(file_details,buffer);
-   end;
+    if ExtractFile(filename,buffer) then
+    begin
+     //Set up the filedetails
+     file_details:=FDisc[dir].Entries[entry];
+     file_details.Parent:=directory;
+     if FFormat shr 4=0 then //DFS
+      if(directory[1]=':')and(directory[2]='2') then
+       file_details.Side:=1
+      else
+       file_details.Side:=0;
+     //Then write it back to the image
+     Result:=WriteFile(file_details,buffer);
+    end;
   end;
  end;
 end;

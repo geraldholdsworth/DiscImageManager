@@ -11,7 +11,7 @@ object ImageDetailForm: TImageDetailForm
   Color = 15527148
   Font.Height = -11
   Position = poMainFormCenter
-  LCLVersion = '2.0.10.0'
+  LCLVersion = '2.0.11.0'
   object Legend: TPanel
     Left = 412
     Height = 574
@@ -31,17 +31,17 @@ object ImageDetailForm: TImageDetailForm
     end
     object Label1: TLabel
       Left = 29
-      Height = 12
+      Height = 13
       Top = 536
-      Width = 22
+      Width = 23
       Caption = 'Free'
       ParentColor = False
     end
     object Label2: TLabel
       Left = 81
-      Height = 12
+      Height = 13
       Top = 536
-      Width = 35
+      Width = 39
       Caption = 'System'
       ParentColor = False
     end
@@ -54,9 +54,9 @@ object ImageDetailForm: TImageDetailForm
     end
     object Label3: TLabel
       Left = 29
-      Height = 12
+      Height = 13
       Top = 553
-      Width = 45
+      Width = 48
       Caption = 'Directory'
       ParentColor = False
     end
@@ -69,7 +69,7 @@ object ImageDetailForm: TImageDetailForm
     end
     object Label4: TLabel
       Left = 153
-      Height = 12
+      Height = 13
       Top = 536
       Width = 18
       Caption = 'File'
@@ -101,14 +101,14 @@ object ImageDetailForm: TImageDetailForm
       Width = 196
       Align = alTop
       Caption = 'Side 0'
-      ClientHeight = 79
-      ClientWidth = 194
+      ClientHeight = 76
+      ClientWidth = 188
       TabOrder = 0
       object Label6: TLabel
         Left = 0
         Height = 16
         Top = 0
-        Width = 194
+        Width = 188
         Align = alTop
         Alignment = taCenter
         AutoSize = False
@@ -121,7 +121,7 @@ object ImageDetailForm: TImageDetailForm
         Left = 0
         Height = 18
         Top = 16
-        Width = 194
+        Width = 188
         Align = alTop
         Alignment = taCenter
         AutoSize = False
@@ -137,7 +137,7 @@ object ImageDetailForm: TImageDetailForm
         Left = 0
         Height = 16
         Top = 34
-        Width = 194
+        Width = 188
         Align = alTop
         Alignment = taCenter
         AutoSize = False
@@ -150,14 +150,14 @@ object ImageDetailForm: TImageDetailForm
         Left = 0
         Height = 20
         Top = 50
-        Width = 194
+        Width = 188
         Align = alTop
         AutoSize = False
         DropDownCount = 4
         Font.Color = clBlack
         Font.Height = -11
         Font.Name = 'Courier New'
-        ItemHeight = 0
+        ItemHeight = 26
         ItemIndex = 0
         Items.Strings = (
           'None'
@@ -179,14 +179,14 @@ object ImageDetailForm: TImageDetailForm
       Width = 196
       Align = alTop
       Caption = 'Side 1'
-      ClientHeight = 79
-      ClientWidth = 194
+      ClientHeight = 76
+      ClientWidth = 188
       TabOrder = 1
       object Label8: TLabel
         Left = 0
         Height = 16
         Top = 0
-        Width = 194
+        Width = 188
         Align = alTop
         Alignment = taCenter
         AutoSize = False
@@ -199,7 +199,7 @@ object ImageDetailForm: TImageDetailForm
         Left = 0
         Height = 18
         Top = 16
-        Width = 194
+        Width = 188
         Align = alTop
         Alignment = taCenter
         AutoSize = False
@@ -216,7 +216,7 @@ object ImageDetailForm: TImageDetailForm
         Left = 0
         Height = 16
         Top = 34
-        Width = 194
+        Width = 188
         Align = alTop
         Alignment = taCenter
         AutoSize = False
@@ -229,14 +229,14 @@ object ImageDetailForm: TImageDetailForm
         Left = 0
         Height = 20
         Top = 50
-        Width = 194
+        Width = 188
         Align = alTop
         AutoSize = False
         DropDownCount = 4
         Font.Color = clBlack
         Font.Height = -11
         Font.Name = 'Courier New'
-        ItemHeight = 0
+        ItemHeight = 26
         ItemIndex = 0
         Items.Strings = (
           'None'
@@ -340,6 +340,33 @@ object ImageDetailForm: TImageDetailForm
         55034949B60700000000000000004747D5124B4BE2934A4CE3C0
       }
       OnClick = btn_CancelClick
+    end
+    object Label7: TLabel
+      Left = 2
+      Height = 16
+      Top = 190
+      Width = 196
+      Align = alTop
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'CRC32'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+    end
+    object lbCRC32: TLabel
+      Left = 2
+      Height = 16
+      Top = 206
+      Width = 196
+      Align = alTop
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'CRC32'
+      Font.Height = -13
+      Font.Name = 'Courier New'
+      ParentColor = False
+      ParentFont = False
     end
   end
 end
