@@ -1,11 +1,10 @@
 # Disc Image Manager
-This is a Delphi class used to load a retro disc image, read the catalogue and output any required files. So far, the following formats are supported:<br>
-• Acorn DFS<br>
-• Acorn ADFS, floppy formats S, M, L, D, E, E+, F, F+ and Hard Discs<br>
-• Commodore 1541<br>
-• Commodore 1571<br>
-• Commodore 1581<br>
-• Commodore AmigaDOS floppy and hard discs<br>
-Future additions are planned to be able to write files back to the images.<br>
+Disc Image Manager is an used to load a retro disc image, read the catalogue and output any required files. In addition, it will also add files to the image, delete, and rename files and directories. So far, the following formats are supported:<br>
+• Acorn DFS (Acorn and Watford formats) - Read and Write<br>
+• Acorn ADFS, floppy formats S, M, L, D, E, E+, F, F+ and Hard Discs - Read and Write (not E+, F+ or big directory hard discs)<br>
+• Commodore 1541 (not 40 track) - Read and Write<br>
+• Commodore 1571 - Read and Write<br>
+• Commodore 1581 - Read and Write<br>
+• Commodore AmigaDOS floppy and hard discs - Read Only<br>
 
-7th December 2020 - application and class migrated to Lazarus (https://www.lazarus-ide.org) and compiled for macOS. Future development will now be with Lazarus allowing Windows, macOS and Linux versions to be produced.<br>
+Project was written in Lazarus (https://www.lazarus-ide.org). Binaries are available for macOS 32 and 64 bit, Windows 32 and 64 bit, Linux 32 and 64 bit, and Raspbian 32 bit (Linux ARM 32 bit). Full source is available if you wish to compile for other systems.<br>
