@@ -13,7 +13,6 @@ Command Line
 * Extract files.
 
 Coding Issues
-* ID a file before loading, without trampling all over the currently loaded image (use a temporary second instance of TDiscImage).
 * When moving files in ADFS, just move the directory entries.
 
 DFS
