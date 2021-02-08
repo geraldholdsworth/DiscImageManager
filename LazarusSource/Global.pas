@@ -9,7 +9,6 @@ uses
 
 function ReadLine(var Stream: TFileStream;var Line: string): boolean;
 function WriteLine(var Stream: TFileStream;Line: string): boolean;
-function extractExtension(filename: String): String;
 
 implementation
 
@@ -56,25 +55,6 @@ begin
  l:=Length(S);
  x:=Stream.Write(S[1],l);
  Result:=x=l;
-end;
-
-{-------------------------------------------------------------------------------
-Function to extract the file extension from a filename
--------------------------------------------------------------------------------}
-function extractExtension(filename: String): String;
-var
- s: String;
- i: Integer;
-begin
- i:=Length(filename);
- Repeat
-  i:=i-1;
- until (Copy(filename,i,1)='.') or (Copy(filename,i,1)=',') or (i=-1);
- if i>=0 then
-  s:=LowerCase(Copy(filename,i,(Length(filename)-i)+1))
- else
-  s:='';
- Result:=s;
 end;
 
 end.

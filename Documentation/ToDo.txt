@@ -14,6 +14,7 @@ Command Line
 
 Coding Issues
 * ID a file before loading, without trampling all over the currently loaded image (use a temporary second instance of TDiscImage).
+* When moving files in ADFS, just move the directory entries.
 
 DFS
 * Convert dsd to two ssd.
@@ -22,6 +23,7 @@ DFS
 ADFS
 * Write/Delete/Rename files/directories to ADFS Big Dir images.
 * Fix broken ADFS directories.
+* Deleting a file which is a shared object will remove the fragment in the FSM, thereby effectively deleting all the shared objects.
 
 Commodore
 * Add support for Commodore 1541 images with 40 tracks.

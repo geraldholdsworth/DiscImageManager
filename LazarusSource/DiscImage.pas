@@ -90,6 +90,7 @@ type
   function DirTypeToString: AnsiString;
   function GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
   function GetImageCrc: AnsiString;
+  function GetCRC(var buffer: TDIByteArray): AnsiString;
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: AnsiString; sector: Cardinal): TDir;
@@ -184,8 +185,10 @@ type
  published
   //Methods
   constructor Create;
-  function LoadFromFile(filename: AnsiString): Boolean;
-  function LoadFromStream(F: TStream): Boolean;
+  function LoadFromFile(filename: AnsiString;readdisc: Boolean=True): Boolean;
+  function LoadFromStream(F: TStream;readdisc: Boolean=True): Boolean;        
+  function IDImage: Boolean;
+  procedure ReadImage;
   procedure SaveToFile(filename: AnsiString);
   procedure SaveToStream(F: TStream);
   procedure Close;
@@ -733,6 +736,26 @@ begin
  else Result:=word;
 end;
 
+{-------------------------------------------------------------------------------
+Calculate a CRC-32 for the image
+-------------------------------------------------------------------------------}
+function TDiscImage.GetImageCrc: AnsiString;
+begin
+ Result:=GetCRC(FData);
+end;
+
+{-------------------------------------------------------------------------------
+Calculate a CRC-32 for the supplied buffer Byte array
+-------------------------------------------------------------------------------}
+function TDiscImage.GetCRC(var buffer: TDIByteArray): AnsiString;
+var
+ CRCValue: longword;
+begin
+ CRCValue:=crc.crc32(0,nil,0);
+ CRCValue:=crc.crc32(0,@buffer[0],Length(buffer));
+ Result  :=IntToHex(CRCValue,8);
+end;
+
 //++++++++++++++++++ Published Methods +++++++++++++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------
@@ -751,13 +774,25 @@ Free the instance
 -------------------------------------------------------------------------------}
 destructor TDiscImage.Destroy;
 begin
+ Close;
  inherited;
+end;
+
+{-------------------------------------------------------------------------------
+Calculate a CRC-32 for a file
+-------------------------------------------------------------------------------}
+function TDiscImage.GetFileCrc(filename: AnsiString): AnsiString;
+var
+ buffer: TDIByteArray;
+begin
+ Result:='error';
+ if ExtractFile(filename,buffer) then Result:=GetCRC(buffer);
 end;
 
 {-------------------------------------------------------------------------------
 Load an image from a file (just calls LoadFromStream)
 -------------------------------------------------------------------------------}
-function TDiscImage.LoadFromFile(filename: AnsiString): Boolean;
+function TDiscImage.LoadFromFile(filename: AnsiString;readdisc: Boolean=True): Boolean;
 var
  FDiscDrive: TFileStream;
 begin
@@ -769,7 +804,7 @@ begin
   try
    FDiscDrive:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
    //Call the procedure to read from the stream
-   Result:=LoadFromStream(FDiscDrive);
+   Result:=LoadFromStream(FDiscDrive,readdisc);
    //Close the stream
    FDiscDrive.Free;
    if Result then imagefilename:=filename;
@@ -780,38 +815,9 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Calculate a CRC-32 for the image
--------------------------------------------------------------------------------}
-function TDiscImage.GetImageCrc: AnsiString;
-var
- crcvalue: longword;
-begin
- crcvalue:=crc.crc32(0,nil,0);
- crcvalue:=crc.crc32(0,@FData[0],Length(FData));
- result  :=IntToHex(crcvalue,8);
-end;
-
-{-------------------------------------------------------------------------------
-Calculate a CRC-32 for a file
--------------------------------------------------------------------------------}
-function TDiscImage.GetFileCrc(filename: AnsiString): AnsiString;
-var
- crcvalue: longword;
- buffer: TDIByteArray;
-begin
- Result:='';
- if ExtractFile(filename,buffer) then
- begin
-  crcvalue:=crc.crc32(0,nil,0);
-  crcvalue:=crc.crc32(0,@buffer[0],Length(buffer));
-  Result  :=IntToHex(crcvalue,8);
- end;
-end;
-
-{-------------------------------------------------------------------------------
 Load an image from a stream (e.g. FileStream)
 -------------------------------------------------------------------------------}
-function TDiscImage.LoadFromStream(F: TStream): Boolean;
+function TDiscImage.LoadFromStream(F: TStream;readdisc: Boolean=True): Boolean;
 begin
  Result:=False;
  //Blank off the variables
@@ -822,22 +828,50 @@ begin
  F.Position:=0;
  //Read the image into the data buffer
  F.Read(Fdata[0],Length(Fdata));
+ //ID the image
+ if(IDImage)and(readdisc)then ReadImage;
+ //Return a true or false, depending on if FFormat is set.
+ Result:=FFormat<>$FF;
+end;
+
+{-------------------------------------------------------------------------------
+ID an image
+-------------------------------------------------------------------------------}
+function TDiscImage.IDImage: Boolean;
+begin
+ //Reset the variables
+ ResetVariables;
  //This check is done in the ID functions anyway, but we'll do it here also
  if Length(Fdata)>0 then
  begin
   //ID the type of image, from the data contents
   //These need to be ID-ed in a certain order as one type can look like another
-  if ID_ADFS     then FDisc:=ReadADFSDisc;    //Acorn ADFS
-  if ID_CDR      then FDisc:=ReadCDRDisc;     //Commodore
-  if ID_Amiga    then FDisc:=ReadAmigaDisc;   //Amiga
-  if ID_DFS      then FDisc:=ReadDFSDisc;     //Acorn DFS
-  if ID_Sinclair then FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
-  if FFormat=$FF then ResetVariables;
+  if not ID_ADFS     then //Acorn ADFS
+  if not ID_CDR      then //Commodore
+  if not ID_Amiga    then //Amiga
+  if not ID_DFS      then //Acorn DFS
+  if not ID_Sinclair then //Sinclair/Amstrad
+   ResetVariables;        //Reset everything
   //Just by the ID process:
   //ADFS 'F' can get mistaken for Commodore
   //Commodore and Amiga can be mistaken for DFS
  end;
+ //Return a true or false result
  Result:=FFormat<>$FF;
+end;
+
+{-------------------------------------------------------------------------------
+Read the disc in, depending on the format
+-------------------------------------------------------------------------------}
+procedure TDiscImage.ReadImage;
+begin
+ case FFormat shr 4 of
+  0: FDisc:=ReadDFSDisc;     //Acorn DFS
+  1: FDisc:=ReadADFSDisc;    //Acorn ADFS
+  2: FDisc:=ReadCDRDisc;     //Commodore
+  3: FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
+  4: FDisc:=ReadAmigaDisc;   //Amiga
+ end;
 end;
 
 {-------------------------------------------------------------------------------

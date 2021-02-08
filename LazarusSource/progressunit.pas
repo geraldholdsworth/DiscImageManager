@@ -5,14 +5,15 @@ unit ProgressUnit;
 interface
 
 uses
- Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls;
+ Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls;
 
 type
 
  { TProgressForm }
 
  TProgressForm = class(TForm)
-  Label1: TLabel;
+  Panel1: TPanel;
+  procedure FormShow(Sender: TObject);
  private
 
  public
@@ -25,6 +26,18 @@ var
 implementation
 
 {$R *.lfm}
+
+uses MainUnit;
+
+{ TProgressForm }
+
+procedure TProgressForm.FormShow(Sender: TObject);
+begin
+ Top:=MainForm.Top;
+ Left:=MainForm.Left;
+ Width:=MainForm.Width;
+ Height:=MainForm.Height+MainForm.ImageDetails.Height;
+end;
 
 end.
 

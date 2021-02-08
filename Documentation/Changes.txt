@@ -166,6 +166,13 @@ Changes History
 * New feature where a CRC32 is calculated for the image and displayed in the Image Detail window.
 * CRC32 is also now calculated per file and displayed on the file details, and saved out in the *.inf file when extracted from the image.
 
+1.05.13
+* New button for the file's CRC32 which copies it onto the clipboard.
+* New tool bar button to save the image's files' details out to a CSV file.
+* Fixed a bug where if an ADFS New Map's file returned no fragments then it would crash when this file was extracted from the image.
+* Changed how a disc is loaded in, IDed and read.
+* When dragging and dropping a file in, it is IDed to see if it is an image. If it is, and there is already an image loaded, the application will ask if it is to be loaded or added to the current image.
+
 Platform History
 ----------------
 

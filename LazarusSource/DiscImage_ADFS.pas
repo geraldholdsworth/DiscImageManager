@@ -2573,6 +2573,12 @@ begin
   if FMap then //New Map
    //Get the fragment offsets of the file
    fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
+  //No fragments have been returned - we have an error
+  if Length(fragments)=0 then
+  begin
+   Result:=False;
+   exit;
+  end;
   dest  :=0;      //Length pointer/Destination pointer
   len   :=filelen;//Amount of data to read in
   repeat

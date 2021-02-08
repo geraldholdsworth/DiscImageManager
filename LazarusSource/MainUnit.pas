@@ -8,7 +8,8 @@ interface
 
 uses
   SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
-  DiscImageUtils,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils;
+  DiscImageUtils,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,
+  Clipbrd;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -49,6 +50,7 @@ type
    FileMenu: TMenuItem;
    MenuItem1: TMenuItem;
    menuCloseImage: TMenuItem;
+   menuSaveAsCSV: TMenuItem;
    menuRenameFile: TMenuItem;
    menuNewDir: TMenuItem;
    menuDeleteFile: TMenuItem;
@@ -61,6 +63,8 @@ type
    menuImageDetails: TMenuItem;
    menuExtractFile: TMenuItem;
    menuAddFile: TMenuItem;
+   SaveCSV: TSaveDialog;
+   sb_Clipboard: TSpeedButton;
    ToolBarImages: TImageList;
    Label10: TLabel;
    Label14: TLabel;
@@ -81,6 +85,7 @@ type
    btn_ImageDetails: TToolButton;
    btn_NewDirectory: TToolButton;
    btn_CloseImage: TToolButton;
+   btn_SaveAsCSV: TToolButton;
    ToolButton3: TToolButton;
    btn_download: TToolButton;
    ToolButton5: TToolButton;
@@ -124,6 +129,7 @@ type
    procedure btn_CloseImageClick(Sender: TObject);
    procedure btn_ImageDetailsClick(Sender: TObject);
    procedure btn_NewDirectoryClick(Sender: TObject);
+   procedure btn_SaveAsCSVClick(Sender: TObject);
    function CreateDirectory(dirname,attr: AnsiString): TTreeNode;
    procedure DirListMouseDown(Sender: TObject; Button: TMouseButton;
     Shift: TShiftState; X, Y: Integer);
@@ -164,6 +170,7 @@ type
    procedure DownLoadDirectory(dir,entry: Integer; path: AnsiString);
    procedure btn_OpenImageClick(Sender: TObject);
    procedure OpenImage(filename: AnsiString);
+   procedure sb_ClipboardClick(Sender: TObject);
    procedure ShowNewImage(title: AnsiString);
    function ConvertToKMG(size: Int64): AnsiString;
    function IntToStrComma(size: Int64): AnsiString;
@@ -237,7 +244,7 @@ type
                           'FF0tif','FF0tiff','FF6ttf' ,'FF9sprite','FFBbas',
                           'FFDdat','FFFtxt');
     //These point to certain icons used when no filetype is found, or non-ADFS
-    appicon =   0;
+    appicon     =   0;
     directory   =   1;
     directory_o =   2;
     loadexec    = 140; //(+1)RISC OS file with Load/Exec specified
@@ -259,7 +266,7 @@ type
     sinclairlogo  = 6;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.12';
+    ApplicationVersion = '1.05.13';
   public
    //The image - this doesn't need to be public...we are the main form in this
    Image: TDiscImage;
@@ -739,6 +746,7 @@ function TMainForm.GetWindowsFilename(dir,entry: Integer): AnsiString;
 var
  extsep: Char;
 begin
+ extsep:=#0;
  //Get the filename
  Result:=Image.Disc[dir].Entries[entry].Filename;
  //Convert BBC chars to PC
@@ -886,16 +894,8 @@ begin
  if QueryUnsaved then
   //Show the open file dialogue box
   if OpenImageFile.Execute then
-  begin
-   //Show a progress message
-   ProgressForm.Show;
-   //Process the messages to close the file dialogue box
-   Application.ProcessMessages;
    //And then open the image
    OpenImage(OpenImageFile.FileName);
-   //Close the progress message
-   ProgressForm.Hide;
-  end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -903,6 +903,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.OpenImage(filename: AnsiString);
 begin
+ //Show a progress message
+ ProgressForm.Show;
+ //Process the messages to close the file dialogue box
+ Application.ProcessMessages;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -914,6 +918,16 @@ begin
   ReportError('"'+filename
                         +'" has not been recognised as a valid disc image that '
                         +ApplicationTitle+' can open.');
+ //Close the progress message
+ ProgressForm.Hide;
+end;
+
+{------------------------------------------------------------------------------}
+//Copy CRC32 to clipboard
+{------------------------------------------------------------------------------}
+procedure TMainForm.sb_ClipboardClick(Sender: TObject);
+begin
+ Clipboard.AsText:=lb_CRC32.Caption;
 end;
 
 {------------------------------------------------------------------------------}
@@ -997,8 +1011,10 @@ begin
    //Populate the info box
    UpdateImageInfo;
    //Enable the controls
-   btn_SaveImage.Enabled:=True;
-   menuSaveImage.Enabled:=True;
+   btn_SaveImage.Enabled :=True;
+   menuSaveImage.Enabled :=True;
+   btn_SaveAsCSV.Enabled :=True;
+   menuSaveAsCSV.Enabled :=True;
    btn_CloseImage.Enabled:=True;
    menuCloseImage.Enabled:=True;
    if Length(Image.FreeSpaceMap)>0 then
@@ -1070,6 +1086,7 @@ var
  title    : AnsiString;
  multiple : Char;
 begin
+ filetype:='';
  //Reset the fields to blank
  ResetFileFields;
  //More than one?
@@ -1464,6 +1481,7 @@ begin
  btn_Rename.Enabled       :=False;
  btn_AddFiles.Enabled     :=False;
  btn_NewDirectory.Enabled :=False;
+ btn_SaveAsCSV.Enabled    :=False;
  //Pop up Menu items
  ExtractFile1.Enabled     :=False;
  RenameFile1.Enabled      :=False;
@@ -1474,6 +1492,7 @@ begin
  menuNewImage.Enabled     :=True;
  menuOpenImage.Enabled    :=True;
  menuSaveImage.Enabled    :=False;
+ menuSaveAsCSV.Enabled     :=False;
  menuCloseImage.Enabled   :=False;
  menuImageDetails.Enabled :=False;
  menuExtractFile.Enabled  :=False;
@@ -1706,6 +1725,7 @@ var
  dir,i : Integer;
  ptr   : Cardinal;
 begin
+ ptr:=0;
  //First, get the reference
  Image.FileExists(filename,ptr);
  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
@@ -1781,18 +1801,54 @@ end;
 procedure TMainForm.FormDropFiles(Sender: TObject;
  const FileNames: array of AnsiString);
 var
- FileName: AnsiString;
+ msg,fmt,
+ FileName : AnsiString;
+ NewImage : TDiscImage;
+ open     : Byte;
+const
+ dlg = 'Open Or Add?';
 begin
+ //Create a new DiscImage instance
+ NewImage:=TDiscImage.Create;
  for FileName in FileNames do
  begin
+  //If it is not a directory
   if not DirectoryExists(Filename) then
-   if Image.Filename='' then //Nothing is loaded, so initiate load
-    OpenImage(FileName)
-   else //Otherwise, add the file to the image, under the selected directory
-    AddFileToImage(FileName) //This will try and add image files to an image
+  begin
+   //Open or add ($00=ignore, $01=open, $02=add, $03=ask)
+   open:=$00;
+   //Load and ID the file
+   NewImage.LoadFromFile(FileName,false);
+   //Valid image?
+   if NewImage.FormatNumber<>$FF then open:=open OR $01; //Is an image
+   //Get the detected format string
+   fmt:=NewImage.FormatString;
+   //Is there something loaded?
+   if Image.Filename<>''         then open:=open OR $02; //Something is open
+   //Go through the different states
+   if open=$03 then //Ask user
+   begin
+    //Prepare message
+    msg:='There is already an image open.'#13#10;
+    msg:=msg+'Open this file as a';
+    //Is the first letter a vowel?
+    if(fmt[1]='A')or(fmt[1]='E')or(fmt[1]='I')or(fmt[1]='O')or(fmt[1]='U')then
+     msg:=msg+'n';
+    msg:=msg+' '+fmt+' image or add this file to existing image?';
+    //Pose question
+    if QuestionDlg(dlg,msg,mtConfirmation,[300,'Open',301,'Add'],0)=300 then
+     open:=$01 else open:=$02; //Change state, depending on the answer
+   end;
+   if open=$02 then //Add file
+    AddFileToImage(FileName);
+   if open=$01 then //Open image
+    if QueryUnsaved then OpenImage(FileName);
+  end
   else //Bulk add from a directory
    AddDirectoryToImage(FileName);
  end;
+ //Free up the DiscImage instance
+ NewImage.Free;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1998,6 +2054,7 @@ var
  x         : Integer;
  ref       : Cardinal;
 begin
+ ref:=0;
  //Assume the root, for now
  parentdir:='$';
  if DirList.Selected.Text<>'$' then //If not the root, get the parent directory
@@ -2012,6 +2069,57 @@ begin
  dirname:=dirname+IntToStr(x);
  //Create the directory
  CreateDirectory(dirname,'DLR');
+end;
+
+{------------------------------------------------------------------------------}
+//Save all the image's file details to a CSV file
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_SaveAsCSVClick(Sender: TObject);
+var
+ F        : TFileStream;
+ dir,
+ entry    : Integer;
+ filename,
+ ext      : AnsiString;
+begin
+ //Remove the existing part of the original filename
+ filename:=ExtractFileName(Image.Filename);
+ ext:=ExtractFileExt(filename);
+ filename:=LeftStr(filename,Length(filename)-Length(ext));
+ //Add the csv extension
+ SaveCSV.Filename:=filename+'.csv';
+ //Show the dialogue box
+ if SaveCSV.Execute then
+ begin
+  //Show a progress message
+  ProgressForm.Show;
+  //Process the messages to close the file dialogue box
+  Application.ProcessMessages;
+  //Open a new file
+  F:=TFileStream.Create(SaveCSV.FileName,fmCreate OR fmShareDenyNone);
+  //Write the image details
+  WriteLine(F,'"'+Image.Filename+'","'+Image.CRC32+'"');
+  //Write the headers
+  WriteLine(F,'"Parent","Filename","Load Address","Execution Address","Length","Attributes","CRC32"');
+  //Go through each directory
+  for dir:=0 to Length(Image.Disc)-1 do
+   //And each entry in that directory
+   for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
+    //write out each entry
+    WriteLine(F,'"'+Image.Disc[dir].Entries[entry].Parent+'","'
+                   +Image.Disc[dir].Entries[entry].Filename+'","'
+                   +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8)+'","'
+                   +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8)+'","'
+                   +IntToHex(Image.Disc[dir].Entries[entry].Length,8)+'","'
+                   +Image.Disc[dir].Entries[entry].Attributes+'","'
+                   +Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent
+                                    +Image.DirSep
+                                    +Image.Disc[dir].Entries[entry].Filename)+'"');
+  //Finally free up the file stream
+  F.Free;
+  //Close the progress window
+  ProgressForm.Hide;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2381,6 +2489,7 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.GetFilePath(Node: TTreeNode): AnsiString;
 begin
+ Result:='';
  //Make sure that the node exists
  if Node<>nil then
  begin
