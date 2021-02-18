@@ -8,9 +8,9 @@ var
  Checksum1,
  Checksum2 : Cardinal;
  ctr       : Integer;
- temp      : AnsiString;
+ temp      : String;
 const
- DiscIDs   : array[0..3] of AnsiString = ('DOS','PFS','KICK','KICKSUP');
+ DiscIDs   : array[0..3] of String = ('DOS','PFS','KICK','KICKSUP');
 begin
  Result:=False;
  if FFormat=$FF then
@@ -211,7 +211,7 @@ end;
 {-------------------------------------------------------------------------------
 Read Commodore Amiga Directory
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadAmigaDir(dirname: AnsiString; offset: Cardinal): TDir;
+function TDiscImage.ReadAmigaDir(dirname: String; offset: Cardinal): TDir;
 var
  address,
  i,att,a,
@@ -305,7 +305,7 @@ end;
 {-------------------------------------------------------------------------------
 Extracts a file, filename contains complete path
 -------------------------------------------------------------------------------}
-function TDiscImage.ExtractAmigaFile(filename: AnsiString;
+function TDiscImage.ExtractAmigaFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
  source        : Integer;
@@ -358,7 +358,7 @@ end;
 {-------------------------------------------------------------------------------
 Create a directory on an Amiga image
 -------------------------------------------------------------------------------}
-function TDiscImage.CreateAmigaDirectory(var dirname,parent,attributes: AnsiString): Integer;
+function TDiscImage.CreateAmigaDirectory(var dirname,parent,attributes: String): Integer;
 begin
  Result:=-1;
 end;
@@ -366,7 +366,7 @@ end;
 {-------------------------------------------------------------------------------
 Retitle an Amiga directory
 -------------------------------------------------------------------------------}
-function TDiscImage.RetitleAmigaDirectory(filename,newtitle: AnsiString): Boolean;
+function TDiscImage.RetitleAmigaDirectory(filename,newtitle: String): Boolean;
 begin
  Result:=False;
 end;
@@ -382,7 +382,7 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
+function TDiscImage.RenameAmigaFile(oldfilename: String;var newfilename: String):Integer;
 begin
  Result:=-6; //Unsupported in this format
 end;
@@ -390,7 +390,7 @@ end;
 {-------------------------------------------------------------------------------
 Delete a file
 -------------------------------------------------------------------------------}
-function TDiscImage.DeleteAmigaFile(filename: AnsiString):Boolean;
+function TDiscImage.DeleteAmigaFile(filename: String):Boolean;
 begin
  Result:=False;
 end;
@@ -398,7 +398,7 @@ end;
 {-------------------------------------------------------------------------------
 Update a file's attributes
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateAmigaFileAttributes(filename,attributes: AnsiString):Boolean;
+function TDiscImage.UpdateAmigaFileAttributes(filename,attributes: String):Boolean;
 begin
  Result:=False;
 end;
@@ -406,7 +406,15 @@ end;
 {-------------------------------------------------------------------------------
 Update the disc title
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateAmigaDiscTitle(title: AnsiString): Boolean;
+function TDiscImage.UpdateAmigaDiscTitle(title: String): Boolean;
 begin
  Result:=False;
+end;
+
+{-------------------------------------------------------------------------------
+Moves a file from one directory to another
+-------------------------------------------------------------------------------}
+function TDiscImage.MoveAmigaFile(filename,directory: String): Integer;
+begin
+ Result:=-1;
 end;

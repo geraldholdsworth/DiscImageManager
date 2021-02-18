@@ -1,18 +1,23 @@
 Changes History
 ---------------
 
-1.05
+1.05 8th December 2020
+----------------------
 * Ported from Delphi 10.3 to Lazarus.
 * Name changed to Disc Image Manager to reflect the application's future facilities to write back to images.
 * First version to appear on GitHub.
 * A few spurious bugs had crept in from the conversion - disc sizes were reported as 0 bytes and the main window became sizeable.
 * StatusBar update no longer functions.
 
-1.05.1
+1.05.1 9th December 2020
+------------------------
+New or improved features
 * Code tidied up and compatibility Delphi removed. Now completely Object Free Pascal.
 * Version numbers now remain at 1.05 with revision number following.
 
-1.05.2
+1.05.2 11th December 2020
+-------------------------
+New or improved features
 * Main window is no longer sizeable, and you only now have the close button.
 * Buttons are disabled when not needed, and enabled when they can be used.
 * Extracted files now come with an .inf file.
@@ -21,7 +26,9 @@ Changes History
 * Now developed and distributed under the GNU GPL v3 licence.
 * About dialogue window changed to reflect new licence and GitHub web address.
 
-1.05.3
+1.05.3 14th December 2020
+-------------------------
+New or improved features
 * Reverted the main window to sizeable.
 * Reverted to the window system icons (maximise and minimise)
 * Set the initial main window size to 921x751px
@@ -30,12 +37,13 @@ Changes History
 * Facility to save images back to disc added (the code had been written just not attached to any buttons or menus)
 * Files can now be added to a DFS image
 
-1.05.4
+1.05.4 15th December 2020
+-------------------------
+New or improved features
 * Tidy up of some code.
 * Buttons moved to a ToolBar (along the top).
 * Disc Info panel moved to the Status Bar (along the bottom).
 * Progress parameter removed from DiscImage unit.
-* Fixed a bug where the extra Watford DFS entries would get written to the wrong places.
 * Buttons added to the ToolBar: Add Files, Rename File, Delete File.
 * Can now rename a DFS file.
 * Can now delete DFS file(s).
@@ -43,12 +51,15 @@ Changes History
 * File Details panel tidied up: fields have been moved closer together, reducing the overall size of the panel.
 * File attributes can now be changed, for DFS files.
 
-1.05.5
+Bug fixes
+* The extra Watford DFS entries would get written to the wrong places.
+
+1.05.5 16th December 2020
+-------------------------
+New or improved features
 * Added button for new, blank, image.
 * Added dialogue box to create and format new image.
-* Fixed a bug where saving an image does not update the filename.
 * Tidy up of code.
-* Fixed a bug where the wrong default extension was added when saving an image when the extension was not specified.
 * Added an 'image has changed/not been saved' tracker.
 * Extended the status bar to add in a 'image has changed/not been saved' indicator.
 * Spread the attributes out as they were on over the top of each other in Linux.
@@ -56,34 +67,43 @@ Changes History
 * Spread the file details out again, and resized the labels.
 * Binaries compiled in 'Release' mode to reduce final file size and increase execution speed.
 
-1.05.6
-* Fixed a bug where extracting a file from an ADFS image, where the file's indirect address was the same as the offset to the root, the root would be saved instead (and repeated for the length of the file).
-* Fixed a bug where if a directory was selected as part of a multi-selection, and this directories contents where also selected, only the directory would be downloaded. Previously the contents would be downloaded twice.
-* Fixed a bug where ADFS L images (*.adl) were not read interleaved, causing data corruption.
-* Fixed a bug where creating a new double sided DFS image, then writing to it, will cause the data to get written to the image as if it is a single sided image.
+Bug fixes
+* Saving an image does not update the filename.
+* The wrong default extension was added when saving an image when the extension was not specified.
+
+1.05.6 21st December 2020
+-------------------------
+New or improved features
 * Adding files will now skip over *.inf files.
 * Images can be opened by dragging them into the application window.
 * Files can be added to images by dragging them into the application window.
 * Command line commands added - this is a work in progress.
 
-1.05.7
-* Fixed a bug where the free space for ADFS old map are miscalculated.
+Bug fixes
+* Extracting a file from an ADFS image, where the file's indirect address was the same as the offset to the root, the root would be saved instead (and repeated for the length of the file).
+* If a directory was selected as part of a multi-selection, and this directories contents where also selected, only the directory would be downloaded. Previously the contents would be downloaded twice.
+* ADFS L images (*.adl) were not read interleaved, causing data corruption.
+* Creating a new double sided DFS image, then writing to it, will cause the data to get written to the image as if it is a single sided image.
+
+1.05.7 27th December 2020
+-------------------------
+New or improved features
 * Added *.dat and *.dsc extensions for ADFS to the Open Image dialogue.
 * Improved the DFS and ADFS ID routines.
 * Graphical display for Free Space Map for DFS and ADFS.
 * Added functionality to change disc title and boot option.
-* Correctly displays the selected directory title.
 * Now displays the root address for ADFS images.
-* Fixed a bug where the disc title on an ADFS D was not displayed correctly.
 * Free space is now calculated from the free space map and not by adding up the length of files and directories.
 
-1.05.8
-* ADFS old map discs were being IDed wrongly, based on inaccurate information. This has been fixed.
-* Small bug with calculating the free-space map fixed.
-* A bug where extraenous spaces were not removed from the end of the disc title has been fixed.
+Bug fixes
+* The free space for ADFS old map are miscalculated.
+* Correctly displays the selected directory title.
+* The disc title on an ADFS D was not displayed correctly.
+
+1.05.8 2nd January 2021
+-----------------------
+New or improved features
 * In an attempt to get the colours uniform across platforms, they have been changed from a platform specific colour to a standard colour.
-* Fixed a bug where selecting an item from the search window will result in a purple box on the file details section.
-* If an ADFS directory check byte is zero, this is now ignored.
 * Added facility to create a new, blank, ADFS floppy disc image.
 * More improvements on the ADFS ID process - if an image has a boot block (F, F+ and some Hard Discs) then it will have a checksum. This is now checked.
 * Added facility to re-title an ADFS image.
@@ -96,7 +116,16 @@ Changes History
 * Added facility to create a new, blank, Commodore 1541, 1571 and 1581 floppy disc image.
 * Changed some of the label sizes, and fonts sizes, so that the application looks OK on Linux.
 
-1.05.9
+Bug fixes
+* ADFS old map discs were being IDed wrongly, based on inaccurate information. This has been fixed.
+* Small bug with calculating the free-space map fixed.
+* A bug where extraenous spaces were not removed from the end of the disc title has been fixed.
+* If an ADFS directory check byte is zero, this is now ignored.
+* Selecting an item from the search window will result in a purple box on the file details section.
+
+1.05.9 9th January 2021
+-----------------------
+New or improved features
 * Changed the reading in of an *.inf file to match that which is saved out.
 * Free space map is now calculated for Commodore 1541, 1571 and 1581 images.
 * Free space map scale now changes depending on the number of tracks, meaning that it will not look 'out of focus'.
@@ -104,42 +133,48 @@ Changes History
 * Major change to how data is read and written from/to the image which could slow down access but reduce bugs.
 * Added facility to add files to ADFS S, M, L, & D images.
 * Added facility to create new directories on ADFS S, M, L, & D images.
-* Ironed out a couple of ADFS ID-ing bugs.
 * Added facility to rename files and directories on ADFS S, M, L, D, E and F images.
 * Will now import entire directories (if enough space, of course) into ADFS S, M, L & D images.
 * ADFS S, M, L, D, E and F Directories can now be re-titled, including the root.
 * Files and entire directories can now be deleted from ADFS S, M, L and D images.
-* Fixed a bug where the image file size was not extended to the full extent of the disc size when adding files or directories.
 * Changed some assumptions when ID-ing DFS images (number of tracks no longer has to be 40 or 80). Due to this have had to introduce an extra check (number of sectors >0) when ID-ing DFS images.
 * Changed the order of ID-ing images as Commodore and Amiga could now be mistaken for DFS.
+
+Bug fixes
+* Ironed out a couple of ADFS ID-ing bugs.
+* The image file size was not extended to the full extent of the disc size when adding files or directories.
 * Fixed a bug when ID-ing formats to ensure one already 'claimed' for a platform does not undergo further checks for other formats.
 
-1.05.10
+1.05.10 23rd January 2021
+-------------------------
+New or improved features
 * Creation of new module, introducing separate layer between the UI and the class.
 * Move of some type definitions and functions/procedure from the class module to the utils module.
 * Move of some functions/procedures from the UI module to the utils module.
-* Found, and fixed, a major bug whereby if a file was fragmented on an ADFS New Map image, the resultant extraction of the file could be corrupted.
 * Moved, and separated, function for extracting files into their own respective modules.
-* Fixed a bug (or more accurately, an oversight) where the checksums where not computed and saved when retitling New Directory directories, resulting in Broken Directory errors.
 * Can now write files and directories to New Map ADFS images (E and F).
 * Improved the accuracy of gathering the free space map for ADFS New Map images.
 * Fails, without crashing, if the application fails to open or create a file.
 * The files are now opened non-exclusively (i.e. another application can open the file at the same time).
 * Can now delete files and directories from New Map ADFS Images (E and F).
-* Fixed a bug where new directories being added in ADFS New Directory formats were not getting their checksum updated, resulting in a Broken Directory.
 * Updated the ADFS directory checksum checking - now only ignores a zero checksum for old directories.
 
-1.05.11
+Bug fixes
+* Found, and fixed, a major bug whereby if a file was fragmented on an ADFS New Map image, the resultant extraction of the file could be corrupted.
+* Fixed a bug (or more accurately, an oversight) where the checksums where not computed and saved when retitling New Directory directories, resulting in Broken Directory errors.
+* New directories being added in ADFS New Directory formats were not getting their checksum updated, resulting in a Broken Directory.
+
+1.05.11 30th January 2021
+-------------------------
+New or improved features
 * Files can now be written to a Commodore 1541, 1571 and 1581 image.
 * Files can now be renamed on a Commodore 1541, 1571 and 1581 image.
 * The system track is no longer included when computing the amount of free space on a Commodore 1541, 1571 or 1581 image.
 * Attributes are now hidden when not required, instead of disabled.
 * Commodore 1541, 1571 and 1581 file attributes are now shown and can be changed.
 * Files extracted from Commodore 1541, 1571 and 1581 now have their filetypes appended as an extension, rather than separated with a comma.
-* Fixed a bug where a zero length file being extracted from an image would cause the application to crash. It now reports a failure, which the front end interprets as 'file not found'.
 * Files added to ADFS New Map and Commodore 1541, 1571 and 1581 images are now filetyped if the filetype is included after the filename (either separated by a comma or by a period).
 * Files and directories added to or created in ADFS New Map images are now timestamped. As are untyped and unstamped files/directories if they do not have a load and execution address.
-* Fixed a bug where deleting a file from ADFS New Map, where the file was in zone 0, would not correctly update the free space map pointers. This showed itself whereby another file could then not be added, even to a blank disc.
 * Can now use wildcards after the --add command line option.
 * More error checking performed on command lines.
 * Second parameters now accepted with command line options.
@@ -147,14 +182,20 @@ Changes History
 * Added button to close the currently open image.
 * Added a logo next to the format on the status bar.
 * Made the status bar 2 pixels taller, and the 'Has Changed' panel on the status bar 4 pixels wider.
-* Fixed a bug where if a file failed to open (not recognised, for example), the controls would still be enabled and the filename put in the title bar.
 * When on the command line, errors are now not reported via the GUI, expecting a response, but by a message in the command line.
 * ADFS New Map free space fragments are now consolodated if they are consecutive.
 * Reports an error if any writing function is performed on ADFS New Map images which have an idlen other than 15 bits.
 * Application now reports which platform and architecture the build was built on (e.g. macOS 64 bit) in the About Box.
 * More detailed errors are reported when writing files or directories and they fail.
 
-1.05.12
+Bug fixes
+* A zero length file being extracted from an image would cause the application to crash. It now reports a failure, which the front end interprets as 'file not found'.
+* Deleting a file from ADFS New Map, where the file was in zone 0, would not correctly update the free space map pointers. This showed itself whereby another file could then not be added, even to a blank disc.
+* If a file failed to open (not recognised, for example), the controls would still be enabled and the filename put in the title bar.
+
+1.05.12 6th February 2021
+-------------------------
+New or improved features
 * Refreshed the graphics. All the RISC OS filetypes have been replaced with RISC OS 5.28 Raspberry Pi filetypes, and have increased from 50 types to 136 types.
 * Added more known filetype names to the DiscImage class - from 89 to 1206.
 * RISC OS disc images (those with New or Big directory types) now show the Application filetype for any directories beginning with '!' in the directory list.
@@ -162,16 +203,63 @@ Changes History
 * Made writing to the ADFS free space map compatible with idlen other than 15 bits.
 * When a file or directory is renamed in ADFS, it is now reordered within the catalogue to maintain alphabetical order.
 * Can now drag and drop files within an image to copy or move them. This is limited to ADFS and dual-sided DFS.
-* Fixed a bug where writes to side 1 (:2) of a DFS disc would fail.
 * New feature where a CRC32 is calculated for the image and displayed in the Image Detail window.
 * CRC32 is also now calculated per file and displayed on the file details, and saved out in the *.inf file when extracted from the image.
 
-1.05.13
+Bug fixes
+* Writes to side 1 (:2) of a DFS disc would fail.
+
+1.05.13 8th February 2021
+-------------------------
+New or improved features
 * New button for the file's CRC32 which copies it onto the clipboard.
 * New tool bar button to save the image's files' details out to a CSV file.
-* Fixed a bug where if an ADFS New Map's file returned no fragments then it would crash when this file was extracted from the image.
 * Changed how a disc is loaded in, IDed and read.
 * When dragging and dropping a file in, it is IDed to see if it is an image. If it is, and there is already an image loaded, the application will ask if it is to be loaded or added to the current image.
+
+Bug fixes
+* If an ADFS New Map's file returned no fragments then it would crash when this file was extracted from the image.
+
+1.05.14 pending
+-------------------------
+New or improved features
+* Double clicking on a file will open it in as a hex dump. Hex dump routine is a cut down version of File Dump.
+* Added new file context menu item, and File submenu item, to open file as a hex dump.
+* Added new main menu item to list the hex dump windows, and open them if clicked on.
+* Added new button on the toolbar for showing a hex dump.
+* New command line option 'keepopen' keeps the application open after parsing the other options.
+* When moving files in ADFS only the directory reference is moved, instead of copying the file then deleting the original.
+* Now copies and moves directories.
+* Modified the 'Open or Add' scenario and added a third option - 'Import'. This will import the contents of another image, into the current image in the currently selected directory, the parent of the selected file, or root if nothing selected.
+* The Add Files button now replicates the dropping of files onto the application.
+* Changed the error reporting dialogue box.
+* Changed the 'Open Image' button icon.
+* New toolbar buttons: Split/Combine DFS and Repair ADFS Broken Directories.
+* New menu items under File: Split/Combine DFS and Repair ADFS Broken Directories.
+* Reordered the menu items on the file context menu to match the order of the toolbar buttons.
+* Reordered the main menu Image menu items to match the order of the toolbar buttons.
+* Added function to split a double sided DFS image (DSD) into two single sided DFS images (SSD) or combine two single sided DFS images into a single double sided image.
+* Added an ellipsis to some menu items, where clicking would open a dialogue box.
+* New graphics for "Add Files", "Delete Files", "Extract Files", "Open Image", "Close Image", "New Directory", "Save As CSV" & "Free Space Map" buttons; "DEL" Commodore filetype & tree icon; and "HasChanged" icon on the status bar.
+* Added the application icon to the About dialogue box.
+* Only reports relevant information in the File Details panel.
+* Rejigged the function to calculate an ADFS directory checksum, as the parameters being passed made calling it too complicated, when these parameters can be discovered by the function.
+* Added function to repair detected broken ADFS directories.
+* Can now extract files using the command line options.
+
+Bug fixes
+* The application would crash if a loaded ADFS New Map image had no free space fragments.
+* When moving files within an image the original tree node was not removed.
+* Added a detection for the key modifier, while dragging to copy/move, but the mouse is not moving.
+* When dragging to copy/move, the destination would stay highlighted when the item was dragged back to it's parent.
+* Right clicking (or double finger tapping) on an object to open the menu would also trigger the drag-drop operation.
+* On ADFS New Map, if a fragment of file exists after a section of free space, then it won't get read.
+* With the ADFS New Map, when deleting a file the free space map is not updated correctly.
+* When deleting shared objects from an ADFS New Map. The fragment is not removed if it is still being used.
+* ADFS D files were no longer readable.
+* ADFS New Map directories could get fragmented.
+* No longer assumes the root follows the free space map on New Map ADFS.
+* When a write operation occured, the position of the directories in ADFS Free Space Map would get lost.
 
 Platform History
 ----------------

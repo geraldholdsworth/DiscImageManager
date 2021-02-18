@@ -1,5 +1,5 @@
    //RISC OS Filetypes (from https://www.riscosopen.org/wiki/documentation/show/File%20Types)
-   FileTypes: array[1..1207] of AnsiString = (
+   FileTypes: array[1..1207] of String = (
    'FFFText','FFECommand','FFDData','FFCUtility','FFBBASIC','FFAModule',
    'FF9Sprite','FF8Absolute','FF7BBC font','FF6Font','FF5PoScript','FF4Printout',
    'FF3LaserJet','FF2Config','FF1RawData','FF0TIFF','FEFDiary','FEENotePad',

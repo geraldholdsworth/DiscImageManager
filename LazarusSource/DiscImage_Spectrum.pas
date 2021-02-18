@@ -43,23 +43,42 @@ begin
  Result:=nil;
 end;
 
-function TDiscImage.RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
+{-------------------------------------------------------------------------------
+Rename a Spectrum file
+-------------------------------------------------------------------------------}
+function TDiscImage.RenameSpectrumFile(oldfilename: String;var newfilename: String):Integer;
 begin
  Result:=-6; //Unsupported in this format
 end;
-function TDiscImage.DeleteSinclairFile(filename: AnsiString):Boolean;
+
+{-------------------------------------------------------------------------------
+Delete a Spectrum file
+-------------------------------------------------------------------------------}
+function TDiscImage.DeleteSinclairFile(filename: String):Boolean;
 begin
  Result:=False;
 end;
-function TDiscImage.UpdateSinclairFileAttributes(filename,attributes: AnsiString):Boolean;
+
+{-------------------------------------------------------------------------------
+Update attributes on a Spectrum file
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateSinclairFileAttributes(filename,attributes: String):Boolean;
 begin
  Result:=False;
 end;
-function TDiscImage.UpdateSinclairDiscTitle(title: AnsiString): Boolean;
+
+{-------------------------------------------------------------------------------
+Change the disc title for a Spectrum disc
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateSinclairDiscTitle(title: String): Boolean;
 begin
  Result:=False;
 end;
-function TDiscImage.ExtractSpectrumFile(filename: AnsiString;
+
+{-------------------------------------------------------------------------------
+Extract a file from a Spectrum image
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractSpectrumFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 begin
  Result:=False;

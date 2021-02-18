@@ -8,12 +8,13 @@ Long form				Short form
 --rename:<oldfilename>|<newfilename>	-r		- Renames <oldfilename> to <newfilename>
 --save:[<filename>]			-s		- Saves image file as <filename>
 --create:[<newdir>]|[<parentdir>]	-c		- Creates a new directory, <newdir>, in the image as a child of <parentdir>.
-1--extract:<filename>			-e		- Extracts file(s) to local path.
+--extract:<filename>			-e		- Extracts file(s) to local path.
 --title:<disc title>			-t		- Sets the title for the disc
 --title1:<disc title>			-t1		- Sets the title for the disc, side 1
 --opt:<opt>				-o		- Sets the boot option for the disc
 --opt1:<opt>				-o1		- Sets the boot option for the disc, side 1
 --cmdfile:<filename>			-f		- Reads and executes commands held in a text file
+--keepopen				-k		- Keeps the application open after parsing the command line options
 
 Notes:
 1 Still to be written.

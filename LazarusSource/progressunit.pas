@@ -5,7 +5,7 @@ unit ProgressUnit;
 interface
 
 uses
- Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,StdCtrls,ExtCtrls;
 
 type
 
@@ -40,4 +40,3 @@ begin
 end;
 
 end.
-

@@ -20,7 +20,7 @@
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
       <MinorVersionNr Value="5"/>
-      <RevisionNr Value="12"/>
+      <RevisionNr Value="14"/>
       <Language Value="0809"/>
       <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.5"/>
     </VersionInfo>
@@ -189,7 +189,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="9">
+    <Units Count="11">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -220,12 +220,11 @@
         <ResourceBaseClass Value="Form"/>
       </Unit4>
       <Unit5>
-        <Filename Value="imagedetailunit.pas"/>
+        <Filename Value="ImageDetailUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ImageDetailForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="ImageDetailUnit"/>
       </Unit5>
       <Unit6>
         <Filename Value="DiscImageUtils.pas"/>
@@ -236,13 +235,26 @@
         <IsPartOfProject Value="True"/>
       </Unit7>
       <Unit8>
-        <Filename Value="progressunit.pas"/>
+        <Filename Value="ProgressUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ProgressForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="ProgressUnit"/>
       </Unit8>
+      <Unit9>
+        <Filename Value="HexDumpUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="HexDumpForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="SplitDFSUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="SplitDFSForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit10>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

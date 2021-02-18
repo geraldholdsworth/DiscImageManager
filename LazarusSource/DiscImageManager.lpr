@@ -9,7 +9,10 @@ uses
   AboutUnit in 'AboutUnit.pas',
   NewImageUnit in 'NewImageUnit.pas',
   DiscImageUtils, Global,
-  ProgressUnit in 'ProgressUnit.pas', ImageDetailUnit;
+  ProgressUnit in 'ProgressUnit.pas',
+  ImageDetailUnit in 'ImageDetailUnit.pas',
+  HexDumpUnit in 'HexDumpUnit.pas',
+  SplitDFSUnit in 'SplitDFSUnit.pas';
 
 {$R *.res}
 
@@ -22,5 +25,6 @@ begin
  Application.CreateForm(TNewImageForm, NewImageForm);
  Application.CreateForm(TProgressForm, ProgressForm);
  Application.CreateForm(TImageDetailForm, ImageDetailForm);
+ Application.CreateForm(TSplitDFSForm, SplitDFSForm);
  Application.Run;
 end.

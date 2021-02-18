@@ -4,33 +4,30 @@ In no particular order
 
 General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
-* Double click on a file to open to display the contents as a hex dump.
-* Conversion between formats - e.g. ssd to adf;adf to ssd;etc.
 * Extend drag and drop copy/move to multiple selection.
-* Extend copy/move for directories.
+* Application to application communications.
+* Scroll while dragging.
 
 Command Line
-* Extract files.
+none
 
 Coding Issues
-* When moving files in ADFS, just move the directory entries.
+none
 
 DFS
-* Convert dsd to two ssd.
-* Merge two ssd to a single dsd.
+none
 
 ADFS
 * Write/Delete/Rename files/directories to ADFS Big Dir images.
-* Fix broken ADFS directories.
-* Deleting a file which is a shared object will remove the fragment in the FSM, thereby effectively deleting all the shared objects.
 
 Commodore
-* Add support for Commodore 1541 images with 40 tracks.
+none
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
 * Create blank Amiga images.
 * Create Free Space Map for Amiga.
+* Show file attributes in the File Details panel.
 
 Spectrum/Amstrad
 * Write entire module.

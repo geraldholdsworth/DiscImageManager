@@ -2,24 +2,24 @@ unit MainUnit;
 
 //This project is now covered by the GNU GPL v3 licence
 
-{$MODE objFPC}
+{$MODE objFPC}{$H+}
 
 interface
 
 uses
   SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
   DiscImageUtils,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,
-  Clipbrd;
+  Clipbrd,HexDumpUnit;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
  TMyTreeNode = class(TTreeNode)
   private
-   FDir     : Integer;
-   FIsDir   : Boolean;
+   FParentDir : Integer;
+   FIsDir     : Boolean;
   public
-   property Dir     : Integer read FDir write FDir;     //Directory reference
-   property IsDir   : Boolean read FIsDir write FIsDir; //Is it a directory
+   property ParentDir: Integer read FParentDir write FParentDir;//Parent directory reference
+   property IsDir    : Boolean read FIsDir write FIsDir;        //Is it a directory
  end;
  //Form definition
 
@@ -50,6 +50,11 @@ type
    FileMenu: TMenuItem;
    MenuItem1: TMenuItem;
    menuCloseImage: TMenuItem;
+   HexDumpMenu: TMenuItem;
+   HexDump1: TMenuItem;
+   menuFixADFS: TMenuItem;
+   menuHexDump: TMenuItem;
+   menuSplitDFS: TMenuItem;
    menuSaveAsCSV: TMenuItem;
    menuRenameFile: TMenuItem;
    menuNewDir: TMenuItem;
@@ -86,6 +91,9 @@ type
    btn_NewDirectory: TToolButton;
    btn_CloseImage: TToolButton;
    btn_SaveAsCSV: TToolButton;
+   btn_SplitDFS: TToolButton;
+   btn_FixADFS: TToolButton;
+   btn_HexDump: TToolButton;
    ToolButton3: TToolButton;
    btn_download: TToolButton;
    ToolButton5: TToolButton;
@@ -126,11 +134,31 @@ type
    ImageDetails: TStatusBar;
    AddFile1: TMenuItem;
    NewDirectory1: TMenuItem;
+   //Events - mouse clicks
    procedure btn_CloseImageClick(Sender: TObject);
+   procedure btn_FixADFSClick(Sender: TObject);
    procedure btn_ImageDetailsClick(Sender: TObject);
    procedure btn_NewDirectoryClick(Sender: TObject);
    procedure btn_SaveAsCSVClick(Sender: TObject);
-   function CreateDirectory(dirname,attr: AnsiString): TTreeNode;
+   procedure btn_SplitDFSClick(Sender: TObject);
+   procedure HexDumpSubItemClick(Sender: TObject);
+   procedure lb_titleClick(Sender: TObject);
+   procedure btn_NewImageClick(Sender: TObject);
+   procedure btn_SaveImageClick(Sender: TObject);
+   procedure AttributeChangeClick(Sender: TObject);
+   procedure RenameFile1Click(Sender: TObject);
+   procedure DeleteFile1Click(Sender: TObject);
+   procedure btn_downloadClick(Sender: TObject);
+   procedure btn_OpenImageClick(Sender: TObject);
+   procedure sb_ClipboardClick(Sender: TObject);
+   procedure btn_AboutClick(Sender: TObject);
+   procedure sb_searchClick(Sender: TObject);
+   procedure lb_searchresultsClick(Sender: TObject);
+   procedure DirListDblClick(Sender: TObject);
+   procedure AddFile1Click(Sender: TObject);
+   //Events - TTreeView Drag & Drop
+   procedure DirListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+   procedure DirListKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
    procedure DirListMouseDown(Sender: TObject; Button: TMouseButton;
     Shift: TShiftState; X, Y: Integer);
    procedure DraggedItemMouseMove(Sender: TObject; Shift: TShiftState; X,Y: Integer);
@@ -140,64 +168,58 @@ type
    function GetCopyMode(Shift: TShiftState): Boolean;
    procedure DirListMouseUp(Sender: TObject; Button: TMouseButton;
     Shift: TShiftState; X, Y: Integer);
-   procedure ed_titleEditingDone(Sender: TObject);
+   //Events - Form
    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
-   procedure FormDropFiles(Sender: TObject; const FileNames: array of AnsiString);
-   procedure lb_titleClick(Sender: TObject);
-   function QueryUnsaved: Boolean;
-   procedure btn_NewImageClick(Sender: TObject);
-   procedure btn_SaveImageClick(Sender: TObject);
-   procedure AttributeChangeClick(Sender: TObject);
-   function GetFilePath(Node: TTreeNode): AnsiString;
-   procedure DeleteFile1Click(Sender: TObject);
-   procedure DeleteFile(confirm: Boolean);
+   procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
+   procedure FormResize(Sender: TObject);
+   procedure FormShow(Sender: TObject);
+   procedure FormCreate(Sender: TObject);
+   //Events - Other
+   procedure ed_titleEditingDone(Sender: TObject);
    procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
    procedure DirListEditingEnd(Sender: TObject; Node: TTreeNode;
     Cancel: Boolean);
    procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
-   procedure FormResize(Sender: TObject);
-   procedure FormShow(Sender: TObject);
-   procedure DisableControls;
-   procedure ParseCommandLine(cmd: AnsiString);
-   procedure RenameFile1Click(Sender: TObject);
-   procedure ResetFileFields;
-   procedure ResetSearchFields;
-   procedure btn_downloadClick(Sender: TObject);
-   function GetImageFilename(dir,entry: Integer): AnsiString;
-   function GetWindowsFilename(dir,entry: Integer): AnsiString;
-   procedure DownLoadFile(dir,entry: Integer; path: AnsiString);
-   procedure CreateINFFile(dir,entry: Integer; path: AnsiString);
-   procedure DownLoadDirectory(dir,entry: Integer; path: AnsiString);
-   procedure btn_OpenImageClick(Sender: TObject);
-   procedure OpenImage(filename: AnsiString);
-   procedure sb_ClipboardClick(Sender: TObject);
-   procedure ShowNewImage(title: AnsiString);
-   function ConvertToKMG(size: Int64): AnsiString;
-   function IntToStrComma(size: Int64): AnsiString;
    procedure DirListChange(Sender: TObject; Node: TTreeNode);
-   procedure btn_AboutClick(Sender: TObject);
-   procedure FormCreate(Sender: TObject);
-   procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
-    const Rect: TRect);
-   procedure ValidateFilename(var f: AnsiString);
-   procedure sb_searchClick(Sender: TObject);
-   procedure lb_searchresultsClick(Sender: TObject);
-   procedure SelectNode(filename: AnsiString);
    procedure DirListEditing(Sender: TObject; Node: TTreeNode;
      var AllowEdit: Boolean);
-   procedure DirListDblClick(Sender: TObject);
-   procedure AddFile1Click(Sender: TObject);
-   function AddFileToTree(ParentNode: TTreeNode;importfilename: AnsiString;
+   procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
+    const Rect: TRect);
+   //Misc
+   function CreateDirectory(dirname,attr: String): TTreeNode;
+   procedure ImportFiles(NewImage: TDiscImage);
+   function QueryUnsaved: Boolean;
+   function GetFilePath(Node: TTreeNode): String;
+   procedure DeleteFile(confirm: Boolean);
+   procedure DisableControls;
+   procedure ParseCommandLine(cmd: String);
+   procedure ResetFileFields;
+   procedure ResetSearchFields;
+   procedure ExtractFiles(ShowDialogue: Boolean);
+   function GetImageFilename(dir,entry: Integer): String;
+   function GetWindowsFilename(dir,entry: Integer): String;
+   procedure DownLoadFile(dir,entry: Integer; path: String);
+   procedure CreateINFFile(dir,entry: Integer; path: String);
+   procedure DownLoadDirectory(dir,entry: Integer; path: String);
+   procedure OpenImage(filename: String);
+   procedure AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer; var highdir: Integer);
+   procedure ShowNewImage(title: String);
+   function ConvertToKMG(size: Int64): String;
+   function IntToStrComma(size: Int64): String;
+   procedure ValidateFilename(var f: String);
+   procedure SelectNode(filename: String);
+   procedure CloseAllHexDumps;
+   function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
                                   index: Integer;dir: Boolean): TTreeNode;
-   procedure AddDirectoryToImage(dirname: AnsiString);
-   procedure AddFileToImage(filename: AnsiString);
+   procedure AddDirectoryToImage(dirname: String);
+   procedure AddFileToImage(filename: String);
    procedure UpdateImageInfo;
-   procedure ReportError(error: AnsiString);
+   procedure ReportError(error: String);
   private
    var
     //To keep track of renames
     PathBeforeEdit,
-    NameBeforeEdit:AnsiString;
+    NameBeforeEdit:String;
     //Stop the checkbox OnClick from firing when just changing the values
     DoNotUpdate   :Boolean;
     //Has the image changed since last saved?
@@ -211,9 +233,15 @@ type
     CursorPos     :TPoint;
     //The mouse 'cursor' while we are dragging
     ObjectDrag    :TImage;
+    //Keep track of which hex dump windows are open
+    HexDump       :array of THexDumpForm;
+    //Flag whether to close the application when there are command line params
+    KeepOpen      :Boolean;
+    //Reporting of errors
+    ErrorReporting:Boolean;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
-    FileTypes: array[3..139] of AnsiString =
+    FileTypes: array[3..139] of String =
                               ('1AD','3FB','6A2','18A','68E','69C','69D','69E',
                                '102','108','132','690','695','697','698','699',
                                'AAD','ABA','ABF','ACA','AD0','ADF','AE4','AE6',
@@ -233,7 +261,7 @@ type
                                'A91','B22','B62','F78','F79','F83','FB0','FCD',
                                'FCE');
     //Windows extension - used to translate from RISC OS to Windows
-    Extensions: array[1..42] of AnsiString =
+    Extensions: array[1..42] of String =
                          ('004aim','132ico' ,'190dsk' ,'198z80'   ,'1A6CPM',
                           '692img','693iff' ,'695gif' ,'697pcx'   ,'698qrt',
                           '699mtv','69Cbmp' ,'69Dtga' ,'69Epbm'   ,'A91zip',
@@ -244,9 +272,12 @@ type
                           'FF0tif','FF0tiff','FF6ttf' ,'FF9sprite','FFBbas',
                           'FFDdat','FFFtxt');
     //These point to certain icons used when no filetype is found, or non-ADFS
+    //The numbers are indexes into the TImageList components 'FileSizeTypes'
+    //and 'FileImages' (which are smaller versions of the above.
     appicon     =   0;
     directory   =   1;
     directory_o =   2;
+    //images 3 to 139 inclusive are the known filetypes, listed above
     loadexec    = 140; //(+1)RISC OS file with Load/Exec specified
     unknown     = 142; //(+3)RISC OS unknown filetype
     nonadfs     = 144; //(+5)All other filing systems, except for D64/D71/D81
@@ -256,7 +287,7 @@ type
     delfile     = 146; //(+7)
     relfile     = 144; //(+5)
     cbmfile     = 144; //(+5)
-    //Icons for status bar
+    //Icons for status bar - index into TImageList 'icons'
     changedicon   = 0;
     acornlogo     = 1;
     amigalogo     = 2;
@@ -264,12 +295,14 @@ type
     commodorelogo = 4;
     riscoslogo    = 5;
     sinclairlogo  = 6;
+  public
+   //The image
+   Image: TDiscImage;
+   const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.13';
-  public
-   //The image - this doesn't need to be public...we are the main form in this
-   Image: TDiscImage;
+    ApplicationVersion = '1.05.14';
+    {As of 18/02/2021 - 11,819 lines of code, in total}
   end;
 
 var
@@ -279,7 +312,8 @@ implementation
 
 {$R *.lfm}
 
-uses AboutUnit, NewImageUnit, ImageDetailUnit, ProgressUnit;
+uses
+  AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SplitDFSUnit;
 
 {------------------------------------------------------------------------------}
 //Add a new file to the disc image
@@ -287,31 +321,35 @@ uses AboutUnit, NewImageUnit, ImageDetailUnit, ProgressUnit;
 procedure TMainForm.AddFile1Click(Sender: TObject);
 var
   i: Integer;
+  files: array of String;
 begin
  //Open the dialogue box
  if AddNewFile.Execute then
   if AddNewFile.Files.Count>0 then
-   //If more than one file selected, iterate through them
+  begin
+   //Set up the string array
+   SetLength(files,AddNewFile.Files.Count);
+   //Add all the filenames to it
    for i:=0 to AddNewFile.Files.Count-1 do
-    if not DirectoryExists(AddNewFile.Files[i]) then
-     AddFileToImage(AddNewFile.Files[i]) //Add a single file
-    else
-     AddDirectoryToImage(AddNewFile.Files[i]); //Add a directory and the contents
+    files[i]:=AddNewFile.Files[i];
+   //Now pass this onto the Form's Drop Files procedure to handle
+   FormDropFiles(Sender,files);
+  end;
 end;
 
 {------------------------------------------------------------------------------}
 //Add a directory to an image
 {------------------------------------------------------------------------------}
-procedure TMainForm.AddDirectoryToImage(dirname: AnsiString);
+procedure TMainForm.AddDirectoryToImage(dirname: String);
 var
  OriginalNode,
  NewNode      : TTreeNode;
  inffile,
  attr,
- importname   : AnsiString;
+ importname   : String;
  F            : TFileStream;
  chr          : Char;
- fields       : array of AnsiString;
+ fields       : array of String;
  Dir          : TSearchRec;
 begin
  //First, if there is no selection, make one, or if multiple, select the root
@@ -382,7 +420,7 @@ end;
 {------------------------------------------------------------------------------}
 //Add a file to an image
 {------------------------------------------------------------------------------}
-procedure TMainForm.AddFileToImage(filename: AnsiString);
+procedure TMainForm.AddFileToImage(filename: String);
 var
   NewFile        : TDirEntry;
   buffer         : TDIByteArray;
@@ -396,8 +434,8 @@ var
   filelen,
   attr1,
   attributes,
-  filetype       : AnsiString;
-  fields         : array of AnsiString;
+  filetype       : String;
+  fields         : array of String;
   chr            : Char;
   F              : TFileStream;
 begin
@@ -532,7 +570,7 @@ begin
     if Image.FormatNumber shr 4=1 then //Need the selected directory for ADFS
      if DirList.Selected.Text='$' then NewFile.Parent:='$'
      else
-      NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).Dir,
+      NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
                                            DirList.Selected.Index);
     //Load the file from the host
     try
@@ -552,7 +590,10 @@ begin
     end;
     //Function returns pointer to next item (or parent if no children)
     if index>-1 then //File added OK
-     AddFileToTree(DirList.Selected,NewFile.Filename,index,False)
+    begin
+     HasChanged:=True;
+     AddFileToTree(DirList.Selected,NewFile.Filename,index,False);
+    end
     else
     begin
      //For some reason the operation failed to write the data
@@ -578,11 +619,10 @@ end;
 {------------------------------------------------------------------------------}
 //Add a file or directory to the TTreeView, under ParentNode
 {------------------------------------------------------------------------------}
-function TMainForm.AddFileToTree(ParentNode: TTreeNode;importfilename: AnsiString;
+function TMainForm.AddFileToTree(ParentNode: TTreeNode;importfilename: String;
                                   index: Integer;dir: Boolean): TTreeNode;
 begin
  Result:=nil;
- HasChanged:=True;
  //Now add the entry to the Directory List
  if ParentNode.HasChildren then
   //Insert it before the one specified
@@ -594,10 +634,10 @@ begin
   //Is the first child, so just add it
   Result:=DirList.Items.AddChildFirst(ParentNode,importfilename);
  if ParentNode.Parent<>nil then //No parent, so will be the root
-  TMyTreeNode(Result).Dir:=Image.Disc[TMyTreeNode(ParentNode).Dir].
+  TMyTreeNode(Result).ParentDir:=Image.Disc[TMyTreeNode(ParentNode).ParentDir].
                                      Entries[ParentNode.Index].DirRef
  else
-  TMyTreeNode(Result).Dir:=ParentNode.Index; //But may not be the only root
+  TMyTreeNode(Result).ParentDir:=ParentNode.Index; //But may not be the only root
  TMyTreeNode(Result).IsDir:=dir;
  //And update the free space display
  UpdateImageInfo;
@@ -608,7 +648,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_AboutClick(Sender: TObject);
 var
- platform: AnsiString;
+ platform: String;
 begin
  //Update the Application Title
  AboutForm.lb_Title.Caption:=ApplicationTitle;
@@ -642,6 +682,14 @@ end;
 //User has clicked download file button
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_downloadClick(Sender: TObject);
+begin
+ ExtractFiles(True);
+end;
+
+{------------------------------------------------------------------------------}
+//Extract files from image
+{------------------------------------------------------------------------------}
+procedure TMainForm.ExtractFiles(ShowDialogue: Boolean);
 var
  Node       : TTreeNode;
  entry,
@@ -651,7 +699,7 @@ var
  selectroot : Boolean;
 begin
  selectroot:=False;
- showsave:=False;
+ showsave:=not ShowDialogue; //Indicates whether the dialogue has been shown
  //if the root is selected, then select everything else
  if DirList.Items[0].Selected then
  begin
@@ -676,61 +724,61 @@ begin
  //Only continue if something is selected
  if DirList.SelectionCount>0 then
   for s:=0 to DirList.SelectionCount-1 do
+  begin
+   //Get one of the selected Nodes
+   Node:=DirList.Selections[s];
+   //Only act on it if there is one selected
+   if Node<>nil then
    begin
-    //Get one of the selected Nodes
-    Node:=DirList.Selections[s];
-    //Only act on it if there is one selected
-    if Node<>nil then
+    //Get the entry and directory references into 'Image'
+    entry:=Node.Index;
+    dir:=-1;//This will remain as -1 with the root
+    if Node.Parent<>nil then
+     dir  :=TMyTreeNode(Node).ParentDir;
+    if dir>=0 then //dir = -1 would be the root
+    begin
+     //Open the Save As dialogue box, but only if the first in the list
+     if ShowDialogue then saver:=False;
+     if not showsave then
      begin
-      //Get the entry and directory references into 'Image'
-      entry:=Node.Index;
-      dir:=-1;//This will remain as -1 with the root
-      if Node.Parent<>nil then
-       dir  :=TMyTreeNode(Node).Dir;
-      if dir>=0 then //dir = -1 would be the root
+      //Indicate that we have shown the dialogue
+      showsave:=True;
+      //Set the default filename
+      if selectroot then //Root was selected
       begin
-       //Open the Save As dialogue box, but only if the first in the list
-       saver:=False;
-       if not showsave then
-       begin
-        //Indicate that we have shown the dialogue
-        showsave:=True;
-        //Set the default filename
-        if selectroot then //Root was selected
-        begin
-         //Set the default filename as either the disc title or '$'
-         if Image.Title='' then
-          ExtractDialogue.FileName:=DirList.Items[0].Text
-         else
-          ExtractDialogue.FileName:=Image.Title;
-        end
-        else
-         ExtractDialogue.FileName:=GetWindowsFilename(dir,entry);
-        //Get the result
-        saver:=ExtractDialogue.Execute;
-        //User clicked on Cancel, so exit
-        if not saver then exit;
-        if (saver) and (selectroot) then //Root was selected, so create the directory
-        begin
-         CreateDir(ExtractDialogue.FileName);
-         ExtractDialogue.Filename:=ExtractDialogue.Filename+PathDelim+'root';
-        end;
-       end;
-       if s>0 then saver:=True;
-       //Download a single file
-       if saver then
-        //Do not download if the parent is selected, as this will get downloaded anyway
-        if not DirList.Selections[s].Parent.Selected then
-         DownLoadFile(dir,entry,ExtractFilePath(ExtractDialogue.FileName));
+       //Set the default filename as either the disc title or '$'
+       if Image.Title='' then
+        ExtractDialogue.FileName:=DirList.Items[0].Text
+       else
+        ExtractDialogue.FileName:=Image.Title;
+      end
+      else
+       ExtractDialogue.FileName:=GetWindowsFilename(dir,entry);
+      //Get the result
+      saver:=ExtractDialogue.Execute;
+      //User clicked on Cancel, so exit
+      if not saver then exit;
+      if (saver) and (selectroot) then //Root was selected, so create the directory
+      begin
+       CreateDir(ExtractDialogue.FileName);
+       ExtractDialogue.Filename:=ExtractDialogue.Filename+PathDelim+'root';
       end;
      end;
+     if s>0 then saver:=True;
+     //Download a single file
+     if saver then
+      //Do not download if the parent is selected, as this will get downloaded anyway
+      if not DirList.Selections[s].Parent.Selected then
+       DownLoadFile(dir,entry,ExtractFilePath(ExtractDialogue.FileName));
+    end;
    end;
+  end;
 end;
 
 {------------------------------------------------------------------------------}
 //Create an Image filename
 {------------------------------------------------------------------------------}
-function TMainForm.GetImageFilename(dir,entry: Integer): AnsiString;
+function TMainForm.GetImageFilename(dir,entry: Integer): String;
 begin
  if Length(Image.Disc[dir].Entries)=0 then
   Result:=Image.Disc[dir].Directory
@@ -742,7 +790,7 @@ end;
 {------------------------------------------------------------------------------}
 //Create a Windows filename
 {------------------------------------------------------------------------------}
-function TMainForm.GetWindowsFilename(dir,entry: Integer): AnsiString;
+function TMainForm.GetWindowsFilename(dir,entry: Integer): String;
 var
  extsep: Char;
 begin
@@ -767,12 +815,12 @@ end;
 {------------------------------------------------------------------------------}
 //Download a file
 {------------------------------------------------------------------------------}
-procedure TMainForm.DownLoadFile(dir,entry: Integer;path: AnsiString);
+procedure TMainForm.DownLoadFile(dir,entry: Integer;path: String);
 var
  F              : TFileStream;
  buffer         : TDIByteArray;
  imagefilename,
- windowsfilename: AnsiString;
+ windowsfilename: String;
 begin
  // Ensure path ends in a directory separator
  if path[Length(path)]<>PathDelim then path:=path+PathDelim;
@@ -804,12 +852,12 @@ end;
 {------------------------------------------------------------------------------}
 //Create an inf file - MOVE INTO THE UTILS MODULE
 {------------------------------------------------------------------------------}
-procedure TMainForm.CreateINFFile(dir,entry: Integer; path: AnsiString);
+procedure TMainForm.CreateINFFile(dir,entry: Integer; path: String);
 var
  F              : TFileStream;
  inffile,
  imagefilename,
- windowsfilename: AnsiString;
+ windowsfilename: String;
  attributes     : Byte;
  t              : Integer;
 const
@@ -854,10 +902,10 @@ end;
 {------------------------------------------------------------------------------}
 //Download an entire directory
 {------------------------------------------------------------------------------}
-procedure TMainForm.DownLoadDirectory(dir,entry: Integer;path: AnsiString);
+procedure TMainForm.DownLoadDirectory(dir,entry: Integer;path: String);
 var
  imagefilename,
- windowsfilename: AnsiString;
+ windowsfilename: String;
  ref            : Cardinal;
  c,s            : Integer;
 begin
@@ -901,12 +949,14 @@ end;
 {------------------------------------------------------------------------------}
 //Open a disc image from file
 {------------------------------------------------------------------------------}
-procedure TMainForm.OpenImage(filename: AnsiString);
+procedure TMainForm.OpenImage(filename: String);
 begin
  //Show a progress message
  ProgressForm.Show;
  //Process the messages to close the file dialogue box
  Application.ProcessMessages;
+ //Close any open hex dump windows
+ CloseAllHexDumps;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -931,38 +981,37 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Adds a directory to the TreeView - is called recursively to drill down the tree
+{------------------------------------------------------------------------------}
+procedure TMainForm.AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer; var highdir: Integer);
+var
+ entry: Integer;
+ Node: TTreeNode;
+begin
+ //Make a note of the dir ref, it is the highest
+ if dir>highdir then highdir:=dir;
+ //Set the 'IsDir' flag to true, as this is a directory
+ TMyTreeNode(CurrDir).IsDir:=True;
+ //Iterate though all the entries
+ for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
+ begin
+  //Adding new nodes for each one
+  Node:=AddFileToTree(CurrDir,Image.Disc[dir].Entries[entry].Filename,entry,false);
+  //If it is, indeed, a direcotry, the dir ref will point to the sub-dir
+  if Image.Disc[dir].Entries[entry].DirRef>=0 then
+  //and we'll recursively call ourself to add these entries
+   AddDirectoryToTree(Node,Image.Disc[dir].Entries[entry].DirRef,highdir);
+ end;
+end;
+
+{------------------------------------------------------------------------------}
 //Reset the display for a new/loaded image
 {------------------------------------------------------------------------------}
-procedure TMainForm.ShowNewImage(title: AnsiString);
+procedure TMainForm.ShowNewImage(title: String);
 var
  //Used as a marker to make sure all directories are displayed.
  //Some double sided discs have each side as separate discs
  highdir    : Integer;
- //Adds a directory to the TreeView - is called recursively to drill down the tree
- procedure AddDirectory(CurrDir: TTreeNode; dir: Integer);
- var
-  entry: Integer;
-  Node: TTreeNode;
- begin
-  //Make a note of the dir ref, it is the highest
-  if dir>highdir then highdir:=dir;
-  //Set the 'IsDir' flag to true, as this is a directory
-  TMyTreeNode(CurrDir).IsDir:=True;
-  //Iterate though all the entries
-  for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
-  begin
-   //Adding new nodes for each one
-   Node:=DirList.Items.AddChild(CurrDir,Image.Disc[dir].Entries[entry].Filename);
-   //Making a note of the dir ref
-   TMyTreeNode(Node).Dir:=dir;
-   //And setting the IsDir flag to false - this will be set to True if it is a dir
-   TMyTreeNode(Node).IsDir:=False;
-   //If it is, indeed, a direcotry, the dir ref will point to the sub-dir
-   if Image.Disc[dir].Entries[entry].DirRef>=0 then
-   //and we'll recursively call ourself to add these entries
-    AddDirectory(Node,Image.Disc[dir].Entries[entry].DirRef);
-  end;
- end;
 begin
   //Clear all the labels, and enable/disable the buttons
   ResetFileFields;
@@ -985,7 +1034,7 @@ begin
     //double sided discs)
     repeat
      //This will initiate the recursion through the directory structure, per side
-     AddDirectory(DirList.Items.Add(nil,Image.Disc[highdir].Directory),highdir);
+     AddDirectoryToTree(DirList.Items.Add(nil,Image.Disc[highdir].Directory),highdir,highdir);
      //Finished on this directory structure, so increase the highdir
      inc(highdir);
      //and continue until we have everything on the disc. This will, in effect,
@@ -1022,6 +1071,11 @@ begin
     btn_ImageDetails.Enabled:=True;
     menuImageDetails.Enabled:=True;
    end;
+   if Image.FormatNumber shr 4=1 then
+   begin
+    btn_FixADFS.Enabled:=True;
+    menuFixADFS.Enabled:=True;
+   end;
    //Enable the search area
    ed_filenamesearch.Enabled:=True;
    ed_lengthsearch.Enabled  :=True;
@@ -1039,7 +1093,7 @@ end;
 procedure TMainForm.UpdateImageInfo;
 var
  i: Integer;
- title: AnsiString;
+ title: String;
 begin
  //Only if there is a valid image
  if Image.FormatNumber<>$FF then
@@ -1083,7 +1137,7 @@ var
  filename,
  filetype,
  location,
- title    : AnsiString;
+ title    : String;
  multiple : Char;
 begin
  filetype:='';
@@ -1094,8 +1148,8 @@ begin
  if DirList.SelectionCount>1 then
   multiple:='s';
  //Change the menu names - we'll change these to 'Directory', if needed, later
- ExtractFile1.Caption   :='&Extract File'+multiple;
- menuExtractFile.Caption:='&Extract File'+multiple;
+ ExtractFile1.Caption   :='&Extract File'+multiple+'...';
+ menuExtractFile.Caption:='&Extract File'+multiple+'...';
  btn_download.Hint      :='Extract File'+multiple;
  RenameFile1.Caption    :='&Rename File'+multiple;
  menuRenameFile.Caption :='&Rename File'+multiple;
@@ -1110,6 +1164,9 @@ begin
  DeleteFile1.Enabled    :=DirList.SelectionCount>0;
  btn_Delete.Enabled     :=DirList.SelectionCount>0;
  menuDeleteFile.Enabled :=DirList.SelectionCount>0;
+ HexDump1.Enabled       :=DirList.SelectionCount=1;
+ menuHexDump.Enabled    :=DirList.SelectionCount=1;
+ btn_HexDump.Enabled    :=DirList.SelectionCount=1;
  //Disable the Add Files and Rename menu
  AddFile1.Enabled        :=False;
  btn_AddFiles.Enabled    :=False;
@@ -1146,7 +1203,7 @@ begin
   //If the node does not have a parent, then the dir ref is the one contained
   //in the extra info. Otherwise is -1
   if Node.Parent<>nil then
-   dir  :=TMyTreeNode(Node).Dir;
+   dir  :=TMyTreeNode(Node).ParentDir;
   //Then, get the filename and filetype of the file...not directory
   if dir>=0 then
   begin
@@ -1217,8 +1274,8 @@ begin
     else
      filetype:='Directory';
     //Change the menu text
-    ExtractFile1.Caption   :='&Extract '+filetype;
-    menuExtractFile.Caption:='&Extract '+filetype;
+    ExtractFile1.Caption   :='&Extract '+filetype+'...';
+    menuExtractFile.Caption:='&Extract '+filetype+'...';
     btn_download.Hint      :='Extract '+filetype;
     RenameFile1.Caption    :='&Rename '+filetype;
     menuRenameFile.Caption :='&Rename '+filetype;
@@ -1263,6 +1320,11 @@ begin
    btn_NewDirectory.Enabled:=False;
    menuNewDir.Enabled      :=False;
   end;
+{  //Testing - can be safetly removed
+  if TMyTreeNode(Node).ParentDir<>-1 then
+  filename:=filename
+  +' dir:'+IntToStr(dir)+' entry:'+IntToStr(entry)
+  +' ParentDir:'+IntToStr(TMyTreeNode(Node).ParentDir);}
   //Filename
   lb_FileName.Caption:=filename;
   //Filetype Image
@@ -1281,8 +1343,11 @@ begin
   img_FileType.Canvas.Rectangle(0,0,34,34);
   //Paint the picture onto it
   FullSizeTypes.GetBitmap(ft,img_FileType.Picture.Bitmap);
-  //Filetype text
-  lb_FileType.Caption:=filetype;
+  //Filetype text - only show for certain systems
+  if(Image.FormatNumber shr 4=1) //ADFS
+  or(Image.FormatNumber shr 4=2) //C64
+  or(Image.FormatNumber shr 4=4) then //AmigaDOS
+   lb_FileType.Caption:=filetype;
   if dir>=0 then
   begin
    //CRC32
@@ -1290,8 +1355,9 @@ begin
                                       Image.DirSep+filename);
    //Parent
    lb_parent.Caption:=Image.Disc[dir].Entries[entry].Parent;
-   //Timestamp
-   if Image.Disc[dir].Entries[entry].TimeStamp>0 then
+   //Timestamp - ADFS only
+   if(Image.Disc[dir].Entries[entry].TimeStamp>0)
+   and(Image.FormatNumber shr 4=1)then
     lb_timestamp.Caption:=FormatDateTime('hh:nn:ss dd mmm yyyy',
                                        Image.Disc[dir].Entries[entry].TimeStamp)
    else
@@ -1347,10 +1413,10 @@ end;
 procedure TMainForm.DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
 var
  ft,i,dir,entry: Integer;
- filetype      : AnsiString;
+ filetype      : String;
 begin
  //The directory and entry references, as always
- dir  :=TMyTreeNode(Node).Dir;
+ dir  :=TMyTreeNode(Node).ParentDir;
  entry:=Node.Index;
  //Are we ADFS?
  if (Image.FormatNumber>=$10) and (Image.FormatNumber<=$1F) then
@@ -1435,6 +1501,8 @@ procedure TMainForm.FormShow(Sender: TObject);
 var
  i: Integer;
 begin
+ //Keep the application open
+ KeepOpen:=True;
  //Initial width and height of form
  Width:=1042;
  Height:=751;
@@ -1452,6 +1520,8 @@ begin
  //There are some commands
  if ParamCount>0 then
  begin
+  //Close the application after parsing
+  KeepOpen:=False;
   //Parse each one
   for i:=1 to ParamCount do ParseCommandLine(ParamStr(i));
   //Save and close the application as there are commands
@@ -1460,7 +1530,8 @@ begin
    Image.SaveToFile(Image.Filename);
    HasChanged:=False;
   end;
-  MainForm.Close;
+  //Close the application, unless otherwise specified
+  if not KeepOpen then MainForm.Close;
  end;
 end;
 
@@ -1482,6 +1553,7 @@ begin
  btn_AddFiles.Enabled     :=False;
  btn_NewDirectory.Enabled :=False;
  btn_SaveAsCSV.Enabled    :=False;
+ btn_FixADFS.Enabled      :=False;
  //Pop up Menu items
  ExtractFile1.Enabled     :=False;
  RenameFile1.Enabled      :=False;
@@ -1492,7 +1564,7 @@ begin
  menuNewImage.Enabled     :=True;
  menuOpenImage.Enabled    :=True;
  menuSaveImage.Enabled    :=False;
- menuSaveAsCSV.Enabled     :=False;
+ menuSaveAsCSV.Enabled    :=False;
  menuCloseImage.Enabled   :=False;
  menuImageDetails.Enabled :=False;
  menuExtractFile.Enabled  :=False;
@@ -1501,6 +1573,7 @@ begin
  menuAddFile.Enabled      :=False;
  menuNewDir.Enabled       :=False;
  menuAbout.Enabled        :=True;
+ menuFixADFS.Enabled      :=False;
  //Disable the search area
  ed_filenamesearch.Enabled:=False;
  ed_lengthsearch.Enabled  :=False;
@@ -1516,12 +1589,12 @@ end;
 {------------------------------------------------------------------------------}
 //Parse any command line options
 {------------------------------------------------------------------------------}
-procedure TMainForm.ParseCommandLine(cmd: AnsiString);
+procedure TMainForm.ParseCommandLine(cmd: String);
 var
  index  : Integer;
  option,
  param,
- param2 : AnsiString;
+ param2 : String;
  Dir    : TSearchRec;
  F      : TFileStream;
 const DiscFormats = //Accepted format strings
@@ -1649,6 +1722,9 @@ begin
    begin
     //Select the file
     SelectNode(param);
+    if param2='' then ExtractDialogue.FileName:=PathDelim
+    else ExtractDialogue.FileName:=param2+PathDelim;
+    ExtractFiles(False);
    end;
    //Commands that require a second parameter -----------------------------------
    if param2<>'' then
@@ -1681,6 +1757,9 @@ begin
    //Update the status bar
    UpdateImageInfo
   end;
+ //Keep Application Open +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ if (option='--keepopen') or (option='-k') then
+  KeepOpen:=True;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1694,6 +1773,8 @@ begin
  Image:=TDiscImage.Create;
  //Used for dragging and dropping
  imgCopy.Parent:=DirList;
+ //Turn error reporting on
+ ErrorReporting:=True;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1719,23 +1800,36 @@ end;
 {------------------------------------------------------------------------------}
 //Select a node
 {------------------------------------------------------------------------------}
-procedure TMainForm.SelectNode(filename: AnsiString);
+procedure TMainForm.SelectNode(filename: String);
 var
- entry,
- dir,i : Integer;
- ptr   : Cardinal;
+ i,
+ found  : Integer;
+ dirname:String;
+ Node:TTreeNode;
 begin
- ptr:=0;
- //First, get the reference
- Image.FileExists(filename,ptr);
- entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
- dir  :=ptr div $10000;  //Top 16 bits - directory reference
- //Then find the node
- for i:=0 to DirList.Items.Count-1 do
-  if  (TMyTreeNode(DirList.Items[i]).Dir=dir)
-  and (DirList.Items[i].Index=entry) then
-   //and select it
-   DirList.Items[i].Selected:=True;
+ //Unselect everything
+ DirList.ClearSelection;
+ //Marker for our found item
+ found:=-1;
+ //Go through each one
+ i:=0;
+ while(i<DirList.Items.Count)AND(found=-1)do
+ begin
+  //Prepare the full path
+  dirname:=DirList.Items[i].Text;
+  //We will start at this node and work back to build the path
+  Node:=DirList.Items[i];
+  while Node.Parent<>nil do
+  begin
+   Node:=Node.Parent;
+   dirname:=Node.Text+Image.DirSep+dirname;
+  end;
+  //If it matches, then take a note
+  if dirname=filename then found:=i;
+  inc(i);
+ end;
+ if found>=0 then //and select it
+  DirList.Items[found].Selected:=True;
  //We'll need to give the tree focus, so it shows up
  DirList.SetFocus;
 end;
@@ -1755,7 +1849,7 @@ end;
 procedure TMainForm.btn_SaveImageClick(Sender: TObject);
 var
  ext,
- filename: AnsiString;
+ filename: String;
 begin
  //Remove the existing part of the original filename
  filename:=ExtractFileName(Image.Filename);
@@ -1796,17 +1890,17 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Open an image or add a new file to the disc image, by drag and dropping
+//Open an image, add a new file, or import another image to the disc image
 {------------------------------------------------------------------------------}
 procedure TMainForm.FormDropFiles(Sender: TObject;
- const FileNames: array of AnsiString);
+ const FileNames: array of String);
 var
  msg,fmt,
- FileName : AnsiString;
- NewImage : TDiscImage;
- open     : Byte;
+ FileName  : String;
+ NewImage  : TDiscImage;
+ open      : Byte;
 const
- dlg = 'Open Or Add?';
+ dlg = 'Open, Add, or Import Contents?';
 begin
  //Create a new DiscImage instance
  NewImage:=TDiscImage.Create;
@@ -1834,21 +1928,142 @@ begin
     //Is the first letter a vowel?
     if(fmt[1]='A')or(fmt[1]='E')or(fmt[1]='I')or(fmt[1]='O')or(fmt[1]='U')then
      msg:=msg+'n';
-    msg:=msg+' '+fmt+' image or add this file to existing image?';
+    msg:=msg+' '+fmt+' image, add this file to existing image, ';
+    msg:=msg+'import this file''s contents to existing image?';
     //Pose question
-    if QuestionDlg(dlg,msg,mtConfirmation,[300,'Open',301,'Add'],0)=300 then
-     open:=$01 else open:=$02; //Change state, depending on the answer
+    open:=QuestionDlg(dlg,msg,mtConfirmation,
+                   [300,'Open',301,'Add',302,'Import'],0)-299;
    end;
    if open=$02 then //Add file
     AddFileToImage(FileName);
    if open=$01 then //Open image
     if QueryUnsaved then OpenImage(FileName);
+   if open=$03 then //Import contents
+    ImportFiles(NewImage);
   end
   else //Bulk add from a directory
    AddDirectoryToImage(FileName);
  end;
  //Free up the DiscImage instance
  NewImage.Free;
+end;
+
+{------------------------------------------------------------------------------}
+//Import an image's contents into the current image
+{------------------------------------------------------------------------------}
+procedure TMainForm.ImportFiles(NewImage: TDiscImage);
+var
+ Node      : TTreeNode;
+ newentry  : TDirEntry;
+ rootname  : String;
+ curformat,
+ newformat : Byte;
+ dir,
+ entry     : Cardinal;
+ index     : Integer;
+ buffer    : TDIByteArray;
+begin
+ //Show a progress message
+ ProgressForm.Show;
+ //Process the messages to close the file dialogue box
+ Application.ProcessMessages;
+ //Import the contents
+ NewImage.ReadImage;//First, read in the catalogue
+ //Turn error reporting off
+ ErrorReporting:=False;
+ //Get the name of the directory where this is being imported
+ if DirList.SelectionCount>0 then
+ begin
+  if TMyTreeNode(DirList.Selections[0]).IsDir then
+   Node:=DirList.Selections[0]
+  else
+   Node:=DirList.Selections[0].Parent;
+  //We need the complete path, from the root
+  rootname:=Node.Text;
+  while Node.Parent<>nil do
+  begin
+   Node:=Node.Parent;
+   rootname:=Node.Text+Image.DirSep+rootname;
+  end;
+ end
+ else //Nothing selected, then this is the root
+  rootname:=Image.Disc[0].Directory;
+ curformat:=Image.FormatNumber shr 4;   //Format of the current open image
+ newformat:=NewImage.FormatNumber shr 4;//Format of the importing image
+ //Go through each directory
+ if Length(NewImage.Disc)>0 then
+  for dir:=0 to Length(NewImage.Disc)-1 do
+   if Length(NewImage.Disc[dir].Entries)>0 then
+    for entry:=0 to Length(NewImage.Disc[dir].Entries)-1 do
+    begin
+     newentry:=NewImage.Disc[dir].Entries[entry];
+     //Validate the filename, as it could be different across file systems
+     if newformat<>0 then WinToBBC(newentry.Filename); //Not DFS
+     //DFS and C64 don't have directories, so the parent is the selected node
+     if(newformat=2)or(newformat=0) then newentry.Parent:=rootname;
+     //If going to DFS or C64
+     if(curformat=0)or(curformat=2) then
+     begin
+      //If coming from ADFS or Amiga, and is inside a directory,
+      //add the first letter of this.
+      if((newformat=1)or(newformat=4))
+      and(newentry.Parent<>NewImage.Disc[0].Directory)then
+      begin
+       index:=Length(newentry.Parent);
+       while(newentry.Parent[index]<>NewImage.DirSep)and(index>1)do dec(index);
+       if index=Length(newentry.Parent) then index:=0;
+       newentry.Filename:=newentry.Parent[index+1]+'.'+newentry.Filename;
+      end;
+      //Make the root the parent
+      newentry.Parent:=rootname;
+     end;
+     //Coming from DFS and first letter holds the directory?
+     //And going to ADFS or Amiga?
+     if(newformat=0)and(newentry.Filename[2]='.')and((curformat=1)or(curformat=4)) then
+     begin
+      //Then create the directory
+      SelectNode(rootname);
+      //This will fail if already created, but we've suppressed errors
+      CreateDirectory(newentry.Filename[1],'DLR');
+      newentry.Parent:=rootname+Image.DirSep+newentry.Filename[1];
+      newentry.Filename:=Copy(newentry.Filename,3,Length(newentry.Filename));
+     end;
+     //Going to ADFS, from another system, ensure it has 'WR' attributes
+     if(curformat=1)and(curformat<>newformat)then
+     begin
+      if Pos('W',newentry.Attributes)=0 then
+       newentry.Attributes:=newentry.Attributes+'W';
+      if Pos('R',newentry.Attributes)=0 then
+       newentry.Attributes:=newentry.Attributes+'R';
+     end;
+     //Select the parent directory
+     SelectNode(newentry.Parent);
+     //Is it a directory we're adding? ADFS and Amiga only
+     if(newentry.DirRef>=0)and((curformat=1)or(curformat=4)) then
+     begin
+      //Create the directory
+      if newentry.Filename<>'$' then
+       CreateDirectory(newentry.Filename,'DLR');
+     end;
+     //Is it a file
+     if newentry.DirRef=-1 then
+      //Read the file in
+      if NewImage.ExtractFile(NewImage.Disc[dir].Entries[entry].Parent
+                             +NewImage.DirSep
+                             +NewImage.Disc[dir].Entries[entry].Filename,
+                              buffer) then
+      begin
+       //Write it out to the current image
+       index:=Image.WriteFile(newentry,buffer);
+       //Then add it to the tree, if successful
+       if index>=0 then
+        AddFileToTree(DirList.Selected,newentry.Filename,index,False);
+      end;
+    end;
+ //Turn error reporting on
+ ErrorReporting:=True;
+ //Hide the progress message
+ ProgressForm.Hide;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1876,7 +2091,7 @@ end;
 procedure TMainForm.ed_titleEditingDone(Sender: TObject);
 var
  filename,
- newtitle  : AnsiString;
+ newtitle  : String;
 begin
  //Get the filename of the directory being edited
  filename:=lb_Filename.Caption;
@@ -1906,7 +2121,7 @@ var
  titles    : array[0..1] of TEdit;
  boots     : array[0..1] of TComboBox;
  bootlbs   : array[0..1] of TLabel;
- title     : AnsiString;
+ title     : String;
  numsides,
  size      : Byte;
 begin
@@ -2037,6 +2252,7 @@ procedure TMainForm.btn_CloseImageClick(Sender: TObject);
 begin
  if QueryUnsaved then
  begin
+  CloseAllHexDumps;
   Image.Close;
   ShowNewImage('');
   UpdateImageInfo;
@@ -2045,12 +2261,33 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Fix the ADFS Broken Directories
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_FixADFSClick(Sender: TObject);
+var
+ c: Boolean;
+begin
+ //Show a progress message
+ ProgressForm.Show;
+ //Process the messages to close the file dialogue box
+ Application.ProcessMessages;
+ //Run the procedure
+ c:=Image.FixDirectories;
+ //If it changed, the refresh the display (as some directories might not have
+ if c then ShowNewImage(Image.Filename); //got read first time round
+ //Change the Has Changed flag
+ HasChanged:=HasChanged OR c;
+ //Hide the progress message
+ ProgressForm.Hide;
+end;
+
+{------------------------------------------------------------------------------}
 //Create a new directory click
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewDirectoryClick(Sender: TObject);
 var
  dirname,
- parentdir : AnsiString;
+ parentdir : String;
  x         : Integer;
  ref       : Cardinal;
 begin
@@ -2058,7 +2295,7 @@ begin
  //Assume the root, for now
  parentdir:='$';
  if DirList.Selected.Text<>'$' then //If not the root, get the parent directory
-  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selected).Dir,
+  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
                                           DirList.Selected.Index);
  //Default name
  dirname:='NewDir';
@@ -2080,7 +2317,7 @@ var
  dir,
  entry    : Integer;
  filename,
- ext      : AnsiString;
+ ext      : String;
 begin
  //Remove the existing part of the original filename
  filename:=ExtractFileName(Image.Filename);
@@ -2123,11 +2360,25 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Split a DSD or combine two SSDs
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_SplitDFSClick(Sender: TObject);
+begin
+ SplitDFSForm.ShowModal;
+ //Report back to the user the result
+ if SplitDFSForm.ModalResult=mrOK then
+  ReportError('Operation was a success'); //Not really an error
+ if SplitDFSForm.ModalResult=mrAbort then
+  ReportError('Operation failed');        //Certainly an error
+ //We'll ignore cancel, as this was a user operation
+end;
+
+{------------------------------------------------------------------------------}
 //Create a new directory
 {------------------------------------------------------------------------------}
-function TMainForm.CreateDirectory(dirname, attr: AnsiString): TTreeNode;
+function TMainForm.CreateDirectory(dirname, attr: String): TTreeNode;
 var
- parentdir: AnsiString;
+ parentdir: String;
  index    : Integer;
  Node     : TTreeNode;
 begin
@@ -2135,13 +2386,14 @@ begin
  //Assume the root, for now
  parentdir:='$';
  if DirList.Selected.Text<>'$' then //If not the root, get the parent directory
-  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selected).Dir,
+  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
                                           DirList.Selected.Index);
  //Add it
  index:=Image.CreateDirectory(dirname,parentdir,attr);
  //Function returns pointer to next item (or parent if no children)
  if index>-1 then //Directory added OK
  begin
+  HasChanged:=True;
   Node:=AddFileToTree(DirList.Selected,dirname,index,True);
   //Select the new node
   DirList.ClearSelection;
@@ -2163,28 +2415,49 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//During a drag, check if the user has pressed a key modifier
+{------------------------------------------------------------------------------}
+procedure TMainForm.DirListKeyDown(Sender: TObject; var Key: Word;
+ Shift: TShiftState);
+begin
+ if(MouseIsDown)and(IsDragging)then
+  ImgCopy.Visible:=GetCopyMode(Shift);
+end;
+
+{------------------------------------------------------------------------------}
+//During a drag, check if the user has released a key modifier
+{------------------------------------------------------------------------------}
+procedure TMainForm.DirListKeyUp(Sender: TObject; var Key: Word;
+ Shift: TShiftState);
+begin
+ if(MouseIsDown)and(IsDragging)then
+  ImgCopy.Visible:=True;
+end;
+
+{------------------------------------------------------------------------------}
 //User has initiated a drag operation on the directory list
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListMouseDown(Sender: TObject; Button: TMouseButton;
  Shift: TShiftState; X, Y: Integer);
 begin
- //ADFS, double sided DFS, or AmigaDOS
- if((Image.FormatNumber shr 4=0) AND (Image.DoubleSided))
- or (Image.FormatNumber shr 4=1)
- or (Image.FormatNumber shr 4=4) then
- begin
-  //Remember the node being dragged
-  DraggedItem:=DirList.GetNodeAt(X,Y);
-  //If it is valid
-  if DraggedItem<>nil then
+ if ssLeft in Shift then //Only if left button is clicked
+  //ADFS, double sided DFS, or AmigaDOS
+  if((Image.FormatNumber shr 4=0) AND (Image.DoubleSided))
+  or (Image.FormatNumber shr 4=1)
+  or (Image.FormatNumber shr 4=4) then
   begin
-   //Set the mouse down flag
-   MouseIsDown :=True;
-   //Remember the mouse position
-   CursorPos.X:=X;
-   CursorPos.Y:=Y;
+   //Remember the node being dragged
+   DraggedItem:=DirList.GetNodeAt(X,Y);
+   //If it is valid
+   if DraggedItem<>nil then
+   begin
+    //Set the mouse down flag
+    MouseIsDown :=True;
+    //Remember the mouse position
+    CursorPos.X:=X;
+    CursorPos.Y:=Y;
+   end;
   end;
- end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2234,18 +2507,19 @@ begin
    //We are dragging the control
    IsDragging:=True;
    //Are we over another node?
-   Dst:=DirList.GetNodeAt(X,Y);
+   Dst:=DirList.GetNodeAt(X,Y);//Node under the cursor
    if(DraggedItem<>nil)AND(Dst<>nil)AND(DraggedItem<>Dst) then
    begin
     //If it is not a directory, then get the parent
     if not TMyTreeNode(Dst).IsDir then
      Dst:=Dst.Parent;
+    //Clear any selections and then highlight the original item
+    DirList.ClearSelection;
+    DraggedItem.Selected:=True;
     //Only allow copying if it is a different parent and not within itself
     if(DraggedItem<>Dst)AND(DraggedItem.Parent<>Dst)then
     begin
-     //Highlight it, keeping the original highlighted
-     DirList.ClearSelection;
-     DraggedItem.Selected:=True;
+     //Highlight it
      Dst.Selected:=True;
      //Expand the folder tree
      Dst.Expand(False);
@@ -2330,8 +2604,12 @@ procedure TMainForm.DirListMouseUp(Sender: TObject; Button: TMouseButton;
 var
  Xmovement,
  Ymovement,
- index      : Integer;
- Dst        : TTreeNode;
+ index,i,
+ dir,
+ entry      : Integer;
+ ref        : Cardinal;
+ Dst,
+ NewNode    : TTreeNode;
  copymode   : Boolean;
 begin
  copymode:=GetCopyMode(Shift);
@@ -2359,33 +2637,67 @@ begin
     //Only allow copying if it is a different parent and not within itself
     if(DraggedItem<>Dst)AND(DraggedItem.Parent<>Dst)then
     begin
-     //Currently only files - this needs to be written.
-     if TMyTreeNode(DraggedItem).IsDir then
-      ReportError('The functionality to copy/move directories has not yet been written.')
-     else
+     //Do the copy/move
+     if copymode then //copy
+      index:=Image.CopyFile(GetFilePath(DraggedItem),GetFilePath(Dst))
+     else             //move
+     begin
+      index:=Image.MoveFile(GetFilePath(DraggedItem),GetFilePath(Dst));
+      //Update any open hexdumps
+      if index>=0 then
+       if Length(HexDump)>0 then
+        for i:=0 to Length(HexDump)-1 do
+        begin
+         //Update the window title
+         if HexDump[i].Caption=GetFilePath(DraggedItem) then
+          HexDump[i].Caption:=GetFilePath(Dst);
+         //Update the menu item
+         if HexDumpMenu.Count>i then
+          if HexDumpMenu.Items[i].Caption=GetFilePath(DraggedItem) then
+           HexDumpMenu.Items[i].Caption:=GetFilePath(Dst);
+        end;
+     end;
+     //Update the display
+     if index>=0 then
+     begin
+      HasChanged:=True;
+      NewNode:=AddFileToTree(Dst,DraggedItem.Text,index,
+                             TMyTreeNode(DraggedItem).IsDir);
+      //Did we just copy a directory?
+      if TMyTreeNode(DraggedItem).IsDir then
       begin
-       //Do the copy/move
-       if copymode then
-        index:=Image.CopyFile(GetFilePath(DraggedItem),GetFilePath(Dst))
-       else
-        index:=Image.MoveFile(GetFilePath(DraggedItem),GetFilePath(Dst));
-       //Update the display
-       if index>=0 then AddFileToTree(Dst,DraggedItem.Text,index,False);
-       if index<0 then
-       begin
-        //For some reason the operation failed to write the data these are the error
-        //codes returned when writing a file, as it uses the same function)
-        if index=-1 then ReportError('Could not load "'+DraggedItem.Text+'"');
-        if index=-2 then ReportError('Could not add file - image full');
-        if index=-3 then ReportError('File already exists in directory');
-        if index=-4 then ReportError('Catalogue full');
-        if index=-5 then ReportError('Could not write file - error unknown');
-        if index=-6 then ReportError('Destination directory does not exist');
-        If index=-7 then ReportError('Could not write file - map full');
-        if index=-8 then ReportError('Could not write file - nothing to write');
-        if index=-9 then ReportError('Cannot move or copy to the same directory');
-       end;
+       //Add all the items within
+       Image.FileExists(GetFilePath(Dst)+Image.DirSep+DraggedItem.Text,ref);
+       entry:=ref mod $10000;  //Bottom 16 bits - entry reference
+       dir  :=ref div $10000;  //Top 16 bits - directory reference
+       //Get the pointer to the parent directory
+       dir:=Image.Disc[dir].Entries[entry].DirRef;
+       HasChanged:=True;
+       //Now recursively add the contents of the newly created directory
+       AddDirectoryToTree(NewNode,dir,dir);
       end;
+      //If we moved, we'll need to remove the old node too
+      if not copymode then
+      begin
+       DraggedItem.Delete;
+       ResetFileFields;
+      end;
+     end;
+     if index<0 then
+     begin
+      //For some reason the operation failed to write the data these are the error
+      //codes returned when writing a file, as it uses the same function)
+      if index=-1  then ReportError('Could not load "'+DraggedItem.Text+'"');
+      if index=-2  then ReportError('Could not add file - image full');
+      if index=-3  then ReportError('File already exists in directory');
+      if index=-4  then ReportError('Catalogue full');
+      if index=-5  then ReportError('Could not write file - error unknown');
+      if index=-6  then ReportError('Destination directory does not exist');
+      If index=-7  then ReportError('Could not write file - map full');
+      if index=-8  then ReportError('Could not write file - nothing to write');
+      if index=-9  then ReportError('Cannot move or copy to the same directory');
+      if index=-10 then ReportError('Could not find source file');
+     end;
     end;
    end;
   end;
@@ -2434,6 +2746,7 @@ begin
    //Now create the image
    if Image.Format(NewImageForm.MainFormat.ItemIndex,minor,tracks) then
    begin
+    CloseAllHexDumps;
     HasChanged:=True;
     ShowNewImage(Image.Filename);  //This updates the status bar
    end
@@ -2448,7 +2761,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.AttributeChangeClick(Sender: TObject);
 var
- att,filepath: AnsiString;
+ att,filepath: String;
 begin
  if not DoNotUpdate then
  begin
@@ -2487,7 +2800,7 @@ end;
 {------------------------------------------------------------------------------}
 //Get full file path from selected node
 {------------------------------------------------------------------------------}
-function TMainForm.GetFilePath(Node: TTreeNode): AnsiString;
+function TMainForm.GetFilePath(Node: TTreeNode): String;
 begin
  Result:='';
  //Make sure that the node exists
@@ -2526,9 +2839,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DeleteFile(confirm: Boolean);
 var
- i: Integer;
- R: Boolean;
- filepath: AnsiString;
+ i,j     : Integer;
+ R       : Boolean;
+ filepath: String;
 begin
  //Go through all the selections (or the only one)
  for i:=0 to DirList.SelectionCount-1 do
@@ -2549,6 +2862,23 @@ begin
     //Now update the node and filedetails panel
     DirList.Selections[i].Delete;
     ResetFileFields;
+    //Close any open HexDumps
+    if Length(HexDump)>0 then
+     for j:=0 to Length(HexDump)-1 do
+     begin
+      //Remove the window
+      if HexDump[j].Caption=filepath then
+      begin
+       //We can just hide the window, and change the title.
+       HexDump[j].Caption:='Deleted';
+       //When the image is closed, it'll get freed up anyway.
+       HexDump[j].Hide;
+      end;
+      //Remove the menu item
+      if HexDumpMenu.Count>j then
+       if HexDumpMenu.Items[j].Caption=filepath then
+        HexDumpMenu.Items[j].Free;
+     end;
    end;
  end;
 end;
@@ -2558,16 +2888,99 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListDblClick(Sender: TObject);
 var
- Node: TTreeNode;
+ Node    : TTreeNode;
+ index,
+ i,
+ entry,
+ dir     : Integer;
+ filename: String;
+ buffer  : TDIByteArray;
+ menuitem: TMenuItem;
 begin
  //Get the selected Node (currently only a single node can be selected)
  Node:=DirList.Selected;
  //Only act on it if there is one selected
  if Node<>nil then
-  //If it is not a directory, then proceed to download it, otherwise the system
+  //If it is not a directory, then proceed to open it, otherwise the system
   //will just expand the node
   if not (TMyTreeNode(Node).IsDir) then
-   btn_downloadClick(Sender); //Change to open a new window with hex dump inside
+  begin
+   //Get the entry and dir references
+   entry:=Node.Index;
+   dir:=-1;
+   //If the node does not have a parent, then the dir ref is the one contained
+   //in the extra info. Otherwise is -1
+   if Node.Parent<>nil then
+   begin
+    dir  :=TMyTreeNode(Node).ParentDir;
+    //Get the full filename with path
+    filename:=Image.Disc[dir].Entries[entry].Parent+
+              Image.DirSep+
+              Image.Disc[dir].Entries[entry].Filename;
+    //Load the file
+    if Image.ExtractFile(filename,buffer) then
+    begin
+     //Check it is not already open
+     i:=0;
+     index:=-1;
+     while(i<Length(HexDump))and(index=-1)do
+     begin
+      if HexDump[i].Caption=filename then index:=i;
+      inc(i);
+     end;
+     if index=-1 then
+     begin
+      //Get the current number of windows open
+      index:=Length(HexDump);    //this will also point to the last index
+      SetLength(HexDump,index+1);//now that we've increased it by one
+      //Create a new instance of the form
+      HexDump[index]:=THexDumpForm.Create(nil);
+      //Put the name in the caption
+      HexDump[index].Caption:=filename;
+      //Add to the menu
+      menuitem:=TMenuItem.Create(HexDumpMenu);
+      menuitem.Caption:=filename;
+      menuitem.OnClick:=@HexDumpSubItemClick;
+      HexDumpMenu.Add(menuitem);
+     end;
+     //Move the file across
+     SetLength(HexDump[index].buffer,Length(buffer));
+     for i:=0 to Length(buffer)-1 do
+      HexDump[index].buffer[i]:=buffer[i];
+     //And show it
+     HexDump[index].Show;
+    end;
+   end;
+  end;
+end;
+
+{------------------------------------------------------------------------------}
+//User has clicked on a hexdump menu item
+{------------------------------------------------------------------------------}
+procedure TMainForm.HexDumpSubItemClick(Sender: TObject);
+var
+ i: Integer;
+begin
+ i:=0;
+ //Find and open the appropriate hex dump window
+ for i:=0 to Length(HexDump)-1 do
+  if HexDump[i].Caption=TMenuItem(Sender).Caption then HexDump[i].Show;
+end;
+
+{------------------------------------------------------------------------------}
+//User has double clicked on the DirList box
+{------------------------------------------------------------------------------}
+procedure TMainForm.CloseAllHexDumps;
+begin
+ //Close all the HexDump forms dynamically created
+ while Length(HexDump)>0 do
+ begin
+  HexDump[Length(HexDump)-1].Free;
+  SetLength(HexDump,Length(HexDump)-1);
+ end;
+ //Remove all the menu items
+ while HexDumpMenu.Count>0 do
+  HexDumpMenu.Items[0].Free;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2605,12 +3018,13 @@ end;
 procedure TMainForm.DirListEditingEnd(Sender: TObject; Node: TTreeNode;
  Cancel: Boolean);
 var
- newfilename: AnsiString;
- newindex: Integer;
- NewNode: TTreeNode;
+ newfilename,
+ fileparent  : String;
+ newindex,i  : Integer;
+ NewNode     : TTreeNode;
 begin
  newfilename:=Node.Text;
- if not Cancel then
+ if (not Cancel)and(NameBeforeEdit<>newfilename) then
  begin
   //Rename the file
   newindex:=Image.RenameFile(PathBeforeEdit,newfilename);
@@ -2652,6 +3066,22 @@ begin
    end;
    //Update the directory list
    DirListChange(Sender,Node);
+   //Update hex dump window, if it is open
+   if Length(HexDump)>0 then
+   begin
+    //Get the parent details
+    fileparent:=LeftStr(PathBeforeEdit,Length(PathBeforeEdit)-Length(NameBeforeEdit));
+    for i:=0 to Length(HexDump)-1 do
+    begin
+     //Just change the title
+     if HexDump[i].Caption=PathBeforeEdit then
+      HexDump[i].Caption:=fileparent+newfilename;
+     //Need to update the menu item too
+     if HexDumpMenu.Count>i then
+      if HexDumpMenu.Items[i].Caption=PathBeforeEdit then
+       HexDumpMenu.Items[i].Caption:=fileparent+newfilename;
+    end;
+   end;
   end;
  end;
  //Reset the tracking variables
@@ -2742,14 +3172,14 @@ end;
 {------------------------------------------------------------------------------}
 //Converts a number into a string with trailing 'Bytes', 'KB', etc.
 {------------------------------------------------------------------------------}
-function TMainForm.ConvertToKMG(size: Int64): AnsiString;
+function TMainForm.ConvertToKMG(size: Int64): String;
 var
  new_size_int : Int64; //Int64 will allow for huge disc sizes
  new_size_dec,
  level,
  multiplier   : Integer;
 const
- sizes: array[1..6] of AnsiString = ('Bytes','KB','MB','GB','TB','EB');
+ sizes: array[1..6] of String = ('Bytes','KB','MB','GB','TB','EB');
 begin
  //Default is in bytes
  Result:=IntToStr(size)+' '+sizes[1];
@@ -2792,7 +3222,7 @@ end;
 {------------------------------------------------------------------------------}
 //Converts Int64 to string, adding in the thousand separator ','
 {------------------------------------------------------------------------------}
-function TMainForm.IntToStrComma(size: Int64): AnsiString;
+function TMainForm.IntToStrComma(size: Int64): String;
 begin
  Result:=Format('%.0n',[1.0*size]);
 end;
@@ -2834,7 +3264,7 @@ end;
 {------------------------------------------------------------------------------}
 //Validate a filename for Windows
 {------------------------------------------------------------------------------}
-procedure TMainForm.ValidateFilename(var f: AnsiString);
+procedure TMainForm.ValidateFilename(var f: String);
 var
  i: Integer;
 begin
@@ -2854,13 +3284,14 @@ end;
 {------------------------------------------------------------------------------}
 //Report an error to the user
 {------------------------------------------------------------------------------}
-procedure TMainForm.ReportError(error: AnsiString);
+procedure TMainForm.ReportError(error: String);
 begin
- //If we are in command line mode, then do not use the GUI
- if ParamCount>0 then
-  WriteLn(error)
- else //Otherwise, display a nice window on the screen
-  ShowMessage(error);
+ if ErrorReporting then
+  //If we are in command line mode, then do not use the GUI
+  if ParamCount>0 then
+   WriteLn(error)
+  else //Otherwise, display a nice window on the screen
+   QuestionDlg('Error',error,mtError,[mbOK],0);
 end;
 
 end.

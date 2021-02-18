@@ -16,7 +16,7 @@ type
   Filename,                 //Filename (ALL)
   Attributes,               //File attributes (ADFS/DFS/D64/D71/D81/AmigaDOS)
   Filetype,                 //Full name filetype (ADFS/D64/D71/D81)
-  ShortFileType: AnsiString;//Filetype shortname (ADFS/D64/D71/D81)
+  ShortFileType: String;    //Filetype shortname (ADFS/D64/D71/D81)
   LoadAddr,                 //Load Address (ADFS/DFS)
   ExecAddr,                 //Execution Address (ADFS/DFS)
   Length,                   //Total length (ALL)
@@ -35,13 +35,13 @@ type
  TSearchResults =array of TDirEntry;
  //General purpose procedures
  procedure ResetDirEntry(var Entry: TDirEntry);
- procedure RemoveTopBit(var title: AnsiString);
- procedure BBCtoWin(var f: AnsiString);
- procedure WintoBBC(var f: AnsiString);
- procedure RemoveSpaces(var s: AnsiString);
- procedure RemoveControl(var s: AnsiString);
+ procedure RemoveTopBit(var title: String);
+ procedure BBCtoWin(var f: String);
+ procedure WintoBBC(var f: String);
+ procedure RemoveSpaces(var s: String);
+ procedure RemoveControl(var s: String);
  function IsBitSet(v,b: Integer): Boolean;
- function BreakDownInf(s: AnsiString): TStringArray;
+ function BreakDownInf(s: String): TStringArray;
 
 implementation
 
@@ -74,7 +74,7 @@ end;
 {------------------------------------------------------------------------------}
 //Remove top bit set characters
 {------------------------------------------------------------------------------}
-procedure RemoveTopBit(var title: AnsiString);
+procedure RemoveTopBit(var title: String);
 var
  t: Integer;
 begin
@@ -84,7 +84,7 @@ end;
 {------------------------------------------------------------------------------}
 //Convert BBC to Windows filename
 {------------------------------------------------------------------------------}
-procedure BBCtoWin(var f: AnsiString);
+procedure BBCtoWin(var f: String);
 var
  i: Integer;
 begin
@@ -103,7 +103,7 @@ end;
 {------------------------------------------------------------------------------}
 //Convert Windows to BBC filename
 {------------------------------------------------------------------------------}
-procedure WintoBBC(var f: AnsiString);
+procedure WintoBBC(var f: String);
 var
  i: Integer;
 begin
@@ -122,7 +122,7 @@ end;
 {------------------------------------------------------------------------------}
 //Removes trailing spaces from a string
 {------------------------------------------------------------------------------}
-procedure RemoveSpaces(var s: AnsiString);
+procedure RemoveSpaces(var s: String);
 var
  x: Integer;
 begin
@@ -139,10 +139,10 @@ end;
 {------------------------------------------------------------------------------}
 //Removes control characters from a string
 {------------------------------------------------------------------------------}
-procedure RemoveControl(var s: AnsiString);
+procedure RemoveControl(var s: String);
 var
  x: Integer;
- o: AnsiString;
+ o: String;
 begin
  //New String
  o:='';
@@ -172,10 +172,10 @@ end;
 {------------------------------------------------------------------------------}
 //Break down an *.inf file entry
 {------------------------------------------------------------------------------}
-function BreakDownInf(s: AnsiString): TStringArray;
+function BreakDownInf(s: String): TStringArray;
 var
  i: Integer;
- f: AnsiString;
+ f: String;
 begin
  f:='';
  //Remove leading spaces, if any

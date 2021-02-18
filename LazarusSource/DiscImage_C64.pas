@@ -141,7 +141,7 @@ var
  file_chain,
  file_ptr,p,
  ch,c,f,dirTr :Integer;
- temp         : AnsiString;
+ temp         : String;
 begin
  Result:=nil;
  SetLength(Result,1);
@@ -528,7 +528,7 @@ end;
 {-------------------------------------------------------------------------------
 Update the disc title
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateCDRDiscTitle(title: AnsiString): Boolean;
+function TDiscImage.UpdateCDRDiscTitle(title: String): Boolean;
 var
  ptr: Cardinal;
  i: Byte;
@@ -552,7 +552,7 @@ end;
 {-------------------------------------------------------------------------------
 Extracts a file, filename contains complete path
 -------------------------------------------------------------------------------}
-function TDiscImage.ExtractCDRFile(filename: AnsiString;
+function TDiscImage.ExtractCDRFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
  source        : Integer;
@@ -755,7 +755,7 @@ var
  c,
  ptr       : Cardinal;
  sectors   : TDIByteArray;
- temp      : AnsiString;
+ temp      : String;
 begin
  //Track and sector number for the directory
  track:=18;     //Track where the system is
@@ -974,7 +974,7 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
+function TDiscImage.RenameCDRFile(oldfilename: String;var newfilename: String):Integer;
 var
  ptr,entry,dir: Cardinal;
 begin
@@ -1001,7 +1001,7 @@ end;
 {-------------------------------------------------------------------------------
 Delete a file
 -------------------------------------------------------------------------------}
-function TDiscImage.DeleteCDRFile(filename: AnsiString):Boolean;
+function TDiscImage.DeleteCDRFile(filename: String):Boolean;
 var
  ptr,entry,dir,i: Cardinal;
  track,sector   : Byte;
@@ -1040,7 +1040,7 @@ end;
 {-------------------------------------------------------------------------------
 Update a file's attribute or filetype
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateCDRFileAttributes(filename,attributes: AnsiString):Boolean;
+function TDiscImage.UpdateCDRFileAttributes(filename,attributes: String):Boolean;
 var
  ptr,
  dir,

@@ -2,7 +2,7 @@ unit AboutUnit;
 
 //This project is now covered by the GNU GPL v3 licence
 
-{$MODE objFPC}
+{$MODE objFPC}{$H+}
 
 interface
 
@@ -15,6 +15,7 @@ type
 
   TAboutForm = class(TForm)
     CreditsPanel: TPanel;
+    Image1: TImage;
     Label15: TLabel;
     Label16: TLabel;
     lb_Title: TLabel;

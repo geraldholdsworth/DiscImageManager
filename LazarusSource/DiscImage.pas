@@ -2,7 +2,7 @@ unit DiscImage;
 
 //This project is now covered by the GNU GPL v3 licence
 
-{$MODE objFPC}
+{$MODE objFPC}{$H+}
 
 interface
 
@@ -17,10 +17,10 @@ type
   type
   //Free space map
   TTrack = array of TDIByteArray; //TDIByteArray representing the sectors
-  TSide  = array of TTrack;      //Sides
+  TSide  = array of TTrack;       //Sides
   TDir          = record
    Directory,                       //Directory name (ALL)
-   Title       : AnsiString;        //Directory title (DFS/ADFS)
+   Title       : String;            //Directory title (DFS/ADFS)
    Entries     : array of TDirEntry;//Entries (above)
    Broken      : Boolean;           //Flag if directory is broken (ADFS)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
@@ -47,7 +47,8 @@ type
   format_vers,                  //Format version (Acorn ADFS New)
   root_size,                    //Size of the root directory (Acorn ADFS New)
   disc_id,                      //Disc ID (Acorn ADFS)
-  emuheader     : Cardinal;     //Allow for any headers added by emulators
+  emuheader,                    //Allow for any headers added by emulators
+  namesize      : Cardinal;     //Size of the name area (Acorn ADFS Big Dir)
   disc_size,                    //Size of disc in bytes
   free_space    : Int64;        //Free space remaining
   FFormat,                      //Format of the image
@@ -63,14 +64,14 @@ type
   big_flag      : Byte;         //Big flag (Acorn ADFS New)
   disc_name,                    //Disc title(s)
   root_name,                    //Root title
-  imagefilename : AnsiString;   //Filename of the disc image
+  imagefilename : String;       //Filename of the disc image
   dir_sep       : Char;         //Directory Separator
   free_space_map: TSide;        //Free Space Map
   bootoption    : TDIByteArray; //Boot Option(s)
   procedure ResetVariables;
-  function ReadString(ptr,term: Integer;control: Boolean=True): AnsiString;
-  function FormatToString: AnsiString;
-  function FormatToExt: AnsiString;
+  function ReadString(ptr,term: Integer;control: Boolean=True): String;
+  function FormatToString: String;
+  function FormatToExt: String;
   function ReadBits(offset,start,length: Cardinal): Cardinal;
   procedure WriteBits(value,offset,start,length: Cardinal);
   function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
@@ -86,15 +87,15 @@ type
   function ROR13(v: Cardinal): Cardinal;
   procedure ResetDir(var Entry: TDir);
   function MapFlagToByte: Byte;
-  function MapTypeToString: AnsiString;
-  function DirTypeToString: AnsiString;
+  function MapTypeToString: String;
+  function DirTypeToString: String;
   function GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
-  function GetImageCrc: AnsiString;
-  function GetCRC(var buffer: TDIByteArray): AnsiString;
+  function GetImageCrc: String;
+  function GetCRC(var buffer: TDIByteArray): String;
   //ADFS Routines
   function ID_ADFS: Boolean;
-  function ReadADFSDir(dirname: AnsiString; sector: Cardinal): TDir;
-  function CalculateADFSDirCheck(sector,EndOfChk,tail,dirsize: Cardinal): Byte;
+  function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
+  function CalculateADFSDirCheck(sector{,EndOfChk,tail,dirsize}: Cardinal): Byte;
   function NewDiscAddrToOffset(addr: Cardinal;offset:Boolean=True): TFragmentArray;
   function OldDiscAddrToOffset(disc_addr: Cardinal): Cardinal;
   function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
@@ -103,34 +104,40 @@ type
   procedure ADFSFreeSpaceMap;
   procedure ADFSFillFreeSpaceMap(address: Cardinal;usage: Byte);
   function FormatADFS(minor: Byte): TDisc;
-  function UpdateADFSDiscTitle(title: AnsiString): Boolean;
+  function UpdateADFSDiscTitle(title: String): Boolean;
   function UpdateADFSBootOption(option: Byte): Boolean;
   function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
-  function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
-  function CreateADFSDirectory(var dirname,parent,attributes: AnsiString): Integer;
-  procedure UpdateADFSCat(directory: AnsiString);
-  function UpdateADFSFileAttributes(filename,attributes: AnsiString): Boolean;
-  function ValidateADFSFilename(filename: AnsiString): AnsiString;
-  function RetitleADFSDirectory(filename,newtitle: AnsiString): Boolean;
-  function RenameADFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
+  function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
+                         directory: Boolean=False): Integer;
+  function CreateADFSDirectory(var dirname,parent,attributes: String): Integer;
+  procedure UpdateADFSCat(directory: String);
+  function UpdateADFSFileAttributes(filename,attributes: String): Boolean;
+  function ValidateADFSFilename(filename: String): String;
+  function RetitleADFSDirectory(filename,newtitle: String): Boolean;
+  function RenameADFSFile(oldfilename: String;var newfilename: String):Integer;
   procedure ConsolodateADFSFreeSpaceMap;
-  function DeleteADFSFile(filename: AnsiString):Boolean;
-  function ExtractADFSFile(filename: AnsiString;var buffer: TDIByteArray): Boolean;
+  function DeleteADFSFile(filename: String):Boolean;
+  function ExtractADFSFile(filename: String;var buffer: TDIByteArray): Boolean;
+  function MoveADFSFile(filename,directory: String): Integer;
+  function ExtendADFSCat(dir: Cardinal;direntry: TDirEntry): Cardinal;
+  procedure ReduceADFSCat(dir,entry: Cardinal);
+  function FixBrokenADFSDirectories: Boolean;
+  procedure FixADFSDirectory(dir,entry: Integer);
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc: TDisc;
   procedure DFSFreeSpaceMap(LDisc: TDisc);
-  function ConvertSector(address,side: Integer): Integer;
+  function ConvertDFSSector(address,side: Integer): Integer;
   function WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   procedure UpdateDFSCat(side: Integer);
-  function ValidateDFSFilename(filename: AnsiString): AnsiString;
-  function RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
-  function DeleteDFSFile(filename: AnsiString):Boolean;
-  function UpdateDFSFileAttributes(filename,attributes: AnsiString): Boolean;
+  function ValidateDFSFilename(filename: String): String;
+  function RenameDFSFile(oldfilename: String;var newfilename: String):Integer;
+  function DeleteDFSFile(filename: String):Boolean;
+  function UpdateDFSFileAttributes(filename,attributes: String): Boolean;
   function FormatDFS(minor,tracks: Byte): TDisc;
-  function UpdateDFSDiscTitle(title: AnsiString;side: Byte): Boolean;
+  function UpdateDFSDiscTitle(title: String;side: Byte): Boolean;
   function UpdateDFSBootOption(option,side: Byte): Boolean;
-  function ExtractDFSFile(filename: AnsiString;var buffer: TDIByteArray): Boolean;
+  function ExtractDFSFile(filename: String;var buffer: TDIByteArray): Boolean;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
@@ -138,101 +145,103 @@ type
   function FormatCDR(minor: Byte): TDisc;
   procedure CDRFreeSpaceMap;
   procedure CDRSetClearBAM(track,sector: Byte;used: Boolean);
-  function UpdateCDRDiscTitle(title: AnsiString): Boolean;
-  function ExtractCDRFile(filename:AnsiString;var buffer:TDIByteArray): Boolean;
+  function UpdateCDRDiscTitle(title: String): Boolean;
+  function ExtractCDRFile(filename:String;var buffer:TDIByteArray): Boolean;
   function WriteCDRFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   procedure UpdateCDRCat;
   function CDRFindNextSector(var track,sector: Byte): Boolean;
   function CDRFindNextTrack(var track,sector: Byte): Boolean;
-  function RenameCDRFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
-  function DeleteCDRFile(filename: AnsiString):Boolean;
-  function UpdateCDRFileAttributes(filename,attributes: AnsiString): Boolean;
+  function RenameCDRFile(oldfilename: String;var newfilename: String):Integer;
+  function DeleteCDRFile(filename: String):Boolean;
+  function UpdateCDRFileAttributes(filename,attributes: String): Boolean;
   //Sinclair Spectrum +3/Amstrad Routines
   function ID_Sinclair: Boolean;
   function ReadSinclairDisc: TDisc;
   function FormatSpectrum(minor: Byte): TDisc;
   function WriteSpectrumFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
-  function RenameSpectrumFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
-  function DeleteSinclairFile(filename: AnsiString):Boolean;
-  function UpdateSinclairFileAttributes(filename,attributes: AnsiString): Boolean;
-  function UpdateSinclairDiscTitle(title: AnsiString): Boolean;
-  function ExtractSpectrumFile(filename:AnsiString;var buffer:TDIByteArray):Boolean;
+  function RenameSpectrumFile(oldfilename: String;var newfilename: String):Integer;
+  function DeleteSinclairFile(filename: String):Boolean;
+  function UpdateSinclairFileAttributes(filename,attributes: String): Boolean;
+  function UpdateSinclairDiscTitle(title: String): Boolean;
+  function ExtractSpectrumFile(filename:String;var buffer:TDIByteArray):Boolean;
   //Commodore Amiga Routines
   function ID_Amiga: Boolean;
   function ReadAmigaDisc: TDisc;
-  function ReadAmigaDir(dirname: AnsiString; offset: Cardinal): TDir;
+  function ReadAmigaDir(dirname: String; offset: Cardinal): TDir;
   function AmigaBootChecksum(offset: Cardinal): Cardinal;
   function AmigaChecksum(offset: Cardinal): Cardinal;
-  function ExtractAmigaFile(filename:AnsiString;var buffer:TDIByteArray):Boolean;
+  function ExtractAmigaFile(filename:String;var buffer:TDIByteArray):Boolean;
   function FormatAmiga(minor: Byte): TDisc;
   function WriteAmigaFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
-  function CreateAmigaDirectory(var dirname,parent,attributes: AnsiString): Integer;
-  function RetitleAmigaDirectory(filename, newtitle: AnsiString): Boolean;
-  function RenameAmigaFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
-  function DeleteAmigaFile(filename: AnsiString):Boolean;
-  function UpdateAmigaFileAttributes(filename,attributes: AnsiString): Boolean;
-  function UpdateAmigaDiscTitle(title: AnsiString): Boolean;
+  function CreateAmigaDirectory(var dirname,parent,attributes: String): Integer;
+  function RetitleAmigaDirectory(filename, newtitle: String): Boolean;
+  function RenameAmigaFile(oldfilename: String;var newfilename: String):Integer;
+  function DeleteAmigaFile(filename: String):Boolean;
+  function UpdateAmigaFileAttributes(filename,attributes: String): Boolean;
+  function UpdateAmigaDiscTitle(title: String): Boolean;
+  function MoveAmigaFile(filename,directory: String): Integer;
   const
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
    CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
    //Number of sectors per track (Commodore 1541/1571)
    CDRnumsects  : array[0..7] of Integer = (17,18,19,21,17,18,19,21);
    //Commodore 64 Filetypes
-   CDRFileTypes : array[0.. 5] of AnsiString = (
+   CDRFileTypes : array[0.. 5] of String = (
                                    'DELDeleted'  ,'SEQSequence' ,'PRGProgram'  ,
                                    'USRUser File','RELRelative' ,'CBMCBM'      );
    {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
  published
   //Methods
   constructor Create;
-  function LoadFromFile(filename: AnsiString;readdisc: Boolean=True): Boolean;
+  function LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
   function LoadFromStream(F: TStream;readdisc: Boolean=True): Boolean;        
   function IDImage: Boolean;
   procedure ReadImage;
-  procedure SaveToFile(filename: AnsiString);
+  procedure SaveToFile(filename: String);
   procedure SaveToStream(F: TStream);
   procedure Close;
   function Format(major,minor,tracks: Byte): Boolean;
-  function ExtractFile(filename: AnsiString; var buffer: TDIByteArray): Boolean;
-  function ExtractFileToStream(filename: AnsiString;F: TStream): Boolean;
+  function ExtractFile(filename: String; var buffer: TDIByteArray): Boolean;
+  function ExtractFileToStream(filename: String;F: TStream): Boolean;
   function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
   function WriteFileFromStream(var file_details: TDirEntry;F: TStream): Integer;
-  function FileExists(filename: AnsiString; var Ref: Cardinal): Boolean;
+  function FileExists(filename: String; var Ref: Cardinal): Boolean;
   function ReadDiscData(addr,count,side: Cardinal; var buffer): Boolean;
   function ReadDiscDataToStream(addr,count,side: Cardinal; F: TStream): Boolean;
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
   function WriteDiscDataFromStream(addr,side: Cardinal; F: TStream): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
-  function RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Integer;
-  function DeleteFile(filename: AnsiString): Boolean;
-  function MoveFile(filename, directory: AnsiString): Integer;
-  function CopyFile(filename, directory: AnsiString): Integer;
-  function UpdateAttributes(filename,attributes: AnsiString): Boolean;
-  function UpdateDiscTitle(title: AnsiString;side: Byte): Boolean;
+  function RenameFile(oldfilename: String;var newfilename: String): Integer;
+  function DeleteFile(filename: String): Boolean;
+  function MoveFile(filename, directory: String): Integer;
+  function CopyFile(filename, directory: String): Integer;
+  function UpdateAttributes(filename,attributes: String): Boolean;
+  function UpdateDiscTitle(title: String;side: Byte): Boolean;
   function UpdateBootOption(option,side: Byte): Boolean;
-  function CreateDirectory(var filename,parent,attributes: AnsiString): Integer;
-  function RetitleDirectory(var filename,newtitle: AnsiString): Boolean;
-  function GetFileCRC(filename: AnsiString): AnsiString;
+  function CreateDirectory(var filename,parent,attributes: String): Integer;
+  function RetitleDirectory(var filename,newtitle: String): Boolean;
+  function GetFileCRC(filename: String): String;
+  function FixDirectories: Boolean;
   //Properties
   property Disc:                TDisc        read FDisc;
-  property FormatString:        AnsiString   read FormatToString;
+  property FormatString:        String       read FormatToString;
   property FormatNumber:        Byte         read FFormat;
-  property FormatExt:           AnsiString   read FormatToExt;
-  property Title:               AnsiString   read disc_name;
+  property FormatExt:           String       read FormatToExt;
+  property Title:               String       read disc_name;
   property DiscSize:            Int64        read disc_size;
   property FreeSpace:           Int64        read free_space;
   property DoubleSided:         Boolean      read FDSD;
   property MapType:             Byte         read MapFlagToByte;
   property DirectoryType:       Byte         read FDirType;
-  property MapTypeString:       AnsiString   read MapTypeToString;
-  property DirectoryTypeString: AnsiString   read DirTypeToString;
+  property MapTypeString:       String       read MapTypeToString;
+  property DirectoryTypeString: String       read DirTypeToString;
   property DirSep:              Char         read dir_sep;
-  property Filename:            AnsiString   read imagefilename;
+  property Filename:            String       read imagefilename;
   property FreeSpaceMap:        TSide        read free_space_map;
   property BootOpt:             TDIByteArray read bootoption;
   property RootAddress:         Cardinal     read root;
-  property CRC32:               AnsiString   read GetImageCrc;
+  property CRC32:               String       read GetImageCrc;
  public
   destructor Destroy; override;
  End;
@@ -288,7 +297,7 @@ end;
 {-------------------------------------------------------------------------------
 Extract a string from ptr to the next chr(term) or length(-term)
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadString(ptr,term: Integer;control: Boolean=True): AnsiString;
+function TDiscImage.ReadString(ptr,term: Integer;control: Boolean=True): String;
 var
  x : Integer;
  c,
@@ -315,14 +324,14 @@ end;
 {-------------------------------------------------------------------------------
 Convert a format byte to a string
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatToString: AnsiString;
+function TDiscImage.FormatToString: String;
 const
- FS  : array[0..4] of AnsiString = ('DFS',
+ FS  : array[0..4] of String = ('DFS',
                                 'Acorn ADFS',
                                 'Commodore',
                                 'Sinclair Spectrum +3/Amstrad',
                                 'Commodore Amiga');
- SUB : array[0..4] of array[0..15] of AnsiString =
+ SUB : array[0..4] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','','','','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','','Hard Disc'),
   ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
@@ -340,9 +349,9 @@ end;
 {-------------------------------------------------------------------------------
 Convert a format byte to an extension
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatToExt: AnsiString;
+function TDiscImage.FormatToExt: String;
 const
- EXT : array[0..4] of array[0..15] of AnsiString =
+ EXT : array[0..4] of array[0..15] of String =
  (('ssd','dsd','ssd','dsd','','','','','','','','','','','',''),
   ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','','hdf'),
   ('d64','d71','d81','d64','d71','','','','','','','','','','',''),
@@ -669,7 +678,7 @@ end;
 {-------------------------------------------------------------------------------
 Convert the Map flag to String
 -------------------------------------------------------------------------------}
-function TDiscImage.MapTypeToString: AnsiString;
+function TDiscImage.MapTypeToString: String;
 begin
  Result:='Not ADFS/AmigaDOS';
  case MapFlagToByte of
@@ -683,7 +692,7 @@ end;
 {-------------------------------------------------------------------------------
 Convert the Directory Type to String
 -------------------------------------------------------------------------------}
-function TDiscImage.DirTypeToString: AnsiString;
+function TDiscImage.DirTypeToString: String;
 begin
  Result:='Not ADFS/AmigaDOS';
  case FDirType of
@@ -739,7 +748,7 @@ end;
 {-------------------------------------------------------------------------------
 Calculate a CRC-32 for the image
 -------------------------------------------------------------------------------}
-function TDiscImage.GetImageCrc: AnsiString;
+function TDiscImage.GetImageCrc: String;
 begin
  Result:=GetCRC(FData);
 end;
@@ -747,7 +756,7 @@ end;
 {-------------------------------------------------------------------------------
 Calculate a CRC-32 for the supplied buffer Byte array
 -------------------------------------------------------------------------------}
-function TDiscImage.GetCRC(var buffer: TDIByteArray): AnsiString;
+function TDiscImage.GetCRC(var buffer: TDIByteArray): String;
 var
  CRCValue: longword;
 begin
@@ -781,7 +790,7 @@ end;
 {-------------------------------------------------------------------------------
 Calculate a CRC-32 for a file
 -------------------------------------------------------------------------------}
-function TDiscImage.GetFileCrc(filename: AnsiString): AnsiString;
+function TDiscImage.GetFileCrc(filename: String): String;
 var
  buffer: TDIByteArray;
 begin
@@ -790,9 +799,19 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Attempt to fix directories (entry point)
+-------------------------------------------------------------------------------}
+function TDiscImage.FixDirectories: Boolean;
+begin
+ Result:=False;
+ //Only for ADFS
+ if FFormat shr 4=1 then Result:=FixBrokenADFSDirectories;
+end;
+
+{-------------------------------------------------------------------------------
 Load an image from a file (just calls LoadFromStream)
 -------------------------------------------------------------------------------}
-function TDiscImage.LoadFromFile(filename: AnsiString;readdisc: Boolean=True): Boolean;
+function TDiscImage.LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
 var
  FDiscDrive: TFileStream;
 begin
@@ -877,10 +896,10 @@ end;
 {-------------------------------------------------------------------------------
 Saves an image to a file
 -------------------------------------------------------------------------------}
-procedure TDiscImage.SaveToFile(filename: AnsiString);
+procedure TDiscImage.SaveToFile(filename: String);
 var
  FDiscDrive: TFileStream;
- ext: AnsiString;
+ ext: String;
 begin
  //Validate the filename
  ext:=ExtractFileExt(filename);
@@ -961,7 +980,7 @@ end;
 {-------------------------------------------------------------------------------
 Extracts a file, filename contains complete path
 -------------------------------------------------------------------------------}
-function TDiscImage.ExtractFile(filename: AnsiString; var buffer: TDIByteArray): Boolean;
+function TDiscImage.ExtractFile(filename: String; var buffer: TDIByteArray): Boolean;
 var
  m: Byte;
 begin
@@ -980,7 +999,7 @@ end;
 {-------------------------------------------------------------------------------
 Extract a file into a memory stream
 -------------------------------------------------------------------------------}
-function TDiscImage.ExtractFileToStream(filename: AnsiString; F: TStream): Boolean;
+function TDiscImage.ExtractFileToStream(filename: String; F: TStream): Boolean;
 var
  buffer: TDIByteArray;
 begin
@@ -1030,7 +1049,7 @@ end;
 {-------------------------------------------------------------------------------
 Create a directory
 -------------------------------------------------------------------------------}
-function TDiscImage.CreateDirectory(var filename,parent,attributes: AnsiString): Integer;
+function TDiscImage.CreateDirectory(var filename,parent,attributes: String): Integer;
 var
  m     : Byte;
 begin
@@ -1051,7 +1070,7 @@ end;
 {-------------------------------------------------------------------------------
 Retitle a directory
 -------------------------------------------------------------------------------}
-function TDiscImage.RetitleDirectory(var filename,newtitle: AnsiString): Boolean;
+function TDiscImage.RetitleDirectory(var filename,newtitle: String): Boolean;
 var
  m     : Byte;
 begin
@@ -1089,14 +1108,14 @@ end;
 {-------------------------------------------------------------------------------
 Does a file exist?
 -------------------------------------------------------------------------------}
-function TDiscImage.FileExists(filename: AnsiString; var Ref: Cardinal): Boolean;
+function TDiscImage.FileExists(filename: String; var Ref: Cardinal): Boolean;
 var
- Path   : array of AnsiString;
+ Path   : array of String;
  i,j,l,
  ptr,
  level  : Integer;
  test,
- test2  : AnsiString;
+ test2  : String;
 begin
  Result:=False;
  //Not going to search if there is no tree to search in
@@ -1219,7 +1238,7 @@ begin
  begin
   SetLength(temp,count);
   for i:=0 to count-1 do
-   temp[i]:=ReadByte(ConvertSector(addr+i,side));
+   temp[i]:=ReadByte(ConvertDFSSector(addr+i,side));
  end;
  Move(temp[0],buffer,count);
  Result:=True;
@@ -1254,6 +1273,7 @@ var
  i   : Cardinal;
 begin
  Result:=False;
+ if count=0 then exit;
  //Make sure the numbers fit
  if start+count<=Length(buffer) then
  begin
@@ -1271,11 +1291,11 @@ begin
   else //DFS
   begin
    //Ensure that the entire block will fit into the available space
-   Result:=ConvertSector(addr+count,side)<=Length(Fdata);
+   Result:=ConvertDFSSector(addr+count,side)<=Length(Fdata);
    //Simply copy from source to destination
    if Result then
     for i:=0 to count-1 do
-     WriteByte(buffer[start+i],ConvertSector(addr+i,side));
+     WriteByte(buffer[start+i],ConvertDFSSector(addr+i,side));
   end;
  end;
 end;
@@ -1302,7 +1322,7 @@ Searches for a file, and returns the result in a TSearchResults
 -------------------------------------------------------------------------------}
 function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
 //Comparison functions...saves a lot of if...then statements
- function CompStr(S1,S2: AnsiString): Byte; //Compares Strings
+ function CompStr(S1,S2: String): Byte; //Compares Strings
  begin
   Result:=0;
   if (UpperCase(S1)=UpperCase(S2)) and (S1<>'') then Result:=1;
@@ -1386,7 +1406,7 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file - oldfilename is full path, newfilename has no path
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameFile(oldfilename: AnsiString;var newfilename: AnsiString): Integer;
+function TDiscImage.RenameFile(oldfilename: String;var newfilename: String): Integer;
 var
  m: Byte;
 begin
@@ -1404,7 +1424,7 @@ end;
 {-------------------------------------------------------------------------------
 Deletes a file (given full pathname)
 -------------------------------------------------------------------------------}
-function TDiscImage.DeleteFile(filename: AnsiString): Boolean;
+function TDiscImage.DeleteFile(filename: String): Boolean;
 var
  m: Byte;
 begin
@@ -1422,23 +1442,32 @@ end;
 {-------------------------------------------------------------------------------
 Moves a file from one directory to another
 -------------------------------------------------------------------------------}
-function TDiscImage.MoveFile(filename, directory: AnsiString): Integer;
+function TDiscImage.MoveFile(filename, directory: String): Integer;
 begin
- //Moving and copying are the same, essentially
- Result:=CopyFile(filename,directory);
- //We just need to delete the original once copied
- if Result>-1 then DeleteFile(filename);
+ //Can only move files on DFS (between drives), ADFS and Amiga
+ if FFormat shr 4=0 then //Move on DFS
+ begin
+  //Moving and copying are the same, essentially
+  Result:=CopyFile(filename,directory);
+  //We just need to delete the original once copied
+  if Result>-1 then DeleteFile(filename);
+ end;
+ if FFormat shr 4=1 then Result:=MoveADFSFile(filename,directory);
+ if FFormat shr 4=4 then Result:=MoveAmigaFile(filename,directory);
 end;
 
 {-------------------------------------------------------------------------------
 Copies a file from one directory to another
 -------------------------------------------------------------------------------}
-function TDiscImage.CopyFile(filename, directory: AnsiString): Integer;
+function TDiscImage.CopyFile(filename, directory: String): Integer;
 var
  buffer      : TDIByteArray;
  ptr,
  entry,
- dir         : Cardinal;
+ dir,
+ d,e         : Cardinal;
+// R           : Integer;
+ newparent   : String;
  file_details: TDirEntry;
 begin
  //Need to extract the filename from the full path...and ensure the file exists
@@ -1455,7 +1484,8 @@ begin
    Result:=-5;//Unknown error
    //Are we copying a directory?
    if Fdisc[dir].Entries[entry].DirRef=-1 then //No, then continue
-   //First, get the file into memory
+   begin
+    //First, get the file into memory
     if ExtractFile(filename,buffer) then
     begin
      //Set up the filedetails
@@ -1469,6 +1499,26 @@ begin
      //Then write it back to the image
      Result:=WriteFile(file_details,buffer);
     end;
+   end;
+   if FDisc[dir].Entries[entry].DirRef>=0 then //Copying directory
+   begin
+    //First, create a new directory at the destination
+    Result:=CreateDirectory(FDisc[dir].Entries[entry].Filename,
+                            directory,
+                            FDisc[dir].Entries[entry].Attributes);
+    //if successful, then copy all the files
+    if Result>=0 then
+    begin
+     //Then iterate through each entry and copy them using recursion
+     d:=FDisc[dir].Entries[entry].DirRef; //Get the directory reference
+     //Work out the new parent path
+     newparent:=directory+dir_sep+FDisc[dir].Entries[entry].Filename;
+     if Length(FDisc[d].Entries)>0 then
+      for e:=0 to Length(FDisc[d].Entries)-1 do
+       CopyFile(FDisc[d].Entries[e].Parent+dir_sep+
+                FDisc[d].Entries[e].Filename,newparent);
+    end;
+   end;
   end;
  end;
 end;
@@ -1476,7 +1526,7 @@ end;
 {-------------------------------------------------------------------------------
 Set the attributes for a file
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateAttributes(filename,attributes: AnsiString):Boolean;
+function TDiscImage.UpdateAttributes(filename,attributes: String):Boolean;
 var
  m: Byte;
 begin
@@ -1494,7 +1544,7 @@ end;
 {-------------------------------------------------------------------------------
 Set the disc title
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateDiscTitle(title: AnsiString;side: Byte): Boolean;
+function TDiscImage.UpdateDiscTitle(title: String;side: Byte): Boolean;
 var
  m: Byte;
 begin

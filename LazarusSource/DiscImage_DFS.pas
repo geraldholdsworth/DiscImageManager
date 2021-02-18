@@ -100,7 +100,7 @@ end;
 {-------------------------------------------------------------------------------
 Converts a sector and side address into file offset address
 -------------------------------------------------------------------------------}
-function TDiscImage.ConvertSector(address,side: Integer): Integer;
+function TDiscImage.ConvertDFSSector(address,side: Integer): Integer;
 var
  sector,
  offset: Integer;
@@ -114,7 +114,7 @@ begin
   sector:=address DIV $100; //Sectors are $100 in size, and we need to know the sector
   offset:=address MOD $100; //Offset within the sector
   //Annoyingly, it is the tracks which are interleaved, not the sectors.
-  //On Acorn DFS discs, there are 10 tracks per sector
+  //On Acorn DFS discs, there are 10 sectors per track
   Result:=(((sector MOD 10)+(20*(sector DIV 10))+(10*side))*$100)+offset;
  end;
 end;
@@ -128,7 +128,7 @@ var
  locked,
  ptr,amt,
  diroff    : Integer;
- temp      : AnsiString;
+ temp      : String;
 begin
  Result:=nil;
  if (FFormat AND $1)=1 then //Double sided image
@@ -145,24 +145,24 @@ begin
  repeat
   ResetDir(Result[s]);
   //Number of entries on disc side
-  t:=ReadByte(ConvertSector($105,s)) div 8;
+  t:=ReadByte(ConvertDFSSector($105,s)) div 8;
   if (FFormat>$01) and (FFormat<$04) then //Extra files on Watford DFS
-   inc(t,ReadByte(ConvertSector($305,s))div 8);
+   inc(t,ReadByte(ConvertDFSSector($305,s))div 8);
   SetLength(Result[s].Entries,t);
   //Directory name - as DFS only has $, this will be the drive number + '$'
   Result[s].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
   //Get the disc title(s)
-  Result[s].Title:=ReadString(ConvertSector($000,s),-8)
-                  +ReadString(ConvertSector($100,s),-4);
+  Result[s].Title:=ReadString(ConvertDFSSector($000,s),-8)
+                  +ReadString(ConvertDFSSector($100,s),-4);
   RemoveSpaces(Result[s].Title);
   RemoveControl(Result[s].Title);
   if s>0 then disc_name:=disc_name+' and ';
   disc_name:=disc_name+Result[s].Title;
   //Boot Option
-  bootoption[s]:=(ReadByte(ConvertSector($106,s)) AND $30)shr 4;
+  bootoption[s]:=(ReadByte(ConvertDFSSector($106,s)) AND $30)shr 4;
   //Disc Size
-  inc(disc_size, (ReadByte(ConvertSector($107,s))
-               +((ReadByte(ConvertSector($106,s)) AND $03)shl 8))*$100);
+  inc(disc_size, (ReadByte(ConvertDFSSector($107,s))
+               +((ReadByte(ConvertDFSSector($106,s)) AND $03)shl 8))*$100);
   //Read the catalogue
   for f:=1 to t do
   begin
@@ -181,12 +181,12 @@ begin
    temp:='';
    for c:=0 to 6 do
    begin
-    amt:=ReadByte(ConvertSector(diroff+($08*ptr)+c,s)) AND $7F;
+    amt:=ReadByte(ConvertDFSSector(diroff+($08*ptr)+c,s)) AND $7F;
     if amt>32 then temp:=temp+chr(amt);
    end;
    Result[s].Entries[f-1].Filename:=temp;
    //Get the directory character
-   temp:=chr(ReadByte(ConvertSector(diroff+($08*ptr)+7,s))AND $7F);
+   temp:=chr(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND $7F);
    if temp=' ' then temp:=root_name; //Acorn Atom DOS root is ' '
    //If the directory is not root, add it to the filename
    if temp<>root_name then
@@ -195,27 +195,27 @@ begin
    //Make up a parent directory pathname so this can be found
    Result[s].Entries[f-1].Parent:=':'+IntToStr(s*2)+dir_sep+root_name;
    //Is it locked? This is actually the top bit of the final filename character
-   locked:=(ReadByte(ConvertSector(diroff+($08*ptr)+7,s))AND $80) shr 7;
+   locked:=(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND $80) shr 7;
    if locked=1 then
     Result[s].Entries[f-1].Attributes:='L'
    else
     Result[s].Entries[f-1].Attributes:='';
    //Load address
    Result[s].Entries[f-1].LoadAddr:=
-                  (((ReadByte(ConvertSector(diroff+$106+($08*ptr),s))AND $0C)shl 14)*$55)
-                    +Read16b( ConvertSector(diroff+$100+($08*ptr),s));
+                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $0C)shl 14)*$55)
+                    +Read16b( ConvertDFSSector(diroff+$100+($08*ptr),s));
    //Execution address
    Result[s].Entries[f-1].ExecAddr:=
-                  (((ReadByte(ConvertSector(diroff+$106+($08*ptr),s))AND $C0)shl 10)*$55)
-                  +  Read16b( ConvertSector(diroff+$102+($08*ptr),s));
+                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $C0)shl 10)*$55)
+                  +  Read16b( ConvertDFSSector(diroff+$102+($08*ptr),s));
    //Length
    Result[s].Entries[f-1].Length:=
-                  (((ReadByte(ConvertSector(diroff+$106+($08*ptr),s))AND $30)shl 12)*$55)
-                  +  Read16b( ConvertSector(diroff+$104+($08*ptr),s));
+                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $30)shl 12)*$55)
+                  +  Read16b( ConvertDFSSector(diroff+$104+($08*ptr),s));
    //Sector of start of data
    Result[s].Entries[f-1].Sector:=
-                  ((ReadByte(ConvertSector(diroff+$106+($08*ptr),s))AND $3)shl 8)
-                   +ReadByte(ConvertSector(diroff+$107+($08*ptr),s));
+                  ((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $3)shl 8)
+                   +ReadByte(ConvertDFSSector(diroff+$107+($08*ptr),s));
    //Which side it is on
    Result[s].Entries[f-1].Side:=s;
    //Not a directory - not used in DFS
@@ -297,6 +297,9 @@ begin
  Result:=-3; //File already exists
  count:=file_details.Length;
  f:=FFormat MOD $10; //Minor format (sub format)
+ //Ensure that Side is not beyond the array
+ file_details.Side:=file_details.Side MOD 2;
+ if file_details.Side>Length(FDisc)-1 then file_details.Side:=0;
  //Overwrite the parent
  file_details.Parent:=':'+IntToStr(file_details.Side*2)+dir_sep+root_name;
  //Check that the filename is valid
@@ -347,8 +350,8 @@ begin
    FDisc[file_details.Side].Entries[filen].Sector:=pos;
    //Extend the image size, if necessary (image size != data size)
    newlen:=size2*$100;
-   if ConvertSector(pos*$100+newlen,file_details.Side)>Length(Fdata) then
-    SetLength(FData,ConvertSector(pos*$100+newlen,file_details.Side));
+   if ConvertDFSSector(pos*$100+newlen,file_details.Side)>Length(Fdata) then
+    SetLength(FData,ConvertDFSSector(pos*$100+newlen,file_details.Side));
    //Then write the actual data
    success:=WriteDiscData(pos*$100,file_details.Side,buffer,count);
    //Update the catalogue, if successful
@@ -378,11 +381,11 @@ end;
 {-------------------------------------------------------------------------------
 Validate a filename
 -------------------------------------------------------------------------------}
-function TDiscImage.ValidateDFSFilename(filename: AnsiString): AnsiString;
+function TDiscImage.ValidateDFSFilename(filename: String): String;
 var
  i: Integer;
 const
-  illegal = '#*:!';
+  illegal = '#*:';
 begin
   for i:=1 to Length(filename) do
  begin
@@ -413,19 +416,19 @@ Update the catalogue
 procedure TDiscImage.UpdateDFSCat(side: Integer);
 var
  i,s,c : Integer;
- fn,dn : AnsiString;
+ fn,dn : String;
  t,f   : Byte;
 begin
  f:=FFormat mod $10;//Subformat
  //Update the number of catalogue entries
  c:=Length(FDisc[side].Entries);
  if c<32 then
-  WriteByte(c*8,ConvertSector($105,side));
+  WriteByte(c*8,ConvertDFSSector($105,side));
  if f>1 then //Extra files on Watford DFS
   if c>31 then
    begin
-    WriteByte( 31*8,   ConvertSector($105,side));
-    WriteByte((c-31)*8,ConvertSector($305,side));
+    WriteByte( 31*8,   ConvertDFSSector($105,side));
+    WriteByte((c-31)*8,ConvertDFSSector($305,side));
    end;
  //Update the entries
  for i:=0 to Length(FDisc[side].Entries)-1 do
@@ -450,41 +453,41 @@ begin
   //Now write the filename into the image
   for t:=0 to 6 do
    if t<Length(fn) then
-    WriteByte(ord(fn[t+1]),ConvertSector(s+t+$08*(c+1),side))
+    WriteByte(ord(fn[t+1]),ConvertDFSSector(s+t+$08*(c+1),side))
    else //Pad with spaces
-    WriteByte($20,         ConvertSector(s+t+$08*(c+1),side));
+    WriteByte($20,         ConvertDFSSector(s+t+$08*(c+1),side));
   //Directory specifier
   t:=Ord(dn[1]);
   //Attribute
   if Pos('L',FDisc[side].Entries[i].Attributes)>0 then
    t:=t OR $80;
   //Write the directory specifier and attribute together
-  WriteByte(t,               ConvertSector(s+7+$08*(c+1),side));
+  WriteByte(t,               ConvertDFSSector(s+7+$08*(c+1),side));
   //Load address
   Write16b(FDisc[side].Entries[i].LoadAddr and $FFFF,
-                             ConvertSector(s+$100+$08*(c+1),side));
+                             ConvertDFSSector(s+$100+$08*(c+1),side));
   //Execution address
   Write16b(FDisc[side].Entries[i].ExecAddr and $FFFF,
-                             ConvertSector(s+$102+$08*(c+1),side));
+                             ConvertDFSSector(s+$102+$08*(c+1),side));
   //Length
   Write16b(FDisc[side].Entries[i].Length   and $FFFF,
-                             ConvertSector(s+$104+$08*(c+1),side));
+                             ConvertDFSSector(s+$104+$08*(c+1),side));
   //Start Sector
   WriteByte(FDisc[side].Entries[i].Sector  and $FF,
-                             ConvertSector(s+$107+$08*(c+1),side));
+                             ConvertDFSSector(s+$107+$08*(c+1),side));
   //Extra bits for Load,Execution,Length and Start Sector
   t:=((Integer(FDisc[side].Entries[i].Sector)  and   $300) shr  8) //bits 0,1
    OR((Integer(FDisc[side].Entries[i].LoadAddr)and $30000) shr 14) //bits 2,3
    OR((Integer(FDisc[side].Entries[i].Length  )and $30000) shr 12) //bits 4,5
    OR((Integer(FDisc[side].Entries[i].ExecAddr)and $30000) shr 10);//bits 6,7
-  WriteByte(t,               ConvertSector(s+$106+$08*(c+1),side));
+  WriteByte(t,               ConvertDFSSector(s+$106+$08*(c+1),side));
  end;
 end;
 
 {-------------------------------------------------------------------------------
 Rename Acorn DFS File
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameDFSFile(oldfilename: AnsiString;var newfilename: AnsiString):Integer;
+function TDiscImage.RenameDFSFile(oldfilename: String;var newfilename: String):Integer;
 var
  ptr,entry,dir: Cardinal;
 begin
@@ -513,7 +516,7 @@ end;
 {-------------------------------------------------------------------------------
 Delete Acorn DFS File
 -------------------------------------------------------------------------------}
-function TDiscImage.DeleteDFSFile(filename: AnsiString):Boolean;
+function TDiscImage.DeleteDFSFile(filename: String):Boolean;
 var
  ptr,entry,dir: Cardinal;
  i: Integer;
@@ -541,7 +544,7 @@ end;
 {-------------------------------------------------------------------------------
 Update DFS File attributes
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateDFSFileAttributes(filename,attributes: AnsiString): Boolean;
+function TDiscImage.UpdateDFSFileAttributes(filename,attributes: String): Boolean;
 var
  ptr,
  entry,
@@ -611,8 +614,8 @@ begin
   if tracks=0 then side_size:=$190; //40T
   if tracks=1 then side_size:=$320; //80T
   //Initialise the disc
-  WriteByte(side_size div $100,ConvertSector($106,s));
-  WriteByte(side_size mod $100,ConvertSector($107,s));
+  WriteByte(side_size div $100,ConvertDFSSector($106,s));
+  WriteByte(side_size mod $100,ConvertDFSSector($107,s));
   inc(disc_size,side_size*$100);
   //Directory size
   inc(free_space,$200);
@@ -626,7 +629,7 @@ end;
 {-------------------------------------------------------------------------------
 Set the DFS disc title
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateDFSDiscTitle(title: AnsiString;side: Byte): Boolean;
+function TDiscImage.UpdateDFSDiscTitle(title: String;side: Byte): Boolean;
 var
  a  : Cardinal;
  b,c: Byte;
@@ -646,7 +649,7 @@ begin
   b:=32;                 //Pad with spaces
   if c<Length(title) then b:=Ord(title[c+1])AND$7F; //Chr, no top bit set
   if b<32 then b:=32;    //Ensure no control characters
-  WriteByte(b,ConvertSector(a+c,side)); //Write it
+  WriteByte(b,ConvertDFSSector(a+c,side)); //Write it
  end;
  Result:=True;
 end;
@@ -659,16 +662,16 @@ var
  b: Byte;
 begin
  bootoption[side]:=option AND $3;
- b:=ReadByte(ConvertSector($106,side));
+ b:=ReadByte(ConvertDFSSector($106,side));
  b:=(b AND $CF) OR ((option AND $3)shl 4);
- WriteByte(b,ConvertSector($106,side));
+ WriteByte(b,ConvertDFSSector($106,side));
  Result:=True;
 end;
 
 {-------------------------------------------------------------------------------
 Extracts a file, filename contains complete path
 -------------------------------------------------------------------------------}
-function TDiscImage.ExtractDFSFile(filename: AnsiString;
+function TDiscImage.ExtractDFSFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
  source,side   : Integer;
