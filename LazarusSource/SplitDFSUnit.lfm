@@ -9,7 +9,7 @@ object SplitDFSForm: TSplitDFSForm
   Caption = 'Split/Combine DFS Images'
   ClientHeight = 238
   ClientWidth = 536
-  Color = 14737632
+  Color = 15527148
   OnDropFiles = FormDropFiles
   OnShow = FormShow
   Position = poMainFormCenter

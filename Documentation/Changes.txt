@@ -1,6 +1,8 @@
 Changes History
 ---------------
 
+Original version begun life on 6th December 2018.
+
 1.05 8th December 2020
 ----------------------
 * Ported from Delphi 10.3 to Lazarus.
@@ -220,8 +222,8 @@ New or improved features
 Bug fixes
 * If an ADFS New Map's file returned no fragments then it would crash when this file was extracted from the image.
 
-1.05.14 pending
--------------------------
+1.05.14 18th February 2021
+--------------------------
 New or improved features
 * Double clicking on a file will open it in as a hex dump. Hex dump routine is a cut down version of File Dump.
 * Added new file context menu item, and File submenu item, to open file as a hex dump.
@@ -260,6 +262,39 @@ Bug fixes
 * ADFS New Map directories could get fragmented.
 * No longer assumes the root follows the free space map on New Map ADFS.
 * When a write operation occured, the position of the directories in ADFS Free Space Map would get lost.
+
+1.05.15 pending
+--------------------------
+New or improved features
+* When dragging and dropping items in the directory tree, the window will now autoscroll up or down if the cursor is close to the threshold.
+* Removed the LoadFileFromStream method from the TDiscImage class.
+* When a file is loaded it is inflated from GZip, if necessary.
+* Now loads UEF files (tape format). Only supports data block 0x100, so will only load approx. 80% of UEF files.
+* Can download files from UEF.
+* Can import files from UEF into other filing systems.
+* Removed the SaveToStream method from TDiscImage class.
+* Removed the ExtractFileToStream method from TDiscImage class.
+* Removed the WriteFileFromStream method from TDiscImage class.
+* Removed the ReadDiscDataToStream method from TDiscImage class.
+* Removed the WriteDiscDataFromStream method from TDiscImage class.
+* Can save UEF files for CFS.
+* Can create new, empty, UEF files for CFS.
+* Can write files to CFS.
+* Can change the locked attribute on CFS file.
+* Can rename CFS files.
+* Can delete CFS files.
+* New parameter for command line option 'new' - CFS, for Cassette Filing System.
+* Updated the main icon.
+* Removed the separator in the File menu.
+* Renamed the File menu to Image.
+* Renamed the Image menu to Files.
+* Created new main menu item - Tools.
+* Moved the Split or Combine DFS Images to Tools.
+* Moved the Fix Broken ADFS Directories to Tools.
+* Added icons to the main menu and file context menu.
+
+Bug fixes
+* ADFS New directories could not be retitled.
 
 Platform History
 ----------------

@@ -8,7 +8,7 @@ begin
  Result:=False;
  if FFormat=$FF then
  begin
-  if Length(Fdata)>0 then
+  if GetDataLength>0 then
   begin
    if ReadString(0,-6)='MV-CPC'   then FFormat:=$30;
    if ReadString(0,-8)='EXTENDED' then FFormat:=$31;

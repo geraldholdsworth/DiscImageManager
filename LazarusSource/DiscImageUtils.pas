@@ -26,8 +26,8 @@ type
   ImageAddress: Cardinal;   //Reserved for use by Repton Map Display
   Sector,                   //Sector of disc of location of data (DFS/D64/D71/D81/AmigaDOS file)
                             //Sector of disc of location of header (AmigaDOS directory)
-                            //Address of location of data (ADFS S/M/L)
-                            //Indirect disc address of data (ADFS D/E/F/E+/F+)
+                            //Address of location of data (ADFS S/M/L/D)
+                            //Indirect disc address of data (ADFS E/F/E+/F+)
   DirRef      : Integer;    //Reference to directory, if directory (ADFS/AmigaDOS)
   TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
   EOR         : Byte;       //Reserved for use by Repton Map Display
@@ -42,6 +42,7 @@ type
  procedure RemoveControl(var s: String);
  function IsBitSet(v,b: Integer): Boolean;
  function BreakDownInf(s: String): TStringArray;
+ function FilenameToASCII(s: String): String;
 
 implementation
 
@@ -209,65 +210,16 @@ begin
  if f<>'' then Result[0]:=f;
 end;
 
-{ To load a UEF file
-uses ZStream;
-
-type
-  TDynByteArray = Array of Byte;
-
-procedure Button2Click(Sender: TObject);
+{------------------------------------------------------------------------------}
+//Ensures a string contains only visible ASCII characters
+{------------------------------------------------------------------------------}
+function FilenameToASCII(s: String): String;
 var
- F: TFileStream;
- buffer: TDynByteArray;
-const
- source = '/Users/geraldholdsworth/OneDrive/Emulation/Tape Images/Repton-BRRR_B.uef';
- dest   = '/Users/geraldholdsworth/OneDrive/Emulation/Tape Images/Repton-BRRR_B inflated.uef';
+ i: Integer;
 begin
- buffer:=nil;
- F:=TFileStream.Create(source,fmOpenRead);
- F.Position:=0;
- SetLength(buffer,3);
- F.Read(buffer[0],3);
- F.Free;
- if(buffer[0]=$1F)and(buffer[1]=$8B)and(buffer[2]=$08) then
-  InflateToFile(source,dest);
+ for i:=1 to Length(s) do
+  if(ord(s[i])<32)or(ord(s[i])>126)then s[i]:='?';
+ Result:=s;
 end;
 
-function Inflate(source: String): TDynByteArray;
-var
- GZ     : TGZFileStream;
- chunk  : array of Byte;
- cnt,
- i,
- buflen : Integer;
-const
-  ChunkSize=4096;
-begin
- Result:=nil;
- chunk:=nil;
- GZ:=TGZFileStream.create(source,gzOpenRead);
- buflen:=0;
- SetLength(chunk,ChunkSize);
- repeat
-  cnt:=GZ.Read(chunk[0],ChunkSize);
-  SetLength(Result,buflen+cnt);
-  for i:=0 to cnt-1 do
-   Result[buflen+i]:=chunk[i];
-  inc(buflen,cnt);
- until cnt<ChunkSize;
- GZ.Free;
-end;
-
-procedure InflateToFile(source,dest: String);
-var
- F      : TFileStream;
- buffer : TDynByteArray;
-begin
- buffer:=Inflate(source);
- F:=TFileStream.Create(dest,fmCreate);
- F.Position:=0;
- F.Write(buffer[0],Length(buffer));
- F.Free;
-end;
-}
 end.

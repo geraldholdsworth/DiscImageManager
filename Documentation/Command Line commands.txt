@@ -44,6 +44,7 @@ C1571	: Commodore 1571
 C1581	: Commodore 1581
 AMIGADD	: Commodore Amiga DD
 AMIGAHD	: Commodore Amiga HD
+CFS	: Acorn Cassette Filing System
 
 <opt> can be:
 0 or none	:	*OPT4,0

@@ -4291,7 +4291,7 @@ object MainForm: TMainForm
   OnShow = FormShow
   Position = poScreenCenter
   ShowHint = True
-  LCLVersion = '2.0.11.0'
+  LCLVersion = '2.0.12.0'
   Scaled = False
   object ToolPanel: TPanel
     Left = 585
@@ -5048,7 +5048,7 @@ object MainForm: TMainForm
       MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
       ParentColor = True
       ParentFont = False
-      PopupMenu = FIle_Menu
+      PopupMenu = File_Menu
       SelectionColor = clNavy
       ShowLines = False
       TabOrder = 0
@@ -5317,36 +5317,44 @@ object MainForm: TMainForm
     Left = 216
     Top = 96
   end
-  object FIle_Menu: TPopupMenu
+  object File_Menu: TPopupMenu
+    Images = ToolBarImages
+    ImagesWidth = 16
     Left = 152
     Top = 152
     object ExtractFile1: TMenuItem
       Caption = '&Extract File(s)...'
+      ImageIndex = 1
       OnClick = btn_downloadClick
     end
     object AddFile1: TMenuItem
       Caption = '&Add File(s)...'
       Enabled = False
+      ImageIndex = 6
       OnClick = AddFile1Click
     end
     object RenameFile1: TMenuItem
       Caption = '&Rename File'
       Enabled = False
+      ImageIndex = 5
       OnClick = RenameFile1Click
     end
     object HexDump1: TMenuItem
       Caption = '&Show Hex Dump'
       Enabled = False
+      ImageIndex = 14
       OnClick = DirListDblClick
     end
     object NewDirectory1: TMenuItem
       Caption = '&New Directory'
       Enabled = False
+      ImageIndex = 9
       OnClick = btn_NewDirectoryClick
     end
     object DeleteFile1: TMenuItem
       Caption = '&Delete File'
       Enabled = False
+      ImageIndex = 4
       OnClick = DeleteFile1Click
     end
   end
@@ -7916,82 +7924,98 @@ object MainForm: TMainForm
     }
   end
   object Main_Menu: TMainMenu
+    Images = ToolBarImages
+    ImagesWidth = 16
     Left = 152
     Top = 96
-    object FileMenu: TMenuItem
-      Caption = 'File'
+    object ImageMenu: TMenuItem
+      Caption = 'Image'
       object menuNewImage: TMenuItem
         Caption = 'New Image...'
+        ImageIndex = 7
         OnClick = btn_NewImageClick
       end
       object menuOpenImage: TMenuItem
         Caption = 'Open Image...'
+        ImageIndex = 2
         OnClick = btn_OpenImageClick
       end
       object menuCloseImage: TMenuItem
         Caption = 'Close Image'
         Enabled = False
+        ImageIndex = 10
         OnClick = btn_CloseImageClick
       end
       object menuSaveImage: TMenuItem
         Caption = 'Save Image...'
         Enabled = False
+        ImageIndex = 3
         OnClick = btn_SaveImageClick
       end
       object menuSaveAsCSV: TMenuItem
         Caption = 'Save Details As CSV...'
         Enabled = False
+        ImageIndex = 11
         OnClick = btn_SaveAsCSVClick
-      end
-      object MenuItem1: TMenuItem
-        Caption = '-'
       end
       object menuImageDetails: TMenuItem
         Caption = 'Image Details...'
         Enabled = False
+        ImageIndex = 15
         OnClick = btn_ImageDetailsClick
       end
-      object menuSplitDFS: TMenuItem
-        Caption = 'Split or Combine DFS Images...'
-        OnClick = btn_SplitDFSClick
-      end
-      object menuFixADFS: TMenuItem
-        Caption = 'Repair Broken ADFS Directories...'
-        Enabled = False
-        OnClick = btn_FixADFSClick
-      end
     end
-    object ImageMenu: TMenuItem
-      Caption = 'Image'
+    object FilesMenu: TMenuItem
+      Caption = 'Files'
       object menuExtractFile: TMenuItem
         Caption = 'Extract File(s)...'
         Enabled = False
+        ImageIndex = 1
         OnClick = btn_downloadClick
       end
       object menuAddFile: TMenuItem
         Caption = 'Add File(s)...'
         Enabled = False
+        ImageIndex = 6
         OnClick = AddFile1Click
       end
       object menuRenameFile: TMenuItem
         Caption = 'Rename File'
         Enabled = False
+        ImageIndex = 5
         OnClick = RenameFile1Click
       end
       object menuHexDump: TMenuItem
         Caption = 'Show Hex Dump'
         Enabled = False
+        ImageIndex = 14
         OnClick = DirListDblClick
       end
       object menuNewDir: TMenuItem
         Caption = 'New Directory'
         Enabled = False
+        ImageIndex = 9
         OnClick = btn_NewDirectoryClick
       end
       object menuDeleteFile: TMenuItem
         Caption = 'Delete File(s)'
         Enabled = False
+        ImageIndex = 4
         OnClick = DeleteFile1Click
+      end
+    end
+    object ToolsMenu: TMenuItem
+      Caption = 'Tools'
+      object menuSplitDFS: TMenuItem
+        Caption = 'Split or Combine DFS Images...'
+        ImageIndex = 13
+        OnClick = btn_SplitDFSClick
+      end
+      object menuFixADFS: TMenuItem
+        Caption = 'Repair Broken ADFS Directories...'
+        Enabled = False
+        ImageIndex = 12
+        OnClick = btn_FixADFSClick
       end
     end
     object HexDumpMenu: TMenuItem
@@ -8001,6 +8025,7 @@ object MainForm: TMainForm
       Caption = 'Help'
       object menuAbout: TMenuItem
         Caption = 'About...'
+        ImageIndex = 0
         OnClick = btn_AboutClick
       end
     end
@@ -34579,6 +34604,12 @@ object MainForm: TMainForm
     DefaultExt = '.csv'
     Filter = 'CSV File|*.csv'
     Left = 216
+    Top = 216
+  end
+  object DelayTimer: TTimer
+    Interval = 20
+    OnTimer = DelayTimerTimer
+    Left = 152
     Top = 216
   end
 end

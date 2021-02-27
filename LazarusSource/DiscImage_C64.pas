@@ -15,7 +15,7 @@ begin
  begin
   ResetVariables;
   //Is there actually any data?
-  if Length(Fdata)>0 then
+  if GetDataLength>0 then
   begin
    //IDing a 1541/1571
    ctr:=0;
@@ -247,12 +247,12 @@ begin
  imagefilename:='Untitled.'+FormatExt;
  //Setup the data area
  case minor of
-  0 : SetLength(FData,175531);  //1541
-  1 : SetLength(FData,351062);  //1571
-  2 : SetLength(FData,822400);  //1581
+  0 : SetDataLength(175531);  //1541
+  1 : SetDataLength(351062);  //1571
+  2 : SetDataLength(822400);  //1581
  end;
  //Fill with zeros
- for t:=0 to Length(FData)-1 do FData[t]:=0;
+ for t:=0 to GetDataLength-1 do WriteByte(0,t);
  if minor<2 then //1541 and 1571
  begin
   //Location of root

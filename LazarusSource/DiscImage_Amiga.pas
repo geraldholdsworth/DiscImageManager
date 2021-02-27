@@ -17,7 +17,7 @@ begin
  begin
   ResetVariables;
   //Only continue if there is data
-  if Length(Fdata)>0 then
+  if GetDataLength>0 then
   begin
    //Find the disc ID
    ctr:=-1;
@@ -63,7 +63,7 @@ begin
       Checksum1:=$00;
       Checksum2:=$FF;
       //Find the primary and secondary types for a root block
-      if root*secsize+secsize<Cardinal(Length(Fdata)) then
+      if root*secsize+secsize<GetDataLength then
        if  (Read32b(root*secsize     ,True)=2)
        and (Read32b(root*secsize+$1FC,True)=1) then
        begin
@@ -75,7 +75,7 @@ begin
         //Check next sector
         inc(root);
      until (Checksum1=Checksum2)
-        or (root*secsize+secsize>=Cardinal(Length(Fdata)));
+        or (root*secsize+secsize>=GetDataLength);
      //Update the format. Anything else is a hard drive (already set)
      if (Checksum1=Checksum2) and (root=$370) then
      begin

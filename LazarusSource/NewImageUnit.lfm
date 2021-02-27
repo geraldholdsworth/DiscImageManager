@@ -14,7 +14,7 @@ object NewImageForm: TNewImageForm
   LCLVersion = '2.0.11.0'
   object MainFormat: TRadioGroup
     Left = 0
-    Height = 128
+    Height = 154
     Top = 0
     Width = 249
     AutoFill = True
@@ -26,7 +26,7 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 110
+    ClientHeight = 136
     ClientWidth = 241
     ItemIndex = 0
     Items.Strings = (
@@ -35,6 +35,7 @@ object NewImageForm: TNewImageForm
       'Commodore 64/128'
       'Sinclair Spectrum +3/Amstrad'
       'Commodore Amiga'
+      'Cassette Filing System (CFS)'
     )
     OnClick = MainFormatClick
     TabOrder = 0
@@ -173,7 +174,7 @@ object NewImageForm: TNewImageForm
   object btn_OK: TSpeedButton
     Left = 0
     Height = 22
-    Top = 128
+    Top = 184
     Width = 82
     Caption = 'Create'
     Color = clSilver
@@ -220,7 +221,7 @@ object NewImageForm: TNewImageForm
   object btn_Cancel: TSpeedButton
     Left = 88
     Height = 22
-    Top = 128
+    Top = 184
     Width = 80
     Caption = 'Cancel'
     Color = clSilver

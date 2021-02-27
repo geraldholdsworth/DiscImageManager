@@ -6,7 +6,8 @@ General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
 * Extend drag and drop copy/move to multiple selection.
 * Application to application communications.
-* Scroll while dragging.
+* Duplicate files (i.e. like copy and rename into same directory) - just do this via file context menu, Image main menu and toolbar button.
+* Copy entire files onto clipboard? And then paste from clipboard?
 
 Command Line
 none
@@ -15,10 +16,15 @@ Coding Issues
 none
 
 DFS
-none
+* MMB Explorer?
+  + Used as a separate window, but double clicking on an entry will load this into the main window.
+  + Add an extra option to save back (as save will just save to the OS hard drive).
 
 ADFS
-* Write/Delete/Rename files/directories to ADFS Big Dir images.
+* Write/Delete/Rename files/directories to ADFS Big Dir images:
+  + Finish off the function to extend/reduce and move a directory;
+  + Finish off the function to rename - renaming a directory;
+  + Update the function to update an ADFS catalogue to include Big Directories.
 
 Commodore
 none
@@ -33,4 +39,4 @@ Spectrum/Amstrad
 * Write entire module.
 
 CFS
-* Write entire module.
+* Enable the code to move files - both this and the previous require the Drop and Drag to be enabled for CFS.

@@ -13,7 +13,7 @@ begin
  begin
   ResetVariables;
   //Is there actually any data?
-  if Length(Fdata)>0 then
+  if GetDataLength>0 then
   begin
    chk:=True;
    // Offset 0x0001 should have 9 bytes without top bit set and >31
@@ -350,8 +350,8 @@ begin
    FDisc[file_details.Side].Entries[filen].Sector:=pos;
    //Extend the image size, if necessary (image size != data size)
    newlen:=size2*$100;
-   if ConvertDFSSector(pos*$100+newlen,file_details.Side)>Length(Fdata) then
-    SetLength(FData,ConvertDFSSector(pos*$100+newlen,file_details.Side));
+   if ConvertDFSSector(pos*$100+newlen,file_details.Side)>GetDataLength then
+    SetDataLength(ConvertDFSSector(pos*$100+newlen,file_details.Side));
    //Then write the actual data
    success:=WriteDiscData(pos*$100,file_details.Side,buffer,count);
    //Update the catalogue, if successful
@@ -594,9 +594,9 @@ begin
   FDSD:=False;
  end;
  //Setup the data area
- SetLength(FData,$200*(minor+1)); // $200 for the header, per side. $400 for Watford
+ SetDataLength($200*(minor+1)); // $200 for the header, per side. $400 for Watford
  //Fill with zeros
- for t:=0 to Length(FData)-1 do FData[t]:=0;
+ for t:=0 to GetDataLength-1 do WriteByte(0,t);
  s:=0;
  repeat
   //Reset the array

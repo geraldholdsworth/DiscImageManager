@@ -6,6 +6,7 @@ object HexDumpForm: THexDumpForm
   Caption = 'HexDumpForm'
   ClientHeight = 636
   ClientWidth = 635
+  Color = 15527148
   Constraints.MaxWidth = 635
   Constraints.MinHeight = 290
   Constraints.MinWidth = 635

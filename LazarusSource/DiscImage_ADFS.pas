@@ -19,7 +19,7 @@ begin
  begin
   ResetVariables;
   //Is there actually any data?
-  if Length(Fdata)>0 then
+  if GetDataLength>0 then
   begin
    //Check for Old Map
    Check0   :=ReadByte($0FF);
@@ -104,7 +104,7 @@ begin
      dr_size   :=60; //Disc record size
      //Read some values from the disc record in the boot block
      //These are the minimum we require to find the map
-     if emuheader+dr_ptr+$40<Cardinal(Length(FData)) then
+     if emuheader+dr_ptr+$40<GetDataLength then
      begin
       secsize   :=1 shl ReadByte(dr_ptr+$00); //Sector size
       idlen     :=ReadByte(dr_ptr+$04);       //idlen
@@ -122,7 +122,7 @@ begin
      bootmap:=((nzones div 2)*(8*secsize-zone_spare)-zone)*bpmb;
      //If the bootmap is within the size of the disc, and there is at least
      //a single zone then continue
-     if(emuheader+bootmap+nzones*secsize<Cardinal(Length(Fdata)))and(nzones>0)then
+     if(emuheader+bootmap+nzones*secsize<GetDataLength)and(nzones>0)then
      begin
       Result:=True;
       //Check the checksums for each zone
@@ -1075,17 +1075,17 @@ begin
  imagefilename:='Untitled.'+FormatExt;
  //Setup the data area
  case minor of
-  0 : SetLength(FData,160*1024);  //S
-  1 : SetLength(FData,320*1024);  //M
-  2 : SetLength(FData,640*1024);  //L
-  3 : SetLength(FData,800*1024);  //D
-  4 : SetLength(FData,800*1024);  //E
-  5 : SetLength(FData,800*1024);  //E+
-  6 : SetLength(FData,1600*1024); //F
-  7 : SetLength(FData,1600*1024); //F+
+  0 : SetDataLength( 160*1024);  //S (160KB)
+  1 : SetDataLength( 320*1024);  //M (320KB)
+  2 : SetDataLength( 640*1024);  //L (640KB)
+  3 : SetDataLength( 800*1024);  //D (800KB)
+  4 : SetDataLength( 800*1024);  //E (800KB)
+  5 : SetDataLength( 800*1024);  //E+(800KB)
+  6 : SetDataLength(1600*1024);  //F (1.6MB)
+  7 : SetDataLength(1600*1024);  //F+(1.6MB)
  end;
  //Fill with zeros
- for t:=0 to Length(FData)-1 do FData[t]:=0;
+ for t:=0 to GetDataLength-1 do WriteByte(0,t);
  //Setup the variables
  if minor<4 then //Old maps (S, M, L and D)
  begin
@@ -1137,9 +1137,9 @@ begin
  SetLength(bootoption,1);
  bootoption[0]:=0;
  SetLength(free_space_map,1); //Free Space Map
- disc_size:=Length(FData);    //Disc Size
+ disc_size:=GetDataLength;    //Disc Size
  //Fill with zeros
- for t:=0 to disc_size-1 do FData[t]:=0;
+ for t:=0 to disc_size-1 do WriteByte(0,t);
  //Write the map
  if not FMap then //Old Map
  begin
@@ -1424,7 +1424,8 @@ begin
  success:=False;
  { ADFS Big Map:
   1. Verify the directory is big enough for the proposed entry
-  2. If not, verify the directory +2048bytes can be put somewhere else
+  2. If not, verify the directory +2048bytes can be put somewhere else and move
+     it, freeing up the fragments as free space
   3. Write the file, and FSM (as below)
   4. Update the directory (as below)
  }
@@ -1441,6 +1442,14 @@ begin
     dir  :=0
    else
     dir  :=FDisc[ref div $10000].Entries[ref mod $10000].DirRef;
+   //Big Dir - Verify directory is big enough or if it needs extending and moved.
+   if FDirType=2 then
+    if not ExtendADFSBigDir(dir,Length(file_details.Filename),True) then
+    begin
+     Result:=-9; //Cannot extend
+     exit;
+    end;
+   //Get the length of the file
    l:=Length(FDisc[dir].Entries);
    //Work out the "sector aligned file length"
    safilelen:=file_details.Length div secsize;
@@ -2058,8 +2067,9 @@ var
  c,i    : Byte;
  temp   : String;
 begin
- Result:=False;
- if FMap then exit;
+ Result:=False;                           
+ //ADFS Big Directories do not have titles
+ if FDirType=2 then exit;
  //Check that the file exists
  if (FileExists(filename,ptr)) OR (filename='$') then
  begin
@@ -2110,14 +2120,15 @@ var
  entry,
  dir    : Cardinal;
  frag   : TFragmentArray;
- i      : Integer;
+ i,
+ space  : Integer;
  c      : Byte;
  temp   : String;
  swap   : TDirEntry;
  changed: Boolean;
 begin
  Result:=-2; //File does not exist
- //Check that the new name meets the required DFS filename specs
+ //Check that the new name meets the required ADFS filename specs
  newfilename:=ValidateADFSFilename(newfilename);
  //Check that the file exists
  if FileExists(oldfilename,ptr) then
@@ -2130,6 +2141,15 @@ begin
   if not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr) then
   begin
    Result:=-1;//Unknown error
+   //Get the difference in lengths
+   space:=Length(FDisc[dir].Entries[entry].Filename)-Length(newfilename);
+   //Big Dir - Verify directory is big enough or if it needs extending and moved.
+   if FDirType=2 then
+    if not ExtendADFSBigDir(dir,space,False) then
+    begin
+     Result:=-9; //Cannot extend
+     exit;
+    end;
    //Are we renaming a directory?
    if FDisc[dir].Entries[entry].DirRef<>-1 then
    begin                                                             
@@ -2398,6 +2418,13 @@ begin
   //FileExists returns a pointer to the file
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  //Big Dir - Verify directory is big enough or if it needs reduced.
+  if FDirType=2 then
+   if not ExtendADFSBigDir(dir,-Length(filename),True) then
+   begin
+    Result:=False; //Cannot extend
+    exit;
+   end;
   success:=True;
   //If directory, delete contents first
   if FDisc[dir].Entries[entry].DirRef>0 then
@@ -2610,7 +2637,10 @@ var
  filelen       : Cardinal;
  fragments     : TFragmentArray;
 begin
- Result:=False;
+ Result   :=False;
+ fragptr  :=0;
+ fragments:=nil;
+ source   :=0;
  if FileExists(filename,fragptr) then //Does the file actually exist?
  //Yes, so load it - there is nothing to stop a directory header being extracted
  //if passed in the filename parameter.
@@ -2674,7 +2704,7 @@ var
  ptr      : Cardinal;
  sparent  : String;
 begin
- Result:=-10;//Source file not found
+ Result:=-11;//Source file not found
  ptr:=0;
  if FileExists(filename,ptr) then
  begin
@@ -2700,6 +2730,23 @@ begin
     ddir  :=ptr div $10000;  //Top 16 bits - directory reference
     ddir:=FDisc[ddir].Entries[dentry].DirRef;
    end;
+   //Big Dir - Verify directories are big enough or if they need
+   //extending/reducing and moved.
+   if FDirType=2 then
+   begin
+    //Destination - look to extend
+    if not ExtendADFSBigDir(ddir,Length(direntry.Filename),True) then
+    begin
+     Result:=-9; //Cannot extend
+     exit;
+    end;
+    //Source - look to reduce
+    if not ExtendADFSBigDir(sdir,-Length(direntry.Filename),True) then
+    begin
+     Result:=-9; //Cannot extend
+     exit;
+    end;
+   end;
    //Insert into the new directory
    Result:=ExtendADFSCat(ddir,direntry);
    //And update
@@ -2708,6 +2755,74 @@ begin
    ReduceADFSCat(sdir,sentry);
    //And update the original parent
    UpdateADFSCat(sparent);
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Extends, or reduces, an ADFS Big Directory by 'space' bytes
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtendADFSBigDir(dir: Cardinal;space: Integer;add: Boolean):Boolean;
+var
+ parent,
+ addr,
+ d,e,
+ dirsize,
+ hdr,tail,
+ heapsize : Cardinal;
+ frag     : TFragmentArray;
+begin
+ Result:=False; //By default - fail to extend/contract
+ //Make sure it we are using big directories
+ if FDirType=2 then
+ begin
+  //we need to find out the directory indirect address. Therefore we need to
+  //know what the parent is.
+  parent:=$FFFFFFFF; //Root, by default
+  if Length(FDisc)>0 then
+   for d:=0 to Length(FDisc)-1 do
+    if Length(FDisc[d].Entries)>0 then
+     for e:=0 to Length(FDisc[d].Entries)-1 do
+      if FDisc[d].Entries[e].DirRef=dir then parent:=d*$10000+e;
+  //Parent directory and entry will be in parent, if not found, will be zero (root)
+  d:=parent DIV $10000; //Top 16 bits
+  e:=parent MOD $10000; //Bottom 16 bits
+  //We now know where, on the disc, the directory is
+  if parent=$FFFFFFFF then //If it is the root, then just get the root address
+   addr:=root
+  else
+  begin //Otherwise get the fragments, so we can get the address
+   addr:=FDisc[d].Entries[e].Sector;
+   frag:=NewDiscAddrToOffset(addr);
+   if Length(frag)>1 then addr:=frag[1].Offset; //Usually root
+   if Length(frag)=1 then addr:=frag[0].Offset; //Directories do not get fragmented
+   if Length(frag)=0 then exit; //Could not find anything, so bye bye
+  end;
+  dirsize:=Read32b(addr+$0C);//Length of directory
+  tail:=$08;//Tail size
+  hdr:=(($1C+Read32b(addr+$08)+$03)div 4)*4;//Size of header (padded to word boundary)
+  heapsize:=Read32b(addr+$10)*$1C+Read32b(addr+$14);//Size of entries
+  //Are we adding a new entry or renaming one (or the directory)?
+  if(add)and(space>=0)then inc(space,$1C);//Add in the space required for an entry
+  if(add)and(space<0) then dec(space,$1C);//Remove the space required for an entry
+  //space is the extra space required (or, -ve number, to be reduced by)
+  if space>=0 then //Extend
+  begin
+   if dirsize-(tail+hdr+heapsize)>=space then
+    Result:=True //Doesn't need extending
+   else
+   begin
+    //Directory needs to be extended (by 2048) and moved.
+   end;
+  end;
+  if space<0 then //Contract
+  begin
+   if dirsize-(tail+hdr+heapsize)+space<2048 then
+    Result:=True //Doesn't need to be contracted
+   else
+   begin
+    //Need to contract the directory, by 2048 (min size 2048)
+   end;
   end;
  end;
 end;

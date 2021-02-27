@@ -6,7 +6,7 @@ unit DiscImage;
 
 interface
 
-uses Classes,DiscImageUtils,Math,crc;
+uses Classes,DiscImageUtils,Math,crc,ZStream;
 
 {$M+}
 
@@ -68,6 +68,7 @@ type
   dir_sep       : Char;         //Directory Separator
   free_space_map: TSide;        //Free Space Map
   bootoption    : TDIByteArray; //Boot Option(s)
+  CFSFiles      : array of TDIByteArray;//All the data for the CFS files
   procedure ResetVariables;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function FormatToString: String;
@@ -84,6 +85,8 @@ type
   procedure Write24b(value, offset: Cardinal; bigendian: Boolean=False);
   procedure Write16b(value: Word; offset: Cardinal; bigendian: Boolean=False);
   procedure WriteByte(value: Byte; offset: Cardinal);
+  function GetDataLength: Cardinal;
+  procedure SetDataLength(newlen: Cardinal);
   function ROR13(v: Cardinal): Cardinal;
   procedure ResetDir(var Entry: TDir);
   function MapFlagToByte: Byte;
@@ -92,10 +95,11 @@ type
   function GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
   function GetImageCrc: String;
   function GetCRC(var buffer: TDIByteArray): String;
+  function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
-  function CalculateADFSDirCheck(sector{,EndOfChk,tail,dirsize}: Cardinal): Byte;
+  function CalculateADFSDirCheck(sector: Cardinal): Byte;
   function NewDiscAddrToOffset(addr: Cardinal;offset:Boolean=True): TFragmentArray;
   function OldDiscAddrToOffset(disc_addr: Cardinal): Cardinal;
   function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
@@ -114,11 +118,12 @@ type
   function UpdateADFSFileAttributes(filename,attributes: String): Boolean;
   function ValidateADFSFilename(filename: String): String;
   function RetitleADFSDirectory(filename,newtitle: String): Boolean;
-  function RenameADFSFile(oldfilename: String;var newfilename: String):Integer;
+  function RenameADFSFile(oldfilename: String;var newfilename: String):Integer; { * }
   procedure ConsolodateADFSFreeSpaceMap;
   function DeleteADFSFile(filename: String):Boolean;
   function ExtractADFSFile(filename: String;var buffer: TDIByteArray): Boolean;
   function MoveADFSFile(filename,directory: String): Integer;
+  function ExtendADFSBigDir(dir: Cardinal;space: Integer;add: Boolean):Boolean;
   function ExtendADFSCat(dir: Cardinal;direntry: TDirEntry): Cardinal;
   procedure ReduceADFSCat(dir,entry: Cardinal);
   function FixBrokenADFSDirectories: Boolean;
@@ -180,6 +185,19 @@ type
   function UpdateAmigaFileAttributes(filename,attributes: String): Boolean;
   function UpdateAmigaDiscTitle(title: String): Boolean;
   function MoveAmigaFile(filename,directory: String): Integer;
+  //Acorn CFS Routines
+  function ID_CFS: Boolean;
+  function ReadUEFFile: TDisc;
+  function CFSBlockStatus(status: Byte): String;
+  function CFSTargetMachine(machine: Byte): String;
+  function ExtractCFSFile(entry: Integer;var buffer:TDIByteArray):Boolean;
+  procedure WriteUEFFile(filename: String);
+  function FormatCFS:TDisc;
+  function DeleteCFSFile(entry: Cardinal): Boolean;
+  function UpdateCFSAttributes(entry: Cardinal;attributes:String): Boolean;
+  function MoveCFSFile(entry: Cardinal;dest: Integer): Integer;
+  function WriteCFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function RenameCFSFile(entry: Cardinal;newfilename: String): Integer;
   const
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
    CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
@@ -194,34 +212,29 @@ type
   //Methods
   constructor Create;
   function LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
-  function LoadFromStream(F: TStream;readdisc: Boolean=True): Boolean;        
   function IDImage: Boolean;
   procedure ReadImage;
   procedure SaveToFile(filename: String);
-  procedure SaveToStream(F: TStream);
   procedure Close;
   function Format(major,minor,tracks: Byte): Boolean;
-  function ExtractFile(filename: String; var buffer: TDIByteArray): Boolean;
-  function ExtractFileToStream(filename: String;F: TStream): Boolean;
+  function ExtractFile(filename:String;var buffer:TDIByteArray;entry:Cardinal=0): Boolean;
   function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
-  function WriteFileFromStream(var file_details: TDirEntry;F: TStream): Integer;
   function FileExists(filename: String; var Ref: Cardinal): Boolean;
-  function ReadDiscData(addr,count,side: Cardinal; var buffer): Boolean;
-  function ReadDiscDataToStream(addr,count,side: Cardinal; F: TStream): Boolean;
+  function ReadDiscData(addr,count,side: Cardinal;var buffer): Boolean;
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
-  function WriteDiscDataFromStream(addr,side: Cardinal; F: TStream): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
-  function RenameFile(oldfilename: String;var newfilename: String): Integer;
-  function DeleteFile(filename: String): Boolean;
+  function RenameFile(oldfilename: String;var newfilename: String;entry: Cardinal=0): Integer;
+  function DeleteFile(filename: String;entry: Cardinal=0): Boolean;
   function MoveFile(filename, directory: String): Integer;
+  function MoveFile(source: Cardinal;dest: Integer): Integer; overload;
   function CopyFile(filename, directory: String): Integer;
-  function UpdateAttributes(filename,attributes: String): Boolean;
+  function UpdateAttributes(filename,attributes: String;entry:Cardinal=0): Boolean;
   function UpdateDiscTitle(title: String;side: Byte): Boolean;
   function UpdateBootOption(option,side: Byte): Boolean;
   function CreateDirectory(var filename,parent,attributes: String): Integer;
   function RetitleDirectory(var filename,newtitle: String): Boolean;
-  function GetFileCRC(filename: String): String;
+  function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function FixDirectories: Boolean;
   //Properties
   property Disc:                TDisc        read FDisc;
@@ -326,17 +339,19 @@ Convert a format byte to a string
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToString: String;
 const
- FS  : array[0..4] of String = ('DFS',
+ FS  : array[0..5] of String = ('DFS',
                                 'Acorn ADFS',
                                 'Commodore',
                                 'Sinclair Spectrum +3/Amstrad',
-                                'Commodore Amiga');
- SUB : array[0..4] of array[0..15] of String =
+                                'Commodore Amiga',
+                                'Acorn CFS');
+ SUB : array[0..5] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','','','','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','','Hard Disc'),
   ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
   ('','Extended','','','','','','','','','','','','','',''),
-  ('DD','HD','','','','','','','','','','','','','','Hard Disc'));
+  ('DD','HD','','','','','','','','','','','','','','Hard Disc'),
+  ('','','','','','','','','','','','','','','',''));
 begin
  if FFormat<>$FF then
  begin
@@ -351,12 +366,13 @@ Convert a format byte to an extension
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToExt: String;
 const
- EXT : array[0..4] of array[0..15] of String =
+ EXT : array[0..5] of array[0..15] of String =
  (('ssd','dsd','ssd','dsd','','','','','','','','','','','',''),
   ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','','hdf'),
   ('d64','d71','d81','d64','d71','','','','','','','','','','',''),
   ('','dsk','','','','','','','','','','','','','',''),
-  ('adf','adf','','','','','','','','','','','','','','hdf'));
+  ('adf','adf','','','','','','','','','','','','','','hdf'),
+  ('uef','','','','','','','','','','','','','','',''));
 begin
  if FFormat<>$FF then
  begin
@@ -487,6 +503,13 @@ begin
  Result:=(days*dayincsec)+time;
 end;
 
+//Read/Write routines to/from the data - these are provided to make it easier to
+//convert the class to keeping the image open and access the data as and when
+//required rather than storing the entire thing in RAM.
+//Methods: ReadByte, Read16b, Read24b, Read32b,
+//         WriteByte, Write16b, Write24b, Write 32b,
+//         GetDataLength, SetDataLength
+
 {-------------------------------------------------------------------------------
 Read in 4 bytes (word)
 -------------------------------------------------------------------------------}
@@ -552,7 +575,7 @@ begin
  //Compensate for emulator header
  inc(offset,emuheader);
  //If we are inside the data, read the byte
- if offset<Cardinal(Length(Fdata)) then
+ if offset<GetDataLength then
   Result:=Fdata[offset];
 end;
 
@@ -628,9 +651,27 @@ begin
  if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
  //Compensate for emulator header
  inc(offset,emuheader);
+ //Will it go beyond the size of the array?
+ if offset>=GetDataLength then
+  SetDataLength(offset+1); //Then increase the array to compensate
  //Write the byte
- if offset<Cardinal(Length(Fdata)) then
-  Fdata[offset]:=value;
+ Fdata[offset]:=value;
+end;
+
+{-------------------------------------------------------------------------------
+Gets the length of the data
+-------------------------------------------------------------------------------}
+function TDiscImage.GetDataLength: Cardinal;
+begin
+ Result:=Length(Fdata);
+end;
+
+{-------------------------------------------------------------------------------
+Sets the length of the data
+-------------------------------------------------------------------------------}
+procedure TDiscImage.SetDataLength(newlen: Cardinal);
+begin
+ SetLength(Fdata,newlen);
 end;
 
 {-------------------------------------------------------------------------------
@@ -765,6 +806,34 @@ begin
  Result  :=IntToHex(CRCValue,8);
 end;
 
+{-------------------------------------------------------------------------------
+Calculate the CRC-16 value
+-------------------------------------------------------------------------------}
+function TDiscImage.GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
+var
+ addr: Cardinal;
+ bit : Byte;
+begin
+ //Converted from the BBC BASIC version by J.G.Harston
+ //mdfs.net
+ Result:=0;
+ for addr:=start to start+len-1 do
+ begin
+  if Length(buffer)>0 then
+   Result:=Result XOR $100*buffer[addr] //EOR with current byte (supplied data)
+  else
+   Result:=Result XOR $100*ReadByte(addr);//EOR with current byte (file data)
+  for bit:=1 to 8 do                    //Loop through 8 bits
+  begin
+   Result:=Result shl 1;                //Move CRC up one bit
+   if Result AND $10000=$10000 then
+    Result:=Result XOR $11021;          //EOR with XMODEM polynomic
+  end;                                  //Ensuring CRC remains 16-bit value
+ end;
+ //Swap the MSB and LSB around
+ Result:=((Result mod $100)*$100)+(Result div $100);
+end;
+
 //++++++++++++++++++ Published Methods +++++++++++++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------
@@ -775,7 +844,7 @@ begin
  inherited;
  //This just sets all the global and public variables to zero, or blank.
  ResetVariables;
- SetLength(Fdata,0);
+ SetDataLength(0);
 end;
 
 {-------------------------------------------------------------------------------
@@ -790,12 +859,12 @@ end;
 {-------------------------------------------------------------------------------
 Calculate a CRC-32 for a file
 -------------------------------------------------------------------------------}
-function TDiscImage.GetFileCrc(filename: String): String;
+function TDiscImage.GetFileCrc(filename: String;entry:Cardinal=0): String;
 var
  buffer: TDIByteArray;
 begin
  Result:='error';
- if ExtractFile(filename,buffer) then Result:=GetCRC(buffer);
+ if ExtractFile(filename,buffer,entry) then Result:=GetCRC(buffer);
 end;
 
 {-------------------------------------------------------------------------------
@@ -809,48 +878,55 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Load an image from a file (just calls LoadFromStream)
+Load an image from a file, unGZIPping it, if necessary
 -------------------------------------------------------------------------------}
 function TDiscImage.LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
 var
- FDiscDrive: TFileStream;
+ FDiscDrive: TGZFileStream;
+ chunk  : TDIByteArray;
+ cnt,
+ i,
+ buflen : Integer;
+const
+  ChunkSize=4096; //4K chunks
 begin
  Result:=False;
  //Only read the file in if it actually exists (or rather, Windows can find it)
  if SysUtils.FileExists(filename) then
  begin
+  //Blank off the variables
+  ResetVariables;
   //Create the stream
   try
-   FDiscDrive:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
-   //Call the procedure to read from the stream
-   Result:=LoadFromStream(FDiscDrive,readdisc);
+   FDiscDrive:=TGZFileStream.Create(filename,gzOpenRead);
+   //Counter
+   buflen:=0;
+   //Set up the chunk buffer
+   SetLength(chunk,ChunkSize);
+   repeat
+    //Read in the next chunk
+    cnt:=FDiscDrive.Read(chunk[0],ChunkSize);
+    //Extend the buffer accordingly
+    SetDataLength(buflen+cnt);
+    //Copy the chunk into the buffer
+    for i:=0 to cnt-1 do Fdata[buflen+i]:=chunk[i];
+    //Increase the buffer length counter
+    inc(buflen,cnt);
+    //Until we are done
+   until cnt<ChunkSize;
    //Close the stream
    FDiscDrive.Free;
-   if Result then imagefilename:=filename;
+   //ID the image
+   if(IDImage)and(readdisc)then ReadImage;
+   //Return a true or false, depending on if FFormat is set.
+   Result:=FFormat<>$FF;
+   //Set the image filename
+   If Result then imagefilename:=filename;
   except
    FDiscDrive:=nil;
+   Result:=False;
   end;
  end;
-end;
-
-{-------------------------------------------------------------------------------
-Load an image from a stream (e.g. FileStream)
--------------------------------------------------------------------------------}
-function TDiscImage.LoadFromStream(F: TStream;readdisc: Boolean=True): Boolean;
-begin
- Result:=False;
- //Blank off the variables
- ResetVariables;
- //Ensure there is enough space in the buffer
- SetLength(Fdata,F.Size);
- //Move to the beginning of the stream
- F.Position:=0;
- //Read the image into the data buffer
- F.Read(Fdata[0],Length(Fdata));
- //ID the image
- if(IDImage)and(readdisc)then ReadImage;
- //Return a true or false, depending on if FFormat is set.
- Result:=FFormat<>$FF;
 end;
 
 {-------------------------------------------------------------------------------
@@ -861,7 +937,7 @@ begin
  //Reset the variables
  ResetVariables;
  //This check is done in the ID functions anyway, but we'll do it here also
- if Length(Fdata)>0 then
+ if GetDataLength>0 then
  begin
   //ID the type of image, from the data contents
   //These need to be ID-ed in a certain order as one type can look like another
@@ -870,6 +946,7 @@ begin
   if not ID_Amiga    then //Amiga
   if not ID_DFS      then //Acorn DFS
   if not ID_Sinclair then //Sinclair/Amstrad
+  if not ID_CFS      then //Acorn CFS
    ResetVariables;        //Reset everything
   //Just by the ID process:
   //ADFS 'F' can get mistaken for Commodore
@@ -890,6 +967,7 @@ begin
   2: FDisc:=ReadCDRDisc;     //Commodore
   3: FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
   4: FDisc:=ReadAmigaDisc;   //Amiga
+  5: FDisc:=ReadUEFFile;     //Acorn CFS
  end;
 end;
 
@@ -905,29 +983,24 @@ begin
  ext:=ExtractFileExt(filename);
  filename:=LeftStr(filename,Length(filename)-Length(ext));
  filename:=filename+'.'+FormatToExt;
- //Create the stream
- try
-  FDiscDrive:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
-  //Call the procedure to read from the stream
-  SaveToStream(FDiscDrive);
-  //Close the stream
-  FDiscDrive.Free;
-  //Change the image's filename
-  imagefilename:=filename;
- except
-  //Could not create
+ if FFormat shr 4<>5 then //Not CFS
+ begin
+  //Create the stream
+  try
+   FDiscDrive:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
+   //Move to the beginning of the stream
+   FDiscDrive.Position:=0;
+   //Read the image into the data buffer
+   FDiscDrive.Write(Fdata[0],Length(Fdata));
+   //Close the stream
+   FDiscDrive.Free;
+   //Change the image's filename
+   imagefilename:=filename;
+  except
+   //Could not create
+  end;
  end;
-end;
-
-{-------------------------------------------------------------------------------
-Saves an image to a stream
--------------------------------------------------------------------------------}
-procedure TDiscImage.SaveToStream(F: TStream);
-begin
- //Move to the beginning of the stream
- F.Position:=0;
- //Read the image into the data buffer
- F.Write(Fdata[0],Length(Fdata));
+ if FFormat shr 4=5 then WriteUEFFile(filename); //CFS
 end;
 
 {-------------------------------------------------------------------------------
@@ -974,13 +1047,19 @@ begin
     FDisc:=FormatAmiga(minor);
     Result:=Length(FDisc)>0;
    end;
+  5://Create CFS
+   begin
+    FDisc:=FormatCFS;
+    Result:=Length(FDisc)>0;
+   end;
  end;
 end;
 
 {-------------------------------------------------------------------------------
-Extracts a file, filename contains complete path
+Extracts a file, filename contains complete path (CFS, entry is entry number)
 -------------------------------------------------------------------------------}
-function TDiscImage.ExtractFile(filename: String; var buffer: TDIByteArray): Boolean;
+function TDiscImage.ExtractFile(filename:String;var buffer:TDIByteArray;
+                                entry:Cardinal=0): Boolean;
 var
  m: Byte;
 begin
@@ -993,24 +1072,7 @@ begin
   2:Result:=ExtractCDRFile(filename,buffer);     //Extract Commodore 64/128
   3:Result:=ExtractSpectrumFile(filename,buffer);//Extract Sinclair/Amstrad
   4:Result:=ExtractAmigaFile(filename,buffer);   //Extract AmigaDOS
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Extract a file into a memory stream
--------------------------------------------------------------------------------}
-function TDiscImage.ExtractFileToStream(filename: String; F: TStream): Boolean;
-var
- buffer: TDIByteArray;
-begin
- //This just uses the previous function to get the file
- Result:=ExtractFile(filename,buffer);
- if Result then
- begin
-  //Before we save it to the supplied stream
-  F.Position:=0;
-  F.Write(buffer[0],Length(buffer));
-  F.Position:=0;
+  5:Result:=ExtractCFSFile(entry,buffer);        //Extract CFS
  end;
 end;
 
@@ -1031,18 +1093,17 @@ begin
  //Only write a file if there is actually any data to be written
  if count>0 then
  begin
-  //Can only write a file that will fit on the disc
-  if count<=free_space then
-  begin
-   m:=FFormat DIV $10; //Major format
+  m:=FFormat DIV $10; //Major format
+  //Can only write a file that will fit on the disc, or CFS
+  if(count<=free_space)or(m=5) then
    case m of
     0:Result:=WriteDFSFile(file_details,buffer);     //Write DFS
     1:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
     2:Result:=WriteCDRFile(file_details,buffer);     //Write Commodore 64/128
     3:Result:=WriteSpectrumFile(file_details,buffer);//Write Sinclair/Amstrad
     4:Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
+    5:Result:=WriteCFSFile(file_details,buffer);     //Write CFS
    end;
-  end;
  end;
 end;
 
@@ -1064,6 +1125,7 @@ begin
   3: exit;//Can't create directories on Sinclair/Amstrad
   4:      //Create directory on AmigaDOS
     Result:=CreateAmigaDirectory(filename,parent,attributes);
+  5: exit;//Can't create directories on CFS
  end;
 end;
 
@@ -1085,24 +1147,8 @@ begin
   3: exit;//Sinclair/Amstrad doesn't have directories
   4:      //Retitle AmigaDOS directory
     Result:=RetitleAmigaDirectory(filename,newtitle);
+  5: exit;//CFS doesn't have directories
  end;
-end;
-
-{-------------------------------------------------------------------------------
-Save a file into the disc image, from stream
--------------------------------------------------------------------------------}
-function TDiscImage.WriteFileFromStream(var file_details: TDirEntry;F: TStream): Integer;
-var
- buffer: TDIByteArray;
-begin
- //Copy the stream into a buffer
- SetLength(buffer,F.Size);
- F.Position:=0;
- F.Read(buffer[0],F.Size);
- //Then call the preceeding function to do the work
- Result:=WriteFile(file_details,buffer);
- //Return the pointer to the beginning of the stream
- F.Position:=0;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1245,26 +1291,6 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Direct access to disc data, into a stream
--------------------------------------------------------------------------------}
-function TDiscImage.ReadDiscDataToStream(addr,count,side: Cardinal;F: TStream): Boolean;
-var
- buffer: TDIByteArray;
-begin
- //Set the length of the buffer
- SetLength(buffer,count);
- //Use the previous function to get the data
- Result:=ReadDiscData(addr,count,side,buffer[0]);
- if Result then
- begin
-  //Then save it to the supplied stream
-  F.Position:=0;
-  F.Write(buffer[0],Length(buffer));
-  F.Position:=0;
- end;
-end;
-
-{-------------------------------------------------------------------------------
 Direct access writing to disc
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
@@ -1278,11 +1304,11 @@ begin
  if start+count<=Length(buffer) then
  begin
   //Sometimes the image file is smaller than the actual disc size
-  if Length(FData)<disc_size then SetLength(FData,disc_size);
+  if GetDataLength<disc_size then SetDataLength(disc_size);
   if FFormat DIV $10>0 then //not DFS
   begin
    //Ensure that the entire block will fit into the available space
-   Result:=(addr+count)<=Cardinal(Length(Fdata));
+   Result:=(addr+count)<=GetDataLength;
    //Simply copy from source to destination
    if Result then
     for i:=0 to count-1 do
@@ -1291,30 +1317,13 @@ begin
   else //DFS
   begin
    //Ensure that the entire block will fit into the available space
-   Result:=ConvertDFSSector(addr+count,side)<=Length(Fdata);
+   Result:=ConvertDFSSector(addr+count,side)<=GetDataLength;
    //Simply copy from source to destination
    if Result then
     for i:=0 to count-1 do
      WriteByte(buffer[start+i],ConvertDFSSector(addr+i,side));
   end;
  end;
-end;
-
-{-------------------------------------------------------------------------------
-Direct access writing to disc from stream
--------------------------------------------------------------------------------}
-function TDiscImage.WriteDiscDataFromStream(addr,side: Cardinal; F: TStream): Boolean;
-var
- buffer: TDIByteArray;
-begin
- //Set the length of the buffer
- SetLength(buffer,F.Size);
- //Copy the stream into the buffer
- F.Position:=0;
- F.Write(buffer[0],F.Size);
- //Use the previous function to write the data
- Result:=WriteDiscData(addr,side,buffer,Length(buffer));
- F.Position:=0;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1406,7 +1415,8 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file - oldfilename is full path, newfilename has no path
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameFile(oldfilename: String;var newfilename: String): Integer;
+function TDiscImage.RenameFile(oldfilename: String;var newfilename: String;
+                                    entry:Cardinal=0): Integer;
 var
  m: Byte;
 begin
@@ -1418,13 +1428,14 @@ begin
   2:Result:=RenameCDRFile(oldfilename,newfilename);     //Rename Commodore 64/128
   3:Result:=RenameSpectrumFile(oldfilename,newfilename);//Rename Sinclair/Amstrad
   4:Result:=RenameAmigaFile(oldfilename,newfilename);   //Rename AmigaDOS
+  5:Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
  end;
 end;
 
 {-------------------------------------------------------------------------------
 Deletes a file (given full pathname)
 -------------------------------------------------------------------------------}
-function TDiscImage.DeleteFile(filename: String): Boolean;
+function TDiscImage.DeleteFile(filename: String;entry: Cardinal=0): Boolean;
 var
  m: Byte;
 begin
@@ -1436,6 +1447,7 @@ begin
   2:Result:=DeleteCDRFile(filename);     //Delete Commodore 64/128
   3:Result:=DeleteSinclairFile(filename);//Delete Sinclair/Amstrad
   4:Result:=DeleteAmigaFile(filename);   //Delete AmigaDOS
+  5:Result:=DeleteCFSFile(entry);        //Delete CFS
  end;
 end;
 
@@ -1444,7 +1456,8 @@ Moves a file from one directory to another
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveFile(filename, directory: String): Integer;
 begin
- //Can only move files on DFS (between drives), ADFS and Amiga
+ Result:=-12;
+ //Can only move files on DFS (between drives), ADFS, Amiga and CFS
  if FFormat shr 4=0 then //Move on DFS
  begin
   //Moving and copying are the same, essentially
@@ -1454,6 +1467,13 @@ begin
  end;
  if FFormat shr 4=1 then Result:=MoveADFSFile(filename,directory);
  if FFormat shr 4=4 then Result:=MoveAmigaFile(filename,directory);
+end;
+function TDiscImage.MoveFile(source: Cardinal;dest: Integer): Integer;
+begin
+ Result:=-12;
+ //Can only move files on DFS (between drives), ADFS, Amiga and CFS
+ if FFormat shr 4=5 then //Move on CFS
+  Result:=MoveCFSFile(source,dest);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1474,7 +1494,7 @@ begin
  Result:=-1; //Could not load file
  if FileExists(filename,ptr) then
  begin
-  Result:=-9;//Can't copy/move to same directory
+  Result:=-10;//Can't copy/move to same directory
   //FileExists returns a pointer to the file
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
@@ -1526,7 +1546,7 @@ end;
 {-------------------------------------------------------------------------------
 Set the attributes for a file
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateAttributes(filename,attributes: String):Boolean;
+function TDiscImage.UpdateAttributes(filename,attributes: String;entry:Cardinal=0):Boolean;
 var
  m: Byte;
 begin
@@ -1538,6 +1558,7 @@ begin
   2:Result:=UpdateCDRFileAttributes(filename,attributes);     //Update Commodore 64/128 attributes
   3:Result:=UpdateSinclairFileAttributes(filename,attributes);//Update Sinclair/Amstrad attributes
   4:Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
+  5:Result:=UpdateCFSAttributes(entry,attributes);            //Update CFS attributes
  end;
 end;
 
@@ -1556,6 +1577,7 @@ begin
   2:Result:=UpdateCDRDiscTitle(title);     //Title Commodore 64/128 Disc
   3:Result:=UpdateSinclairDiscTitle(title);//Title Sinclair/Amstrad Disc
   4:Result:=UpdateAmigaDiscTitle(title);   //Title AmigaDOS Disc
+  5:Result:=False;                         //Can't retitle CFS
  end;
 end;
 
@@ -1574,6 +1596,7 @@ begin
   2: exit;//Update Commodore 64/128 Boot ++++++++++++++++++++++++++++++++++++++
   3: exit;//Update Sinclair/Amstrad Boot ++++++++++++++++++++++++++++++++++++++
   4: exit;//Update AmigaDOS Boot ++++++++++++++++++++++++++++++++++++++++++++++
+  5: exit;//Can't update CFS boot option
  end;
 end;
 
@@ -1582,5 +1605,6 @@ end;
 {$INCLUDE 'DiscImage_C64.pas'}
 {$INCLUDE 'DiscImage_Spectrum.pas'}
 {$INCLUDE 'DiscImage_Amiga.pas'}
+{$INCLUDE 'DiscImage_CFS.pas'}
 
 end.

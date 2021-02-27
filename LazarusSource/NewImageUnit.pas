@@ -60,9 +60,10 @@ begin
  end;
  DFSTracks.Visible:=DFS.Visible;
  //Currently, only certain types of format can be created
- btn_OK.Enabled:=(MainFormat.ItemIndex=0)//DFS
-               OR(MainFormat.ItemIndex=1)//ADFS
-               OR(MainFormat.ItemIndex=2);//C64
+ btn_OK.Enabled:=(MainFormat.ItemIndex=0) //DFS
+               OR(MainFormat.ItemIndex=1) //ADFS
+               OR(MainFormat.ItemIndex=2) //C64
+               OR(MainFormat.ItemIndex=5);//CFS
 end;
 
 //Form is being displayed

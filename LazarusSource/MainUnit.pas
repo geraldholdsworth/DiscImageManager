@@ -47,20 +47,20 @@ type
    Label7: TLabel;
    lb_CRC32: TLabel;
    Main_Menu: TMainMenu;
-   FileMenu: TMenuItem;
-   MenuItem1: TMenuItem;
+   ImageMenu: TMenuItem;
    menuCloseImage: TMenuItem;
    HexDumpMenu: TMenuItem;
    HexDump1: TMenuItem;
-   menuFixADFS: TMenuItem;
    menuHexDump: TMenuItem;
+   menuFixADFS: TMenuItem;
    menuSplitDFS: TMenuItem;
+   ToolsMenu: TMenuItem;
    menuSaveAsCSV: TMenuItem;
    menuRenameFile: TMenuItem;
    menuNewDir: TMenuItem;
    menuDeleteFile: TMenuItem;
    menuAbout: TMenuItem;
-   ImageMenu: TMenuItem;
+   FilesMenu: TMenuItem;
    HelpMenu: TMenuItem;
    menuNewImage: TMenuItem;
    menuOpenImage: TMenuItem;
@@ -70,6 +70,7 @@ type
    menuAddFile: TMenuItem;
    SaveCSV: TSaveDialog;
    sb_Clipboard: TSpeedButton;
+   DelayTimer: TTimer;
    ToolBarImages: TImageList;
    Label10: TLabel;
    Label14: TLabel;
@@ -127,7 +128,7 @@ type
    lb_contents: TLabel;
    SearchPanel: TPanel;
    lb_searchresults: TListBox;
-   FIle_Menu: TPopupMenu;
+   File_Menu: TPopupMenu;
    ExtractFile1: TMenuItem;
    RenameFile1: TMenuItem;
    DeleteFile1: TMenuItem;
@@ -165,9 +166,9 @@ type
    procedure DraggedItemMouseUp(Sender: TObject; Button: TMouseButton;
     Shift: TShiftState; X, Y: Integer);
    procedure DirListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
-   function GetCopyMode(Shift: TShiftState): Boolean;
    procedure DirListMouseUp(Sender: TObject; Button: TMouseButton;
     Shift: TShiftState; X, Y: Integer);
+   procedure DelayTimerTimer(Sender: TObject);
    //Events - Form
    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
    procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
@@ -215,6 +216,8 @@ type
    procedure AddFileToImage(filename: String);
    procedure UpdateImageInfo;
    procedure ReportError(error: String);
+   function GetCopyMode(Shift: TShiftState): Boolean;
+   function GetNodeAt(Y: Integer): TTreeNode;
   private
    var
     //To keep track of renames
@@ -239,6 +242,8 @@ type
     KeepOpen      :Boolean;
     //Reporting of errors
     ErrorReporting:Boolean;
+    //Delay flag
+    progsleep     :Boolean;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..139] of String =
@@ -301,8 +306,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.14';
-    {As of 18/02/2021 - 11,819 lines of code, in total}
+    ApplicationVersion = '1.05.15';
   end;
 
 var
@@ -493,7 +497,8 @@ begin
       if filetype='000' then filetype:='';//None, so reset
      end;
     end;
-    if Image.FormatNumber<$20 then //ADFS and DFS only stuff
+    //ADFS, DFS & CFS only stuff
+    if(Image.FormatNumber<$20)or(Image.FormatNumber=$50)then
     begin
      //Is there an inf file?
      if FileExists(filename+'.inf') then
@@ -547,7 +552,8 @@ begin
      attr1:='';
     end;
     //Read each attribute and build the string
-    if Image.FormatNumber shr 4<$3 then //ADFS and DFS
+    if(Image.FormatNumber shr 4<$3)
+    or(Image.FormatNumber shr 4=$5) then //ADFS, DFS and CFS
      if (Pos('L',attr1)>0)OR(attr2 AND$08=$08) then attributes:=attributes+'L';
     if Image.FormatNumber shr 4=$2 then //ADFS only
     begin
@@ -605,6 +611,7 @@ begin
      if index=-6 then ReportError('Destination directory does not exist');
      If index=-7 then ReportError('Could not write file - map full');
      if index=-8 then ReportError('Could not write file - nothing to write');
+     if index=-9 then ReportError('Could not extend directory');
     end;
    end;
   end
@@ -830,7 +837,7 @@ begin
   //Get the full path and filename
   imagefilename  :=GetImageFilename(dir,entry);
   windowsfilename:=GetWindowsFilename(dir,entry);
-  if Image.ExtractFile(imagefilename,buffer) then
+  if Image.ExtractFile(imagefilename,buffer,entry) then
   begin
    //Save the buffer to the file
    try
@@ -850,7 +857,7 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Create an inf file - MOVE INTO THE UTILS MODULE
+//Create an inf file
 {------------------------------------------------------------------------------}
 procedure TMainForm.CreateINFFile(dir,entry: Integer; path: String);
 var
@@ -863,8 +870,8 @@ var
 const
  adfsattr = 'RWELrwel';
 begin
- //DFS and ADFS only
- if Image.FormatNumber shr 4<2 then
+ //DFS, ADFS and CFS only
+ if(Image.FormatNumber shr 4<2)or(Image.FormatNumber shr 4=5)then
  begin
   imagefilename:=Image.Disc[dir].Entries[entry].Filename;
   windowsfilename:=GetWindowsFilename(dir,entry);
@@ -877,16 +884,17 @@ begin
           +IntToHex(Image.Disc[dir].Entries[entry].Length,8);
   //Create the attributes
   attributes:=$00;
-  if Image.FormatNumber shr 4=0 then //DFS
+  if(Image.FormatNumber shr 4=0)or(Image.FormatNumber shr 4=5)then //DFS and CFS
    if Image.Disc[dir].Entries[entry].Attributes='L' then attributes:=$08;
   if Image.FormatNumber shr 4=1 then //ADFS
    for t:=0 to 7 do
     if Pos(adfsattr[t+1],Image.Disc[dir].Entries[entry].Attributes)>0 then
      inc(attributes,1 shl t);
   inffile:=inffile+' '+IntToHex(attributes,2)
-          +' CRC32:'+Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent+
+          +' CRC32='+Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent+
                                       Image.DirSep+
-                                      Image.Disc[dir].Entries[entry].Filename);
+                                      Image.Disc[dir].Entries[entry].Filename,
+                                      entry);
   //Create the inf file
   try
    F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
@@ -1220,8 +1228,8 @@ begin
    cb_publicexecute.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
    cb_private.Checked      :=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
    //Enable whichever tickboxes are appropriate to the system
-   if (Image.FormatNumber div $10=0)      //DFS
-   or (Image.FormatNumber div $10=2) then //Commodore
+   if (Image.FormatNumber div $10<3)      //DFS,ADFS and Commodore
+   or (Image.FormatNumber div $10=5) then //CFS
     cb_ownerlocked.Visible   :=True;
    cb_ownerexecute.Caption   :='Execute';
    if Image.FormatNumber div $10=2 then   //Commodore
@@ -1233,7 +1241,6 @@ begin
    begin
     cb_ownerwrite.Visible    :=True;
     cb_ownerread.Visible     :=True;
-    cb_ownerlocked.Visible   :=True;
     cb_publicwrite.Visible   :=True;
     cb_publicread.Visible    :=True;
     if Image.FormatNumber mod $10<3 then //ADFS Old Directory
@@ -1352,7 +1359,7 @@ begin
   begin
    //CRC32
    lb_CRC32.Caption:=Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent+
-                                      Image.DirSep+filename);
+                                      Image.DirSep+filename,entry);
    //Parent
    lb_parent.Caption:=Image.Disc[dir].Entries[entry].Parent;
    //Timestamp - ADFS only
@@ -1390,6 +1397,9 @@ begin
    //DFS - indicates which side also
    if Image.FormatNumber<=$0F then
     location:=location+'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side);
+   //CFS - indicates offset to starting block
+   if Image.FormatNumber shr 4=$5 then
+    location:='Starting Block 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
    lb_location.Caption:=location;
   end;
   if dir=-1 then
@@ -1517,6 +1527,8 @@ begin
  //Reset the tracking variables
  PathBeforeEdit           :='';
  NameBeforeEdit           :='';
+ //Reset the delay timer
+ progsleep                :=False;
  //There are some commands
  if ParamCount>0 then
  begin
@@ -1600,11 +1612,11 @@ var
 const DiscFormats = //Accepted format strings
  'DFSS    DFSS40  DFSD    DFSD40  WDFSS   WDFSS40 WDFSD   WDFSD40 ADFSS   ADFSM   '+
  'ADFSL   ADFSD   ADFSE   ADFSE+  ADFSF   ADFSF+  C1541   C1571   C1581   AMIGADD '+
- 'AMIGAHD ';
- const DiscNumber : array[1..21] of Integer = //Accepted format numbers
+ 'AMIGAHD CFS     ';
+ const DiscNumber : array[1..22] of Integer = //Accepted format numbers
  ($001   ,$000   ,$011   ,$010   ,$021   ,$020   ,$031   ,$030   ,$100   ,$110,
   $120   ,$130   ,$140   ,$150   ,$160   ,$170   ,$200   ,$210   ,$220   ,$400,
-  $410);
+  $410   ,$500);
 begin
  //Collate the parameters
  option:=cmd;
@@ -2051,7 +2063,7 @@ begin
       if NewImage.ExtractFile(NewImage.Disc[dir].Entries[entry].Parent
                              +NewImage.DirSep
                              +NewImage.Disc[dir].Entries[entry].Filename,
-                              buffer) then
+                              buffer,entry) then
       begin
        //Write it out to the current image
        index:=Image.WriteFile(newentry,buffer);
@@ -2374,6 +2386,14 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Delay timer
+{------------------------------------------------------------------------------}
+procedure TMainForm.DelayTimerTimer(Sender: TObject);
+begin
+ progsleep:=False;
+end;
+
+{------------------------------------------------------------------------------}
 //Create a new directory
 {------------------------------------------------------------------------------}
 function TMainForm.CreateDirectory(dirname, attr: String): TTreeNode;
@@ -2411,6 +2431,7 @@ begin
    if index=-6 then ReportError('Destination directory does not exist');
    If index=-7 then ReportError('Could not write directory - map full');
    if index=-8 then ReportError('Could not write directory - nothing to write');
+   if index=-9 then ReportError('Could not extend parent directory');
   end;
 end;
 
@@ -2481,6 +2502,25 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Gets the node located at the same Y co-ordinate as supplied
+{------------------------------------------------------------------------------}
+function TMainForm.GetNodeAt(Y: Integer): TTreeNode;
+var
+ xpos: Integer;
+begin
+ //We'll find the node by the mouse pointer
+ xpos:=-10;
+ Result:=nil;
+ //'GetNodeAt' only returns the node *under* the mouse, so we ignore the 'X'
+ while (Result=nil) and (xpos<DirList.Width) do
+ begin
+  //So we go from left to right until we find a node, or reach the other side
+  inc(xpos,10);
+  Result:=DirList.GetNodeAt(xpos,Y);
+ end;
+end;
+
+{------------------------------------------------------------------------------}
 //User has dragged an item around the directory list
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -2488,12 +2528,15 @@ procedure TMainForm.DirListMouseMove(Sender: TObject; Shift: TShiftState; X,
 var
  Xmovement,
  Ymovement,
- H         : Integer;
+ H,
+ threshold : Integer;
  R         : TRect;
  B         : TBitmap;
  Dst       : TTreeNode;
  copymode  : Boolean;
+ pt        : TPoint;
 begin
+ //Get the copy mode, depending on key pressed
  copymode:=GetCopyMode(Shift);
  //Is the mouse button down?
  if MouseIsDown then
@@ -2508,6 +2551,7 @@ begin
    IsDragging:=True;
    //Are we over another node?
    Dst:=DirList.GetNodeAt(X,Y);//Node under the cursor
+   //Dst:=GetNodeAt(Y);
    if(DraggedItem<>nil)AND(Dst<>nil)AND(DraggedItem<>Dst) then
    begin
     //If it is not a directory, then get the parent
@@ -2574,7 +2618,37 @@ begin
    imgCopy.Visible:=copymode;
    imgCopy.Top:=Y+8;
    imgCopy.Left:=X+8;
-   //Scroll the control, if near the edge - looks like can't be done easily
+   //Scroll the control, if near the edge
+   threshold:=20; //Distance from the edge to start autoscrolling
+   //That is, in the absence of any items on the tree
+   if DirList.Items.Count>0 then
+    //Get the height of the first item as the threshold
+    threshold:=DirList.Items[0].Height;
+   //Check where the mouse is over the TTreeView
+   while((Y>DirList.Height-threshold)and(Y<DirList.Height))
+      or((Y>0)AND(Y<threshold))do
+   begin
+    //We will need to reset the 'Y' variable, otherwise this will be an endless loop
+    pt:=ScreenToClient(Mouse.CursorPos);
+    Y:=pt.Y-DirList.Top-ImageContentsPanel.Top; //Take account of the component's location
+    //We'll find the node by the mouse pointer
+    Dst:=GetNodeAt(Y);
+    //If we find a node, and we're not in a delay.
+    if(Dst<>nil)and(not progsleep)then
+    begin
+     //Are we at the top, then get the previous node (if any)
+     if Y<threshold then
+      Dst:=Dst.GetPrevVisible
+     else//Otherwise, get the next (if any)
+      Dst:=Dst.GetNextVisible;
+     //If we have a node, scroll to make it visible
+     if Dst<>nil then Dst.MakeVisible;
+     //Set the delay flag
+     progsleep:=True;
+    end;
+    //Make sure all the messages are processed - otherwise it will hang
+    Application.ProcessMessages;
+   end;
   end;
  end;
 end;
@@ -2629,6 +2703,7 @@ begin
   begin
    //Are we over another node?
    Dst:=DirList.GetNodeAt(X,Y);
+   //Dst:=GetNodeAt(Y);
    if(DraggedItem<>nil)AND(Dst<>nil)AND(DraggedItem<>Dst) then
    begin
     //If it is not a directory, then get the parent
@@ -2695,8 +2770,10 @@ begin
       if index=-6  then ReportError('Destination directory does not exist');
       If index=-7  then ReportError('Could not write file - map full');
       if index=-8  then ReportError('Could not write file - nothing to write');
-      if index=-9  then ReportError('Cannot move or copy to the same directory');
-      if index=-10 then ReportError('Could not find source file');
+      if index=-9  then ReportError('Could not extend parent directory');
+      if index=-10 then ReportError('Cannot move or copy to the same directory');
+      if index=-11 then ReportError('Could not find source file');
+      if index=-12 then ReportError('Not possible on this system');
      end;
     end;
    end;
@@ -2738,6 +2815,7 @@ begin
     2: minor:=NewImageForm.C64.ItemIndex;
     3: minor:=NewImageForm.Spectrum.ItemIndex;
     4: minor:=NewImageForm.Amiga.ItemIndex;
+    5: minor:=$0;
    end;
    //Number of tracks (DFS only)
    tracks:=0; //Default
@@ -2781,7 +2859,7 @@ begin
    //Get the file path
    filepath:=GetFilePath(DirList.Selected);
    //Update the attributes for the file
-   if Image.UpdateAttributes(filepath,att) then
+   if Image.UpdateAttributes(filepath,att,DirList.Selected.Index) then
    begin
     HasChanged:=True;
     //Update the status bar
@@ -2918,7 +2996,7 @@ begin
               Image.DirSep+
               Image.Disc[dir].Entries[entry].Filename;
     //Load the file
-    if Image.ExtractFile(filename,buffer) then
+    if Image.ExtractFile(filename,buffer,entry) then
     begin
      //Check it is not already open
      i:=0;
@@ -3027,7 +3105,7 @@ begin
  if (not Cancel)and(NameBeforeEdit<>newfilename) then
  begin
   //Rename the file
-  newindex:=Image.RenameFile(PathBeforeEdit,newfilename);
+  newindex:=Image.RenameFile(PathBeforeEdit,newfilename,Node.Index);
   if newindex<0 then
   begin
    //Revert if it cannot be renamed
@@ -3254,6 +3332,7 @@ begin
    2: png:=commodorelogo; //Commodore logo
    3: png:=sinclairlogo;  //Sinclair logo
    4: png:=amigalogo;     //Amiga logo
+   5: png:=acornlogo;     //Acorn logo for CFS
   end;
   if png<>0 then icons.Draw(StatusBar.Canvas,Rect.Left+2,Rect.Top+2,png);
   StatusBar.Canvas.Font:=StatusBar.Font;

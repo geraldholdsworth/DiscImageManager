@@ -6,5 +6,10 @@ Disc Image Manager is an application used to load a retro disc image, read the c
 • Commodore 1571 - Read and Write<br>
 • Commodore 1581 - Read and Write<br>
 • Commodore AmigaDOS floppy and hard discs - Read Only<br>
-
+• Acorn Cassette Filing System (CFS) - Read and Write<br>
+<br>
+For images in HFE format, I recommend you use HxC Floppy Emulator (https://sourceforge.net/projects/hxcfloppyemu/) to export the file in a format that Disc Image Manager understands.<br>
+<br>
+Another project that may interest users of Disc Image Manager is a test tool I wrote for UEF files - UEF Reader (https://github.com/geraldholdsworth/UEFReader).<br>
+<br>
 Project was written in Lazarus (https://www.lazarus-ide.org). Binaries are available for macOS 32 and 64 bit, Windows 32 and 64 bit, Linux 32 and 64 bit, and Raspbian 32 bit (Linux ARM 32 bit). Full source is available if you wish to compile for other systems.<br>
