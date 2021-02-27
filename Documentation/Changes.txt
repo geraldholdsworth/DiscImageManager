@@ -263,7 +263,7 @@ Bug fixes
 * No longer assumes the root follows the free space map on New Map ADFS.
 * When a write operation occured, the position of the directories in ADFS Free Space Map would get lost.
 
-1.05.15 pending
+1.05.15 27th February 2021
 --------------------------
 New or improved features
 * When dragging and dropping items in the directory tree, the window will now autoscroll up or down if the cursor is close to the threshold.
