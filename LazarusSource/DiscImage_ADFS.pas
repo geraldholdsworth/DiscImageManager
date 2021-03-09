@@ -212,6 +212,8 @@ begin
  RemoveControl(dirname);
  //Store complete path
  pathname:=dirname;
+ //Update the progress indicator
+ UpdateProgress('Reading '+pathname);
  //Store directory name
  if Pos(dir_sep,dirname)>0 then
  begin
@@ -739,6 +741,7 @@ function TDiscImage.ByteChecksum(offset,size: Cardinal): Byte;
 var
  acc,
  pointer: Cardinal;
+ carry : Byte;
 begin
  //Reset the accumulator
  acc:=0;
@@ -747,15 +750,14 @@ begin
  for pointer:=size-2 downto 0 do
  begin
   //Add in the carry
-  inc(acc,acc div $100);
+  carry:=acc div $100;
   //and reset the carry
   acc:=acc and $FF;
   //Add each byte to the accumulator
-  inc(acc,ReadByte(offset+pointer));
+  inc(acc,ReadByte(offset+pointer)+carry);
  end;
- //Add any carries and return an 8 bit number
+ //Return an 8 bit number
  Result:=acc and $FF;
-// Result:=((acc div $100)+(acc mod $100)) and $FF;
 end;
 
 {-------------------------------------------------------------------------------
@@ -919,6 +921,8 @@ var
  freeend          : Byte;
  fsfragments      : TFragmentArray;
 begin
+ //Update progress
+ UpdateProgress('Reading ADFS Free Space Map.');
  //Reset the free space counter
  free_space:=0;
  //Reset the array
@@ -939,6 +943,8 @@ begin
    for d:=0 to Length(free_space_map[0,c])-1 do
     free_space_map[0,c,d]:=$FF;
   end;
+  //Update progress
+  UpdateProgress('Reading ADFS Free Space Map..');
  end;
  //Old Map (ADFS S,M,L, and D)
  if not FMap then
@@ -974,6 +980,8 @@ begin
    inc(free_space,f);
    //Move to the next entry
    inc(d,3);
+   //Update progress
+   UpdateProgress('Reading ADFS Free Space Map..'+AddChar('.','',d div 3));
   end;
  end;
  //New Map (ADFS E,E+,F,F+)
@@ -1084,8 +1092,6 @@ begin
   6 : SetDataLength(1600*1024);  //F (1.6MB)
   7 : SetDataLength(1600*1024);  //F+(1.6MB)
  end;
- //Fill with zeros
- for t:=0 to GetDataLength-1 do WriteByte(0,t);
  //Setup the variables
  if minor<4 then //Old maps (S, M, L and D)
  begin
@@ -1133,6 +1139,8 @@ begin
    nzones:=4;
   end;
  end;
+ //Fill with zeros
+ for t:=0 to GetDataLength-1 do WriteByte(0,t);
  //Set the boot option
  SetLength(bootoption,1);
  bootoption[0]:=0;
@@ -1402,8 +1410,10 @@ end;
 {-------------------------------------------------------------------------------
 Write a file to ADFS image
 -------------------------------------------------------------------------------}
-function TDiscImage.WriteADFSFile(var file_details: TDirEntry;
-                    var buffer: TDIByteArray;directory: Boolean=False): Integer;
+function TDiscImage.WriteADFSFile(var file_details:TDirEntry;var buffer:TDIByteArray;
+                    directory:Boolean=False;extend:Boolean=True): Integer;
+//Set directory to TRUE to ensure it doesn't get fragmented (New Map)
+//Set extend to FALSE to ensure that the ExtendDirectory is run (Big Directory)
 var
  dir          : Integer;
  timestamp    : Int64;
@@ -1422,13 +1432,17 @@ begin
  //Start with a negative result
  Result:=-3;//File already exists
  success:=False;
- { ADFS Big Map:
-  1. Verify the directory is big enough for the proposed entry
-  2. If not, verify the directory +2048bytes can be put somewhere else and move
-     it, freeing up the fragments as free space
-  3. Write the file, and FSM (as below)
-  4. Update the directory (as below)
- }
+
+{
+AddFile
+ -Run extend function (with +ve value to extend, ignore -ve value)
+ -Try to add file
+ -Update catalogue
+ -Run extend function (with zero as length)
+ -Free Space function
+}
+
+
  //Validate the proposed filename
  file_details.Filename:=ValidateADFSFilename(file_details.Filename);
  //First make sure it doesn't exist already
@@ -1443,7 +1457,7 @@ begin
    else
     dir  :=FDisc[ref div $10000].Entries[ref mod $10000].DirRef;
    //Big Dir - Verify directory is big enough or if it needs extending and moved.
-   if FDirType=2 then
+   if(FDirType=2)and(extend)then
     if not ExtendADFSBigDir(dir,Length(file_details.Filename),True) then
     begin
      Result:=-9; //Cannot extend
@@ -1905,8 +1919,10 @@ procedure TDiscImage.UpdateADFSCat(directory: String);
 var
  dir,
  diraddr,
- ref,i     : Cardinal;
- c         : Byte;
+ ref,i,
+ head,
+ heapctr   : Cardinal;
+ c,a       : Byte;
  temp      : String;
  fragments : TFragmentArray;
 const
@@ -1945,7 +1961,7 @@ begin
     //Padded with nulls
     c:=$00;
     if i<Length(temp) then c:=Ord(temp[i+1])AND$7F;
-    //Write the byte
+    //Write the byte - Old and New only
     if FDirType=0 then WriteByte(c,diraddr+$4CB+$0E+i);
     if FDirType=1 then WriteByte(c,diraddr+$7D7+$06+i);
    end;
@@ -1953,52 +1969,100 @@ begin
    c:=0;
    if FDirType=0 then c:=47;
    if FDirType=1 then c:=77;
-   if c>0 then
+   if c>0 then //Old and New type only
     for i:=0 to c-1 do
      for ref:=0 to $19 do WriteByte($00,diraddr+$05+ref+i*$1A);
-   //Go through each entry and add it, overwriting what is there
+   if FDirType=2 then //Big type
+   begin
+    //Get the size of the header, with padding
+    head:=Read32b(diraddr+$08)+$1C+1; //Size
+    head:=((head+3)div 4)*4;//Pad to word boundary
+    //Now clear the directory entries
+    for i:=head to Read32b(diraddr+$0C)-(head+8) do //Tail is 8 bytes
+     WriteByte($00,diraddr+i);
+   end;
+   heapctr:=0; //Heap counter for Big Directories
+   if FDirType=2 then //Write the number of entries for big directory
+    Write32b(Length(FDisc[dir].Entries),diraddr+$10);
+   //Go through each entry and add it
    if Length(FDisc[dir].Entries)>0 then
     for ref:=0 to Length(FDisc[dir].Entries)-1 do
     begin
      //Filename - needs terminated with CR
      temp:=FDisc[dir].Entries[ref].Filename+#$0D;
-     for i:=0 to 9 do
+     //Attributes (used by New and Big)
+     a:=0;
+     for i:=0 to 5 do
+      if Pos(newattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
+       inc(a,1 shl i);
+     if FDirType<2 then //Old and New only
      begin
-      //Padded with nulls
-      c:=$00;
-      if i<Length(temp) then c:=Ord(temp[i+1])AND$7F;
-      //Add the attributes
-      if FDirType=0 then //Old directory only
-       if Pos(oldattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
-        c:=c+$80;
-      //Write the byte
-      WriteByte(c,diraddr+$05+i+ref*$1A);
+      for i:=0 to 9 do
+      begin
+       //Padded with nulls
+       c:=$00;
+       if i<Length(temp) then c:=Ord(temp[i+1])AND$7F;
+       //Add the attributes
+       if FDirType=0 then //Old directory only
+        if Pos(oldattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
+         c:=c+$80;
+       //Write the byte
+       WriteByte(c,diraddr+$05+i+ref*$1A);
+      end;
+      //Load Address
+      Write32b(FDisc[dir].Entries[ref].LoadAddr,diraddr+$05+$0A+ref*$1A);
+      //Execution Address
+      Write32b(FDisc[dir].Entries[ref].ExecAddr,diraddr+$05+$0E+ref*$1A);
+      //Length
+      Write32b(FDisc[dir].Entries[ref].Length  ,diraddr+$05+$12+ref*$1A);
+      //Sector
+      Write24b(FDisc[dir].Entries[ref].Sector  ,diraddr+$05+$16+ref*$1A);
+      if FDirType=0 then
+       //This is what appears in brackets after the file - old directory
+       WriteByte(00                             ,diraddr+$05+$19+ref*$1A)
+      else //New directory - attributes
+      {begin
+       c:=0;
+       for i:=0 to 5 do
+        if Pos(newattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
+         inc(c,1 shl i);}
+       WriteByte(a{c}                           ,diraddr+$05+$19+ref*$1A);
+//      end;
      end;
-     //Load Address
-     Write32b(FDisc[dir].Entries[ref].LoadAddr,diraddr+$05+$0A+ref*$1A);
-     //Execution Address
-     Write32b(FDisc[dir].Entries[ref].ExecAddr,diraddr+$05+$0E+ref*$1A);
-     //Length
-     Write32b(FDisc[dir].Entries[ref].Length  ,diraddr+$05+$12+ref*$1A);
-     //Sector
-     Write24b(FDisc[dir].Entries[ref].Sector  ,diraddr+$05+$16+ref*$1A);
-     if FDirType=0 then
-      //This is what appears in brackets after the file - old directory
-      WriteByte(00                             ,diraddr+$05+$19+ref*$1A)
-     else //New directory - attributes
+     if FDirType=2 then //Big only
      begin
-      c:=0;
-      for i:=0 to 5 do
-       if Pos(newattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
-        inc(c,1 shl i);
-      WriteByte(c,diraddr+$05+$19+ref*$1A)
+      //Load Address
+      Write32b(FDisc[dir].Entries[ref].LoadAddr        ,diraddr+head+$00+ref*$1C);
+      //Execution Address
+      Write32b(FDisc[dir].Entries[ref].ExecAddr        ,diraddr+head+$04+ref*$1C);
+      //Length
+      Write32b(FDisc[dir].Entries[ref].Length          ,diraddr+head+$08+ref*$1C);
+      //Sector
+      Write24b(FDisc[dir].Entries[ref].Sector          ,diraddr+head+$0C+ref*$1C);
+      //Attributes
+      Write24b(a                                       ,diraddr+head+$10+ref*$1C);
+      //Length of filename
+      Write24b(Length(FDisc[dir].Entries[ref].Filename),diraddr+head+$14+ref*$1C);
+      //Where to find the filename
+      Write24b(heapctr                                 ,diraddr+head+$18+ref*$1C);
+      //Write the filename
+      for i:=0 to (((Length(temp)+3)div 4)*4)-1 do
+      begin
+       c:=0; //Padded with nulls to word boundary
+       if i<Length(temp) then c:=Ord(temp[i+1])AND$7F;
+       WriteByte(c,diraddr+head+heapctr+i+ref*$1C);
+      end;
+      //Move the heap counter on
+      inc(heapctr,((Length(temp)+3)div 4)*4);
      end;
     end;
    //Update the checksum
    if FDirType=0 then //Old - can be zero
-    WriteByte($00,diraddr+$4FF)
-   else               //New
+    WriteByte($00,diraddr+$4FF);
+   if FDirType=1 then //New
     WriteByte(CalculateADFSDirCheck(diraddr),diraddr+$7FF);
+   if FDirType=2 then //Big
+    WriteByte(CalculateADFSDirCheck(diraddr),diraddr+(Read32b(diraddr+$0C)-1));
   end;
  end;
 end;
@@ -2395,7 +2459,7 @@ end;
 {-------------------------------------------------------------------------------
 Delete an ADFS file/directory
 -------------------------------------------------------------------------------}
-function TDiscImage.DeleteADFSFile(filename: String):Boolean;
+function TDiscImage.DeleteADFSFile(filename: String;TreatAsFile:Boolean=False):Boolean;
 var
  ptr,
  entry,
@@ -2427,7 +2491,7 @@ begin
    end;
   success:=True;
   //If directory, delete contents first
-  if FDisc[dir].Entries[entry].DirRef>0 then
+  if(FDisc[dir].Entries[entry].DirRef>0)and(not TreatAsFile)then
    //We'll do a bit of recursion to remove each entry one by one. If it
    //encounters a directory, that will get it's contents deleted, then itself.
    while (Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
@@ -2773,6 +2837,10 @@ var
  frag     : TFragmentArray;
 begin
  Result:=False; //By default - fail to extend/contract
+ //We won't take account of minus sizes, so zero it if it is
+ if space<0 then space:=0;
+ //Are we adding an extra entry?
+ if add then inc(space,$1C);
  //Make sure it we are using big directories
  if FDirType=2 then
  begin
@@ -2802,27 +2870,76 @@ begin
   tail:=$08;//Tail size
   hdr:=(($1C+Read32b(addr+$08)+$03)div 4)*4;//Size of header (padded to word boundary)
   heapsize:=Read32b(addr+$10)*$1C+Read32b(addr+$14);//Size of entries
-  //Are we adding a new entry or renaming one (or the directory)?
-  if(add)and(space>=0)then inc(space,$1C);//Add in the space required for an entry
-  if(add)and(space<0) then dec(space,$1C);//Remove the space required for an entry
-  //space is the extra space required (or, -ve number, to be reduced by)
-  if space>=0 then //Extend
+  //Is the directory oversized? Only shrink if space is passed as zero
+  if(dirsize-(tail+hdr+heapsize)>=2048)and(space=0)then //Contract the directory size
   begin
-   if dirsize-(tail+hdr+heapsize)>=space then
+   Result:=True; //Return a success, whatever happens
+   if parent<>$FFFFFFFF then //This function won't work on the root, currently
+    ADFSBigDirSizeChange(d,e,False);
+  end;
+  if space>0 then //Look to extend
+  begin
+   //We'll add an extra 3 bytes to ensure there is enough space, including pad
+   if dirsize-(tail+hdr+heapsize)>=space+3 then //to word boundary
     Result:=True //Doesn't need extending
-   else
+   else //Directory needs to be extended (by 2048) and possibly moved.
    begin
-    //Directory needs to be extended (by 2048) and moved.
+    Result:=False; //Default
+    if parent<>$FFFFFFFF then //This function won't work on the root, currently
+     Result:=ADFSBigDirSizeChange(d,e,True);
    end;
   end;
-  if space<0 then //Contract
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Do the actual extending or contracting of a big directory
+-------------------------------------------------------------------------------}
+function TDiscImage.ADFSBigDirSizeChange(dir,entry:Cardinal;extend:Boolean):Boolean;
+var
+ buffer     : TDIByteArray;
+ dirsize,
+ ptr        : Cardinal;
+ file_entry : TDirEntry;
+//***** This will not work when acting on the root *****
+begin
+ //extend = True  : extend by 2048 bytes
+ //extend = False : contract by 2048 bytes
+ Result:=False;
+ //Both extract and contract will need to treat the directory as a file:
+ file_entry:=FDisc[dir].Entries[entry];
+ //1. Call ExtractADFSFile to extract to a temporary buffer
+ if ExtractADFSFile(file_entry.Parent+'.'+file_entry.Filename,buffer) then
+ begin
+  //2. Update the header
+  dirsize:=buffer[$0C]*$1000000
+          +buffer[$0D]*$10000
+          +buffer[$0E]*$100
+          +buffer[$0F];
+  if extend then inc(dirsize,2048) else dec(dirsize,2048);
+  buffer[$0C]:=(dirsize DIV $1000000)MOD$100;
+  buffer[$0D]:=(dirsize DIV $10000  )MOD$100;
+  buffer[$0E]:=(dirsize DIV $100    )MOD$100;
+  buffer[$0F]:= dirsize              MOD$100;
+  //3. Move the tail (extend or contract buffer if necessary)
+  if extend then SetLength(buffer,dirsize);//Extend before move
+  for ptr:=1 to 8 do //Tail is 8 bytes long
+   if extend then buffer[dirsize-ptr]:=buffer[(dirsize-2048)-ptr]
+             else buffer[dirsize-ptr]:=buffer[(dirsize+2048)-ptr];
+  if not extend then SetLength(buffer,dirsize); //Contract after move
+  //4. Call DeleteADFSFile and treat the directory as a file
+  if DeleteADFSFile(file_entry.Parent+'.'+file_entry.Filename,True) then
   begin
-   if dirsize-(tail+hdr+heapsize)+space<2048 then
-    Result:=True //Doesn't need to be contracted
+   //5. Call WriteADFSFile and treat the directory as a file (set extend to FALSE)
+   if WriteADFSFile(file_entry,buffer,True,False)>=0 then
+   begin
+    //
+   end
    else
    begin
-    //Need to contract the directory, by 2048 (min size 2048)
+    //6. If WriteADFSFile failed then revert to original and re-add, returning a FALSE
    end;
+   //7. Update the checksum for this directory
   end;
  end;
 end;

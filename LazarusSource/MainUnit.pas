@@ -218,6 +218,7 @@ type
    procedure ReportError(error: String);
    function GetCopyMode(Shift: TShiftState): Boolean;
    function GetNodeAt(Y: Integer): TTreeNode;
+   procedure UpdateProgress(Fupdate: String);
   private
    var
     //To keep track of renames
@@ -306,7 +307,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.15';
+    ApplicationVersion = '1.05.15.1';
   end;
 
 var
@@ -965,6 +966,7 @@ begin
  Application.ProcessMessages;
  //Close any open hex dump windows
  CloseAllHexDumps;
+ Image.ProgressIndicator:=@UpdateProgress;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -2135,7 +2137,7 @@ var
  bootlbs   : array[0..1] of TLabel;
  title     : String;
  numsides,
- size      : Byte;
+ size,skip : Byte;
 begin
  size:=8; //Pixel size
  //Add the editable controls to arrays - makes it easier later on
@@ -2174,12 +2176,16 @@ begin
    FSM[side].Stretch:=False;
    //Set the initial size
    while (size>1) AND (Length(Image.FreeSpaceMap[0])*size>100000) do dec(size);
+   //Work out what tracks to skip (images over 100000 pixels high will crash)
+   skip:=((Length(Image.FreeSpaceMap[0])*size)div 100000)+1;
+   //Set the graphic size
    t:=Length(Image.FreeSpaceMap[0])*size;
    s:=Length(Image.FreeSpaceMap[0,0])*size;
-   FSM[side].Height:=t;//Length(Image.FreeSpaceMap[0])*size;
-   FSM[side].Width:=s;//Length(Image.FreeSpaceMap[0,0])*size;
+   FSM[side].Height:=t div skip;
+   FSM[side].Width:=s;
    //Now draw all the sectors in tracks
    for t:=0 to Length(Image.FreeSpaceMap[side])-1 do
+    if t mod skip=0 then
     for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
     begin
      //Colour for free space
@@ -2195,7 +2201,8 @@ begin
      FSM[side].Canvas.Pen.Color:=col;
      FSM[side].Canvas.Brush.Color:=col;
      //Now draw a rectangle to represent the sector
-     FSM[side].Canvas.Rectangle(s*size,t*size,(s+1)*size,(t+1)*size);
+     FSM[side].Canvas.Rectangle(s*size,    (t div skip)*size,
+                                (s+1)*size,((t div skip)+1)*size);
     end;
    //Stretch the image
    FSM[side].Stretch:=True;
@@ -3371,6 +3378,15 @@ begin
    WriteLn(error)
   else //Otherwise, display a nice window on the screen
    QuestionDlg('Error',error,mtError,[mbOK],0);
+end;
+
+{------------------------------------------------------------------------------}
+//Update the progress text
+{------------------------------------------------------------------------------}
+procedure TMainForm.UpdateProgress(Fupdate: String);
+begin
+ ProgressForm.UpdateProgress.Caption:=Fupdate;
+ Application.ProcessMessages;
 end;
 
 end.

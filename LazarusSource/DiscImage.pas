@@ -6,7 +6,7 @@ unit DiscImage;
 
 interface
 
-uses Classes,DiscImageUtils,Math,crc,ZStream;
+uses Classes,DiscImageUtils,Math,crc,ZStream,StrUtils;
 
 {$M+}
 
@@ -18,6 +18,7 @@ type
   //Free space map
   TTrack = array of TDIByteArray; //TDIByteArray representing the sectors
   TSide  = array of TTrack;       //Sides
+  //Directories
   TDir          = record
    Directory,                       //Directory name (ALL)
    Title       : String;            //Directory title (DFS/ADFS)
@@ -25,13 +26,18 @@ type
    Broken      : Boolean;           //Flag if directory is broken (ADFS)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
   end;
+  //Collection of directories
   TDisc         = array of TDir;
+  //Fragment
   TFragment     = record        //For retrieving the ADFS E/F fragment information
    Offset,
    Length,
    Zone         : Cardinal;
   end;
+  //To collate fragments (ADFS/CDR/Amiga)
   TFragmentArray= array of TFragment;
+  //Provides feedback
+  TProgressProc = procedure(Fupdate: String) of Object;
  private
   FDisc         : TDisc;        //Container for the entire catalogue
   Fdata         : TDIByteArray; //Container for the image to be loaded into
@@ -69,6 +75,7 @@ type
   free_space_map: TSide;        //Free Space Map
   bootoption    : TDIByteArray; //Boot Option(s)
   CFSFiles      : array of TDIByteArray;//All the data for the CFS files
+  FProgress     : TProgressProc;//Used for feedback
   procedure ResetVariables;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function FormatToString: String;
@@ -96,6 +103,7 @@ type
   function GetImageCrc: String;
   function GetCRC(var buffer: TDIByteArray): String;
   function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
+  procedure UpdateProgress(Fupdate: String);
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
@@ -112,7 +120,7 @@ type
   function UpdateADFSBootOption(option: Byte): Boolean;
   function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
   function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
-                         directory: Boolean=False): Integer;
+                         directory:Boolean=False;extend:Boolean=True): Integer;
   function CreateADFSDirectory(var dirname,parent,attributes: String): Integer;
   procedure UpdateADFSCat(directory: String);
   function UpdateADFSFileAttributes(filename,attributes: String): Boolean;
@@ -120,10 +128,11 @@ type
   function RetitleADFSDirectory(filename,newtitle: String): Boolean;
   function RenameADFSFile(oldfilename: String;var newfilename: String):Integer; { * }
   procedure ConsolodateADFSFreeSpaceMap;
-  function DeleteADFSFile(filename: String):Boolean;
+  function DeleteADFSFile(filename: String;TreatAsFile:Boolean=False):Boolean;
   function ExtractADFSFile(filename: String;var buffer: TDIByteArray): Boolean;
   function MoveADFSFile(filename,directory: String): Integer;
   function ExtendADFSBigDir(dir: Cardinal;space: Integer;add: Boolean):Boolean;
+  function ADFSBigDirSizeChange(dir,entry:Cardinal;extend:Boolean): Boolean;
   function ExtendADFSCat(dir: Cardinal;direntry: TDirEntry): Cardinal;
   procedure ReduceADFSCat(dir,entry: Cardinal);
   function FixBrokenADFSDirectories: Boolean;
@@ -237,24 +246,25 @@ type
   function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function FixDirectories: Boolean;
   //Properties
-  property Disc:                TDisc        read FDisc;
-  property FormatString:        String       read FormatToString;
-  property FormatNumber:        Byte         read FFormat;
-  property FormatExt:           String       read FormatToExt;
-  property Title:               String       read disc_name;
-  property DiscSize:            Int64        read disc_size;
-  property FreeSpace:           Int64        read free_space;
-  property DoubleSided:         Boolean      read FDSD;
-  property MapType:             Byte         read MapFlagToByte;
-  property DirectoryType:       Byte         read FDirType;
-  property MapTypeString:       String       read MapTypeToString;
-  property DirectoryTypeString: String       read DirTypeToString;
-  property DirSep:              Char         read dir_sep;
-  property Filename:            String       read imagefilename;
-  property FreeSpaceMap:        TSide        read free_space_map;
-  property BootOpt:             TDIByteArray read bootoption;
-  property RootAddress:         Cardinal     read root;
-  property CRC32:               String       read GetImageCrc;
+  property Disc:                TDisc         read FDisc;
+  property FormatString:        String        read FormatToString;
+  property FormatNumber:        Byte          read FFormat;
+  property FormatExt:           String        read FormatToExt;
+  property Title:               String        read disc_name;
+  property DiscSize:            Int64         read disc_size;
+  property FreeSpace:           Int64         read free_space;
+  property DoubleSided:         Boolean       read FDSD;
+  property MapType:             Byte          read MapFlagToByte;
+  property DirectoryType:       Byte          read FDirType;
+  property MapTypeString:       String        read MapTypeToString;
+  property DirectoryTypeString: String        read DirTypeToString;
+  property DirSep:              Char          read dir_sep;
+  property Filename:            String        read imagefilename;
+  property FreeSpaceMap:        TSide         read free_space_map;
+  property BootOpt:             TDIByteArray  read bootoption;
+  property RootAddress:         Cardinal      read root;
+  property CRC32:               String        read GetImageCrc;
+  property ProgressIndicator:   TProgressProc write FProgress;
  public
   destructor Destroy; override;
  End;
@@ -834,6 +844,15 @@ begin
  Result:=((Result mod $100)*$100)+(Result div $100);
 end;
 
+{-------------------------------------------------------------------------------
+Update the progress indicator
+-------------------------------------------------------------------------------}
+procedure TDiscImage.UpdateProgress(Fupdate: String);
+begin
+ //If the main program has defined a procedure then call it
+ if Assigned(FProgress) then FProgress(Fupdate);
+end;
+
 //++++++++++++++++++ Published Methods +++++++++++++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------
@@ -882,11 +901,14 @@ Load an image from a file, unGZIPping it, if necessary
 -------------------------------------------------------------------------------}
 function TDiscImage.LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
 var
- FDiscDrive: TGZFileStream;
- chunk  : TDIByteArray;
+ FGZDiscDrive: TGZFileStream;
+ FDiscDrive  : TFileStream;
+ chunk       : TDIByteArray;
  cnt,
  i,
- buflen : Integer;
+ buflen      : Integer;
+ compressed,
+ readOK      : Boolean;
 const
   ChunkSize=4096; //4K chunks
 begin
@@ -896,36 +918,67 @@ begin
  begin
   //Blank off the variables
   ResetVariables;
-  //Create the stream
+  //First we'll read the first two bytes using conventional TFileStream
   try
-   FDiscDrive:=TGZFileStream.Create(filename,gzOpenRead);
-   //Counter
-   buflen:=0;
-   //Set up the chunk buffer
-   SetLength(chunk,ChunkSize);
-   repeat
-    //Read in the next chunk
-    cnt:=FDiscDrive.Read(chunk[0],ChunkSize);
-    //Extend the buffer accordingly
-    SetDataLength(buflen+cnt);
-    //Copy the chunk into the buffer
-    for i:=0 to cnt-1 do Fdata[buflen+i]:=chunk[i];
-    //Increase the buffer length counter
-    inc(buflen,cnt);
-    //Until we are done
-   until cnt<ChunkSize;
-   //Close the stream
-   FDiscDrive.Free;
-   //ID the image
-   if(IDImage)and(readdisc)then ReadImage;
-   //Return a true or false, depending on if FFormat is set.
-   Result:=FFormat<>$FF;
-   //Set the image filename
-   If Result then imagefilename:=filename;
+   FDiscDrive:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
+   SetLength(chunk,2);
+   readOK:=False;
+   compressed:=False;
+   //Have we read 2 bytes?
+   if FDiscDrive.Read(chunk[0],2)=2 then
+   begin
+    //Are they the GZ magic numbers?
+    if(chunk[0]=$1F)and(chunk[1]=$8B)then compressed:=True;
+    readOK:=True;
+   end;
+   //Read a compressed stream
+   if(readOK)and(compressed)then
+   begin
+    //Close the uncompressed stream first
+    FDiscDrive.Free;
+    try
+     FGZDiscDrive:=TGZFileStream.Create(filename,gzOpenRead);
+     //Counter
+     buflen:=0;
+     //Set up the chunk buffer
+     SetLength(chunk,ChunkSize);
+     repeat
+      //Read in the next chunk
+      cnt:=FGZDiscDrive.Read(chunk[0],ChunkSize);
+      //Extend the buffer accordingly
+      SetDataLength(buflen+cnt);
+      //Copy the chunk into the buffer
+      for i:=0 to cnt-1 do Fdata[buflen+i]:=chunk[i];
+      //Increase the buffer length counter
+      inc(buflen,cnt);
+      //Until we are done
+     until cnt<ChunkSize;
+     //Close the stream
+     FGZDiscDrive.Free;
+    except
+     FGZDiscDrive:=nil;
+    end;
+   end;
+   //Read the uncompressed file
+   if(not compressed)and(readOK)then
+   begin
+    try
+     FDiscDrive.Position:=0;
+     SetLength(Fdata,FDiscDrive.Size);
+     FDiscDrive.Read(Fdata[0],FDiscDrive.Size);
+     FDiscDrive.Free;
+    except
+     FDiscDrive:=nil;
+    end;
+   end;
   except
-   FDiscDrive:=nil;
-   Result:=False;
   end;
+  //ID the image
+  if(IDImage)and(readdisc)then ReadImage;
+  //Return a true or false, depending on if FFormat is set.
+  Result:=FFormat<>$FF;
+  //Set the image filename
+  If Result then imagefilename:=filename;
  end;
 end;
 

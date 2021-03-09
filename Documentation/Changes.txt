@@ -296,6 +296,16 @@ New or improved features
 Bug fixes
 * ADFS New directories could not be retitled.
 
+1.05.15.1 - 9th March 2021
+--------------------------
+New or improved features
+* Re-added and improved progress feedback when reading in an image.
+* Now checks to see if file is GZ compressed before loading, speeding up the loading process.
+* Begun work on adding files to ADFS Big Directories. Deleting and renaming may also work. UNTESTED.
+
+Bug fixes
+* Fixed a bug I had created where a "Divide by zero" error would occur on new ADFS discs.
+
 Platform History
 ----------------
 

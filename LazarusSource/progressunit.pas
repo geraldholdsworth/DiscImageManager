@@ -12,6 +12,7 @@ type
  { TProgressForm }
 
  TProgressForm = class(TForm)
+  UpdateProgress: TLabel;
   Panel1: TPanel;
   procedure FormShow(Sender: TObject);
  private
@@ -37,6 +38,7 @@ begin
  Left:=MainForm.Left;
  Width:=MainForm.Width;
  Height:=MainForm.Height+MainForm.ImageDetails.Height;
+ UpdateProgress.Caption:='';
 end;
 
 end.
