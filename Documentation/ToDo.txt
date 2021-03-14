@@ -8,9 +8,13 @@ General
 * Application to application communications.
 * Duplicate files (i.e. like copy and rename into same directory) - just do this via file context menu, Image main menu and toolbar button.
 * Copy entire files onto clipboard? And then paste from clipboard?
+* Allow custom extension when saving
 
 Command Line
-none
+* Option to retitle directories
+* Option to change attributes
+* Option to set the Load and Execution addresses, and attributes, with --add
+* Option to save UEF files uncompressed.
 
 Coding Issues
 none

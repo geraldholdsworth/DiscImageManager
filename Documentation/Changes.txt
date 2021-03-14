@@ -296,7 +296,7 @@ New or improved features
 Bug fixes
 * ADFS New directories could not be retitled.
 
-1.05.15.1 - 9th March 2021
+1.05.15.2 - 14th March 2021
 --------------------------
 New or improved features
 * Re-added and improved progress feedback when reading in an image.
@@ -305,6 +305,11 @@ New or improved features
 
 Bug fixes
 * Fixed a bug I had created where a "Divide by zero" error would occur on new ADFS discs.
+* Another bug that keeps cropping up is where the graphic for the Free Space Map (on the Image Details dialogue box) can grow beyond the capabilities of the compiler causing it to crash with really large images.
+* If a single sided DFS disc is loaded with the 0xA00 area all zeros, it will wrongly detect it as a double sided disc.
+* If a DFS file used bits 16 and 17 for the length, this was getting multiplied by 0x55 and wrongly reporting the file length. The same issue affected the execution and load addresses.
+* Creating a new disc image, from the command line, did not set up any boot options so trying to change it will result in the application crashing.
+* Creating a new disc image, changing the title or changing the boot option did not set the 'Has Changed' flag.
 
 Platform History
 ----------------

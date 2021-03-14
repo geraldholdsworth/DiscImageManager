@@ -5,9 +5,9 @@ Identifies a DFS disc and which type
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_DFS: Boolean;
 var
- c,i   : Byte;
- t0,t1 : Integer;
- chk   : Boolean;
+ c,i    : Byte;
+ t0,t1  : Integer;
+ chk,dbl: Boolean;
 begin
  if FFormat=$FF then
  begin
@@ -35,30 +35,42 @@ begin
    //Above checks have passed
    if chk then
    begin
-    FDSD:=True; //Double sided flag
+    dbl:=True; //Double sided flag
+    //Check the entire first two sectors - if they are all zero assume ssd
+    c:=0;
+    for i:=0 to $FE do
+     if ReadByte($0A00+i)=0 then inc(c);
+    if(c=$FF)and(ReadByte($0AFF)=0) then dbl:=False;
+    if dbl then
+    begin
+     for i:=0 to $FE do
+      if ReadByte($B00+i)=0 then inc(c);
+     if(c=$FF)and(ReadByte($0BFF)=0)then dbl:=False;
+    end;
     // Offset 0x0A01 should have 9 bytes without top bit set and >31
     c:=0;
     for i:=0 to 8 do
      if ((ReadByte($0A01+i)>31) AND (ReadByte($0A01+i)<127))
      or (ReadByte($0A01+i)=0)  then inc(c);
-    if c<>9 then FDSD:=False;
+    if c<>9 then dbl:=False;
     // Offset 0x0B00 should have 4 bytes without top bit set and >31
     c:=0;
     for i:=0 to 3 do
      if ((ReadByte($0B00+i)>31) AND (ReadByte($0B00+i)<127))
      or (ReadByte($0B00+i)=0) then inc(c);
-    if c<>4 then FDSD:=False;
+    if c<>4 then dbl:=False;
     // Offset 0x0105 should have bits 0,1 and 2 clear
-    if (ReadByte($0B05) AND $7)<>0 then FDSD:=False;
+    if (ReadByte($0B05) AND $7)<>0 then dbl:=False;
     // Offset 0x0106 should have bits 2,3,6 and 7 clear
-    if (ReadByte($0B06) AND $CC)<>0 then FDSD:=False;
+    if (ReadByte($0B06) AND $CC)<>0 then dbl:=False;
     //Number of sectors, side 0
     t0:=ReadByte($0107)+((ReadByte($0106)AND$3)shl 8);
     //DS tests passed, get the number of sectors, side 1
-    if FDSD then
+    if dbl then
      t1:=ReadByte($0B07)+((ReadByte($0B06)AND$3)shl 8)
     else
      t1:=t0;
+    if t1=0 then dbl:=False;
     //Number of tracks needs to be a multiple of 10
 {    if (t0 mod 10<>0) and (t1 mod 10<>0) then
      chk:=False
@@ -66,6 +78,7 @@ begin
     //Valid numbers of tracks (40 or 80)
     if  ((t0 div 10=40) or (t0 div 10=80))
     and ((t1 div 10=40) or (t1 div 10=80)) then}
+     FDSD:=dbl;
      if FDSD then
       FFormat:=$01
      else
@@ -202,15 +215,15 @@ begin
     Result[s].Entries[f-1].Attributes:='';
    //Load address
    Result[s].Entries[f-1].LoadAddr:=
-                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $0C)shl 14)*$55)
+                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $0C)shl 14){*$55})
                     +Read16b( ConvertDFSSector(diroff+$100+($08*ptr),s));
    //Execution address
    Result[s].Entries[f-1].ExecAddr:=
-                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $C0)shl 10)*$55)
+                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $C0)shl 10){*$55})
                   +  Read16b( ConvertDFSSector(diroff+$102+($08*ptr),s));
    //Length
    Result[s].Entries[f-1].Length:=
-                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $30)shl 12)*$55)
+                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $30)shl 12){*$55})
                   +  Read16b( ConvertDFSSector(diroff+$104+($08*ptr),s));
    //Sector of start of data
    Result[s].Entries[f-1].Sector:=
@@ -271,8 +284,10 @@ begin
     c:=LDisc[s].Entries[e].Length div $100;
     if LDisc[s].Entries[e].Length mod $100>0 then inc(c);
     for fs:=0 to c-1 do
-     free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10,
-                      (LDisc[s].Entries[e].Sector+fs) mod 10]:=$FF;
+     if(LDisc[s].Entries[e].Sector+fs)div 10<Length(free_space_map[s])then
+      if(LDisc[s].Entries[e].Sector+fs) mod 10<Length(free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10]) then
+       free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10,
+                        (LDisc[s].Entries[e].Sector+fs) mod 10]:=$FF;
    end;
  end;
  free_space:=disc_size-free_space;
@@ -587,11 +602,13 @@ begin
  begin
   SetLength(Result,2);
   FDSD:=True;
+  SetLength(bootoption,2);
  end
  else                       //Single sided image
  begin
   SetLength(Result,1);
   FDSD:=False;
+  SetLength(bootoption,1);
  end;
  //Setup the data area
  SetDataLength($200*(minor+1)); // $200 for the header, per side. $400 for Watford

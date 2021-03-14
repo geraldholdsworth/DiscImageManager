@@ -307,7 +307,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.15.1';
+    ApplicationVersion = '1.05.15.2';
   end;
 
 var
@@ -1699,11 +1699,17 @@ begin
    end;
    //Update title for side 0 ++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--title') or (option='-t') then
+   begin
     Image.UpdateDiscTitle(param,0);
+    HasChanged:=True;
+   end;
    //Update title for side 1 ++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--title1') or (option='-t1') then
     if Length(Image.Disc)>1 then
+    begin
      Image.UpdateDiscTitle(param,1);
+     HasChanged:=True;
+    end;
    //Update boot option for side 0 ++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--opt') or (option='-o') then
    begin
@@ -1711,7 +1717,11 @@ begin
     if LowerCase(param)='load' then param:='1';
     if LowerCase(param)='run'  then param:='2';
     if LowerCase(param)='exec' then param:='3';
-    Image.UpdateBootOption(StrToIntDef(param,0)mod$10,0);
+    if StrToIntDef(param,0)mod$10<4 then
+    begin
+     Image.UpdateBootOption(StrToIntDef(param,0)mod$10,0);
+     HasChanged:=True;
+    end;
    end;
    //Update boot option for side 1 ++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--opt1') or (option='-o1') then
@@ -1721,7 +1731,11 @@ begin
      if LowerCase(param)='load' then param:='1';
      if LowerCase(param)='run'  then param:='2';
      if LowerCase(param)='exec' then param:='3';
-     Image.UpdateBootOption(StrToIntDef(param,0)mod$10,1);
+     if StrToIntDef(param,0)mod$10<4 then
+     begin
+      Image.UpdateBootOption(StrToIntDef(param,0)mod$10,1);
+      HasChanged:=True;
+     end;
     end;
    //Delete selected file +++++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--delete') or (option='-d') then
