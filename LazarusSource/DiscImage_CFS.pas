@@ -34,17 +34,17 @@ function TDiscImage.ReadUEFFile: TDisc;
 var
  i,j      : Integer;
  filenum,
- baud,
+// baud,
  pos,
  ptr,
  chunkid,
  chunklen,
  blocklen,
- blocknum,
+// blocknum,
  headcrc,
  datacrc  : Cardinal;
  temp     : String;
- tone     : Real;
+// tone     : Real;
  blockst  : Byte;
  crcok    : Boolean;
  dummy    : TDIByteArray;
@@ -58,7 +58,7 @@ begin
  //Set the root directory name
  root_name:='tape';
  Result[0].Directory:=root_name;}
- baud:=1200;
+// baud:=1200;
  //Starting position is after the magic string
  pos:=$0C;
  //Keep track of which file we are on
@@ -84,10 +84,10 @@ begin
   inc(pos,6);
   //Decode the chunk
   case chunkid of
-   $0000 : //Origin Information +++++++++++++++++++++++++++++++++++++++++++++++
+{   $0000 : //Origin Information +++++++++++++++++++++++++++++++++++++++++++++++
     temp:=ReadString(pos,$00);
    $0005 : //Target Machine Type ++++++++++++++++++++++++++++++++++++++++++++++
-    temp:='Target Machine is '+CFSTargetMachine(ReadByte(pos));
+    temp:='Target Machine is '+CFSTargetMachine(ReadByte(pos));}
    $0100 : //Implicit Start/Stop Bit Tape Data Block ++++++++++++++++++++++++++
     //Check for sync byte
     if ReadByte(pos)=$2A then // $2A is the sync byte
@@ -122,7 +122,7 @@ begin
      //Read in the execution address
      Result[0].Entries[filenum].ExecAddr:=Read32b(pos+i+4);
      //Read in the block number
-     blocknum:=Read16b(pos+i+8);
+//     blocknum:=Read16b(pos+i+8);
      //Take a note of where we are in the file's data, as we build it up
      ptr:=Result[0].Entries[filenum].Length;
      //Get the length of this block
@@ -152,12 +152,12 @@ begin
      //Check it is valid
      if datacrc<>GetCRC16(ptr,blocklen,CFSFiles[filenum]) then crcok:=False;
     end;
-   $0110 : //High Tone ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+{   $0110 : //High Tone ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //Work out the length of the tone
     tone:=Read16b(pos)*(1/(baud*2))*8;
    $0112 : //Baudwise Gap +++++++++++++++++++++++++++++++++++++++++++++++++++++
     //Work out the length of the gap
-    tone:=Read16b(pos)*(1/(baud*2))*8;
+    tone:=Read16b(pos)*(1/(baud*2))*8;}
   end;
   //Move our offset pointer to the next chunk
   inc(pos,chunklen);
@@ -213,7 +213,7 @@ end;
 {-------------------------------------------------------------------------------
 Rebuilds and saves a UEF file
 -------------------------------------------------------------------------------}
-procedure TDiscImage.WriteUEFFile(filename: String);
+procedure TDiscImage.WriteUEFFile(filename: String;uncompress: Boolean=True);
 var
  entry,
  ptr,
@@ -226,6 +226,7 @@ var
  blocknum: Byte;
  dummy   : TDIByteArray;
  F       : TGZFileStream;
+ Func    : TFileStream;
 begin
  SetLength(dummy,0);
  //Only continue if there are any entries
@@ -349,12 +350,25 @@ begin
    end;
   end;
   //Finally, write the data out to the file, compressed
-  try
-   F:=TGZFileStream.Create(filename,gzOpenWrite);
-   F.Seek(0,0);
-   F.Write(Fdata[0],Length(Fdata));
-   F.Free;
-  finally
+  if not uncompress then
+  begin
+   try
+    F:=TGZFileStream.Create(filename,gzOpenWrite);
+    F.Seek(0,0);
+    F.Write(Fdata[0],Length(Fdata));
+    F.Free;
+   finally
+   end;
+  end;
+  //Or, write the data out to the file, uncompressed
+  if uncompress then
+  begin
+   try
+    Func:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
+    Func.Write(Fdata[0],Length(Fdata));
+    Func.Free;
+   finally
+   end;
   end;
  end;
 end;

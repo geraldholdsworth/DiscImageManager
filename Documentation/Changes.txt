@@ -296,12 +296,16 @@ New or improved features
 Bug fixes
 * ADFS New directories could not be retitled.
 
-1.05.15.2 - 14th March 2021
---------------------------
+1.05.16 - 15th March 2021
+-------------------------
 New or improved features
 * Re-added and improved progress feedback when reading in an image.
 * Now checks to see if file is GZ compressed before loading, speeding up the loading process.
-* Begun work on adding files to ADFS Big Directories. Deleting and renaming may also work. UNTESTED.
+* ADFS Big Directories - files and directories can now be written to, expanding or contracting as needed. *** UNTESTED ***
+* Expanded command line option 'add' to specify the eventual filename, load address, execution address and attributes.
+* Added new command line option 'dirtitle' to retitle a specified directory.
+* Added new command line option 'access' to change the attributes on a specified file or directory.
+* Expanded command line option 'save' to specifiy if a UEF is to be saved uncompressed, rather than the default compressed.
 
 Bug fixes
 * Fixed a bug I had created where a "Divide by zero" error would occur on new ADFS discs.
@@ -309,7 +313,7 @@ Bug fixes
 * If a single sided DFS disc is loaded with the 0xA00 area all zeros, it will wrongly detect it as a double sided disc.
 * If a DFS file used bits 16 and 17 for the length, this was getting multiplied by 0x55 and wrongly reporting the file length. The same issue affected the execution and load addresses.
 * Creating a new disc image, from the command line, did not set up any boot options so trying to change it will result in the application crashing.
-* Creating a new disc image, changing the title or changing the boot option did not set the 'Has Changed' flag.
+* Creating a new disc image, changing the title or changing the boot option, from the command line, did not set the 'Has Changed' flag.
 
 Platform History
 ----------------

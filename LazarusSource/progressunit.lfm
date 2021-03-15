@@ -27,11 +27,13 @@ object ProgressForm: TProgressForm
     object UpdateProgress: TLabel
       Left = 1
       Height = 18
-      Top = 1
+      Top = 22
       Width = 595
-      Align = alTop
+      Align = alBottom
+      Alignment = taRightJustify
       AutoSize = False
       Caption = 'UpdateProgress'
+      Font.Color = clBlue
       Font.Height = -16
       Font.Style = [fsBold]
       ParentColor = False

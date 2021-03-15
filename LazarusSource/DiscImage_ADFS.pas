@@ -1921,7 +1921,8 @@ var
  diraddr,
  ref,i,
  head,
- heapctr   : Cardinal;
+ heapctr,
+ tail      : Cardinal;
  c,a       : Byte;
  temp      : String;
  fragments : TFragmentArray;
@@ -1977,8 +1978,10 @@ begin
     //Get the size of the header, with padding
     head:=Read32b(diraddr+$08)+$1C+1; //Size
     head:=((head+3)div 4)*4;//Pad to word boundary
+    //Get the size of the directory, minus tail
+    tail:=Read32b(diraddr+$0C)-8;
     //Now clear the directory entries
-    for i:=head to Read32b(diraddr+$0C)-(head+8) do //Tail is 8 bytes
+    for i:=head to tail-head do //Tail is 8 bytes
      WriteByte($00,diraddr+i);
    end;
    heapctr:=0; //Heap counter for Big Directories
@@ -2039,6 +2042,9 @@ begin
       Write32b(FDisc[dir].Entries[ref].Length          ,diraddr+head+$08+ref*$1C);
       //Sector
       Write24b(FDisc[dir].Entries[ref].Sector          ,diraddr+head+$0C+ref*$1C);
+      //Tail copy of the sector
+      Write32b(FDisc[dir].Entries[ref].Sector,
+                             (diraddr+tail)-(Length(FDisc[dir].Entries)*4)+ref*4);
       //Attributes
       Write24b(a                                       ,diraddr+head+$10+ref*$1C);
       //Length of filename
@@ -2140,6 +2146,7 @@ begin
   if filename='$' then
   begin
    ptr:=root;
+   FDisc[0].Title:=LeftStr(newtitle,19);
   end
   else
   begin
@@ -2840,7 +2847,7 @@ begin
  //We won't take account of minus sizes, so zero it if it is
  if space<0 then space:=0;
  //Are we adding an extra entry?
- if add then inc(space,$1C);
+ if add then inc(space,$1C+4); //Data after hdr ($1C) + before tail ($04)
  //Make sure it we are using big directories
  if FDirType=2 then
  begin
@@ -2867,7 +2874,7 @@ begin
    if Length(frag)=0 then exit; //Could not find anything, so bye bye
   end;
   dirsize:=Read32b(addr+$0C);//Length of directory
-  tail:=$08;//Tail size
+  tail:=$08+Read32b(addr+$10)*$4;//Tail size
   hdr:=(($1C+Read32b(addr+$08)+$03)div 4)*4;//Size of header (padded to word boundary)
   heapsize:=Read32b(addr+$10)*$1C+Read32b(addr+$14);//Size of entries
   //Is the directory oversized? Only shrink if space is passed as zero
@@ -2897,10 +2904,14 @@ Do the actual extending or contracting of a big directory
 -------------------------------------------------------------------------------}
 function TDiscImage.ADFSBigDirSizeChange(dir,entry:Cardinal;extend:Boolean):Boolean;
 var
- buffer     : TDIByteArray;
+ buffer,
+ buffer2    : TDIByteArray;
  dirsize,
- ptr        : Cardinal;
+ ptr,
+ tail       : Cardinal;
  file_entry : TDirEntry;
+ frags      : TFragmentArray;
+ c          : Integer;
 //***** This will not work when acting on the root *****
 begin
  //extend = True  : extend by 2048 bytes
@@ -2908,10 +2919,12 @@ begin
  Result:=False;
  //Both extract and contract will need to treat the directory as a file:
  file_entry:=FDisc[dir].Entries[entry];
- //1. Call ExtractADFSFile to extract to a temporary buffer
+ //Call ExtractADFSFile to extract to a temporary buffer
  if ExtractADFSFile(file_entry.Parent+'.'+file_entry.Filename,buffer) then
  begin
-  //2. Update the header
+  //Take a copy
+  buffer2:=buffer;
+  //Update the header
   dirsize:=buffer[$0C]*$1000000
           +buffer[$0D]*$10000
           +buffer[$0E]*$100
@@ -2921,25 +2934,47 @@ begin
   buffer[$0D]:=(dirsize DIV $10000  )MOD$100;
   buffer[$0E]:=(dirsize DIV $100    )MOD$100;
   buffer[$0F]:= dirsize              MOD$100;
-  //3. Move the tail (extend or contract buffer if necessary)
+  //Move the tail (extend or contract buffer if necessary)
   if extend then SetLength(buffer,dirsize);//Extend before move
-  for ptr:=1 to 8 do //Tail is 8 bytes long
+  //Work out the tail size (8 + num of entries * 4)
+  tail:=8+(buffer[$10]+(buffer[$11]<<8)+(buffer[$12]<<16)+(buffer[$13]<<23))*4;
+  for ptr:=1 to tail do
    if extend then buffer[dirsize-ptr]:=buffer[(dirsize-2048)-ptr]
              else buffer[dirsize-ptr]:=buffer[(dirsize+2048)-ptr];
   if not extend then SetLength(buffer,dirsize); //Contract after move
-  //4. Call DeleteADFSFile and treat the directory as a file
+  //Call DeleteADFSFile and treat the directory as a file
   if DeleteADFSFile(file_entry.Parent+'.'+file_entry.Filename,True) then
   begin
-   //5. Call WriteADFSFile and treat the directory as a file (set extend to FALSE)
-   if WriteADFSFile(file_entry,buffer,True,False)>=0 then
-   begin
-    //
-   end
+   //Call WriteADFSFile and treat the directory as a file (set extend to FALSE)
+   c:=WriteADFSFile(file_entry,buffer,True,False);
+   if c>=0 then
+    Result:=True
    else
    begin
-    //6. If WriteADFSFile failed then revert to original and re-add, returning a FALSE
+    //If WriteADFSFile failed then revert to original and re-add, returning a FALSE
+    c:=WriteADFSFile(file_entry,buffer2,True,False);
    end;
-   //7. Update the checksum for this directory
+  end;
+  if c>=0 then
+  begin
+   entry:=c;
+   //We need to know where it is now stored.
+   frags:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
+   ptr:=$0;
+   c:=0;
+   repeat
+    if Length(frags)>c then
+    begin
+     //Read the fragment
+     ptr:=frags[c].Offset;
+     //Make sure it is the same length as the directory, otherwise reset ptr
+     if Read32b(ptr+$0C)<>frags[c].Length then ptr:=0;
+    end;
+    //Increase the counter
+    inc(c);
+   until (c=Length(frags))or(ptr<>0);
+   //Update the checksums
+   if ptr<>$0 then WriteByte(CalculateADFSDirCheck(ptr),ptr+dirsize-1);
   end;
  end;
 end;

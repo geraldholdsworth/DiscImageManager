@@ -214,6 +214,7 @@ type
                                   index: Integer;dir: Boolean): TTreeNode;
    procedure AddDirectoryToImage(dirname: String);
    procedure AddFileToImage(filename: String);
+   procedure AddFileToImage(filename: String;filedetails: TDirEntry); overload;
    procedure UpdateImageInfo;
    procedure ReportError(error: String);
    function GetCopyMode(Shift: TShiftState): Boolean;
@@ -307,7 +308,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.15.2';
+    ApplicationVersion = '1.05.16';
   end;
 
 var
@@ -427,6 +428,16 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.AddFileToImage(filename: String);
 var
+ filedetails: TDirEntry;
+begin
+ filedetails.Attributes:='';
+ filedetails.LoadAddr:=0;
+ filedetails.ExecAddr:=0;
+ filedetails.Filename:='';
+ AddFileToImage(filename,filedetails);
+end;
+procedure TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry);
+var
   NewFile        : TDirEntry;
   buffer         : TDIByteArray;
   index          : Integer;
@@ -444,6 +455,7 @@ var
   chr            : Char;
   F              : TFileStream;
 begin
+ if not FileExists(filename) then exit;
  //First, if there is no selection, make one, or if multiple, select the root
  if (DirList.SelectionCount=0) OR (DirList.SelectionCount>1) then
  begin
@@ -464,7 +476,10 @@ begin
    //Not double sided or DFS, so assume side 0
     side:=0;
    //Extract the filename
-   importfilename:=ExtractFileName(filename);
+   if filedetails.Filename='' then
+    importfilename:=ExtractFileName(filename)
+   else
+    importfilename:=ExtractFileName(filedetails.Filename);
    //Reject any *.inf files
    if LowerCase(RightStr(importfilename,4))<>'.inf' then
    begin
@@ -523,20 +538,6 @@ begin
        //Could not load
       end;
      end;
-     //Remove any extraenous specifiers
-     while (importfilename[4]=Image.DirSep) do
-      importfilename:=RightStr(importfilename,Length(importfilename)-2);
-     //If root, remove the directory specifier
-     if (importfilename[2]=Image.DirSep) and (importfilename[1]='$') then
-      importfilename:=RightStr(importfilename,Length(importfilename)-2);
-     //Convert a Windows filename to a BBC filename
-     WinToBBC(importfilename);
-     //Check to make sure that a DFS directory hasn't been changed
-     if (Image.FormatNumber<$20) and (importfilename[2]='/') then
-      importfilename[2]:=Image.DirSep;
-     //Remove any spaces, unless it is a big directory
-     if Image.DirectoryType<>2 then
-      importfilename:=ReplaceStr(importfilename,' ','_');
     end;
     //Initialise the TDirArray
     ResetDirEntry(NewFile);
@@ -546,6 +547,11 @@ begin
     attributes        :=''; //Default
     if Image.FormatNumber shr 4=$1 then attributes:='WR';//Default for ADFS
     if Image.FormatNumber shr 4=$3 then attributes:='C' ;//Default for Commodore
+    //Supplied attributes override anything else
+    if filedetails.Filename<>'' then importfilename:=filedetails.Filename;
+    if filedetails.Attributes<>'' then attr1:=filedetails.Attributes;
+    if filedetails.LoadAddr  <>0  then loadaddr:=IntToHex(filedetails.LoadAddr,8);
+    if filedetails.ExecAddr  <>0  then execaddr:=IntToHex(filedetails.ExecAddr,8);
     //Is it a hex number?
     if IntToHex(StrtoIntDef('$'+attr1,0),2)=UpperCase(attr1) then
     begin //Yes
@@ -565,6 +571,24 @@ begin
      if (Pos('w',attr1)>0)OR(attr2 AND$20=$20) then attributes:=attributes+'w';
      if (Pos('e',attr1)>0)OR(attr2 AND$40=$40) then attributes:=attributes+'e';
      if (Pos('l',attr1)>0)OR(attr2 AND$80=$80) then attributes:=attributes+'l';
+    end;
+    //Validate the filename (ADFS, DFS & CFS only)
+    if(Image.FormatNumber<$20)or(Image.FormatNumber=$50)then
+    begin
+     //Remove any extraenous specifiers
+     while (importfilename[4]=Image.DirSep) do
+      importfilename:=RightStr(importfilename,Length(importfilename)-2);
+     //If root, remove the directory specifier
+     if (importfilename[2]=Image.DirSep) and (importfilename[1]='$') then
+      importfilename:=RightStr(importfilename,Length(importfilename)-2);
+     //Convert a Windows filename to a BBC filename
+     WinToBBC(importfilename);
+     //Check to make sure that a DFS directory hasn't been changed
+     if (Image.FormatNumber<$20) and (importfilename[2]='/') then
+      importfilename[2]:=Image.DirSep;
+     //Remove any spaces, unless it is a big directory
+     if Image.DirectoryType<>2 then
+      importfilename:=ReplaceStr(importfilename,' ','_');
     end;
     //Setup the record
     NewFile.Filename     :=importfilename;
@@ -1605,12 +1629,14 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ParseCommandLine(cmd: String);
 var
- index  : Integer;
+ index      : Integer;
  option,
  param,
- param2 : String;
- Dir    : TSearchRec;
- F      : TFileStream;
+ param2     : String;
+ Dir        : TSearchRec;
+ F          : TFileStream;
+ fields     : TStringArray;
+ filedetails: TDirEntry;
 const DiscFormats = //Accepted format strings
  'DFSS    DFSS40  DFSD    DFSD40  WDFSS   WDFSS40 WDFSD   WDFSD40 ADFSS   ADFSM   '+
  'ADFSL   ADFSD   ADFSE   ADFSE+  ADFSF   ADFSF+  C1541   C1571   C1581   AMIGADD '+
@@ -1620,6 +1646,7 @@ const DiscFormats = //Accepted format strings
   $120   ,$130   ,$140   ,$150   ,$160   ,$170   ,$200   ,$210   ,$220   ,$400,
   $410   ,$500);
 begin
+ SetLength(fields,0);
  //Collate the parameters
  option:=cmd;
  param :='';
@@ -1681,9 +1708,15 @@ begin
    //Add new file command +++++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--add') or (option='-a') then
    begin
-    //Select destination directory
+    //Optional second and subsequent parameters
     if param2<>'' then
+    begin
+     //Are there more options in the second parameter?
+     if Pos('|',param2)>0 then fields:=param2.Split('|');
+     if Length(fields)>0 then param2:=fields[0];
+     //Select destination directory
      SelectNode(param2);
+    end;
     //param can contain a wild card
     FindFirst(param,faDirectory,Dir);
     repeat
@@ -1692,24 +1725,41 @@ begin
       if (Dir.Attr AND faDirectory)=faDirectory then
        AddDirectoryToImage(ExtractFilePath(param)+Dir.Name)
       else //Add a single file
-       AddFileToImage(ExtractFilePath(param)+Dir.Name);
+      begin
+       //No extra details have been supplied
+       if Length(fields)=0 then AddFileToImage(ExtractFilePath(param)+Dir.Name);
+       //Extra details supplied
+       if Length(fields)>1 then //Change so that first field is filename, then load, exec, attributes
+       begin                    //Will need to change the procedure definition to pass two parameters - filename and filedetails
+        filedetails.Filename:=fields[1];
+        //Load address
+        if Length(fields)>2 then
+         filedetails.LoadAddr:=StrToInt('$'+fields[2]);
+        //Execution address
+        if Length(fields)>3 then
+         filedetails.ExecAddr:=StrToInt('$'+fields[3])
+        else
+         filedetails.ExecAddr:=0;
+        //Attributes
+        if Length(fields)>4 then
+         filedetails.Attributes:=fields[4]
+        else
+         filedetails.Attributes:='';
+        //All these fields will be decoded in this procedure
+        AddFileToImage(ExtractFilePath(param)+Dir.Name,filedetails);
+       end;
+      end;
      end;
     until FindNext(Dir)<>0;
     FindClose(Dir);
    end;
    //Update title for side 0 ++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--title') or (option='-t') then
-   begin
-    Image.UpdateDiscTitle(param,0);
-    HasChanged:=True;
-   end;
+    HasChanged:=HasChanged OR Image.UpdateDiscTitle(param,0);
    //Update title for side 1 ++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--title1') or (option='-t1') then
     if Length(Image.Disc)>1 then
-    begin
-     Image.UpdateDiscTitle(param,1);
-     HasChanged:=True;
-    end;
+     HasChanged:=HasChanged OR Image.UpdateDiscTitle(param,1);
    //Update boot option for side 0 ++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--opt') or (option='-o') then
    begin
@@ -1718,10 +1768,7 @@ begin
     if LowerCase(param)='run'  then param:='2';
     if LowerCase(param)='exec' then param:='3';
     if StrToIntDef(param,0)mod$10<4 then
-    begin
-     Image.UpdateBootOption(StrToIntDef(param,0)mod$10,0);
-     HasChanged:=True;
-    end;
+     HasChanged:=HasChanged OR Image.UpdateBootOption(StrToIntDef(param,0)mod$10,0);
    end;
    //Update boot option for side 1 ++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--opt1') or (option='-o1') then
@@ -1732,10 +1779,7 @@ begin
      if LowerCase(param)='run'  then param:='2';
      if LowerCase(param)='exec' then param:='3';
      if StrToIntDef(param,0)mod$10<4 then
-     begin
-      Image.UpdateBootOption(StrToIntDef(param,0)mod$10,1);
-      HasChanged:=True;
-     end;
+      HasChanged:=HasChanged OR Image.UpdateBootOption(StrToIntDef(param,0)mod$10,1);
     end;
    //Delete selected file +++++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--delete') or (option='-d') then
@@ -1761,6 +1805,14 @@ begin
     if (option='--rename') or (option='-r') then
      //Rename the file. If it fails, it will return false.
      HasChanged:=(HasChanged)OR(Image.RenameFile(param,param2)>=0);
+    //Set attributes for selected file +++++++++++++++++++++++++++++++++++++++++
+    if (option='--access') or (option='-ac') then
+     //Set access rights on the specified file
+     HasChanged:=HasChanged OR Image.UpdateAttributes(param,param2);
+    //Change selected directory title ++++++++++++++++++++++++++++++++++++++++++
+    if (option='--dirtitle') or (option='-dt') then
+     //Change the selected directory's title
+     HasChanged:=HasChanged OR Image.RetitleDirectory(param,param2);
    end;
   end;
  end;
@@ -1779,7 +1831,7 @@ begin
   if Image.FormatNumber<>$FF then
   begin
    if param='' then param:=Image.Filename;
-   Image.SaveToFile(param);
+   Image.SaveToFile(param,UpperCase(param2)='TRUE');
    Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
    HasChanged:=False;
    //Update the status bar

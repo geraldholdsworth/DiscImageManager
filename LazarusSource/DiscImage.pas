@@ -200,7 +200,7 @@ type
   function CFSBlockStatus(status: Byte): String;
   function CFSTargetMachine(machine: Byte): String;
   function ExtractCFSFile(entry: Integer;var buffer:TDIByteArray):Boolean;
-  procedure WriteUEFFile(filename: String);
+  procedure WriteUEFFile(filename: String;uncompress: Boolean=True);
   function FormatCFS:TDisc;
   function DeleteCFSFile(entry: Cardinal): Boolean;
   function UpdateCFSAttributes(entry: Cardinal;attributes:String): Boolean;
@@ -223,7 +223,7 @@ type
   function LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
   function IDImage: Boolean;
   procedure ReadImage;
-  procedure SaveToFile(filename: String);
+  procedure SaveToFile(filename: String;uncompress: Boolean=True);
   procedure Close;
   function Format(major,minor,tracks: Byte): Boolean;
   function ExtractFile(filename:String;var buffer:TDIByteArray;entry:Cardinal=0): Boolean;
@@ -1027,15 +1027,18 @@ end;
 {-------------------------------------------------------------------------------
 Saves an image to a file
 -------------------------------------------------------------------------------}
-procedure TDiscImage.SaveToFile(filename: String);
+procedure TDiscImage.SaveToFile(filename: String;uncompress: Boolean=True);
 var
  FDiscDrive: TFileStream;
  ext: String;
 begin
  //Validate the filename
- ext:=ExtractFileExt(filename);
- filename:=LeftStr(filename,Length(filename)-Length(ext));
- filename:=filename+'.'+FormatToExt;
+ ext:=ExtractFileExt(filename); //First extract the extension
+ if ext='' then //If it hasn't been given an extension, then give it the default
+ begin
+  filename:=LeftStr(filename,Length(filename)-Length(ext));
+  filename:=filename+'.'+FormatToExt;
+ end;
  if FFormat shr 4<>5 then //Not CFS
  begin
   //Create the stream
@@ -1053,7 +1056,7 @@ begin
    //Could not create
   end;
  end;
- if FFormat shr 4=5 then WriteUEFFile(filename); //CFS
+ if FFormat shr 4=5 then WriteUEFFile(filename,uncompress); //CFS
 end;
 
 {-------------------------------------------------------------------------------
