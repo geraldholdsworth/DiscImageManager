@@ -315,7 +315,7 @@ Bug fixes
 * Creating a new disc image, from the command line, did not set up any boot options so trying to change it will result in the application crashing.
 * Creating a new disc image, changing the title or changing the boot option, from the command line, did not set the 'Has Changed' flag.
 
-1.05.17
+1.05.16.1 17th March 2021
 -------------------------
 New or improved features
 * Tested and fixed ADFS Big Directory function to write files to a directory (after removing the lock I'd left on).
