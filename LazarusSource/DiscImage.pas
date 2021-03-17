@@ -1224,6 +1224,7 @@ begin
  if Length(FDisc)>0 then
  begin
   SetLength(Path,0);
+  filename:=filename;
   j:=-1;
   ptr:=0;
   //Explode the pathname into an array, without the '.'
@@ -1257,13 +1258,13 @@ begin
    i:=0;
    j:=-1;
    ptr:=-1;
-   test:=UpperCase(Path[level]);
-   test2:=UpperCase(FDisc[i].Directory);
+   test:=UpperCase(AddTopBit(Path[level]));
+   test2:=UpperCase(AddTopBit(FDisc[i].Directory));
    //DFS - if the test is on the other side
    if (FFormat=$01) and (test<>test2) then
    begin
     inc(i);
-    test2:=UpperCase(FDisc[i].Directory);
+    test2:=UpperCase(AddTopBit(FDisc[i].Directory));
    end;
    //Using UpperCase makes it a case insensitive search
    if test=test2 then
@@ -1277,7 +1278,7 @@ begin
       inc(j);
       test:='';
       if level<Length(Path) then
-       test2:=UpperCase(Path[level])
+       test2:=UpperCase(AddTopBit(Path[level]))
       else
        test2:='not found';
       l:=j;
@@ -1285,7 +1286,7 @@ begin
       if (i>=0) and (i<Length(FDisc)) then
       begin
        if j<Length(FDisc[i].Entries) then
-        test:=UpperCase(FDisc[i].Entries[j].Filename);
+        test:=UpperCase(AddTopBit(FDisc[i].Entries[j].Filename));
        l:=Length(FDisc[i].Entries)-1;
       end;
      until (test2=test) or (j>=l);
@@ -1298,11 +1299,11 @@ begin
       if (i>=0) and (i<Length(FDisc)) then
        if j<Length(FDisc[i].Entries) then
        begin
-        test2:=UpperCase(FDisc[i].Entries[j].Filename);
+        test2:=UpperCase(AddTopBit(FDisc[i].Entries[j].Filename));
         i:=FDisc[i].Entries[j].DirRef;
         //Unless we are looking for a directory
         if level=Length(Path)-1 then
-          if UpperCase(Path[level])=test2 then
+          if UpperCase(AddTopBit(Path[level]))=test2 then
            i:=-1;
        end;
      end
@@ -1332,17 +1333,20 @@ begin
  if FFormat shr 4<>0 then
  begin
   SetLength(temp,count);
-  for i:=0 to count-1 do
-   temp[i]:=ReadByte(addr+i);
+  if count>0 then
+   for i:=0 to count-1 do
+    temp[i]:=ReadByte(addr+i);
  end;
  //DFS
  if FFormat shr 4=0 then
  begin
   SetLength(temp,count);
-  for i:=0 to count-1 do
-   temp[i]:=ReadByte(ConvertDFSSector(addr+i,side));
+  if count>0 then
+   for i:=0 to count-1 do
+    temp[i]:=ReadByte(ConvertDFSSector(addr+i,side));
  end;
- Move(temp[0],buffer,count);
+ if count>0 then
+  Move(temp[0],buffer,count);
  Result:=True;
 end;
 

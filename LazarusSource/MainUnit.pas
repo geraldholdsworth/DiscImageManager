@@ -308,7 +308,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.16';
+    ApplicationVersion = '1.05.16.1';
   end;
 
 var
@@ -487,7 +487,7 @@ begin
     execaddr:='00000000';
     loadaddr:='00000000';
     filelen :='00000000';
-    attr1   :='00';
+    attr1   :='';
     attr2   :=$00;
     filetype:='';
     //Does the filename contain the filetype?
@@ -543,15 +543,18 @@ begin
     ResetDirEntry(NewFile);
     //Initialise the buffer
     SetLength(buffer,0);
-    //Decode the attributes
-    attributes        :=''; //Default
-    if Image.FormatNumber shr 4=$1 then attributes:='WR';//Default for ADFS
-    if Image.FormatNumber shr 4=$3 then attributes:='C' ;//Default for Commodore
     //Supplied attributes override anything else
     if filedetails.Filename<>'' then importfilename:=filedetails.Filename;
     if filedetails.Attributes<>'' then attr1:=filedetails.Attributes;
     if filedetails.LoadAddr  <>0  then loadaddr:=IntToHex(filedetails.LoadAddr,8);
     if filedetails.ExecAddr  <>0  then execaddr:=IntToHex(filedetails.ExecAddr,8);
+    //Decode the attributes
+    attributes:=''; //Default
+    if attr1='' then
+    begin
+     if Image.FormatNumber shr 4=$1 then attributes:='WR';//Default for ADFS
+     if Image.FormatNumber shr 4=$3 then attributes:='C' ;//Default for Commodore
+    end;
     //Is it a hex number?
     if IntToHex(StrtoIntDef('$'+attr1,0),2)=UpperCase(attr1) then
     begin //Yes
@@ -655,6 +658,7 @@ function TMainForm.AddFileToTree(ParentNode: TTreeNode;importfilename: String;
                                   index: Integer;dir: Boolean): TTreeNode;
 begin
  Result:=nil;
+ RemoveTopBit(importfilename);
  //Now add the entry to the Directory List
  if ParentNode.HasChildren then
   //Insert it before the one specified
@@ -1171,7 +1175,8 @@ var
  filename,
  filetype,
  location,
- title    : String;
+ title,
+ temp     : String;
  multiple : Char;
 begin
  filetype:='';
@@ -1326,7 +1331,9 @@ begin
                   Image.Disc[Image.Disc[dir].Entries[entry].DirRef].ErrorCode
                   ,2)+')';
      //Title of the subdirectory
-     lb_title.Caption:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
+     title:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
+     RemoveTopBit(title);
+     lb_title.Caption:=title;
      ed_title.Enabled:=True; //Can be edited
     end;
    end
@@ -1359,6 +1366,7 @@ begin
   +' dir:'+IntToStr(dir)+' entry:'+IntToStr(entry)
   +' ParentDir:'+IntToStr(TMyTreeNode(Node).ParentDir);}
   //Filename
+  RemoveTopBit(filename);
   lb_FileName.Caption:=filename;
   //Filetype Image
   ft:=Node.ImageIndex;
@@ -1387,7 +1395,9 @@ begin
    lb_CRC32.Caption:=Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent+
                                       Image.DirSep+filename,entry);
    //Parent
-   lb_parent.Caption:=Image.Disc[dir].Entries[entry].Parent;
+   temp:=Image.Disc[dir].Entries[entry].Parent;
+   RemoveTopBit(temp);
+   lb_parent.Caption:=temp;
    //Timestamp - ADFS only
    if(Image.Disc[dir].Entries[entry].TimeStamp>0)
    and(Image.FormatNumber shr 4=1)then
@@ -1629,7 +1639,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ParseCommandLine(cmd: String);
 var
- index      : Integer;
+ index,
+ side       : Integer;
+ r          : Boolean;
  option,
  param,
  param2     : String;
@@ -1753,34 +1765,32 @@ begin
     until FindNext(Dir)<>0;
     FindClose(Dir);
    end;
-   //Update title for side 0 ++++++++++++++++++++++++++++++++++++++++++++++++++++
-   if (option='--title') or (option='-t') then
-    HasChanged:=HasChanged OR Image.UpdateDiscTitle(param,0);
-   //Update title for side 1 ++++++++++++++++++++++++++++++++++++++++++++++++++++
-   if (option='--title1') or (option='-t1') then
-    if Length(Image.Disc)>1 then
-     HasChanged:=HasChanged OR Image.UpdateDiscTitle(param,1);
-   //Update boot option for side 0 ++++++++++++++++++++++++++++++++++++++++++++++
-   if (option='--opt') or (option='-o') then
+   //Update title +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   if (option='--title') or (option='-t')
+   or (option='--title1') or (option='-t1') then
    begin
+    side:=0;
+    if (option='--title1') or (option='-t1') then side:=1;
+    r:=Image.UpdateDiscTitle(param,side);
+    HasChanged:=HasChanged OR r;
+   end;
+   //Update boot option +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   if (option='--opt') or (option='-o')
+   or (option='--opt1') or (option='-o1') then
+   begin
+    side:=0;
+    if (option='--opt1') or (option='-o1') then side:=1;
     if LowerCase(param)='none' then param:='0';
     if LowerCase(param)='load' then param:='1';
     if LowerCase(param)='run'  then param:='2';
     if LowerCase(param)='exec' then param:='3';
-    if StrToIntDef(param,0)mod$10<4 then
-     HasChanged:=HasChanged OR Image.UpdateBootOption(StrToIntDef(param,0)mod$10,0);
-   end;
-   //Update boot option for side 1 ++++++++++++++++++++++++++++++++++++++++++++++
-   if (option='--opt1') or (option='-o1') then
-    if Length(Image.Disc)>1 then
+    index:=StrToIntDef(param,0)mod$10;
+    if index<4 then
     begin
-     if LowerCase(param)='none' then param:='0';
-     if LowerCase(param)='load' then param:='1';
-     if LowerCase(param)='run'  then param:='2';
-     if LowerCase(param)='exec' then param:='3';
-     if StrToIntDef(param,0)mod$10<4 then
-      HasChanged:=HasChanged OR Image.UpdateBootOption(StrToIntDef(param,0)mod$10,1);
+     r:=Image.UpdateBootOption(index,side);
+     HasChanged:=HasChanged OR r;
     end;
+   end;
    //Delete selected file +++++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--delete') or (option='-d') then
    begin
@@ -1803,16 +1813,25 @@ begin
    begin
     //Rename selected file ++++++++++++++++++++++++++++++++++++++++++++++++++++++
     if (option='--rename') or (option='-r') then
+    begin
      //Rename the file. If it fails, it will return false.
-     HasChanged:=(HasChanged)OR(Image.RenameFile(param,param2)>=0);
+     r:=Image.RenameFile(param,param2)>=0;
+     HasChanged:=HasChanged OR r;
+    end;
     //Set attributes for selected file +++++++++++++++++++++++++++++++++++++++++
     if (option='--access') or (option='-ac') then
+    begin
      //Set access rights on the specified file
-     HasChanged:=HasChanged OR Image.UpdateAttributes(param,param2);
+     r:=Image.UpdateAttributes(param,param2);
+     HasChanged:=HasChanged OR r;
+    end;
     //Change selected directory title ++++++++++++++++++++++++++++++++++++++++++
     if (option='--dirtitle') or (option='-dt') then
+    begin
      //Change the selected directory's title
-     HasChanged:=HasChanged OR Image.RetitleDirectory(param,param2);
+     r:=Image.RetitleDirectory(param,param2);
+     HasChanged:=HasChanged OR r;
+    end;
    end;
   end;
  end;

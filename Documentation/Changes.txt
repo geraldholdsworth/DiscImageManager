@@ -315,6 +315,22 @@ Bug fixes
 * Creating a new disc image, from the command line, did not set up any boot options so trying to change it will result in the application crashing.
 * Creating a new disc image, changing the title or changing the boot option, from the command line, did not set the 'Has Changed' flag.
 
+1.05.17
+-------------------------
+New or improved features
+* Tested and fixed ADFS Big Directory function to write files to a directory (after removing the lock I'd left on).
+* ADFS Big Directories now expands and contracts when necessary.
+
+Bug fixes
+* Filetypes from imported files (as ,XXX in the filename) were not getting decoded correctly.
+* Found that E+ and F+ ADFS floppy images were not getting initialised properly, putting the root in the same fragment as the system.
+* The terminating CR character was not getting written for the directory name in ADFS Big Directories.
+* Some files and directories where getting displayed with strange names when they contained 'top bit set' characters, particularly with ADFS Big Directory.
+* Some features where failing with ADFS Big Directories because of the space character is stored with top bit set (i.e. 0xA0 instead of 0x20).
+* ADFS attributes were having the 'WR' added on, even when not specified. This is now only used when nothing is specified.
+* Updating the boot option or disc title was failing because of some odd logic.
+
+
 Platform History
 ----------------
 

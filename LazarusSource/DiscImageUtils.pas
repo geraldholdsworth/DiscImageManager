@@ -36,6 +36,7 @@ type
  //General purpose procedures
  procedure ResetDirEntry(var Entry: TDirEntry);
  procedure RemoveTopBit(var title: String);
+ function AddTopBit(title:String):String;
  procedure BBCtoWin(var f: String);
  procedure WintoBBC(var f: String);
  procedure RemoveSpaces(var s: String);
@@ -80,6 +81,19 @@ var
  t: Integer;
 begin
  for t:=1 to Length(title) do title[t]:=chr(ord(title[t])AND$7F);
+end;
+
+{------------------------------------------------------------------------------}
+//Add top bit to spaces
+{------------------------------------------------------------------------------}
+function AddTopBit(title:String):String;
+var
+ i: Integer;
+begin
+ //We'll set the top bit on spaces
+ for i:=1 to Length(title) do
+  if ord(title[i])=32 then title[i]:=chr(32OR$80);
+ Result:=title;
 end;
 
 {------------------------------------------------------------------------------}
