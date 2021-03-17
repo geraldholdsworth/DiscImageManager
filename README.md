@@ -14,4 +14,4 @@ Another project that may interest users of Disc Image Manager is a test tool I w
 <br>
 Project was written in Lazarus (https://www.lazarus-ide.org). Binaries are available for macOS 32 and 64 bit, Windows 32 and 64 bit, Linux 32 and 64 bit, and Raspbian 32 bit (Linux ARM 32 bit). Full source is available if you wish to compile for other systems.<br>
 <br>
-Support this project, and others, by buying me a coffee: https://ko-fi.com/geraldholdsworth<br>
+If you want, you can support this project, and others, by buying me a coffee (or a tea/beer/rum/etc.): https://ko-fi.com/geraldholdsworth<br>
