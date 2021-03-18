@@ -308,7 +308,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.16.1';
+    ApplicationVersion = '1.05.16.2';
   end;
 
 var
@@ -562,10 +562,10 @@ begin
      attr1:='';
     end;
     //Read each attribute and build the string
-    if(Image.FormatNumber shr 4<$3)
+    if(Image.FormatNumber shr 4<$2)
     or(Image.FormatNumber shr 4=$5) then //ADFS, DFS and CFS
      if (Pos('L',attr1)>0)OR(attr2 AND$08=$08) then attributes:=attributes+'L';
-    if Image.FormatNumber shr 4=$2 then //ADFS only
+    if Image.FormatNumber shr 4=$1 then //ADFS only
     begin
      if (Pos('R',attr1)>0)OR(attr2 AND$01=$01) then attributes:=attributes+'R';
      if (Pos('W',attr1)>0)OR(attr2 AND$02=$02) then attributes:=attributes+'W';

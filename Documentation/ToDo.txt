@@ -21,10 +21,7 @@ DFS
   + Add an extra option to save back (as save will just save to the OS hard drive).
 
 ADFS
-* Write/Delete/Rename files/directories to ADFS Big Dir images:
-  + Finish off the function to extend/reduce and move a directory;
-  + Finish off the function to rename - renaming a directory;
-  + Update the function to update an ADFS catalogue to include Big Directories.
+* Write/Delete/Rename files/directories to ADFS Big Dir images - act on the root directory. Code is written, with supporting functions changed, with the lock removed, but has not been tested.
 
 Commodore
 none

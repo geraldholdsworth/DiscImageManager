@@ -315,11 +315,13 @@ Bug fixes
 * Creating a new disc image, from the command line, did not set up any boot options so trying to change it will result in the application crashing.
 * Creating a new disc image, changing the title or changing the boot option, from the command line, did not set the 'Has Changed' flag.
 
-1.05.16.1 17th March 2021
--------------------------
+1.05.16.2 - 18th March 2021
+---------------------------
 New or improved features
-* Tested and fixed ADFS Big Directory function to write files to a directory (after removing the lock I'd left on).
-* ADFS Big Directories now expands and contracts when necessary.
+* Tested and fixed ADFS Big Directory function to write files to a directory (after removing the lock I'd left on). Untested on root.
+* ADFS Big Directories now expands and contracts when necessary...but currently not the root.
+* When adding files to ADFS New Maps, the search for free space fragments starts from the centre zone, and not zone zero.
+* Can now rename files in an ADFS Big Directory. Untested on root.
 
 Bug fixes
 * Filetypes from imported files (as ,XXX in the filename) were not getting decoded correctly.
@@ -329,6 +331,8 @@ Bug fixes
 * Some features where failing with ADFS Big Directories because of the space character is stored with top bit set (i.e. 0xA0 instead of 0x20).
 * ADFS attributes were having the 'WR' added on, even when not specified. This is now only used when nothing is specified.
 * Updating the boot option or disc title was failing because of some odd logic.
+* Deleting a zero length file, or one without any fragments, on an ADFS New Map would cause the application to crash.
+* Attributes, apart from 'L', were getting ignored when importing files into ADFS.
 
 
 Platform History

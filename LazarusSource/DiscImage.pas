@@ -126,9 +126,10 @@ type
   function UpdateADFSFileAttributes(filename,attributes: String): Boolean;
   function ValidateADFSFilename(filename: String): String;
   function RetitleADFSDirectory(filename,newtitle: String): Boolean;
-  function RenameADFSFile(oldfilename: String;var newfilename: String):Integer; { * }
+  function RenameADFSFile(oldfilename: String;var newfilename: String):Integer;
   procedure ConsolodateADFSFreeSpaceMap;
-  function DeleteADFSFile(filename: String;TreatAsFile:Boolean=False):Boolean;
+  function DeleteADFSFile(filename: String;
+                         TreatAsFile:Boolean=False;extend:Boolean=True):Boolean;
   function ExtractADFSFile(filename: String;var buffer: TDIByteArray): Boolean;
   function MoveADFSFile(filename,directory: String): Integer;
   function ExtendADFSBigDir(dir: Cardinal;space: Integer;add: Boolean):Boolean;
