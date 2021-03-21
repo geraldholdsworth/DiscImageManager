@@ -9,7 +9,7 @@ interface
 uses
   SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
   DiscImageUtils,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,
-  Clipbrd,HexDumpUnit;
+  Clipbrd,HexDumpUnit,Spark;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -213,8 +213,10 @@ type
    function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
                                   index: Integer;dir: Boolean): TTreeNode;
    procedure AddDirectoryToImage(dirname: String);
+   procedure AddSparkToImage(filename: String);
    procedure AddFileToImage(filename: String);
-   procedure AddFileToImage(filename: String;filedetails: TDirEntry); overload;
+   procedure AddFileToImage(filename: String;filedetails: TDirEntry;
+                               buffer:TDIByteArray=nil); overload;
    procedure UpdateImageInfo;
    procedure ReportError(error: String);
    function GetCopyMode(Shift: TShiftState): Boolean;
@@ -308,7 +310,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.16.2';
+    ApplicationVersion = '1.05.17';
   end;
 
 var
@@ -424,6 +426,67 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Add a spark archive to an image
+{------------------------------------------------------------------------------}
+procedure TMainForm.AddSparkToImage(filename: String);
+var
+ SparkFile  : TSpark;
+ Index      : Integer;
+ filedetails: TDirEntry;
+ ParentDir  : String;
+ buffer     : TDIByteArray;
+begin
+ //Make sure the file exists
+ if FileExists(filename) then
+ begin
+  //Open up as a spark archive
+  SparkFile:=TSpark.Create(filename);
+  //And make sure it is valid
+  if SparkFile.IsSpark then
+  begin
+   //Get, or set, the selected node
+   if (DirList.SelectionCount=0) OR (DirList.SelectionCount>1) then
+   begin
+    DirList.ClearSelection;
+    DirList.Items[0].Selected:=True;
+   end;
+   ParentDir:=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
+                                           DirList.Selected.Index);
+   //And make sure that there are some entries
+   if Length(SparkFile.FileList)>0 then
+    for Index:=0 to Length(SparkFile.FileList)-1 do
+    begin
+     //Select the parent node
+     if SparkFile.FileList[Index].Parent<>'' then
+      SelectNode(ParentDir+'.'+SparkFile.FileList[Index].Parent)
+     else
+      SelectNode(ParentDir);
+     filedetails.Attributes:=GetAttributes(
+                               IntToHex(SparkFile.FileList[Index].Attributes,2),
+                               Image.FormatNumber>>4);
+     //Add a directory
+     if SparkFile.FileList[Index].Directory then
+      CreateDirectory(SparkFile.FileList[Index].Filename,'D'+filedetails.Attributes);
+     //Add a file
+     if not SparkFile.FileList[Index].Directory then
+     begin
+      //Get the data
+      buffer:=SparkFile.ExtractFileData(Index);
+      //Set up the Dir Entry
+      filedetails.Filename  :=SparkFile.FileList[Index].Filename;
+      filedetails.LoadAddr  :=SparkFile.FileList[Index].LoadAddr;
+      filedetails.ExecAddr  :=SparkFile.FileList[Index].ExecAddr;
+      filedetails.Length    :=SparkFile.FileList[Index].Length;
+      //Add the file
+      AddFileToImage('',filedetails,buffer);
+     end;
+    end;
+  end;
+  SparkFile.Free;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
 //Add a file to an image
 {------------------------------------------------------------------------------}
 procedure TMainForm.AddFileToImage(filename: String);
@@ -436,18 +499,17 @@ begin
  filedetails.Filename:='';
  AddFileToImage(filename,filedetails);
 end;
-procedure TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry);
+procedure TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry;
+                               buffer:TDIByteArray=nil);
 var
   NewFile        : TDirEntry;
-  buffer         : TDIByteArray;
   index          : Integer;
   side           : Cardinal;
-  attr2,i        : Byte;
+  i              : Byte;
   importfilename,
   inffile,
   execaddr,
   loadaddr,
-  filelen,
   attr1,
   attributes,
   filetype       : String;
@@ -455,7 +517,23 @@ var
   chr            : Char;
   F              : TFileStream;
 begin
- if not FileExists(filename) then exit;
+ //If there is nothing in the buffer
+ if Length(buffer)=0 then
+ begin
+  //Then load the file, if it exists
+  if not FileExists(filename) then exit;
+  //Load the file from the host
+  try
+   F:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
+   F.Position:=0;
+   //Set the buffer length to what the host returns
+   SetLength(buffer,F.Size);
+   //Read the file in
+   F.Read(buffer[0],F.Size);
+   F.Free;
+  except
+  end;
+ end;
  //First, if there is no selection, make one, or if multiple, select the root
  if (DirList.SelectionCount=0) OR (DirList.SelectionCount>1) then
  begin
@@ -480,15 +558,15 @@ begin
     importfilename:=ExtractFileName(filename)
    else
     importfilename:=ExtractFileName(filedetails.Filename);
+   //If we still have no filename, make one up
+   if importfilename='' then importfilename:='NewFile';
    //Reject any *.inf files
    if LowerCase(RightStr(importfilename,4))<>'.inf' then
    begin
     //Initialise the strings
     execaddr:='00000000';
     loadaddr:='00000000';
-    filelen :='00000000';
     attr1   :='';
-    attr2   :=$00;
     filetype:='';
     //Does the filename contain the filetype?
     if ((Pos(',',importfilename)>0)
@@ -501,7 +579,7 @@ begin
      //Get the filetype
      filetype:=LowerCase(Copy(importfilename,i+1));
      //And remove it from the filename
-     importfilename:=LeftStr(importfilename,i-1);//Length(importfilename)-4);
+     importfilename:=LeftStr(importfilename,i-1);
      //Decode the filetype - convert it to hex
      for index:=1 to Length(Extensions) do
       if Copy(Extensions[index],4)=LowerCase(filetype) then
@@ -514,7 +592,8 @@ begin
      end;
     end;
     //ADFS, DFS & CFS only stuff
-    if(Image.FormatNumber<$20)or(Image.FormatNumber=$50)then
+    if((Image.FormatNumber<$20)or(Image.FormatNumber=$50))
+    and(filename<>'')then
     begin
      //Is there an inf file?
      if FileExists(filename+'.inf') then
@@ -532,7 +611,6 @@ begin
        if Length(fields)>0 then importfilename:=fields[0];
        if Length(fields)>1 then loadaddr      :=fields[1];
        if length(fields)>2 then execaddr      :=fields[2];
-       if Length(fields)>3 then filelen       :=fields[3];
        if Length(fields)>4 then attr1         :=fields[4];
       except
        //Could not load
@@ -541,8 +619,6 @@ begin
     end;
     //Initialise the TDirArray
     ResetDirEntry(NewFile);
-    //Initialise the buffer
-    SetLength(buffer,0);
     //Supplied attributes override anything else
     if filedetails.Filename<>'' then importfilename:=filedetails.Filename;
     if filedetails.Attributes<>'' then attr1:=filedetails.Attributes;
@@ -555,26 +631,7 @@ begin
      if Image.FormatNumber shr 4=$1 then attributes:='WR';//Default for ADFS
      if Image.FormatNumber shr 4=$3 then attributes:='C' ;//Default for Commodore
     end;
-    //Is it a hex number?
-    if IntToHex(StrtoIntDef('$'+attr1,0),2)=UpperCase(attr1) then
-    begin //Yes
-     attr2:=StrToInt('$'+attr1);
-     attr1:='';
-    end;
-    //Read each attribute and build the string
-    if(Image.FormatNumber shr 4<$2)
-    or(Image.FormatNumber shr 4=$5) then //ADFS, DFS and CFS
-     if (Pos('L',attr1)>0)OR(attr2 AND$08=$08) then attributes:=attributes+'L';
-    if Image.FormatNumber shr 4=$1 then //ADFS only
-    begin
-     if (Pos('R',attr1)>0)OR(attr2 AND$01=$01) then attributes:=attributes+'R';
-     if (Pos('W',attr1)>0)OR(attr2 AND$02=$02) then attributes:=attributes+'W';
-     if (Pos('E',attr1)>0)OR(attr2 AND$04=$04) then attributes:=attributes+'E';
-     if (Pos('r',attr1)>0)OR(attr2 AND$10=$10) then attributes:=attributes+'r';
-     if (Pos('w',attr1)>0)OR(attr2 AND$20=$20) then attributes:=attributes+'w';
-     if (Pos('e',attr1)>0)OR(attr2 AND$40=$40) then attributes:=attributes+'e';
-     if (Pos('l',attr1)>0)OR(attr2 AND$80=$80) then attributes:=attributes+'l';
-    end;
+    attributes:=attributes+GetAttributes(attr1,Image.FormatNumber shr 4);
     //Validate the filename (ADFS, DFS & CFS only)
     if(Image.FormatNumber<$20)or(Image.FormatNumber=$50)then
     begin
@@ -606,22 +663,10 @@ begin
      else
       NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
                                            DirList.Selected.Index);
-    //Load the file from the host
-    try
-     F:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
-     F.Position:=0;
-     //If the supplied file length is zero, use the system size
-     if StrToIntDef('$'+filelen,F.Size)=0 then filelen:=IntToHex(F.Size,8);
-     //Set the buffer length to either the length supplied, or what the host returns
-     SetLength(buffer,StrToIntDef('$'+filelen,F.Size));
-     //Set the length to the actual number of bytes read in
-     NewFile.Length    :=F.Read(buffer[0],StrToIntDef('$'+filelen,F.Size));
-     F.Free;
-     //Write the File
-     index:=Image.WriteFile(NewFile,buffer);
-    except
-     index:=-1;//Could not load
-    end;
+    //Set the length - the actual length overrides everything else
+    NewFile.Length:=Length(buffer);
+    //Write the File
+    index:=Image.WriteFile(NewFile,buffer);
     //Function returns pointer to next item (or parent if no children)
     if index>-1 then //File added OK
     begin
@@ -1078,8 +1123,8 @@ begin
      //and continue until we have everything on the disc. This will, in effect,
      //add the second root for double sided discs.
     until highdir=Length(Image.Disc);
-    //Expand the top level of the tree
-    DirList.TopItem.Expand(False);
+    //Expand the top level of the tree (but not MMB)
+    if Image.FormatNumber>>4<>6 then DirList.TopItem.Expand(False);
     //And the root for the other side of the disc
     if Image.DoubleSided then
     begin
@@ -1998,6 +2043,7 @@ var
  FileName  : String;
  NewImage  : TDiscImage;
  open      : Byte;
+ SparkFile : TSpark;
 const
  dlg = 'Open, Add, or Import Contents?';
 begin
@@ -2034,7 +2080,27 @@ begin
                    [300,'Open',301,'Add',302,'Import'],0)-299;
    end;
    if open=$02 then //Add file
-    AddFileToImage(FileName);
+   begin
+    //Is this 32bit ADFS?
+    if(Image.DirectoryType>0)and(Image.FormatNumber shr 4=1)then
+    begin
+     SparkFile:=TSpark.Create(FileName);
+     //Is it a valid Spark Archive?
+     if SparkFile.IsSpark then
+     begin //Ask user if they would like it uncompressed
+      if QuestionDlg('Uncompress','This has been detected as a Spark archive. '
+                    +'Would you like to uncompress and add the contents?',
+                    mtConfirmation,[300,'Yes',301,'No - just add'],0)=300 then
+      begin
+       open:=$00; //Yes, so reset the open flag so it doesn't add it
+       SparkFile.Free;
+       AddSparkToImage(FileName);
+      end;
+     end;
+    end;
+    if open=$02 then //No, then just add it
+     AddFileToImage(FileName);
+   end;
    if open=$01 then //Open image
     if QueryUnsaved then OpenImage(FileName);
    if open=$03 then //Import contents
@@ -2517,7 +2583,7 @@ begin
   begin//For some reason the operation failed to write the data
    if index=-1 then ReportError('Cannot create a directory on this platform');
    if index=-2 then ReportError('Could not add directory - image full');
-   if index=-3 then ReportError('Directory already exists in image');
+   if index=-3 then ReportError('Directory "'+dirname+'" already exists in image');
    if index=-4 then ReportError('Catalogue full');
    if index=-5 then ReportError('Could not write directory - error unknown');
    if index=-6 then ReportError('Destination directory does not exist');

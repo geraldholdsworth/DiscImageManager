@@ -415,26 +415,7 @@ begin
    if validentry then
    begin
     //RISC OS - file may be datestamped and filetyped
-    if (Entry.LoadAddr shr 20=$FFF) and (FFormat>$12) then
-    begin
-     //Get the 12 bit filetype
-     temp:=IntToHex((Entry.LoadAddr AND $000FFF00)div $100,3);
-     amt:=0;
-     //Look it up in the table of RISC OS issued types
-     repeat
-      inc(amt);
-     until (Integer(amt)=Length(FileTypes)) OR (temp=Copy(FileTypes[amt],1,3));
-     //Found? Then assign to the Filetype property
-     if temp=Copy(FileTypes[amt],1,3) then
-      Entry.Filetype:=Copy(FileTypes[amt],4,Length(FileTypes[amt]))
-     else
-     //Otherwise just put the 12 bit filetype in
-      Entry.Filetype:=temp;
-     Entry.ShortFiletype:=temp;
-     //Now sort the timestamp
-     Entry.TimeStamp:=RISCOSToTimeDate(Entry.ExecAddr+
-                                      (Entry.LoadAddr AND $FF)*$100000000);
-    end;
+    ADFSCalcFileDate(Entry);
     //Not a directory - default. Will be determined later
     Entry.DirRef:=-1;
     //Add to the result
@@ -458,6 +439,36 @@ begin
     Result.ErrorCode:=Result.ErrorCode OR $08;
    end;
   end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Convert a load and execution address to filetype and date/time
+-------------------------------------------------------------------------------}
+procedure TDiscImage.ADFSCalcFileDate(var Entry: TDirEntry);
+var
+ temp: String;
+ amt : Cardinal;
+begin
+ if (Entry.LoadAddr shr 20=$FFF) and (FFormat>$12) then
+ begin
+  //Get the 12 bit filetype
+  temp:=IntToHex((Entry.LoadAddr AND $000FFF00)div $100,3);
+  amt:=0;
+  //Look it up in the table of RISC OS issued types
+  repeat
+   inc(amt);
+  until (Integer(amt)=Length(FileTypes)) OR (temp=Copy(FileTypes[amt],1,3));
+  //Found? Then assign to the Filetype property
+  if temp=Copy(FileTypes[amt],1,3) then
+   Entry.Filetype:=Copy(FileTypes[amt],4,Length(FileTypes[amt]))
+  else
+  //Otherwise just put the 12 bit filetype in
+   Entry.Filetype:=temp;
+  Entry.ShortFiletype:=temp;
+  //Now sort the timestamp
+  Entry.TimeStamp:=RISCOSToTimeDate(Entry.ExecAddr+
+                                   (Entry.LoadAddr AND $FF)*$100000000);
  end;
 end;
 
@@ -1741,9 +1752,12 @@ begin
       //Now update the directory (local copy)
       if file_details.filename<>'$' then
       begin
+       //Get the number of entries in the directory
        ref:=Length(FDisc[dir].Entries);
+       //Convert load/exec address into filetype and datestamp, if necessary
+       ADFSCalcFileDate(file_details);
+       //Now we add the entry into the directory catalogue
        ptr:=ExtendADFSCat(dir,file_details);
-       fragid:=Length(FDisc[dir].Entries);
        //Not a directory
        FDisc[dir].Entries[ptr].DirRef:=-1;
        //Filetype and Timestamp for Arthur and RISC OS ADFS

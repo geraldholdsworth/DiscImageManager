@@ -315,13 +315,15 @@ Bug fixes
 * Creating a new disc image, from the command line, did not set up any boot options so trying to change it will result in the application crashing.
 * Creating a new disc image, changing the title or changing the boot option, from the command line, did not set the 'Has Changed' flag.
 
-1.05.16.2 - 18th March 2021
----------------------------
+1.05.17 - 21st March 2021
+-------------------------
 New or improved features
 * Tested and fixed ADFS Big Directory function to write files to a directory (after removing the lock I'd left on). Untested on root.
-* ADFS Big Directories now expands and contracts when necessary...but currently not the root.
+* ADFS Big Directories now expands and contracts when necessary.
 * When adding files to ADFS New Maps, the search for free space fragments starts from the centre zone, and not zone zero.
 * Can now rename files in an ADFS Big Directory. Untested on root.
+* Split DFS dialogue box graphics changed slightly (source and destination drive 0 icons show a '0' while drive 2 icons show a '2').
+* Zip files containing files (known as Spark archives in the application) can now be opened and the contents imported into a RISC OS ADFS image, preserving filetypes. This will only work with Zip archives.
 
 Bug fixes
 * Filetypes from imported files (as ,XXX in the filename) were not getting decoded correctly.

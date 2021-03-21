@@ -10,18 +10,18 @@ General
 * Copy entire files onto clipboard? And then paste from clipboard?
 
 Command Line
-none
+* Wildcarded filenames for extraction from images.
 
 Coding Issues
 none
 
 DFS
-* MMB Explorer?
-  + Used as a separate window, but double clicking on an entry will load this into the main window.
-  + Add an extra option to save back (as save will just save to the OS hard drive).
+none
 
 ADFS
-* Write/Delete/Rename files/directories to ADFS Big Dir images - act on the root directory. Code is written, with supporting functions changed, with the lock removed, but has not been tested.
+* New Map directories can be split across fragments. I need to work out how to deal with this.
+* Reverse the moving of directories when expanded/contracted for Big Dirs and split them instead.
+* Looks like there is a bug involving directories getting broken and not detected. I suspect that the calculation for the checksum is incorrect.
 
 Commodore
 none

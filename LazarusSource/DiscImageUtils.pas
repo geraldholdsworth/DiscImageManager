@@ -44,6 +44,7 @@ type
  function IsBitSet(v,b: Integer): Boolean;
  function BreakDownInf(s: String): TStringArray;
  function FilenameToASCII(s: String): String;
+ function GetAttributes(attr: String;format: Byte): String;
 
 implementation
 
@@ -234,6 +235,38 @@ begin
  for i:=1 to Length(s) do
   if(ord(s[i])<32)or(ord(s[i])>126)then s[i]:='?';
  Result:=s;
+end;
+
+{------------------------------------------------------------------------------}
+//Convert a attribute byte into a string
+{------------------------------------------------------------------------------}
+function GetAttributes(attr: String;format: Byte):String;
+var
+ attr1 : String;
+ attr2 : Byte;
+begin
+ attr1:=attr;
+ attr2:=$00;
+ Result:='';
+ //Is it a hex number?
+ if IntToHex(StrtoIntDef('$'+attr,0),2)=UpperCase(attr) then
+ begin //Yes
+  attr2:=StrToInt('$'+attr);
+  attr1:='';
+ end;
+ //Read each attribute and build the string
+ if(format<$2)or(format shr 4=$5) then //ADFS, DFS and CFS
+  if (Pos('L',attr1)>0)OR(attr2 AND$08=$08) then Result:=Result+'L';
+ if format=$1 then //ADFS only
+ begin
+  if (Pos('R',attr1)>0)OR(attr2 AND$01=$01) then Result:=Result+'R';
+  if (Pos('W',attr1)>0)OR(attr2 AND$02=$02) then Result:=Result+'W';
+  if (Pos('E',attr1)>0)OR(attr2 AND$04=$04) then Result:=Result+'E';
+  if (Pos('r',attr1)>0)OR(attr2 AND$10=$10) then Result:=Result+'r';
+  if (Pos('w',attr1)>0)OR(attr2 AND$20=$20) then Result:=Result+'w';
+  if (Pos('e',attr1)>0)OR(attr2 AND$40=$40) then Result:=Result+'e';
+  if (Pos('l',attr1)>0)OR(attr2 AND$80=$80) then Result:=Result+'l';
+ end;
 end;
 
 end.

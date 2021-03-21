@@ -25,6 +25,7 @@ type
    Entries     : array of TDirEntry;//Entries (above)
    Broken      : Boolean;           //Flag if directory is broken (ADFS)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
+   Locked      : Boolean;           //Flag if disc is locked (MMB)
   end;
   //Collection of directories
   TDisc         = array of TDir;
@@ -121,6 +122,7 @@ type
   function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
   function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
                          directory:Boolean=False;extend:Boolean=True): Integer;
+  procedure ADFSCalcFileDate(var Entry: TDirEntry);
   function CreateADFSDirectory(var dirname,parent,attributes: String): Integer;
   procedure UpdateADFSCat(directory: String);
   function UpdateADFSFileAttributes(filename,attributes: String): Boolean;
@@ -140,7 +142,7 @@ type
   procedure FixADFSDirectory(dir,entry: Integer);
   //DFS Routines
   function ID_DFS: Boolean;
-  function ReadDFSDisc: TDisc;
+  function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
   procedure DFSFreeSpaceMap(LDisc: TDisc);
   function ConvertDFSSector(address,side: Integer): Integer;
   function WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
@@ -208,6 +210,9 @@ type
   function MoveCFSFile(entry: Cardinal;dest: Integer): Integer;
   function WriteCFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   function RenameCFSFile(entry: Cardinal;newfilename: String): Integer;
+  //MMB Routines
+  function ID_MMB: Boolean;
+  function ReadMMBDisc: TDisc;
   const
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
    CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
@@ -350,18 +355,20 @@ Convert a format byte to a string
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToString: String;
 const
- FS  : array[0..5] of String = ('DFS',
+ FS  : array[0..6] of String = ('DFS',
                                 'Acorn ADFS',
                                 'Commodore',
                                 'Sinclair Spectrum +3/Amstrad',
                                 'Commodore Amiga',
-                                'Acorn CFS');
- SUB : array[0..5] of array[0..15] of String =
+                                'Acorn CFS',
+                                'MMB');
+ SUB : array[0..6] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','','','','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','','Hard Disc'),
   ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
   ('','Extended','','','','','','','','','','','','','',''),
   ('DD','HD','','','','','','','','','','','','','','Hard Disc'),
+  ('','','','','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''));
 begin
  if FFormat<>$FF then
@@ -377,13 +384,14 @@ Convert a format byte to an extension
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToExt: String;
 const
- EXT : array[0..5] of array[0..15] of String =
+ EXT : array[0..6] of array[0..15] of String =
  (('ssd','dsd','ssd','dsd','','','','','','','','','','','',''),
   ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','','hdf'),
   ('d64','d71','d81','d64','d71','','','','','','','','','','',''),
   ('','dsk','','','','','','','','','','','','','',''),
   ('adf','adf','','','','','','','','','','','','','','hdf'),
-  ('uef','','','','','','','','','','','','','','',''));
+  ('uef','','','','','','','','','','','','','','',''),
+  ('mmb','','','','','','','','','','','','','','',''));
 begin
  if FFormat<>$FF then
  begin
@@ -1001,6 +1009,7 @@ begin
   if not ID_DFS      then //Acorn DFS
   if not ID_Sinclair then //Sinclair/Amstrad
   if not ID_CFS      then //Acorn CFS
+  if not ID_MMB      then //MMB
    ResetVariables;        //Reset everything
   //Just by the ID process:
   //ADFS 'F' can get mistaken for Commodore
@@ -1022,6 +1031,7 @@ begin
   3: FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
   4: FDisc:=ReadAmigaDisc;   //Amiga
   5: FDisc:=ReadUEFFile;     //Acorn CFS
+  6: FDisc:=ReadMMBDisc;     //MMB
  end;
 end;
 
@@ -1667,5 +1677,6 @@ end;
 {$INCLUDE 'DiscImage_Spectrum.pas'}
 {$INCLUDE 'DiscImage_Amiga.pas'}
 {$INCLUDE 'DiscImage_CFS.pas'}
+{$INCLUDE 'DiscImage_MMB.pas'}
 
 end.

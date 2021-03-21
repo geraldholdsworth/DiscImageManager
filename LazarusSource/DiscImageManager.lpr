@@ -12,7 +12,7 @@ uses
   ProgressUnit in 'ProgressUnit.pas',
   ImageDetailUnit in 'ImageDetailUnit.pas',
   HexDumpUnit in 'HexDumpUnit.pas',
-  SplitDFSUnit in 'SplitDFSUnit.pas';
+  SplitDFSUnit in 'SplitDFSUnit.pas', Spark;
 
 {$R *.res}
 

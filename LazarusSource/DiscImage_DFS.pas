@@ -130,12 +130,18 @@ begin
   //On Acorn DFS discs, there are 10 sectors per track
   Result:=(((sector MOD 10)+(20*(sector DIV 10))+(10*side))*$100)+offset;
  end;
+ //MMB
+ if FFormat>>4=6 then
+ begin
+  if(side<0)or(side>511)then side:=0;
+  Result:=Result+side*$32000+$2000;
+ end;
 end;
 
 {-------------------------------------------------------------------------------
 Read Acorn DFS Disc
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadDFSDisc: TDisc;
+function TDiscImage.ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
 var
  s,t,c,f,
  locked,
@@ -144,6 +150,7 @@ var
  temp      : String;
 begin
  Result:=nil;
+ //Determine how many sides
  if (FFormat AND $1)=1 then //Double sided image
  begin
   SetLength(Result,2);
@@ -154,37 +161,40 @@ begin
   SetLength(Result,1);
   SetLength(bootoption,1);
  end;
- s:=0;
+ //Used by MMB. For DFS, this should be 0
+ if(mmbdisc<0)or(mmbdisc>511)then mmbdisc:=0;
+ s:=mmbdisc;
  repeat
-  ResetDir(Result[s]);
+  ResetDir(Result[s-mmbdisc]);
   //Number of entries on disc side
   t:=ReadByte(ConvertDFSSector($105,s)) div 8;
-  if (FFormat>$01) and (FFormat<$04) then //Extra files on Watford DFS
+  if(FFormat mod$10>$1)and(FFormat mod$10<$4)then //Extra files on Watford DFS
    inc(t,ReadByte(ConvertDFSSector($305,s))div 8);
-  SetLength(Result[s].Entries,t);
+  SetLength(Result[s-mmbdisc].Entries,t);
   //Directory name - as DFS only has $, this will be the drive number + '$'
-  Result[s].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
+  Result[s-mmbdisc].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
   //Get the disc title(s)
-  Result[s].Title:=ReadString(ConvertDFSSector($000,s),-8)
+  Result[s-mmbdisc].Title:=ReadString(ConvertDFSSector($000,s),-8)
                   +ReadString(ConvertDFSSector($100,s),-4);
-  RemoveSpaces(Result[s].Title);
-  RemoveControl(Result[s].Title);
-  if s>0 then disc_name:=disc_name+' and ';
-  disc_name:=disc_name+Result[s].Title;
+  RemoveSpaces(Result[s-mmbdisc].Title);
+  RemoveControl(Result[s-mmbdisc].Title);
+  if(s>0)and(FFormat>>4=0)then disc_name:=disc_name+' and ';
+  disc_name:=disc_name+Result[s-mmbdisc].Title;
   //Boot Option
-  bootoption[s]:=(ReadByte(ConvertDFSSector($106,s)) AND $30)shr 4;
+  if FFormat>>4=0 then
+   bootoption[s]:=(ReadByte(ConvertDFSSector($106,s))AND$30)>>4;
   //Disc Size
   inc(disc_size, (ReadByte(ConvertDFSSector($107,s))
-               +((ReadByte(ConvertDFSSector($106,s)) AND $03)shl 8))*$100);
+               +((ReadByte(ConvertDFSSector($106,s))AND$03)<<8))*$100);
   //Read the catalogue
   for f:=1 to t do
   begin
    //Reset the variables
-   ResetDirEntry(Result[s].Entries[f-1]);
+   ResetDirEntry(Result[s-mmbdisc].Entries[f-1]);
    //Is it a Watford, and are we in the Watford area?
    diroff:=$000;
    ptr:=f;
-   if (FFormat>$01) and (FFormat<$04) then
+   if(FFormat mod$10>$01)and(FFormat mod$10<$04)then
     if (f>31) then
     begin
      diroff:=$200;
@@ -194,50 +204,51 @@ begin
    temp:='';
    for c:=0 to 6 do
    begin
-    amt:=ReadByte(ConvertDFSSector(diroff+($08*ptr)+c,s)) AND $7F;
+    amt:=ReadByte(ConvertDFSSector(diroff+($08*ptr)+c,s))AND$7F;
     if amt>32 then temp:=temp+chr(amt);
    end;
-   Result[s].Entries[f-1].Filename:=temp;
+   Result[s-mmbdisc].Entries[f-1].Filename:=temp;
    //Get the directory character
-   temp:=chr(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND $7F);
-   if temp=' ' then temp:=root_name; //Acorn Atom DOS root is ' '
+   temp:=chr(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$7F);
+   if temp=' 'then temp:=root_name; //Acorn Atom DOS root is ' '
    //If the directory is not root, add it to the filename
    if temp<>root_name then
-    Result[s].Entries[f-1].Filename:=temp+dir_sep
-                                      +Result[s].Entries[f-1].Filename;
+    Result[s-mmbdisc].Entries[f-1].Filename:=temp+dir_sep
+                                      +Result[s-mmbdisc].Entries[f-1].Filename;
    //Make up a parent directory pathname so this can be found
-   Result[s].Entries[f-1].Parent:=':'+IntToStr(s*2)+dir_sep+root_name;
+   Result[s-mmbdisc].Entries[f-1].Parent:=':'+IntToStr(s*2)+dir_sep+root_name;
    //Is it locked? This is actually the top bit of the final filename character
-   locked:=(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND $80) shr 7;
+   locked:=(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$80)>>7;
    if locked=1 then
-    Result[s].Entries[f-1].Attributes:='L'
+    Result[s-mmbdisc].Entries[f-1].Attributes:='L'
    else
-    Result[s].Entries[f-1].Attributes:='';
+    Result[s-mmbdisc].Entries[f-1].Attributes:='';
    //Load address
-   Result[s].Entries[f-1].LoadAddr:=
-                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $0C)shl 14){*$55})
-                    +Read16b( ConvertDFSSector(diroff+$100+($08*ptr),s));
+   Result[s-mmbdisc].Entries[f-1].LoadAddr:=
+      (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$0C)<<14))
+        +Read16b( ConvertDFSSector(diroff+$100+($08*ptr),s));
    //Execution address
-   Result[s].Entries[f-1].ExecAddr:=
-                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $C0)shl 10){*$55})
-                  +  Read16b( ConvertDFSSector(diroff+$102+($08*ptr),s));
+   Result[s-mmbdisc].Entries[f-1].ExecAddr:=
+      (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$C0)<<10))
+      +  Read16b( ConvertDFSSector(diroff+$102+($08*ptr),s));
    //Length
-   Result[s].Entries[f-1].Length:=
-                  (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $30)shl 12){*$55})
-                  +  Read16b( ConvertDFSSector(diroff+$104+($08*ptr),s));
+   Result[s-mmbdisc].Entries[f-1].Length:=
+      (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$30)<<12))
+      +  Read16b( ConvertDFSSector(diroff+$104+($08*ptr),s));
    //Sector of start of data
-   Result[s].Entries[f-1].Sector:=
-                  ((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND $3)shl 8)
-                   +ReadByte(ConvertDFSSector(diroff+$107+($08*ptr),s));
+   Result[s-mmbdisc].Entries[f-1].Sector:=
+       ((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$03)<<8)
+        +ReadByte(ConvertDFSSector(diroff+$107+($08*ptr),s));
    //Which side it is on
-   Result[s].Entries[f-1].Side:=s;
+   Result[s-mmbdisc].Entries[f-1].Side:=s;
    //Not a directory - not used in DFS
-   Result[s].Entries[f-1].DirRef:=-1;
+   Result[s-mmbdisc].Entries[f-1].DirRef:=-1;
   end;
   //Next side
-  if (FFormat AND $1=1) then inc(s) else s:=2;
- until s=2;
- DFSFreeSpaceMap(Result);
+  if(FFormat AND $1=1)then inc(s) else s:=2+mmbdisc;
+ until s=2+mmbdisc;
+ //Free Space Map (not MMB)
+ if FFormat>>4=0 then DFSFreeSpaceMap(Result);
 end;
 
 {-------------------------------------------------------------------------------
