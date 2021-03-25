@@ -10,8 +10,10 @@ Disc Image Manager is an application used to load a retro disc image, read the c
 <br>
 For images in HFE format, I recommend you use HxC Floppy Emulator (https://sourceforge.net/projects/hxcfloppyemu/) to export the file in a format that Disc Image Manager understands.<br>
 <br>
-Another project that may interest users of Disc Image Manager is a test tool I wrote for UEF files - UEF Reader (https://github.com/geraldholdsworth/UEFReader).<br>
+Another project that may interest users of Disc Image Manager is a test tool I wrote for UEF files - UEF Reader (https://github.com/geraldholdsworth/UEFReader). In addition, I'm developing a RISC OS sprite to bitmap/PNG converter here (https://github.com/geraldholdsworth/SpriteToBitmap), which may make itself into Disc Image Manager. One project that has made it into Disc Image Manager, as a cut down version, is here (https://github.com/geraldholdsworth/FileDump).<br>
 <br>
 Project was written in Lazarus (https://www.lazarus-ide.org). Binaries are available for macOS 32 and 64 bit, Windows 32 and 64 bit, Linux 32 and 64 bit, and Raspbian 32 bit (Linux ARM 32 bit). Full source is available if you wish to compile for other systems.<br>
+<br>
+You might like to also check out the thread on Stardot (https://stardot.org.uk/forums/viewtopic.php?f=12&t=21252) concerning this project.<br>
 <br>
 If you want, you can support this project, and others, by buying me a coffee (or a tea/beer/rum/etc.): https://ko-fi.com/geraldholdsworth<br>
