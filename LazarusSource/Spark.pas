@@ -1,11 +1,33 @@
 unit Spark;
 
+{
+TSpark class
+Decompress a Zip archive, preserving the extra RISC OS information, as per David
+Pilling's !Spark on RISC OS.
+
+Copyright (C) 2021 Gerald Holdsworth gerald@hollypops.co.uk
+
+This source is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 3 of the License, or (at your option)
+any later version.
+
+This code is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+A copy of the GNU General Public License is available on the World Wide Web
+at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
+to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1335, USA.
+}
+
 {$mode objfpc}{$H+}
 
 interface
 
-uses
- Classes,SysUtils,Zipper,ExtCtrls;
+uses Classes,SysUtils,Zipper,ExtCtrls;
 
 {$M+}
 
@@ -34,14 +56,12 @@ type
    ZipFilename : String;       //Filename of the archive
    FIsSpark    : Boolean;      //Is it a valid archive?
    FFileList   : TFileList;    //List of files in archive
-   TimerExpired: Boolean;      //To ensure we don't get an infinite loop
    FProgress   : TProgressProc;//Progress feedback
    function ExtractFiles: TFileList;
    procedure DoCreateOutZipStream(Sender: TObject; var AStream: TStream;
                                                       AItem: TFullZipFileEntry);
    procedure DoDoneOutZipStream(Sender: TObject; var AStream: TStream;
                                                       AItem: TFullZipFileEntry);
-   procedure TimerOnTimer(Sender: TObject);
   published
    constructor Create(filename: String);
    function ExtractFileData(Index: Integer):TDynByteArray;
@@ -250,9 +270,10 @@ Extract, and uncompress, the actual data
 -------------------------------------------------------------------------------}
 function TSpark.ExtractFileData(Index: Integer):TDynByteArray;
 var
- ZipFile : TUnZipper;
- sl      : TStringList;
- TimeOut : TTimer;
+ ZipFile   : TUnZipper;
+ sl        : TStringList;
+ starttime,
+ nowtime   : TDateTime;
 begin
  Result:=nil;
  SetLength(Fcache,0);
@@ -279,18 +300,14 @@ begin
     //Now send the list of one filename to the unzipper method
     ZipFile.UnZipFiles(sl);
     //Create a 'TimeOut' timer
-    TimeOut:=TTimer.Create(nil);
-    //And set to 30 seconds
-    TimeOut.Interval:=30000;
-    //This is the event handler
-    TimeOut.OnTimer:=@TimerOnTimer;
-    //Which sets the following to true, so we'll initiate it as False.
-    TimerExpired:=False;
+    starttime:=Round(Time*100000);
+    //TDateTime is a Double, with the time being the fraction part
+    //So multiplying by 100000 gets the number of seconds
+    nowtime:=starttime;
     repeat
      //Wait until the cache gets filled up, or the timer expires
-    until(Length(Fcache)>0)or(TimerExpired);
-    //Free up the timer
-    TimeOut.Free;
+     nowtime:=Round(Time*100000);
+    until(Length(Fcache)>0)or(nowtime-starttime>=30);
     //Copy the cache to the result
     Result:=Fcache;
     //And empty the cache
@@ -301,14 +318,6 @@ begin
     sl.Free;
    end;
   end;
-end;
-
-{-------------------------------------------------------------------------------
-TimeOut event handler
--------------------------------------------------------------------------------}
-procedure TSpark.TimerOnTimer(Sender: TObject);
-begin
- TimerExpired:=True;
 end;
 
 end.

@@ -1,6 +1,29 @@
 unit DiscImage;
 
-//This project is now covered by the GNU GPL v3 licence
+{
+TDiscImage class
+Manages retro disc images, presenting a list of files and directories to the
+parent application. Will also extract files and write new files. Almost a complete
+filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
+1541, Commodore 1571, Commodore 1581, and Commodore AmigaDOS.
+
+Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+
+This source is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 3 of the License, or (at your option)
+any later version.
+
+This code is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+A copy of the GNU General Public License is available on the World Wide Web
+at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
+to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1335, USA.
+}
 
 {$MODE objFPC}{$H+}
 
@@ -25,7 +48,7 @@ type
    Entries     : array of TDirEntry;//Entries (above)
    Broken      : Boolean;           //Flag if directory is broken (ADFS)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
-   Locked      : Boolean;           //Flag if disc is locked (MMB)
+   Locked      : Boolean;           //Flag if disc is locked (MMFS)
   end;
   //Collection of directories
   TDisc         = array of TDir;
@@ -210,7 +233,7 @@ type
   function MoveCFSFile(entry: Cardinal;dest: Integer): Integer;
   function WriteCFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   function RenameCFSFile(entry: Cardinal;newfilename: String): Integer;
-  //MMB Routines
+  //MMFS Routines
   function ID_MMB: Boolean;
   function ReadMMBDisc: TDisc;
   const
@@ -361,7 +384,7 @@ const
                                 'Sinclair Spectrum +3/Amstrad',
                                 'Commodore Amiga',
                                 'Acorn CFS',
-                                'MMB');
+                                'MMFS');
  SUB : array[0..6] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','','','','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','','Hard Disc'),
@@ -373,8 +396,8 @@ const
 begin
  if FFormat<>$FF then
  begin
-  Result:= FS[FFormat DIV $10]+' '
-         +SUB[FFormat DIV $10,FFormat MOD $10];
+  Result:= FS[FFormat>>4]+' '
+         +SUB[FFormat>>4,FFormat MOD $10];
  end
  else Result:='unknown';
 end;
@@ -395,7 +418,7 @@ const
 begin
  if FFormat<>$FF then
  begin
-  Result:=EXT[FFormat DIV $10,FFormat MOD $10];
+  Result:=EXT[FFormat>>4,FFormat MOD $10];
  end
  else Result:='unk';
 end;
@@ -723,12 +746,12 @@ Convert the Map flag to Map Type
 function TDiscImage.MapFlagToByte: Byte;
 begin
  Result:=$FF;               //Default value for non-ADFS
- if FFormat div $10=$1 then //Is it ADFS?
+ if FFormat>>4=diAcornADFS then //Is it ADFS?
  begin
   Result:=$00;              // ADFS Old Map
   if FMap then Result:=$01; // ADFS New Map
  end;
- if FFormat div $10=$4 then //Is it Amiga?
+ if FFormat>>4=diAmiga then //Is it Amiga?
  begin
   Result:=$02;              // AmigaDOS OFS
   if FMap then Result:=$03; // AmigaDOS FFS
@@ -902,7 +925,7 @@ function TDiscImage.FixDirectories: Boolean;
 begin
  Result:=False;
  //Only for ADFS
- if FFormat shr 4=1 then Result:=FixBrokenADFSDirectories;
+ if FFormat>>4=diAcornADFS then Result:=FixBrokenADFSDirectories;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1009,7 +1032,7 @@ begin
   if not ID_DFS      then //Acorn DFS
   if not ID_Sinclair then //Sinclair/Amstrad
   if not ID_CFS      then //Acorn CFS
-  if not ID_MMB      then //MMB
+  if not ID_MMB      then //MMFS
    ResetVariables;        //Reset everything
   //Just by the ID process:
   //ADFS 'F' can get mistaken for Commodore
@@ -1025,13 +1048,13 @@ Read the disc in, depending on the format
 procedure TDiscImage.ReadImage;
 begin
  case FFormat shr 4 of
-  0: FDisc:=ReadDFSDisc;     //Acorn DFS
-  1: FDisc:=ReadADFSDisc;    //Acorn ADFS
-  2: FDisc:=ReadCDRDisc;     //Commodore
-  3: FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
-  4: FDisc:=ReadAmigaDisc;   //Amiga
-  5: FDisc:=ReadUEFFile;     //Acorn CFS
-  6: FDisc:=ReadMMBDisc;     //MMB
+  diAcornDFS : FDisc:=ReadDFSDisc;     //Acorn DFS
+  diAcornADFS: FDisc:=ReadADFSDisc;    //Acorn ADFS
+  diCommodore: FDisc:=ReadCDRDisc;     //Commodore
+  diSinclair : FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
+  diAmiga    : FDisc:=ReadAmigaDisc;   //Amiga
+  diAcornUEF : FDisc:=ReadUEFFile;     //Acorn CFS
+  diMMFS     : FDisc:=ReadMMBDisc;     //MMFS
  end;
 end;
 
@@ -1050,7 +1073,7 @@ begin
   filename:=LeftStr(filename,Length(filename)-Length(ext));
   filename:=filename+'.'+FormatToExt;
  end;
- if FFormat shr 4<>5 then //Not CFS
+ if FFormat>>4<>diAcornUEF then //Not CFS
  begin
   //Create the stream
   try
@@ -1067,7 +1090,7 @@ begin
    //Could not create
   end;
  end;
- if FFormat shr 4=5 then WriteUEFFile(filename,uncompress); //CFS
+ if FFormat>>4=diAcornUEF then WriteUEFFile(filename,uncompress); //CFS
 end;
 
 {-------------------------------------------------------------------------------
@@ -1089,32 +1112,32 @@ begin
  minor :=minor MOD $10;
  tracks:=tracks MOD 2;
  case major of
-  0://Create DFS
+  diAcornDFS://Create DFS
    begin
     FDisc:=FormatDFS(minor,tracks);
     Result:=Length(FDisc)>0;
    end;
-  1://Create ADFS
+  diAcornADFS://Create ADFS
    begin
     FDisc:=FormatADFS(minor);
     Result:=Length(FDisc)>0;
    end;
-  2://Create Commodore 64/128
+  diCommodore://Create Commodore 64/128
    begin
     FDisc:=FormatCDR(minor);
     Result:=Length(FDisc)>0;
    end;
-  3://Create Sinclair/Amstrad
+  diSinclair://Create Sinclair/Amstrad
    begin
     FDisc:=FormatSpectrum(minor);
     Result:=Length(FDisc)>0;
    end;
-  4://Create AmigaDOS
+  diAmiga://Create AmigaDOS
    begin
     FDisc:=FormatAmiga(minor);
     Result:=Length(FDisc)>0;
    end;
-  5://Create CFS
+  diAcornUEF://Create CFS
    begin
     FDisc:=FormatCFS;
     Result:=Length(FDisc)>0;
@@ -1132,14 +1155,14 @@ var
 begin
  //Start with a false result
  Result:=False;
- m:=FFormat DIV $10; //Major format
+ m:=FFormat>>4; //Major format
  case m of
-  0:Result:=ExtractDFSFile(filename,buffer);     //Extract DFS
-  1:Result:=ExtractADFSFile(filename,buffer);    //Extract ADFS
-  2:Result:=ExtractCDRFile(filename,buffer);     //Extract Commodore 64/128
-  3:Result:=ExtractSpectrumFile(filename,buffer);//Extract Sinclair/Amstrad
-  4:Result:=ExtractAmigaFile(filename,buffer);   //Extract AmigaDOS
-  5:Result:=ExtractCFSFile(entry,buffer);        //Extract CFS
+  diAcornDFS :Result:=ExtractDFSFile(filename,buffer);     //Extract DFS
+  diAcornADFS:Result:=ExtractADFSFile(filename,buffer);    //Extract ADFS
+  diCommodore:Result:=ExtractCDRFile(filename,buffer);     //Extract Commodore 64/128
+  diSinclair :Result:=ExtractSpectrumFile(filename,buffer);//Extract Sinclair/Amstrad
+  diAmiga    :Result:=ExtractAmigaFile(filename,buffer);   //Extract AmigaDOS
+  diAcornUEF :Result:=ExtractCFSFile(entry,buffer);        //Extract CFS
  end;
 end;
 
@@ -1160,16 +1183,16 @@ begin
  //Only write a file if there is actually any data to be written
  if count>0 then
  begin
-  m:=FFormat DIV $10; //Major format
+  m:=FFormat>>4; //Major format
   //Can only write a file that will fit on the disc, or CFS
-  if(count<=free_space)or(m=5) then
+  if(count<=free_space)or(m=diAcornUEF) then
    case m of
-    0:Result:=WriteDFSFile(file_details,buffer);     //Write DFS
-    1:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
-    2:Result:=WriteCDRFile(file_details,buffer);     //Write Commodore 64/128
-    3:Result:=WriteSpectrumFile(file_details,buffer);//Write Sinclair/Amstrad
-    4:Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
-    5:Result:=WriteCFSFile(file_details,buffer);     //Write CFS
+    diAcornDFS :Result:=WriteDFSFile(file_details,buffer);     //Write DFS
+    diAcornADFS:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
+    diCommodore:Result:=WriteCDRFile(file_details,buffer);     //Write Commodore 64/128
+    diSinclair :Result:=WriteSpectrumFile(file_details,buffer);//Write Sinclair/Amstrad
+    diAmiga    :Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
+    diAcornUEF :Result:=WriteCFSFile(file_details,buffer);     //Write CFS
    end;
  end;
 end;
@@ -1183,16 +1206,16 @@ var
 begin
  //Start with a false result
  Result:=-1;
- m:=FFormat DIV $10; //Major format
+ m:=FFormat>>4; //Major format
  case m of
-  0: exit;//Can't create directories on DFS
-  1:      //Create directory on ADFS
+  diAcornDFS : exit;//Can't create directories on DFS
+  diAcornADFS:      //Create directory on ADFS
     Result:=CreateADFSDirectory(filename,parent,attributes);
-  2: exit;//Can't create directories on Commodore
-  3: exit;//Can't create directories on Sinclair/Amstrad
-  4:      //Create directory on AmigaDOS
+  diCommodore: exit;//Can't create directories on Commodore
+  diSinclair : exit;//Can't create directories on Sinclair/Amstrad
+  diAmiga    :      //Create directory on AmigaDOS
     Result:=CreateAmigaDirectory(filename,parent,attributes);
-  5: exit;//Can't create directories on CFS
+  diAcornUEF : exit;//Can't create directories on CFS
  end;
 end;
 
@@ -1205,16 +1228,16 @@ var
 begin
  //Start with a false result
  Result:=False;
- m:=FFormat DIV $10; //Major format
+ m:=FFormat>>4; //Major format
  case m of
-  0: exit;//DFS doesn't have directories
-  1:      //Retitle ADFS directory
+  diAcornDFS : exit;//DFS doesn't have directories
+  diAcornADFS:      //Retitle ADFS directory
     Result:=RetitleADFSDirectory(filename,newtitle);
-  2: exit;//Commodore doesn't have directories
-  3: exit;//Sinclair/Amstrad doesn't have directories
-  4:      //Retitle AmigaDOS directory
+  diCommodore: exit;//Commodore doesn't have directories
+  diSinclair : exit;//Sinclair/Amstrad doesn't have directories
+  diAmiga    :      //Retitle AmigaDOS directory
     Result:=RetitleAmigaDirectory(filename,newtitle);
-  5: exit;//CFS doesn't have directories
+  diAcornUEF : exit;//CFS doesn't have directories
  end;
 end;
 
@@ -1235,18 +1258,18 @@ begin
  if Length(FDisc)>0 then
  begin
   SetLength(Path,0);
-  filename:=filename;
+//  filename:=filename;
   j:=-1;
   ptr:=0;
   //Explode the pathname into an array, without the '.'
-  if FFormat div $10<>$0 then //Not DFS
+  if FFormat>>4<>diAcornDFS then //Not DFS
    while (Pos(dir_sep,filename)<>0) do
    begin
     SetLength(Path,Length(Path)+1);
     Path[Length(Path)-1]:=Copy(filename,0,Pos(dir_sep,filename)-1);
     filename:=Copy(filename,Pos(dir_sep,filename)+1,Length(filename));
    end;
-  if FFormat div $10=$0 then //DFS
+  if FFormat>>4=diAcornDFS then //DFS
   begin
    SetLength(Path,2);
    Path[0]:=Copy(filename,0,Pos(root_name+dir_sep,filename));
@@ -1257,7 +1280,7 @@ begin
   if Length(Path)>0 then
   begin
    //filename gets truncated, so me be zero length at this point
-   if (Length(filename)>0) and (FFormat div $10<>$0) then
+   if(Length(filename)>0)and(FFormat>>4<>diAcornDFS)then
    begin
     //Otherwise, we'll add it to the end of the Path
     SetLength(Path,Length(Path)+1);
@@ -1272,7 +1295,7 @@ begin
    test:=UpperCase(AddTopBit(Path[level]));
    test2:=UpperCase(AddTopBit(FDisc[i].Directory));
    //DFS - if the test is on the other side
-   if (FFormat=$01) and (test<>test2) then
+   if(FFormat=$01)and(test<>test2)then
    begin
     inc(i);
     test2:=UpperCase(AddTopBit(FDisc[i].Directory));
@@ -1405,17 +1428,18 @@ function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
  function CompStr(S1,S2: String): Byte; //Compares Strings
  begin
   Result:=0;
-  if (UpperCase(S1)=UpperCase(S2)) and (S1<>'') then Result:=1;
+  if(CompareString(S2,S1,False))and(S1<>'')then Result:=1;
+//  if (UpperCase(S1)=UpperCase(S2)) and (S1<>'') then Result:=1;
  end;
  function CompCar(S1,S2: Cardinal): Byte; //Compares Cardinals/Integers
  begin
   Result:=0;
-  if (S1=S2) and (S1<>0) then Result:=1;
+  if(S1=S2)and(S1<>0)then Result:=1;
  end;
  function CompTSt(S1,S2: TDateTime): Byte; //Compares TDateTime
  begin
   Result:=0;
-  if (S1=S2) and (S1<>0) then Result:=1;
+  if(S1=S2)and(S1<>0) then Result:=1;
  end;
 //Function proper starts here
 var
@@ -1427,6 +1451,42 @@ begin
  Result:=nil;
  //Reset the search results array to empty
  SetLength(Result,0);
+ //Has the complete path been included in the Filename?
+ if Pos(DirSep,search.Filename)>0 then
+ begin
+  //Split filename into parent and filename
+  if FFormat<>diAcornDFS then //Not DFS
+  begin
+   target:=Length(search.Filename);
+   //Look for the last directory separator
+   while(search.Filename[target]<>DirSep)and(target>1)do
+    dec(target);
+   //And split into parent and filename
+   search.Parent:=LeftStr(search.Filename,target-1);
+   search.Filename:=Copy(search.Filename,target+1);
+  end;
+  if FFormat=diAcornDFS then //DFS only
+  begin
+   //Is there a drive specifier, with root? :0.$ or :2.$
+   if(search.Filename[1]=':')and(Copy(search.Filename,3,2)='.$')then
+   begin
+    search.Parent  :=LeftStr(search.Filename,4);
+    search.Filename:=Copy(search.Filename,6);
+   end;
+   //Is there just a root?
+   if Copy(search.Filename,1,2)='$.' then
+   begin
+    search.Parent  :='$.';
+    search.Filename:=Copy(search.Filename,3);
+   end;
+   //After these, is the filename left blank?
+   if search.Filename='' then
+   begin
+    search.Filename:=search.Parent;
+    search.Parent  :='';
+   end;
+  end;
+ end;
  //Work out what the search target is
  target:=0;
  with search do

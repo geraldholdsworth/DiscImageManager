@@ -1,26 +1,26 @@
 object AboutForm: TAboutForm
-  Left = 403
-  Height = 136
-  Top = 316
+  Left = 432
+  Height = 227
+  Top = 179
   Width = 520
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About'
-  ClientHeight = 136
+  ClientHeight = 227
   ClientWidth = 520
   Color = 15527148
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
   Position = poMainFormCenter
-  LCLVersion = '2.0.11.0'
+  LCLVersion = '2.0.12.0'
   object CreditsPanel: TPanel
     Left = 0
-    Height = 136
+    Height = 227
     Top = 0
     Width = 520
     Align = alClient
-    ClientHeight = 136
+    ClientHeight = 227
     ClientWidth = 520
     TabOrder = 0
     object lb_Title: TLabel
@@ -106,11 +106,12 @@ object AboutForm: TAboutForm
     end
     object Label16: TLabel
       Left = 1
-      Height = 13
+      Height = 18
       Top = 121
       Width = 518
       Align = alTop
       Alignment = taCenter
+      AutoSize = False
       Caption = 'Distributed under GNU GPL v3 licence'
       Font.Color = clRed
       Font.Height = -11
@@ -118,6 +119,22 @@ object AboutForm: TAboutForm
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
+    end
+    object Label1: TLabel
+      Left = 1
+      Height = 82
+      Top = 139
+      Width = 518
+      Align = alTop
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'Many thanks to the users and contributors of the Stardot forum whose feedback and advice has been greatly appreciated. Also a big thank you to Jasper Renow-Clark who helped me with the ADFS formats in the beginning, before this project started.'#10'This project was concieved as a module to the Repton Map Display application, with this application just being a demo (and for me to try the code out with). In December 2020, it became the Disc Image Manager.'
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      ParentColor = False
+      ParentFont = False
+      WordWrap = True
     end
   end
   object Image1: TImage

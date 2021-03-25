@@ -11,7 +11,7 @@ object ImageDetailForm: TImageDetailForm
   Color = 15527148
   Font.Height = -11
   Position = poMainFormCenter
-  LCLVersion = '2.0.11.0'
+  LCLVersion = '2.0.12.0'
   object Legend: TPanel
     Left = 412
     Height = 574

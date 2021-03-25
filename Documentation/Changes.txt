@@ -336,6 +336,22 @@ Bug fixes
 * Deleting a zero length file, or one without any fragments, on an ADFS New Map would cause the application to crash.
 * Attributes, apart from 'L', were getting ignored when importing files into ADFS.
 
+1.05.18 - 25th March 2021
+-------------------------
+New or improved features
+* Basic MMFS support has been added. Currently, an MMB file can be loaded and the contents viewed.
+* Font size on directory tree has been increased slightly, from 8pt to 10pt.
+* Added some more extension filters to the Open Image Dialogue box.
+* File searches will now work with wildcards - * for 0 or many characters, and # for single character.
+* File searches will now split the parent away from the filename, if specified.
+* Command line option 'extract' will now take wildcards.
+* Pressing Enter on one of the search entry boxes initiates the search, in addition to clicking on the button.
+* The search entry boxes, and the search results list, have been recoloured and text style changed.
+* When selecting an item from the search results it does not immediately deselect itself.
+
+Bug fixes
+* The timeout part of uncompressing files was not working, so this has been re-written.
+
 
 Platform History
 ----------------

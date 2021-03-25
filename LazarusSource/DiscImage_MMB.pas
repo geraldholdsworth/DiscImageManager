@@ -74,4 +74,6 @@ begin
   else //Entry is empty
    Result[i].Directory:=IntToStr(i)+': empty';
  end;
+ disc_name:='MMFS File';
+ disc_size:=511;
 end;

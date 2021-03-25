@@ -1,6 +1,31 @@
 unit MainUnit;
 
-//This project is now covered by the GNU GPL v3 licence
+{
+Disc Image Manager written by Gerald Holdsworth
+Started out as a demo for the TDiscImage class but blossomed into a full-blown
+application, ported across from Delphi to Lazarus and hence then compiled on
+macOS and Linux in addition to the original Windows version. The underlying class
+has also grown from being just a reader to also a writer.
+Extra 'gimmicks' have been added over time, to utilise the code in the underlying
+class.
+
+Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+
+This source is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 3 of the License, or (at your option)
+any later version.
+
+This code is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+A copy of the GNU General Public License is available on the World Wide Web
+at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
+to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1335, USA.
+}
 
 {$MODE objFPC}{$H+}
 
@@ -142,6 +167,7 @@ type
    procedure btn_NewDirectoryClick(Sender: TObject);
    procedure btn_SaveAsCSVClick(Sender: TObject);
    procedure btn_SplitDFSClick(Sender: TObject);
+   procedure ed_filenamesearchKeyPress(Sender: TObject; var Key: char);
    procedure HexDumpSubItemClick(Sender: TObject);
    procedure lb_titleClick(Sender: TObject);
    procedure btn_NewImageClick(Sender: TObject);
@@ -269,6 +295,10 @@ type
                                '194','195','196','691','692','693','694','696',
                                'A91','B22','B62','F78','F79','F83','FB0','FCD',
                                'FCE');
+    //To add more filetypes, increase the array, then ensure that 'riscoshigh'
+    //(below) matches. Finally, make sure they are in the correct order in the
+    //two ImageList components: FullSizeTypes and FileImages
+    //
     //Windows extension - used to translate from RISC OS to Windows
     Extensions: array[1..42] of String =
                          ('004aim','132ico' ,'190dsk' ,'198z80'   ,'1A6CPM',
@@ -286,16 +316,20 @@ type
     appicon     =   0;
     directory   =   1;
     directory_o =   2;
+    riscoshigh  = 139;
     //images 3 to 139 inclusive are the known filetypes, listed above
-    loadexec    = 140; //(+1)RISC OS file with Load/Exec specified
-    unknown     = 142; //(+3)RISC OS unknown filetype
-    nonadfs     = 144; //(+5)All other filing systems, except for D64/D71/D81
-    prgfile     = 143; //(+4)D64/D71/D81 file types
-    seqfile     = 144; //(+5)
-    usrfile     = 145; //(+6)
-    delfile     = 146; //(+7)
-    relfile     = 144; //(+5)
-    cbmfile     = 144; //(+5)
+    loadexec    = riscoshigh+ 1; //RISC OS file with Load/Exec specified
+    unknown     = riscoshigh+ 3; //RISC OS unknown filetype
+    nonadfs     = riscoshigh+ 5; //All other filing systems, except for D64/D71/D81
+    prgfile     = riscoshigh+ 4; //D64/D71/D81 PRG file
+    seqfile     = riscoshigh+ 5; //D64/D71/D81 SEQ file
+    usrfile     = riscoshigh+ 6; //D64/D71/D81 USR file
+    delfile     = riscoshigh+ 7; //D64/D71/D81 DEL file
+    relfile     = riscoshigh+ 5; //D64/D71/D81 REL file
+    cbmfile     = riscoshigh+ 5; //D64/D71/D81 CBM file
+    mmbdisc     = riscoshigh+ 8; //MMFS Disc with image
+    mmbdisclock = riscoshigh+ 9; //MMFS Locked disc
+    mmbdiscempt = riscoshigh+10; //MMFS Empty slot
     //Icons for status bar - index into TImageList 'icons'
     changedicon   = 0;
     acornlogo     = 1;
@@ -310,7 +344,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.17';
+    ApplicationVersion = '1.05.18';
   end;
 
 var
@@ -1569,6 +1603,13 @@ begin
   if Image.FormatNumber shr 4=1 then //ADFS only
    if(Image.DirectoryType=1)OR(Image.DirectoryType=2)then //New or Big
     if Node.Text[1]='!' then ft:=appicon;
+  //If MMB
+  if Image.FormatNumber>>4=6 then
+  begin
+   ft:=mmbdisc;
+   if Image.Disc[Node.Index].Locked then ft:=mmbdisclock;
+   if RightStr(Node.Text,5)='empty' then ft:=mmbdiscempt;
+  end;
  end;
  //Tell the system what the ImageList reference is
  Node.ImageIndex:=ft;
@@ -1691,6 +1732,7 @@ var
  param,
  param2     : String;
  Dir        : TSearchRec;
+ Files      : TSearchResults;
  F          : TFileStream;
  fields     : TStringArray;
  filedetails: TDirEntry;
@@ -1847,11 +1889,33 @@ begin
    //Extract files ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--extract') or (option='-e') then
    begin
-    //Select the file
-    SelectNode(param);
+    //Select the destination OS folder
     if param2='' then ExtractDialogue.FileName:=PathDelim
     else ExtractDialogue.FileName:=param2+PathDelim;
-    ExtractFiles(False);
+    ResetDirEntry(filedetails);
+    //Select the file
+    filedetails.Filename:=param;
+    //First we look for the files - this will allow wildcarding
+    Files:=Image.FileSearch(filedetails);
+    //Now go through all the results, if any, and extract each of them
+    if Length(Files)>0 then //If there are any, of course
+     for index:=0 to Length(Files)-1 do
+     begin
+      param:='';
+      //Build the filename
+      if Files[index].Parent<>'' then
+       param:=Files[index].Parent+Image.DirSep;
+      param:=param+Files[Index].Filename;
+      //Then find and select the node
+      SelectNode(param);
+      //And extract it
+      ExtractFiles(False);
+     end
+    else
+    begin //If there were no results, just do it the old fashioned way
+     SelectNode(param);
+     ExtractFiles(False);
+    end;
    end;
    //Commands that require a second parameter -----------------------------------
    if param2<>'' then
@@ -1925,20 +1989,10 @@ end;
 //Highlight the file in the tree
 {------------------------------------------------------------------------------}
 procedure TMainForm.lb_searchresultsClick(Sender: TObject);
-var
- i,s : Integer;
 begin
- //Selected item: -1 for none
- s:=-1;
- //Find the selected item
- for i:=0 to lb_searchresults.Items.Count-1 do
-  if lb_searchresults.Selected[i] then s:=i;
- //Found? So highlight it
- if s>=0 then
- begin
-  SelectNode(lb_searchresults.Items[s]);
-  lb_searchresults.Selected[s]:=False; //Deselect in the search window
- end;
+ //Is there one selected?
+ if lb_searchresults.ItemIndex>=0 then
+  SelectNode(lb_searchresults.Items[lb_searchresults.ItemIndex]);
 end;
 
 {------------------------------------------------------------------------------}
@@ -1949,7 +2003,7 @@ var
  i,
  found  : Integer;
  dirname:String;
- Node:TTreeNode;
+ Node   :TTreeNode;
 begin
  //Unselect everything
  DirList.ClearSelection;
@@ -2541,6 +2595,14 @@ begin
  if SplitDFSForm.ModalResult=mrAbort then
   ReportError('Operation failed');        //Certainly an error
  //We'll ignore cancel, as this was a user operation
+end;
+
+{------------------------------------------------------------------------------}
+//User has pressed return on a search edit field
+{------------------------------------------------------------------------------}
+procedure TMainForm.ed_filenamesearchKeyPress(Sender: TObject; var Key: char);
+begin
+ if Key=#13 then sb_SearchClick(Sender);
 end;
 
 {------------------------------------------------------------------------------}
@@ -3385,6 +3447,7 @@ var
  search : TDirEntry;
  results: TSearchResults;
  i      : Integer;
+ line   : String;
 begin
  ResetDirEntry(search);
  SetLength(results,0);
@@ -3400,7 +3463,14 @@ begin
  //Now populate, if there is anything to add to it
  if Length(results)>0 then
   for i:=0 to Length(results)-1 do
-   lb_searchresults.Items.Add(results[i].Parent+'.'+results[i].Filename);
+  begin
+   //Create the text
+   line:=results[i].Parent+Image.DirSep+results[i].Filename;
+   //Remove any top bit set characters
+   RemoveTopBit(line);
+   //And list the result
+   lb_searchresults.Items.Add(line);
+  end;
  //And report how many results
  searchresultscount.Caption:='Number of results found: '+IntToStr(lb_searchresults.Count);
 end;
@@ -3491,6 +3561,7 @@ begin
    3: png:=sinclairlogo;  //Sinclair logo
    4: png:=amigalogo;     //Amiga logo
    5: png:=acornlogo;     //Acorn logo for CFS
+   6: png:=bbclogo;       //BBC Micro logo for MMFS
   end;
   if png<>0 then icons.Draw(StatusBar.Canvas,Rect.Left+2,Rect.Top+2,png);
   StatusBar.Canvas.Font:=StatusBar.Font;

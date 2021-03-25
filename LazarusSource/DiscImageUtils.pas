@@ -1,11 +1,30 @@
 unit DiscImageUtils;
 
+{
+Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+
+This source is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 3 of the License, or (at your option)
+any later version.
+
+This code is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+A copy of the GNU General Public License is available on the World Wide Web
+at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
+to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1335, USA.
+}
+
 {$mode objfpc}{$H+}
 
 interface
 
 uses
- SysUtils, StrUtils;
+ SysUtils,StrUtils;
 
 type
 //Define the TDIByteArray - saves using the System.Types unit for TByteDynArray
@@ -45,7 +64,16 @@ type
  function BreakDownInf(s: String): TStringArray;
  function FilenameToASCII(s: String): String;
  function GetAttributes(attr: String;format: Byte): String;
-
+ function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
+ //Some constants
+ const
+  diAcornDFS   = $00;
+  diAcornADFS  = $01;
+  diCommodore  = $02;
+  diSinclair   = $03;
+  diAmiga      = $04;
+  diAcornUEF   = $05;
+  diMMFS       = $06;
 implementation
 
 {------------------------------------------------------------------------------}
@@ -244,7 +272,12 @@ function GetAttributes(attr: String;format: Byte):String;
 var
  attr1 : String;
  attr2 : Byte;
+{const
+ osfile='RWELrwel';}
 begin
+ {This converts a hex number to attributes. This hex number is different to what
+ is used by ADFS internally (and saved to the disc images) but is what is
+ returned by OSFILE A=5, or OS_File 5 on RISC OS.}
  attr1:=attr;
  attr2:=$00;
  Result:='';
@@ -255,17 +288,82 @@ begin
   attr1:='';
  end;
  //Read each attribute and build the string
- if(format<$2)or(format shr 4=$5) then //ADFS, DFS and CFS
+ if(format>>4=diAcornDFS)
+ or(format>>4=diAcornADFS)
+ or(format>>4=diAcornUEF) then //ADFS, DFS and CFS
   if (Pos('L',attr1)>0)OR(attr2 AND$08=$08) then Result:=Result+'L';
- if format=$1 then //ADFS only
+ if format=diAcornADFS then //ADFS only
  begin
   if (Pos('R',attr1)>0)OR(attr2 AND$01=$01) then Result:=Result+'R';
   if (Pos('W',attr1)>0)OR(attr2 AND$02=$02) then Result:=Result+'W';
-  if (Pos('E',attr1)>0)OR(attr2 AND$04=$04) then Result:=Result+'E';
+  if (Pos('E',attr1)>0)OR(attr2 AND$04=$04) then Result:=Result+'E';//Also P
   if (Pos('r',attr1)>0)OR(attr2 AND$10=$10) then Result:=Result+'r';
   if (Pos('w',attr1)>0)OR(attr2 AND$20=$20) then Result:=Result+'w';
   if (Pos('e',attr1)>0)OR(attr2 AND$40=$40) then Result:=Result+'e';
   if (Pos('l',attr1)>0)OR(attr2 AND$80=$80) then Result:=Result+'l';
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//Wildcard string comparison
+{------------------------------------------------------------------------------}
+function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
+var
+ sIndex,
+ maskIndex: Integer;
+begin
+ if not case_sensitive then
+ begin
+  S   :=UpperCase(S);
+  mask:=UpperCase(mask);
+ end;
+ Result   :=True;
+ sIndex   :=1;
+ maskIndex:=1;
+ while(sIndex<=Length(S))and(maskIndex<=Length(mask))do
+ begin
+  case mask[maskIndex] of
+   '#':
+   begin //matches any character
+    Inc(sIndex);
+    Inc(maskIndex);
+   end;
+   '*':
+   begin //matches 0 or more characters, so need to check for next character in mask
+    Inc(maskIndex);
+    if maskIndex>Length(mask) then
+     // * at end matches rest of string
+     Exit;
+    //look for mask character in S
+    while(sIndex<=Length(S))and(S[sIndex]<>mask[maskIndex])do
+     Inc(sIndex);
+    if sIndex>Length(S) then
+    begin //character not found, no match
+     Result:=false;
+     Exit;
+    end;
+   end;
+   else
+    if S[sIndex]=mask[maskIndex] then
+    begin
+     Inc(sIndex);
+     Inc(maskIndex);
+    end
+    else
+    begin //no match
+     Result:=False;
+     Exit;
+    end;
+  end;
+ end;
+ //if we have reached the end of both S and mask we have a complete match,
+ //otherwise we only have a partial match}
+ if(sIndex<=Length(S))or(maskIndex<=Length(mask))then
+ begin
+  //If the last character of the mask is a '*' then just exit without changing the result
+  if maskIndex=Length(mask) then
+   if mask[maskIndex]='*' then exit;
+  Result:=false;
  end;
 end;
 
