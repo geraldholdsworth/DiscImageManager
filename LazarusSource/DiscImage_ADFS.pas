@@ -207,8 +207,8 @@ var
 const
  //Attributes - not to be confused with what is returned from OSFILE
  //See the function GetAttributes in DiscImageUtils
- OldAtts = 'RWLDErweP '; //Old Directory attributes
- NewAtts = 'RWLDrw  ';   //New Directory attributes
+ OldAtts: array[0..9] of Char = ('R','W','L','D','E','r','w','e','P',' ');
+ NewAtts: array[0..7] of Char = ('R','W','L','D','r','w',' ',' ');
 begin
  RemoveControl(dirname);
  //Store complete path

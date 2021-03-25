@@ -352,6 +352,16 @@ New or improved features
 Bug fixes
 * The timeout part of uncompressing files was not working, so this has been re-written.
 
+1.05.18.1 - 25th March 2021
+---------------------------
+New or improved features
+* Filetype graphics changed, again, for higher resolution graphics.
+* Removed the second set of image lists and now just rely on the single list and scale as appropriate.
+* Figured out how to make all the panels a uniform colour.
+
+Bug fixes
+* Introduced a bug in the last version where loading an ADFS image, in most cases, left it in an infinite loop.
+
 
 Platform History
 ----------------

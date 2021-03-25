@@ -64,7 +64,6 @@ type
    ed_filetypesearch: TEdit;
    ed_lengthsearch: TEdit;
    icons: TImageList;
-   FullSizeTypes: TImageList;
    FileImages: TImageList;
    imgCopy: TImage;
    Label15: TLabel;
@@ -277,24 +276,24 @@ type
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..139] of String =
-                              ('1AD','3FB','6A2','18A','68E','69C','69D','69E',
-                               '102','108','132','690','695','697','698','699',
-                               'AAD','ABA','ABF','ACA','AD0','ADF','AE4','AE6',
-                               'AE7','AE9','AF1','AFF','B2F','B9F','B24','B25',
-                               'B26','B27','B28','B60','B61','BA6','BBC','BD6',
-                               'BD9','BDA','BDF','BE8','BF8','C1D','C1E','C7D',
-                               'C27','C32','C46','C85','CAE','CE5','D00','D01',
-                               'D3C','D94','DB0','DDC','DEA','DFE','F7A','F7B',
-                               'F7E','F7F','F9D','F9E','F9F','F80','F89','F91',
-                               'FAE','FAF','FB1','FB2','FB4','FC2','FC3','FC6',
-                               'FC8','FCA','FCC','FD3','FD4','FD6','FD7','FDC',
-                               'FE1','FE4','FE5','FE6','FEA','FEB','FEC','FED',
-                               'FF0','FF1','FF2','FF4','FF5','FF6','FF7','FF8',
-                               'FF9','FFA','FFB','FFC','FFD','FFE','FFF','0E1',
-                               '1A6','004','11D','19B','69A','69B','190','191',
-                               '194','195','196','691','692','693','694','696',
-                               'A91','B22','B62','F78','F79','F83','FB0','FCD',
-                               'FCE');
+                              ('0E1','1A6','1AD','3FB','004','6A2','11D','18A',
+                               '19B','68E','69A','69B','69C','69D','69E','102',
+                               '108','132','190','191','194','195','196','690',
+                               '691','692','693','694','695','696','697','698',
+                               '699','A91','AAD','ABA','ABF','ACA','AD0','ADF',
+                               'AE4','AE6','AE7','AE9','AF1','AFF','B2F','B9F',
+                               'B22','B24','B25','B26','B27','B28','B60','B61',
+                               'B62','BA6','BBC','BD6','BD9','BDA','BDF','BE8',
+                               'BF8','C1D','C1E','C7D','C27','C32','C46','C85',
+                               'CAE','CE5','D00','D01','D3C','D94','DB0','DDC',
+                               'DEA','DFE','F7A','F7B','F7E','F7F','F9D','F9E',
+                               'F78','F79','F80','F83','F89','F91','FAE','FAF',
+                               'FB0','FB1','FB2','FB4','FB5','FC2','FC3','FC6',
+                               'FC8','FCA','FCC','FCD','FCE','FD3','FD4','FD6',
+                               'FD7','FDC','FE1','FE4','FE5','FE6','FEA','FEB',
+                               'FEC','FED','FF0','FF1','FF2','FF4','FF5','FF6',
+                               'FF7','FF8','FF9','FFA','FFB','FFC','FFD','FFE',
+                               'FFF');
     //To add more filetypes, increase the array, then ensure that 'riscoshigh'
     //(below) matches. Finally, make sure they are in the correct order in the
     //two ImageList components: FullSizeTypes and FileImages
@@ -344,7 +343,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.18';
+    ApplicationVersion = '1.05.18.1';
   end;
 
 var
@@ -1257,6 +1256,7 @@ var
  title,
  temp     : String;
  multiple : Char;
+ R        : TRect;
 begin
  filetype:='';
  //Reset the fields to blank
@@ -1458,11 +1458,16 @@ begin
   end;
   //Create a purple background, as a transparent mask
   img_FileType.Transparent:=True;
-  img_FileType.Canvas.Pen.Color:=$FF00FF;
-  img_FileType.Canvas.Brush.Color:=$FF00FF;
-  img_FileType.Canvas.Rectangle(0,0,34,34);
+  img_FileType.Canvas.Pen.Color:=FileInfoPanel.Color;// $FF00FF;
+  img_FileType.Canvas.Brush.Color:=FileInfoPanel.Color;// $FF00FF;
+  img_FileType.Canvas.Rectangle(0,0,img_FileType.Width,img_FileType.Height);
   //Paint the picture onto it
-  FullSizeTypes.GetBitmap(ft,img_FileType.Picture.Bitmap);
+//  FileImages.GetBitmap(ft,img_FileType.Picture.Bitmap);
+  R.Top:=0;
+  R.Left:=0;
+  R.Width:=img_FileType.Width;
+  R.Height:=img_FileType.Height;
+  FileImages.StretchDraw(img_FileType.Canvas,ft,R);
   //Filetype text - only show for certain systems
   if(Image.FormatNumber shr 4=1) //ADFS
   or(Image.FormatNumber shr 4=2) //C64

@@ -1429,7 +1429,7 @@ function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
  begin
   Result:=0;
   if(CompareString(S2,S1,False))and(S1<>'')then Result:=1;
-//  if (UpperCase(S1)=UpperCase(S2)) and (S1<>'') then Result:=1;
+  if (UpperCase(S1)=UpperCase(S2)) and (S1<>'') then Result:=1;
  end;
  function CompCar(S1,S2: Cardinal): Byte; //Compares Cardinals/Integers
  begin
