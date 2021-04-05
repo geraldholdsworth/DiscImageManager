@@ -12,6 +12,7 @@ object HexDumpForm: THexDumpForm
   Constraints.MinWidth = 635
   OnResize = FormResize
   OnShow = FormShow
+  Position = poMainFormCenter
   LCLVersion = '2.0.12.0'
   object HexDumpDisplay: TStringGrid
     Left = 0
@@ -42,7 +43,7 @@ object HexDumpForm: THexDumpForm
     OnSetEditText = HexDumpDisplaySetEditText
     OnValidateEntry = HexDumpDisplayValidateEntry
   end
-  object Panel1: TPanel
+  object ToolPanel: TPanel
     Left = 0
     Height = 32
     Top = 0
@@ -51,7 +52,7 @@ object HexDumpForm: THexDumpForm
     ClientHeight = 32
     ClientWidth = 635
     TabOrder = 1
-    object Label1: TLabel
+    object JumpToLabel: TLabel
       Left = 8
       Height = 16
       Top = 8
@@ -84,7 +85,7 @@ object HexDumpForm: THexDumpForm
       ImageIndex = 1
       OnClick = btnSaveTextClick
     end
-    object Label2: TLabel
+    object XORLabel: TLabel
       Left = 208
       Height = 16
       Top = 8
@@ -120,7 +121,7 @@ object HexDumpForm: THexDumpForm
       Visible = False
     end
   end
-  object Panel2: TPanel
+  object ScrollPanel: TPanel
     Left = 603
     Height = 604
     Top = 32
@@ -201,7 +202,7 @@ object HexDumpForm: THexDumpForm
       ImageIndex = 2
       OnClick = btnMoveToBottomClick
     end
-    object ScrollBar1: TScrollBar
+    object ScrollBar: TScrollBar
       Left = 1
       Height = 410
       Top = 97
@@ -213,7 +214,7 @@ object HexDumpForm: THexDumpForm
       Max = 0
       PageSize = 0
       TabOrder = 0
-      OnScroll = ScrollBar1Scroll
+      OnScroll = ScrollBarScroll
     end
   end
   object ButtonImages: TImageList

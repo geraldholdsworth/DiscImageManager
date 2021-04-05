@@ -3,16 +3,16 @@ program DiscImageManager;
 {$MODE objFPC}{$H+}
 
 uses
-  Forms, Interfaces,
+  Forms,Interfaces,DiscImageUtils,Global,Spark,
   MainUnit in 'MainUnit.pas',
   DiscImage in 'DiscImage.pas',
   AboutUnit in 'AboutUnit.pas',
   NewImageUnit in 'NewImageUnit.pas',
-  DiscImageUtils, Global,
   ProgressUnit in 'ProgressUnit.pas',
   ImageDetailUnit in 'ImageDetailUnit.pas',
   HexDumpUnit in 'HexDumpUnit.pas',
-  SplitDFSUnit in 'SplitDFSUnit.pas', Spark;
+  SplitDFSUnit in 'SplitDFSUnit.pas',
+  SearchUnit in 'SearchUnit.pas';
 
 {$R *.res}
 
@@ -26,5 +26,6 @@ begin
  Application.CreateForm(TProgressForm, ProgressForm);
  Application.CreateForm(TImageDetailForm, ImageDetailForm);
  Application.CreateForm(TSplitDFSForm, SplitDFSForm);
+ Application.CreateForm(TSearchForm, SearchForm);
  Application.Run;
 end.

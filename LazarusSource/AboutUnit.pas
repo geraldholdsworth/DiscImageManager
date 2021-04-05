@@ -32,14 +32,15 @@ type
 
   TAboutForm = class(TForm)
     CreditsPanel: TPanel;
-    Image1: TImage;
-    Label1: TLabel;
-    Label15: TLabel;
-    Label16: TLabel;
+    IconImage: TImage;
+    AckLabel: TLabel;
+    GitHubWebsiteLabel: TLabel;
+    LicenceLabel: TLabel;
     lb_Title: TLabel;
-    Label8: TLabel;
+    WrittenByLabel: TLabel;
     lb_Version: TLabel;
-    Label14: TLabel;
+    GHWebsiteLabel: TLabel;
+    procedure CreditsPanelPaint(Sender: TObject);
   private
     { Private declarations }
   public
@@ -52,5 +53,15 @@ var
 implementation
 
 {$R *.lfm}
+
+uses
+  MainUnit;
+
+{ TAboutForm }
+
+procedure TAboutForm.CreditsPanelPaint(Sender: TObject);
+begin
+ MainForm.FileInfoPanelPaint(Sender);
+end;
 
 end.

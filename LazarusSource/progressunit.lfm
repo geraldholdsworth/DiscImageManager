@@ -11,19 +11,19 @@ object ProgressForm: TProgressForm
   OnShow = FormShow
   Position = poMainFormCenter
   LCLVersion = '2.0.12.0'
-  object Panel1: TPanel
+  object MainPanel: TPanel
     Left = 0
     Height = 41
     Top = 0
     Width = 597
     Align = alClient
-    Caption = 'Please wait, working...'
     ClientHeight = 41
     ClientWidth = 597
     Font.Height = -32
     Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 0
+    OnPaint = FormPaint
     object UpdateProgress: TLabel
       Left = 1
       Height = 18
@@ -38,6 +38,16 @@ object ProgressForm: TProgressForm
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
+    end
+    object WaitLabel: TLabel
+      Left = 1
+      Height = 21
+      Top = 1
+      Width = 595
+      Align = alClient
+      Alignment = taCenter
+      Caption = 'Please wait, working...'
+      ParentColor = False
     end
   end
 end

@@ -1,36 +1,37 @@
 object AboutForm: TAboutForm
   Left = 432
-  Height = 227
+  Height = 254
   Top = 179
   Width = 520
+  AutoSize = True
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About'
-  ClientHeight = 227
+  ClientHeight = 254
   ClientWidth = 520
   Color = 15527148
   Font.Color = clWindowText
-  Font.Height = -11
   Font.Name = 'Tahoma'
   Position = poMainFormCenter
   LCLVersion = '2.0.12.0'
   object CreditsPanel: TPanel
     Left = 0
-    Height = 227
+    Height = 254
     Top = 0
     Width = 520
     Align = alClient
-    ClientHeight = 227
+    AutoSize = True
+    ClientHeight = 254
     ClientWidth = 520
     TabOrder = 0
+    OnPaint = CreditsPanelPaint
     object lb_Title: TLabel
       Left = 1
-      Height = 40
+      Height = 39
       Top = 1
       Width = 518
       Align = alTop
       Alignment = taCenter
-      AutoSize = False
       Caption = 'Disc Image Manager'
       Font.Color = clGreen
       Font.Height = -32
@@ -39,10 +40,10 @@ object AboutForm: TAboutForm
       ParentColor = False
       ParentFont = False
     end
-    object Label8: TLabel
+    object WrittenByLabel: TLabel
       Left = 1
       Height = 13
-      Top = 41
+      Top = 40
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -58,7 +59,7 @@ object AboutForm: TAboutForm
     object lb_Version: TLabel
       Left = 1
       Height = 19
-      Top = 54
+      Top = 53
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -70,14 +71,13 @@ object AboutForm: TAboutForm
       ParentColor = False
       ParentFont = False
     end
-    object Label14: TLabel
+    object GHWebsiteLabel: TLabel
       Left = 1
-      Height = 20
-      Top = 73
+      Height = 19
+      Top = 72
       Width = 518
       Align = alTop
       Alignment = taCenter
-      AutoSize = False
       BorderSpacing.Bottom = 4
       Caption = 'http://www.geraldholdsworth.co.uk'
       Font.Color = clNavy
@@ -87,14 +87,13 @@ object AboutForm: TAboutForm
       ParentColor = False
       ParentFont = False
     end
-    object Label15: TLabel
+    object GitHubWebsiteLabel: TLabel
       Left = 1
-      Height = 20
-      Top = 97
+      Height = 19
+      Top = 95
       Width = 518
       Align = alTop
       Alignment = taCenter
-      AutoSize = False
       BorderSpacing.Bottom = 4
       Caption = 'https://github.com/geraldholdsworth/DiscImageManager'
       Font.Color = clNavy
@@ -104,14 +103,13 @@ object AboutForm: TAboutForm
       ParentColor = False
       ParentFont = False
     end
-    object Label16: TLabel
+    object LicenceLabel: TLabel
       Left = 1
-      Height = 18
-      Top = 121
+      Height = 13
+      Top = 118
       Width = 518
       Align = alTop
       Alignment = taCenter
-      AutoSize = False
       Caption = 'Distributed under GNU GPL v3 licence'
       Font.Color = clRed
       Font.Height = -11
@@ -120,24 +118,22 @@ object AboutForm: TAboutForm
       ParentColor = False
       ParentFont = False
     end
-    object Label1: TLabel
+    object AckLabel: TLabel
       Left = 1
-      Height = 82
-      Top = 139
+      Height = 96
+      Top = 131
       Width = 518
       Align = alTop
       Alignment = taCenter
-      AutoSize = False
       Caption = 'Many thanks to the users and contributors of the Stardot forum whose feedback and advice has been greatly appreciated. Also a big thank you to Jasper Renow-Clark who helped me with the ADFS formats in the beginning, before this project started.'#10'This project was concieved as a module to the Repton Map Display application, with this application just being a demo (and for me to try the code out with). In December 2020, it became the Disc Image Manager.'
       Font.Color = clWindowText
-      Font.Height = -11
       Font.Name = 'Tahoma'
       ParentColor = False
       ParentFont = False
       WordWrap = True
     end
   end
-  object Image1: TImage
+  object IconImage: TImage
     Left = 8
     Height = 32
     Top = 8

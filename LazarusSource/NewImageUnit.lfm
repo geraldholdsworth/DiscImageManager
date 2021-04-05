@@ -8,10 +8,10 @@ object NewImageForm: TNewImageForm
   ClientHeight = 211
   ClientWidth = 490
   Color = 15527148
-  Font.Height = -11
+  OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.0.11.0'
+  LCLVersion = '2.0.12.0'
   object MainFormat: TRadioGroup
     Left = 0
     Height = 154

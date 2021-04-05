@@ -1428,8 +1428,8 @@ function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
  function CompStr(S1,S2: String): Byte; //Compares Strings
  begin
   Result:=0;
-  if(CompareString(S2,S1,False))and(S1<>'')then Result:=1;
-  if (UpperCase(S1)=UpperCase(S2)) and (S1<>'') then Result:=1;
+  if S1<>'' then
+   if CompareString(S2,S1,False) then Result:=1;
  end;
  function CompCar(S1,S2: Cardinal): Byte; //Compares Cardinals/Integers
  begin
@@ -1489,6 +1489,8 @@ begin
  end;
  //Work out what the search target is
  target:=0;
+ //The search works by heading for a target. If the specified target is met
+ //(i.e. all given fields match), then the search is a success.
  with search do
  begin
   if Parent       <>'' then inc(target);

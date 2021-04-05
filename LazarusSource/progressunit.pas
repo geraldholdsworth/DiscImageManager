@@ -31,8 +31,10 @@ type
  { TProgressForm }
 
  TProgressForm = class(TForm)
+  WaitLabel: TLabel;
   UpdateProgress: TLabel;
-  Panel1: TPanel;
+  MainPanel: TPanel;
+  procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
  private
 
@@ -58,6 +60,11 @@ begin
  Width:=MainForm.Width;
  Height:=MainForm.Height+MainForm.ImageDetails.Height;
  UpdateProgress.Caption:='';
+end;
+
+procedure TProgressForm.FormPaint(Sender: TObject);
+begin
+ MainForm.FileInfoPanelPaint(Sender);
 end;
 
 end.

@@ -43,14 +43,14 @@ type
   edJump: TEdit;
   edXOR: TEdit;
   HexDumpDisplay: TStringGrid;
-  Label1: TLabel;
-  Label2: TLabel;
+  JumpToLabel: TLabel;
+  XORLabel: TLabel;
   NavImages: TImageList;
-  Panel1: TPanel;
-  Panel2: TPanel;
+  ToolPanel: TPanel;
+  ScrollPanel: TPanel;
   pbProgress: TProgressBar;
   SaveFile: TSaveDialog;
-  ScrollBar1: TScrollBar;
+  ScrollBar: TScrollBar;
   procedure btnMoveDownClick(Sender: TObject);
   procedure btnMoveDownLineClick(Sender: TObject);
   procedure btnMoveToBottomClick(Sender: TObject);
@@ -58,7 +58,7 @@ type
   procedure btnMoveUpClick(Sender: TObject);
   procedure btnMoveUpLineClick(Sender: TObject);
   procedure edXORKeyPress(Sender: TObject; var Key: char);
-  procedure ScrollBar1Scroll(Sender: TObject; ScrollCode: TScrollCode;
+  procedure ScrollBarScroll(Sender: TObject; ScrollCode: TScrollCode;
    var ScrollPos: Integer);
   procedure btnSaveTextClick(Sender: TObject);
   procedure DisplayHex(start: Cardinal);
@@ -122,10 +122,10 @@ begin
  //Show the hex display
  DisplayHex(0);
  //Setup the scrollbar
- ScrollBar1.Max:=Length(buffer);
- ScrollBar1.Min:=0;
- ScrollBar1.Position:=0;
- ScrollBar1.Enabled:=True;
+ ScrollBar.Max:=Length(buffer);
+ ScrollBar.Min:=0;
+ ScrollBar.Position:=0;
+ ScrollBar.Enabled:=True;
 end;
 
 {                                                                              }
@@ -143,7 +143,7 @@ begin
  edJump.Enabled         :=True;
  edXOR.Enabled          :=True;
  btnSaveText.Enabled    :=True;
- ScrollBar1.Enabled     :=True;
+ ScrollBar.Enabled     :=True;
  //Empty the grid
  HexDumpDisplay.RowCount:=1;
 end;
@@ -191,7 +191,7 @@ end;
 {                                                                              }
 { Procedure to run when the scroll bar moves                                   }
 {                                                                              }
-procedure THexDumpForm.ScrollBar1Scroll(Sender: TObject; ScrollCode: TScrollCode;
+procedure THexDumpForm.ScrollBarScroll(Sender: TObject; ScrollCode: TScrollCode;
  var ScrollPos: Integer);
 begin
  //Just move the display on to the position dictated by the scroll bar
@@ -313,7 +313,7 @@ begin
  //Ensure the start address is on a 16-byte boundary
  start:=(start div $10)*$10;
  //And the scroll bar
- ScrollBar1.Position:=start;
+ ScrollBar.Position:=start;
  //Make sure there are the appropriate number of rows
  HexDumpDisplay.RowCount:=rows+1; //+1 is the header
  //Start at line 0

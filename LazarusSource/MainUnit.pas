@@ -51,24 +51,46 @@ type
   { TMainForm }
 
   TMainForm = class(TForm)
-   cb_private: TCheckBox;
-   cb_ownerwrite: TCheckBox;
-   cb_ownerread: TCheckBox;
-   cb_ownerlocked: TCheckBox;
-   cb_ownerexecute: TCheckBox;
-   cb_publicread: TCheckBox;
-   cb_publicwrite: TCheckBox;
-   cb_publicexecute: TCheckBox;
+   cb_C64_c: TCheckBox;
+   cb_C64_l: TCheckBox;
+   cb_DFS_l: TCheckBox;
+   cb_ADFS_pubp: TCheckBox;
+   cb_ADFS_ownw: TCheckBox;
+   cb_ADFS_ownr: TCheckBox;
+   cb_ADFS_ownl: TCheckBox;
+   cb_ADFS_owne: TCheckBox;
+   cb_ADFS_pubr: TCheckBox;
+   cb_ADFS_pubw: TCheckBox;
+   cb_ADFS_pube: TCheckBox;
+   C64AttributeLabel: TLabel;
    ed_title: TEdit;
-   ed_filenamesearch: TEdit;
-   ed_filetypesearch: TEdit;
-   ed_lengthsearch: TEdit;
+   FilenameLabel: TLabel;
    icons: TImageList;
    FileImages: TImageList;
+   StateIcons: TImageList;
+   lb_FileName: TLabel;
+   menuFileSearch: TMenuItem;
+   ADFSAttrPanel: TPanel;
+   DFSAttrPanel: TPanel;
+   C64AttrPanel: TPanel;
+   DFSAttributeLabel: TLabel;
+   FilenamePanel: TPanel;
+   FiletypePanel: TPanel;
+   ExecAddrPanel: TPanel;
+   LoadAddrPanel: TPanel;
+   LengthPanel: TPanel;
+   DirTitlePanel: TPanel;
+   LocationPanel: TPanel;
+   CRC32Panel: TPanel;
+   ToolSplitter: TSplitter;
+   TimeStampPanel: TPanel;
+   ParentPanel: TPanel;
+   TextureTile: TImage;
+   MiscButtons: TImageList;
    imgCopy: TImage;
-   Label15: TLabel;
-   Label16: TLabel;
-   Label7: TLabel;
+   PubAttributeLabel: TLabel;
+   CRC32Label: TLabel;
+   OAAttributeLabel: TLabel;
    lb_CRC32: TLabel;
    Main_Menu: TMainMenu;
    ImageMenu: TMenuItem;
@@ -78,6 +100,7 @@ type
    menuHexDump: TMenuItem;
    menuFixADFS: TMenuItem;
    menuSplitDFS: TMenuItem;
+   btn_FileSearch: TToolButton;
    ToolsMenu: TMenuItem;
    menuSaveAsCSV: TMenuItem;
    menuRenameFile: TMenuItem;
@@ -96,16 +119,9 @@ type
    sb_Clipboard: TSpeedButton;
    DelayTimer: TTimer;
    ToolBarImages: TImageList;
-   Label10: TLabel;
-   Label14: TLabel;
-   Label8: TLabel;
-   Label9: TLabel;
    AddNewFile: TOpenDialog;
-   Panel1: TPanel;
    SaveImage: TSaveDialog;
-   sb_search: TSpeedButton;
-   searchresultscount: TLabel;
-   ToolBar1: TToolBar;
+   MainToolBar: TToolBar;
    btn_OpenImage: TToolButton;
    btn_SaveImage: TToolButton;
    btn_Delete: TToolButton;
@@ -123,35 +139,30 @@ type
    btn_download: TToolButton;
    ToolButton5: TToolButton;
    btn_About: TToolButton;
-   ToolPanel: TPanel;
    OpenImageFile: TOpenDialog;
    ExtractDialogue: TSaveDialog;
    DirList: TTreeView;
    FileInfoPanel: TPanel;
    img_FileType: TImage;
-   lb_FileName: TLabel;
-   Label1: TLabel;
    lb_FileType: TLabel;
-   Label3: TLabel;
-   Label2: TLabel;
+   FileTypeLabel: TLabel;
+   ExecAddrLabel: TLabel;
    lb_execaddr: TLabel;
    lb_loadaddr: TLabel;
-   Label6: TLabel;
+   LoadAddrLabel: TLabel;
    lb_timestamp: TLabel;
-   Label5: TLabel;
-   Label11: TLabel;
+   LengthLabel: TLabel;
+   TimestampLabel: TLabel;
    lb_length: TLabel;
    lb_Parent: TLabel;
-   Label12: TLabel;
+   ParentLabel: TLabel;
    lb_title: TLabel;
-   Label13: TLabel;
-   Label4: TLabel;
+   DirTitleLabel: TLabel;
+   LocationLabel: TLabel;
    lb_location: TLabel;
-   Label21: TLabel;
+   FileDetailsLabel: TLabel;
    ImageContentsPanel: TPanel;
    lb_contents: TLabel;
-   SearchPanel: TPanel;
-   lb_searchresults: TListBox;
    File_Menu: TPopupMenu;
    ExtractFile1: TMenuItem;
    RenameFile1: TMenuItem;
@@ -161,12 +172,13 @@ type
    NewDirectory1: TMenuItem;
    //Events - mouse clicks
    procedure btn_CloseImageClick(Sender: TObject);
+   procedure btn_FileSearchClick(Sender: TObject);
    procedure btn_FixADFSClick(Sender: TObject);
    procedure btn_ImageDetailsClick(Sender: TObject);
    procedure btn_NewDirectoryClick(Sender: TObject);
    procedure btn_SaveAsCSVClick(Sender: TObject);
    procedure btn_SplitDFSClick(Sender: TObject);
-   procedure ed_filenamesearchKeyPress(Sender: TObject; var Key: char);
+   procedure FileInfoPanelResize(Sender: TObject);
    procedure HexDumpSubItemClick(Sender: TObject);
    procedure lb_titleClick(Sender: TObject);
    procedure btn_NewImageClick(Sender: TObject);
@@ -178,8 +190,6 @@ type
    procedure btn_OpenImageClick(Sender: TObject);
    procedure sb_ClipboardClick(Sender: TObject);
    procedure btn_AboutClick(Sender: TObject);
-   procedure sb_searchClick(Sender: TObject);
-   procedure lb_searchresultsClick(Sender: TObject);
    procedure DirListDblClick(Sender: TObject);
    procedure AddFile1Click(Sender: TObject);
    //Events - TTreeView Drag & Drop
@@ -197,7 +207,6 @@ type
    //Events - Form
    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
    procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
-   procedure FormResize(Sender: TObject);
    procedure FormShow(Sender: TObject);
    procedure FormCreate(Sender: TObject);
    //Events - Other
@@ -209,8 +218,15 @@ type
    procedure DirListChange(Sender: TObject; Node: TTreeNode);
    procedure DirListEditing(Sender: TObject; Node: TTreeNode;
      var AllowEdit: Boolean);
+   procedure DirListCustomDraw(Sender: TCustomTreeView; const ARect: TRect;
+    var DefaultDraw: Boolean);
+   procedure DirListCustomDrawArrow(Sender: TCustomTreeView;
+    const ARect: TRect; ACollapsed: Boolean);
+   procedure DirListCustomDrawItem(Sender: TCustomTreeView; Node: TTreeNode;
+    State: TCustomDrawState; var DefaultDraw: Boolean);
    procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
     const Rect: TRect);
+   procedure FileInfoPanelPaint(Sender: TObject);
    //Misc
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure ImportFiles(NewImage: TDiscImage);
@@ -220,7 +236,6 @@ type
    procedure DisableControls;
    procedure ParseCommandLine(cmd: String);
    procedure ResetFileFields;
-   procedure ResetSearchFields;
    procedure ExtractFiles(ShowDialogue: Boolean);
    function GetImageFilename(dir,entry: Integer): String;
    function GetWindowsFilename(dir,entry: Integer): String;
@@ -243,10 +258,13 @@ type
    procedure AddFileToImage(filename: String;filedetails: TDirEntry;
                                buffer:TDIByteArray=nil); overload;
    procedure UpdateImageInfo;
+   procedure ArrangeFileDetails;
    procedure ReportError(error: String);
    function GetCopyMode(Shift: TShiftState): Boolean;
    function GetNodeAt(Y: Integer): TTreeNode;
    procedure UpdateProgress(Fupdate: String);
+   procedure TileCanvas(c: TCanvas);
+   procedure TileCanvas(c: TCanvas;rc: TRect); overload;
   private
    var
     //To keep track of renames
@@ -273,9 +291,11 @@ type
     ErrorReporting:Boolean;
     //Delay flag
     progsleep     :Boolean;
+    //Size of arrows in Directory Tree
+    arrowsize     :Integer;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
-    FileTypes: array[3..139] of String =
+    FileTypes: array[3..140] of String =
                               ('0E1','1A6','1AD','3FB','004','6A2','11D','18A',
                                '19B','68E','69A','69B','69C','69D','69E','102',
                                '108','132','190','191','194','195','196','690',
@@ -287,16 +307,25 @@ type
                                'BF8','C1D','C1E','C7D','C27','C32','C46','C85',
                                'CAE','CE5','D00','D01','D3C','D94','DB0','DDC',
                                'DEA','DFE','F7A','F7B','F7E','F7F','F9D','F9E',
-                               'F78','F79','F80','F83','F89','F91','FAE','FAF',
-                               'FB0','FB1','FB2','FB4','FB5','FC2','FC3','FC6',
-                               'FC8','FCA','FCC','FCD','FCE','FD3','FD4','FD6',
-                               'FD7','FDC','FE1','FE4','FE5','FE6','FEA','FEB',
-                               'FEC','FED','FF0','FF1','FF2','FF4','FF5','FF6',
-                               'FF7','FF8','FF9','FFA','FFB','FFC','FFD','FFE',
-                               'FFF');
+                               'F9F','F78','F79','F80','F83','F89','F91','FAE',
+                               'FAF','FB0','FB1','FB2','FB4','FB5','FC2','FC3',
+                               'FC6','FC8','FCA','FCC','FCD','FCE','FD3','FD4',
+                               'FD6','FD7','FDC','FE1','FE4','FE5','FE6','FEA',
+                               'FEB','FEC','FED','FF0','FF1','FF2','FF4','FF5',
+                               'FF6','FF7','FF8','FF9','FFA','FFB','FFC','FFD',
+                               'FFE','FFF');
     //To add more filetypes, increase the array, then ensure that 'riscoshigh'
     //(below) matches. Finally, make sure they are in the correct order in the
-    //two ImageList components: FullSizeTypes and FileImages
+    //ImageList components: FileImages
+    Applications: array[152..184] of String =
+                              ('!alarm','!boot','!chars','!closeup','!configure',
+                               '!dpingscan','!draw','!edit','!flasher','!fontprint',
+                               '!fonts','!help','!hform','!hopper','!maestro',
+                               '!netsurf','!omni','!paint','!printedit',
+                               '!printers','!puzzle','!resetboot','!routines',
+                               '!scicalc','!serialdev','!showscrap','!sparkfs',
+                               '!sparkfs1','!sparkfs2','!sparkfs3','!squash',
+                               '!system','!t1tofont');
     //
     //Windows extension - used to translate from RISC OS to Windows
     Extensions: array[1..42] of String =
@@ -315,7 +344,7 @@ type
     appicon     =   0;
     directory   =   1;
     directory_o =   2;
-    riscoshigh  = 139;
+    riscoshigh  = 140;
     //images 3 to 139 inclusive are the known filetypes, listed above
     loadexec    = riscoshigh+ 1; //RISC OS file with Load/Exec specified
     unknown     = riscoshigh+ 3; //RISC OS unknown filetype
@@ -326,9 +355,10 @@ type
     delfile     = riscoshigh+ 7; //D64/D71/D81 DEL file
     relfile     = riscoshigh+ 5; //D64/D71/D81 REL file
     cbmfile     = riscoshigh+ 5; //D64/D71/D81 CBM file
-    mmbdisc     = riscoshigh+ 8; //MMFS Disc with image
-    mmbdisclock = riscoshigh+ 9; //MMFS Locked disc
-    mmbdiscempt = riscoshigh+10; //MMFS Empty slot
+    mmbdisc     = riscoshigh+ 9; //MMFS Disc with image
+    mmbdisclock = riscoshigh+10; //MMFS Locked disc
+    mmbdiscempt = riscoshigh+11; //MMFS Empty slot
+    appstart    = riscoshigh+12; //Common application sprites
     //Icons for status bar - index into TImageList 'icons'
     changedicon   = 0;
     acornlogo     = 1;
@@ -343,7 +373,8 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.18.1';
+    ApplicationVersion = '1.05.19';
+   procedure AfterConstruction; override;
   end;
 
 var
@@ -354,7 +385,31 @@ implementation
 {$R *.lfm}
 
 uses
-  AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SplitDFSUnit;
+  AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SplitDFSUnit,SearchUnit;
+
+{------------------------------------------------------------------------------}
+//Rescale the form
+{------------------------------------------------------------------------------}
+procedure TMainForm.AfterConstruction;
+var
+ i: Integer;
+begin
+{
+See: http://zarko-gajic.iz.hr/delphi-high-dpi-road-ensuring-your-ui-looks-correctly/
+and https://wiki.lazarus.freepascal.org/High_DPI
+}
+ inherited;
+ if Screen.PixelsPerInch<>96 then //as I’m designing at 96 DPI
+ begin
+  //Status Bar
+  ImageDetails.Height:=Round(ImageDetails.Height*Screen.PixelsPerInch/96);
+  ImageDetails.Panels[0].Width:=ImageDetails.Height;
+  for i:=0 to -1+ImageDetails.Panels.Count do
+   ImageDetails.Panels[i].Width:=Round(ImageDetails.Panels[i].Width*Screen.PixelsPerInch/96);
+  MainToolBar.ImagesWidth:=Round(MainToolBar.ImagesWidth*Screen.PixelsPerInch/96);
+  //Can use TMonitor.PixelsPerInch to scale to a big monitor
+ end;
+end;
 
 {------------------------------------------------------------------------------}
 //Add a new file to the disc image
@@ -1132,7 +1187,7 @@ begin
   //Clear all the labels, and enable/disable the buttons
   ResetFileFields;
   //Clear the search fields
-  ResetSearchFields;
+  SearchForm.ResetSearchFields;
   //Change the application title (what appears on SHIFT+TAB, etc.)
   Caption:=ApplicationTitle;
   if title<>'' then Caption:=Caption+' - '+ExtractFileName(title);
@@ -1182,6 +1237,8 @@ begin
    menuSaveAsCSV.Enabled :=True;
    btn_CloseImage.Enabled:=True;
    menuCloseImage.Enabled:=True;
+   btn_FileSearch.Enabled:=True;
+   menuFileSearch.Enabled:=True;
    if Length(Image.FreeSpaceMap)>0 then
    begin
     btn_ImageDetails.Enabled:=True;
@@ -1192,12 +1249,6 @@ begin
     btn_FixADFS.Enabled:=True;
     menuFixADFS.Enabled:=True;
    end;
-   //Enable the search area
-   ed_filenamesearch.Enabled:=True;
-   ed_lengthsearch.Enabled  :=True;
-   ed_filetypesearch.Enabled:=True;
-   lb_searchresults.Enabled :=True;
-   sb_search.Enabled        :=True;
    //Enable the directory view
    DirList.Enabled:=True;
   end;
@@ -1240,6 +1291,118 @@ begin
   for i:=1 to 7 do ImageDetails.Panels[i].Text:='';
  //Update the status bar
  ImageDetails.Repaint;
+end;
+
+{------------------------------------------------------------------------------}
+//Re-arrange, and show/hide, the various elements in the File Details panel
+{------------------------------------------------------------------------------}
+procedure TMainForm.ArrangeFileDetails;
+var
+ cbpos: Integer;
+procedure ArrangeComponent(c,p: TControl;l: TLabel);
+begin
+ c.Visible:=l.Caption<>'';
+ if c.Visible then inc(cbpos);
+ c.Height :=l.Top+l.Height;
+ c.Top    :=p.Top+p.Height;
+end;
+begin
+ cbpos:=0;
+ //Show or hide the headers
+ ArrangeComponent(FilenamePanel ,FileDetailsLabel,lb_FileName); //Filename
+ ArrangeComponent(FileTypePanel ,FilenamePanel   ,lb_FileType); //Filetype
+ img_FileType.Top      :=lb_FileType.Top+lb_FileType.Height;
+ img_FileType.Width    :=DirList.ImagesWidth*2;
+ img_FileType.Height   :=DirList.ImagesWidth*2;
+ img_FileType.Left     :=(FileTypePanel.Width-img_FileType.Width)div 2;
+ FileTypePanel.Height  :=img_FileType.Top+img_FileType.Height;  //Filetype graphic
+ ArrangeComponent(ParentPanel   ,FileTypePanel   ,lb_Parent);   //Parent
+ ArrangeComponent(ExecAddrPanel ,ParentPanel     ,lb_execaddr); //Exec Address
+ ArrangeComponent(LoadAddrPanel ,ExecAddrPanel   ,lb_loadaddr); //Load Address
+ ArrangeComponent(LengthPanel   ,LoadAddrPanel   ,lb_length);   //Length
+ ArrangeComponent(TimestampPanel,LengthPanel     ,lb_timestamp);//Timestamp
+ ArrangeComponent(DirTitlePanel ,TimestampPanel  ,lb_title);    //Dir Title
+ ed_title.Top          :=lb_title.Top;
+ ArrangeComponent(LocationPanel ,DirTitlePanel   ,lb_location); //Location
+ ArrangeComponent(CRC32Panel    ,LocationPanel   ,lb_CRC32);    //CRC32
+ sb_Clipboard.Top      :=lb_CRC32.Top+lb_CRC32.Height;
+ sb_Clipboard.Width    :=DirList.ImagesWidth+5;
+ sb_Clipboard.Height   :=DirList.ImagesWidth+5;
+ sb_Clipboard.ImageWidth:=DirList.ImagesWidth+5;
+ sb_Clipboard.Left     :=(CRC32Panel.Width-sb_Clipboard.Width)div 2;
+ CRC32Panel.Height     :=sb_Clipboard.Top+sb_Clipboard.Height;  //Clipboard button
+ //Make the appropriate panel visible
+ //DFS and UEF
+ if(Image.FormatNumber>>4=diAcornDFS)
+ or(Image.FormatNumber>>4=diAcornUEF)then
+ begin
+  //Make it visible
+  if cbpos>0 then DFSAttrPanel.Visible:=True;
+  //Position it below the CRC32 section
+  DFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+  //Position the tick box inside
+  DFSAttributeLabel.Top:=0;
+  cb_DFS_l.Top:=DFSAttributeLabel.Top+DFSAttributeLabel.Height;
+  cb_DFS_l.Left:=(DFSAttrPanel.Width-cb_DFS_l.Width)div 2;
+  //And change the panel height to accomodate
+  DFSAttrPanel.Height:=cb_DFS_l.Top+cb_DFS_l.Height;
+ end;
+  //ADFS
+  if Image.FormatNumber>>4=diAcornADFS then
+  begin
+   //Make it visible
+   if cbpos>0 then ADFSAttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   ADFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside - Owner Access
+   OAAttributeLabel.Top:=0;
+   OAAttributeLabel.Left:=(ADFSAttrPanel.Width-OAAttributeLabel.Width)div 2;
+   cb_ADFS_ownw.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
+   cb_ADFS_ownr.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
+   cb_ADFS_ownl.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
+   cb_ADFS_owne.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
+   cbpos:=ADFSAttrPanel.Width div 4; //Equally space them
+   cb_ADFS_ownw.Left:=cbpos*0;
+   cb_ADFS_ownr.Left:=cbpos*1;
+   cb_ADFS_ownl.Left:=cbpos*2;
+   cb_ADFS_owne.Left:=cbpos*3;
+   //Position the ticks box inside - Public Access
+   PubAttributeLabel.Top:=cb_ADFS_ownw.Top+cb_ADFS_ownw.Height;
+   PubAttributeLabel.Left:=(ADFSAttrPanel.Width-PubAttributeLabel.Width)div 2;
+   cb_ADFS_pubw.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
+   cb_ADFS_pubr.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
+   cb_ADFS_pube.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
+   cb_ADFS_pubp.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
+   cb_ADFS_pubw.Left:=cbpos*0;
+   cb_ADFS_pubr.Left:=cbpos*1;
+   cb_ADFS_pube.Left:=cbpos*2;
+   cb_ADFS_pubp.Left:=cbpos*3;
+   //And change the panel height to accomodate
+   ADFSAttrPanel.Height:=cb_ADFS_pubw.Top+cb_ADFS_pubw.Height;
+   //Show/hide those not applicable for new/old directories
+   cb_ADFS_owne.Visible:=Image.FormatNumber mod $10<3;
+   cb_ADFS_pube.Visible:=Image.FormatNumber mod $10<3;
+   cb_ADFS_pubp.Visible:=Image.FormatNumber mod $10<3;
+  end;
+  //Commodore 64
+  if Image.FormatNumber>>4=diCommodore then
+  begin
+   //Make it visible
+   if cbpos>0 then C64AttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   C64AttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside
+   C64AttributeLabel.Top:=0;
+   cb_DFS_l.Top:=C64AttributeLabel.Top+C64AttributeLabel.Height;
+   cb_C64_c.Top:=0;
+   cb_C64_l.Top:=0;
+   //Equally space the boxes
+   cbpos:=C64AttrPanel.Width-cbpos div 2;
+   cb_C64_c.Left:=cbpos*0;
+   cb_C64_l.Left:=cbpos*1;
+   //And change the panel height to accomodate
+   C64AttrPanel.Height:=cb_C64_l.Top+cb_C64_l.Height;
+  end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1322,43 +1485,36 @@ begin
   //in the extra info. Otherwise is -1
   if Node.Parent<>nil then
    dir  :=TMyTreeNode(Node).ParentDir;
-  //Then, get the filename and filetype of the file...not directory
+  //Then, get the filename and filetype of the file...not root directory
   if dir>=0 then
   begin
    filename:=Image.Disc[dir].Entries[entry].Filename;
    //Attributes
    DoNotUpdate   :=True; //Make sure the event doesn't fire
-   cb_ownerwrite.Checked   :=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
-   cb_ownerread.Checked    :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-   cb_ownerlocked.Checked  :=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-   cb_ownerexecute.Checked :=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
-   cb_ownerexecute.Checked :=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
-   cb_publicwrite.Checked  :=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-   cb_publicread.Checked   :=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
-   cb_publicexecute.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
-   cb_private.Checked      :=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
-   //Enable whichever tickboxes are appropriate to the system
-   if (Image.FormatNumber div $10<3)      //DFS,ADFS and Commodore
-   or (Image.FormatNumber div $10=5) then //CFS
-    cb_ownerlocked.Visible   :=True;
-   cb_ownerexecute.Caption   :='Execute';
-   if Image.FormatNumber div $10=2 then   //Commodore
+   //DFS and UEF
+   if(Image.FormatNumber>>4=diAcornDFS)
+   or(Image.FormatNumber>>4=diAcornUEF)then
+    //Tick/untick it
+    cb_DFS_l.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+   //ADFS
+   if Image.FormatNumber>>4=diAcornADFS then
    begin
-    cb_ownerexecute.Visible  :=True;
-    cb_ownerexecute.Caption  :='Closed';
+    //Tick/untick them
+    cb_ADFS_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_ownr.Checked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_ownl.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_owne.Checked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_pubw.Checked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_pubr.Checked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_pube.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_pubp.Checked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
-   if Image.FormatNumber div $10=1 then   //ADFS
+   //Commodore 64
+   if Image.FormatNumber>>4=diCommodore then
    begin
-    cb_ownerwrite.Visible    :=True;
-    cb_ownerread.Visible     :=True;
-    cb_publicwrite.Visible   :=True;
-    cb_publicread.Visible    :=True;
-    if Image.FormatNumber mod $10<3 then //ADFS Old Directory
-    begin
-     cb_ownerexecute.Visible  :=True;
-     cb_publicexecute.Visible :=True;
-     cb_private.Visible       :=True;
-    end;
+    //Tick/untick them
+    cb_C64_l.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_C64_c.Checked:=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    DoNotUpdate   :=False;  //Re-enable the event firing
    //Filetype
@@ -1386,7 +1542,8 @@ begin
     if filename='' then
      filename:=Image.Disc[dir].Directory;
     //Pick up from the Node if it is an application or not
-    if Node.ImageIndex=appicon then
+    if(Node.ImageIndex=appicon)
+    or(Node.ImageIndex>=appstart)then
      filetype:='Application'
     else
      filetype:='Directory';
@@ -1457,10 +1614,11 @@ begin
     ft:=directory;
   end;
   //Create a purple background, as a transparent mask
-  img_FileType.Transparent:=True;
+{  img_FileType.Transparent:=True;
   img_FileType.Canvas.Pen.Color:=FileInfoPanel.Color;// $FF00FF;
   img_FileType.Canvas.Brush.Color:=FileInfoPanel.Color;// $FF00FF;
-  img_FileType.Canvas.Rectangle(0,0,img_FileType.Width,img_FileType.Height);
+  img_FileType.Canvas.Rectangle(0,0,img_FileType.Width,img_FileType.Height);}
+  img_FileType.Canvas.Draw(0,0,TextureTile.Picture.Bitmap);
   //Paint the picture onto it
 //  FileImages.GetBitmap(ft,img_FileType.Picture.Bitmap);
   R.Top:=0;
@@ -1534,6 +1692,7 @@ begin
     location:='Indirect address: 0x'+IntToHex(Image.RootAddress,8);
    lb_location.Caption:=location;
   end;
+  ArrangeFileDetails;
  end;
 end;
 
@@ -1569,7 +1728,7 @@ begin
     repeat
      inc(i)
     until (filetype=FileTypes[i])
-      or (i=High(FileTypes));
+      or (i=riscoshigh);//High(FileTypes));
     //Do we have a match? Make a note
     if filetype=FileTypes[i] then ft:=i;
    end;
@@ -1577,7 +1736,7 @@ begin
  end
  else
   //Is it a Commodore format?
-  if (Image.FormatNumber>=$20) and (Image.FormatNumber<=$2F) then
+  if Image.FormatNumber>>4=diCommodore then
   begin
    //Default is a PRG file
    ft:=prgfile;
@@ -1605,9 +1764,21 @@ begin
    //to a closed one
    ft:=directory;
   //If RISC OS, and an application
-  if Image.FormatNumber shr 4=1 then //ADFS only
+  if Image.FormatNumber>>4=diAcornADFS then //ADFS only
    if(Image.DirectoryType=1)OR(Image.DirectoryType=2)then //New or Big
-    if Node.Text[1]='!' then ft:=appicon;
+    if Node.Text[1]='!' then
+    begin
+     ft:=appicon; //Default icon for application
+     //Start of search - the applications constant array
+     i:=appstart-1;
+     //Just iterate through until we find a match, or get to the end
+     repeat
+      inc(i)
+     until(LowerCase(Node.Text)=Applications[i])
+       or (i=High(Applications));
+     //Do we have a match? Make a note
+     if LowerCase(Node.Text)=Applications[i] then ft:=i;
+    end;
   //If MMB
   if Image.FormatNumber>>4=6 then
   begin
@@ -1620,15 +1791,6 @@ begin
  Node.ImageIndex:=ft;
  //And ensure it stays selected
  Node.SelectedIndex:=Node.ImageIndex;
-end;
-
-{------------------------------------------------------------------------------}
-//Form is getting resized
-{------------------------------------------------------------------------------}
-procedure TMainForm.FormResize(Sender: TObject);
-begin
- if Height<634 then Height:=634; //Minimum height
- if Width<664  then Width:=664; //Minimum width
 end;
 
 {------------------------------------------------------------------------------}
@@ -1648,7 +1810,7 @@ begin
  //Reset the file details panel
  ResetFileFields;
  //Clear the search fields
- ResetSearchFields;
+ SearchForm.ResetSearchFields;
  //Clear the status bar
  UpdateImageInfo;
  //Reset the tracking variables
@@ -1693,6 +1855,7 @@ begin
  btn_NewDirectory.Enabled :=False;
  btn_SaveAsCSV.Enabled    :=False;
  btn_FixADFS.Enabled      :=False;
+ btn_FileSearch.Enabled   :=False;
  //Pop up Menu items
  ExtractFile1.Enabled     :=False;
  RenameFile1.Enabled      :=False;
@@ -1713,12 +1876,9 @@ begin
  menuNewDir.Enabled       :=False;
  menuAbout.Enabled        :=True;
  menuFixADFS.Enabled      :=False;
- //Disable the search area
- ed_filenamesearch.Enabled:=False;
- ed_lengthsearch.Enabled  :=False;
- ed_filetypesearch.Enabled:=False;
- lb_searchresults.Enabled :=False;
- sb_search.Enabled        :=False;
+ menuFileSearch.Enabled   :=False;
+ //Close the search window
+ SearchForm.Close;
  //Disable the directory view
  DirList.Enabled          :=False;
  //Reset the changed variable
@@ -1988,16 +2148,6 @@ begin
  imgCopy.Parent:=DirList;
  //Turn error reporting on
  ErrorReporting:=True;
-end;
-
-{------------------------------------------------------------------------------}
-//Highlight the file in the tree
-{------------------------------------------------------------------------------}
-procedure TMainForm.lb_searchresultsClick(Sender: TObject);
-begin
- //Is there one selected?
- if lb_searchresults.ItemIndex>=0 then
-  SelectNode(lb_searchresults.Items[lb_searchresults.ItemIndex]);
 end;
 
 {------------------------------------------------------------------------------}
@@ -2490,6 +2640,14 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Opens the file search window
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_FileSearchClick(Sender: TObject);
+begin
+ SearchForm.Show;
+end;
+
+{------------------------------------------------------------------------------}
 //Fix the ADFS Broken Directories
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_FixADFSClick(Sender: TObject);
@@ -2603,11 +2761,106 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//User has pressed return on a search edit field
+//Paint the Directory Tree
 {------------------------------------------------------------------------------}
-procedure TMainForm.ed_filenamesearchKeyPress(Sender: TObject; var Key: char);
+procedure TMainForm.DirListCustomDraw(Sender: TCustomTreeView;
+ const ARect: TRect; var DefaultDraw: Boolean);
 begin
- if Key=#13 then sb_SearchClick(Sender);
+ //Tile the tree
+ TileCanvas(Sender.Canvas,ARect);
+ //Set the height of the icons to match the font
+ if DirList.Items.Count>0 then
+  DirList.ImagesWidth:=DirList.Items[0].Height-3;
+ DefaultDraw:=True;
+end;
+
+{------------------------------------------------------------------------------}
+//Paint the Directory Tree - The state arrow to the left
+{------------------------------------------------------------------------------}
+procedure TMainForm.DirListCustomDrawArrow(Sender: TCustomTreeView;
+ const ARect: TRect; ACollapsed: Boolean);
+var
+ Index: Integer;
+ TV   : TTreeView;
+begin
+ if Sender is TTreeView then
+ begin
+  TV:=TTreeView(Sender);
+  if ACollapsed then Index:=1 else Index:=0;
+  TImageList(TV.StateImages).StretchDraw(TV.Canvas,Index,ARect);
+  arrowsize:=ARect.Width;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//Paint the Directory Tree - ensures the selected item is visible
+{------------------------------------------------------------------------------}
+procedure TMainForm.DirListCustomDrawItem(Sender: TCustomTreeView;
+ Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
+var
+ NodeRect: TRect;
+ indent,
+ arrowin : Integer;
+ TV      : TTreeView;
+begin
+ if Sender is TTreeView then
+ begin
+  TV:=TTreeView(Sender);
+  //Only concerned if it is selected
+  if cdsSelected in State then
+   with TV.Canvas do
+   begin
+    indent:=(Node.Level*TV.Indent)+TV.Indent+1;
+    //We'll 'claim' the draw
+    DefaultDraw := False;
+    if TMyTreeNode(Node).IsDir then
+    begin
+     NodeRect:=Node.DisplayRect(False);
+     //Draw the button
+     arrowin:=(NodeRect.Height-arrowsize)div 2;
+     NodeRect.Left:=NodeRect.Left+TV.Indent+arrowin;
+     NodeRect.Top:=NodeRect.Top+arrowin;
+     NodeRect.Width:=arrowsize;
+     NodeRect.Height:=arrowsize;
+     DirListCustomDrawArrow(Sender,NodeRect,not Node.Expanded);
+    end;
+    //Draw the Image
+    NodeRect:=Node.DisplayRect(False);
+    NodeRect.Left:=NodeRect.Left+indent;
+    NodeRect.Top:=NodeRect.Top+1;
+    NodeRect.Width:=TV.ImagesWidth;
+    NodeRect.Height:=NodeRect.Width;
+    TImageList(TV.Images).StretchDraw(TV.Canvas,Node.ImageIndex,NodeRect);
+    //Write out the text
+    NodeRect:=Node.DisplayRect(False);
+    NodeRect.Left:=NodeRect.Left+indent+TV.ImagesWidth+7;
+    NodeRect.Top:=NodeRect.Top+2;
+    Brush.Color:=TV.SelectionColor; //Background
+    Font.Color:=TV.SelectionFontColor; //Foreground
+    TextOut(NodeRect.Left,NodeRect.Top,Node.Text);
+   end;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//The File Info panel has been resized
+{------------------------------------------------------------------------------}
+procedure TMainForm.FileInfoPanelResize(Sender: TObject);
+begin
+ ArrangeFileDetails;
+end;
+
+{------------------------------------------------------------------------------}
+//Paint the panels
+{------------------------------------------------------------------------------}
+procedure TMainForm.FileInfoPanelPaint(Sender: TObject);
+begin
+ if Sender is TPanel then
+  TileCanvas(TPanel(Sender).Canvas); //for a TPanel
+ if Sender is TToolBar then
+  TileCanvas(TToolBar(Sender).Canvas); //for a TToolBar
+ if Sender is TForm then
+  TileCanvas(TForm(Sender).Canvas); //For a TForm
 end;
 
 {------------------------------------------------------------------------------}
@@ -2755,7 +3008,7 @@ var
  Ymovement,
  H,
  threshold : Integer;
- R         : TRect;
+ R,IR      : TRect;
  B         : TBitmap;
  Dst       : TTreeNode;
  copymode  : Boolean;
@@ -2805,20 +3058,27 @@ begin
     B.Height:=R.Height;
     //We need it transparent
     B.Transparent:=True;
-    B.TransparentColor:=clFuchsia;
+    B.TransparentColor:=clFuchsia; //This is treated a transparent
     B.Canvas.Brush.Color:=clFuchsia;
     B.Canvas.FillRect(Rect(0,0,R.Width,R.Height));
     //Put the file icon in
-    FileImages.Draw(B.Canvas,1,0,DraggedItem.ImageIndex);
+    IR.Top:=1;
+    IR.Left:=0;
+    IR.Width:=DirList.ImagesWidth;
+    IR.Height:=DirList.ImagesWidth;
+    //We need to scale the image, as it could be any size. The size is picked up
+    //from the DirList.ImagesWidth above.
+    FileImages.StretchDraw(B.Canvas,DraggedItem.ImageIndex,IR);
     //Set up the font
     B.Canvas.Font:=DirList.Font;
     B.Canvas.Font.Quality:=fqNonAntialiased; //Otherwise we get a purple 'shadow'
     B.Canvas.Font.Style:=[fsBold];
     //Centralise the text
     H:=B.Canvas.TextHeight(DraggedItem.Text);
-    B.Canvas.TextOut(Fileimages.Width+8,
-                    (Fileimages.Height-H)div 2,
-                     DraggedItem.Text);
+    //Again, we need to consult the DirList.ImagesWidth
+    B.Canvas.TextOut(DirList.ImagesWidth+8, //Place it 8px from the graphic
+                    (DirList.ImagesWidth-H)div 2, //And central vertically
+                     DraggedItem.Text);     //The actual text
     //Now create the new image
     ObjectDrag:=TImage.Create(DirList);
     ObjectDrag.Parent:=DirList;
@@ -3069,17 +3329,28 @@ begin
  if not DoNotUpdate then
  begin
   att:='';
-   //Attributes
-   if cb_ownerwrite.Checked       then att:=att+'W';
-   if cb_ownerread.Checked        then att:=att+'R';
-   if cb_ownerlocked.Checked      then att:=att+'L';
-   if cb_ownerexecute.Checked     then
-    if Image.FormatNumber shr 4=1 then att:=att+'E'
-                                  else att:=att+'C';
-   if cb_publicwrite.Checked      then att:=att+'w';
-   if cb_publicread.Checked       then att:=att+'r';
-   if cb_publicexecute.Checked    then att:=att+'e';
-   if cb_private.Checked          then att:=att+'P';
+   //Attributes - DFS and UEF
+   if(Image.FormatNumber>>4=diAcornDFS)
+   or(Image.FormatNumber>>4=diAcornUEF)then
+    if cb_DFS_l.Checked then att:=att+'L';
+   //Attributes - ADFS
+   if Image.FormatNumber>>4=diAcornADFS then
+   begin
+    if cb_ADFS_ownw.Checked then att:=att+'W';
+    if cb_ADFS_ownr.Checked then att:=att+'R';
+    if cb_ADFS_ownl.Checked then att:=att+'L';
+    if cb_ADFS_owne.Checked then att:=att+'E';
+    if cb_ADFS_pubw.Checked then att:=att+'w';
+    if cb_ADFS_pubr.Checked then att:=att+'r';
+    if cb_ADFS_pube.Checked then att:=att+'e';
+    if cb_ADFS_pubp.Checked then att:=att+'P';
+   end;
+   //Attributes - Commodore 64
+   if Image.FormatNumber>>4=diCommodore then
+   begin
+    if cb_C64_c.Checked then att:=att+'C';
+    if cb_C64_l.Checked then att:=att+'L';
+   end;
    if TMyTreeNode(DirList.Selected).IsDir then att:=att+'D';
    //Get the file path
    filepath:=GetFilePath(DirList.Selected);
@@ -3397,7 +3668,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ResetFileFields;
 begin
+ //Make sure that we don't fire off the tick box OnChange event
  DoNotUpdate         :=True;
+ //Blank the entries
  lb_FileName.Caption :='';
  lb_filetype.Caption :='';
  lb_loadaddr.Caption :='';
@@ -3406,78 +3679,34 @@ begin
  lb_timestamp.Caption:='';
  lb_parent.Caption   :='';
  lb_title.Caption    :='';
+ lb_location.Caption :='';
+ lb_CRC32.Caption    :='';
+ //Enable/Disable the Directory Title editing
  lb_title.Visible    :=True;
  ed_title.Visible    :=False;
  ed_title.Enabled    :=False;
- lb_location.Caption :='';
- lb_CRC32.Caption    :='';
+ //Blank the Filetype bitmap
  img_FileType.Picture.Bitmap:=nil;
  //Disable the access tick boxes
- cb_ownerwrite.Visible    :=False;
- cb_ownerread.Visible     :=False;
- cb_ownerlocked.Visible   :=False;
- cb_ownerexecute.Visible  :=False;
- cb_publicwrite.Visible   :=False;
- cb_publicread.Visible    :=False;
- cb_publicexecute.Visible :=False;
- cb_private.Visible       :=False;
+ ADFSAttrPanel.Visible:=False;
+ DFSAttrPanel.Visible :=False;
+ C64AttrPanel.Visible :=False;
  //And untick them
- cb_ownerwrite.Checked    :=False;
- cb_ownerread.Checked     :=False;
- cb_ownerlocked.Checked   :=False;
- cb_ownerexecute.Checked  :=False;
- cb_publicwrite.Checked   :=False;
- cb_publicread.Checked    :=False;
- cb_publicexecute.Checked :=False;
- cb_private.Checked       :=False;
- DoNotUpdate   :=False;
-end;
-
-{------------------------------------------------------------------------------}
-//Clear the search edit boxes
-{------------------------------------------------------------------------------}
-procedure TMainForm.ResetSearchFields;
-begin
- lb_searchresults.Clear;
- ed_filenamesearch.Text:='';
- ed_lengthsearch.Text:='';
- searchresultscount.Caption:='Number of results found: '+IntToStr(lb_searchresults.Count);
-end;
-
-{------------------------------------------------------------------------------}
-//Search for files
-{------------------------------------------------------------------------------}
-procedure TMainForm.sb_searchClick(Sender: TObject);
-var
- search : TDirEntry;
- results: TSearchResults;
- i      : Integer;
- line   : String;
-begin
- ResetDirEntry(search);
- SetLength(results,0);
- //Get the search criteria
- search.Filename:=ed_filenamesearch.Text;
- search.Filetype:=ed_filetypesearch.Text;
- //Validate that the length entered is a hex number or zero if not
- search.Length:=StrToIntDef('$'+ed_lengthsearch.Text,0);
- //Search for files
- results:=Image.FileSearch(search);
- //Clear the results
- lb_searchresults.Clear;
- //Now populate, if there is anything to add to it
- if Length(results)>0 then
-  for i:=0 to Length(results)-1 do
-  begin
-   //Create the text
-   line:=results[i].Parent+Image.DirSep+results[i].Filename;
-   //Remove any top bit set characters
-   RemoveTopBit(line);
-   //And list the result
-   lb_searchresults.Items.Add(line);
-  end;
- //And report how many results
- searchresultscount.Caption:='Number of results found: '+IntToStr(lb_searchresults.Count);
+ cb_ADFS_ownw.Checked:=False;
+ cb_ADFS_ownr.Checked:=False;
+ cb_ADFS_ownl.Checked:=False;
+ cb_ADFS_owne.Checked:=False;
+ cb_ADFS_pubw.Checked:=False;
+ cb_ADFS_pubr.Checked:=False;
+ cb_ADFS_pube.Checked:=False;
+ cb_ADFS_pubp.Checked:=False;
+ cb_DFS_l.Checked    :=False;
+ cb_C64_l.Checked    :=False;
+ cb_C64_c.Checked    :=False;
+ //Allow the OnChange to fire again
+ DoNotUpdate         :=False;
+ //Hide all the labels
+ ArrangeFileDetails;
 end;
 
 {------------------------------------------------------------------------------}
@@ -3545,10 +3774,16 @@ procedure TMainForm.ImageDetailsDrawPanel(StatusBar: TStatusBar;
  Panel: TStatusPanel; const Rect: TRect);
 var
  png: Byte;
+ imgRect: TRect;
 begin
+ //Set up the rectangle for the image - giving it 2px border
+ imgRect.Top:=Rect.Top+3;
+ imgRect.Left:=Rect.Left+3;
+ imgRect.Height:=Rect.Height-6;
+ imgRect.Width:=imgRect.Height;
  //First panel - we want to put the 'not saved' indicator here
  if (Panel.Index=0) and (HasChanged) then
-  icons.Draw(StatusBar.Canvas,Rect.Left+2,Rect.Top+2,changedicon);
+  icons.StretchDraw(StatusBar.Canvas,changedicon,imgRect);
  //Second panel - needs a logo
  if (Panel.Index=1) and (Panel.Text<>'') then
  begin
@@ -3568,10 +3803,21 @@ begin
    5: png:=acornlogo;     //Acorn logo for CFS
    6: png:=bbclogo;       //BBC Micro logo for MMFS
   end;
-  if png<>0 then icons.Draw(StatusBar.Canvas,Rect.Left+2,Rect.Top+2,png);
-  StatusBar.Canvas.Font:=StatusBar.Font;
-  StatusBar.Canvas.TextRect(Rect,Rect.Left+20,Rect.Top+2,Panel.Text);
+  Rect.Height:=Rect.Height-2;
+  if png<>0 then
+   icons.StretchDraw(StatusBar.Canvas,png,imgRect);
+  StatusBar.Canvas.TextRect(Rect,
+                            Rect.Left+imgRect.Width+5,
+                            Rect.Top+1,
+                            Panel.Text,
+                            StatusBar.Canvas.TextStyle);
  end;
+ if Panel.Index>1 then
+  StatusBar.Canvas.TextRect(Rect,
+                            Rect.Left+2,
+                            Rect.Top+1,
+                            Panel.Text,
+                            StatusBar.Canvas.TextStyle);
 end;
 
 {------------------------------------------------------------------------------}
@@ -3614,6 +3860,27 @@ procedure TMainForm.UpdateProgress(Fupdate: String);
 begin
  ProgressForm.UpdateProgress.Caption:=Fupdate;
  Application.ProcessMessages;
+end;
+
+{------------------------------------------------------------------------------}
+//Texture the form/components
+{------------------------------------------------------------------------------}
+procedure TMainForm.TileCanvas(c: TCanvas);
+var
+ rc: TRect;
+begin
+ rc:=Rect(0,0,c.Width,c.Height);
+ TileCanvas(c,rc);
+end;
+procedure TMainForm.TileCanvas(c: TCanvas;rc: TRect);
+var
+ b: TBrush;
+begin
+ b:=Tbrush.Create;
+ b.Bitmap:=TextureTile.Picture.Bitmap;
+ c.Brush :=b;
+ c.FillRect(rc);
+ b.Free;
 end;
 
 end.

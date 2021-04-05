@@ -25,7 +25,7 @@ interface
 
 uses
  Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ComCtrls,EditBtn,Buttons,
- StdCtrls,DiscImageUtils,DiscImage;
+ StdCtrls, ExtCtrls,DiscImageUtils,DiscImage;
 
 type
 
@@ -33,12 +33,14 @@ type
 
  TSplitDFSForm = class(TForm)
   DFSPages: TPageControl;
-  GroupBox1: TGroupBox;
-  GroupBox2: TGroupBox;
-  GroupBox3: TGroupBox;
-  GroupBox7: TGroupBox;
-  GroupBox8: TGroupBox;
-  GroupBox9: TGroupBox;
+  CombinePanel: TPanel;
+  SplitPanel: TPanel;
+  SplitSourceGroupBox: TGroupBox;
+  SplitDestGroupBox0: TGroupBox;
+  SplitDestGroupBox2: TGroupBox;
+  CombDestGroupBox: TGroupBox;
+  CombSource0GroupBox: TGroupBox;
+  CombSource2GroupBox: TGroupBox;
   Buttons: TImageList;
   lbDestSSD2: TLabel;
   lbSourceSSD0: TLabel;
@@ -71,6 +73,7 @@ type
   procedure sbSaveDestSSD0Click(Sender: TObject);
   procedure sbLoadSourceDSDClick(Sender: TObject);
   function IsImageValid(filename: String;dsd: Boolean): Boolean;
+  procedure SplitPanelPaint(Sender: TObject);
  private
 
  public
@@ -83,6 +86,8 @@ var
 implementation
 
 {$R *.lfm}
+
+uses MainUnit;
 
 { TSplitDFSForm }
 
@@ -416,6 +421,14 @@ begin
  TestImage.LoadFromFile(filename,false);
  Result:=(TestImage.FormatNumber shr 4=0)and(TestImage.DoubleSided=dsd);
  TestImage.Free;
+end;
+
+{------------------------------------------------------------------------------}
+//Paint my wagon
+{------------------------------------------------------------------------------}
+procedure TSplitDFSForm.SplitPanelPaint(Sender: TObject);
+begin
+ MainForm.FileInfoPanelPaint(Sender);
 end;
 
 end.

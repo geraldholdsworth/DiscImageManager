@@ -352,15 +352,22 @@ New or improved features
 Bug fixes
 * The timeout part of uncompressing files was not working, so this has been re-written.
 
-1.05.18.1 - 25th March 2021
----------------------------
+1.05.19 - 5th April 2021
+------------------------
 New or improved features
 * Filetype graphics changed, again, for higher resolution graphics.
 * Removed the second set of image lists and now just rely on the single list and scale as appropriate.
-* Figured out how to make all the panels a uniform colour.
+* Figured out how to make all the panels a uniform colour, then changed them so they are now textured.
+* Toolbar graphics changed, again, for higher resolution graphics. Some icons have changed completely.
+* Moved the File Search to a separate window, accessible via toolbar button or menu.
+* Re-arranged the File Details panel. Only fields with entries are shown.
+* Made the application 'High-DPI aware', so that, hopefully, the text and graphics grow and shrink as appropriate, as demanded by the OS.
+* Added a panel splitter between the Image Contents and File Details panels.
+* Reduced the size of the Image Contents and File Details title.
+* Image Contents has new directory arrows, and different colours for items selected.
 
 Bug fixes
-* Introduced a bug in the last version where loading an ADFS image, in most cases, left it in an infinite loop.
+* A bug was introduced in the last version where loading an ADFS image, in most cases, left it in an infinite loop.
 
 
 Platform History

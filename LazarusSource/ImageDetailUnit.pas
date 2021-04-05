@@ -37,17 +37,17 @@ type
   cbBootOption1: TComboBox;
   edDiscTitle0: TEdit;
   edDiscTitle1: TEdit;
-  Label6: TLabel;
-  Label7: TLabel;
+  DiscName0Label: TLabel;
+  CRC32Label: TLabel;
   lbCRC32: TLabel;
   lbBootOption0: TLabel;
-  Label8: TLabel;
+  DiscName1Label: TLabel;
   lbBootOption1: TLabel;
   pnSide0: TGroupBox;
-  Label1: TLabel;
-  Label2: TLabel;
-  Label3: TLabel;
-  Label4: TLabel;
+  FreeLabel: TLabel;
+  SystemLabel: TLabel;
+  DirectoryLabel: TLabel;
+  FileLabel: TLabel;
   Label5: TLabel;
   Legend: TPanel;
   colFree: TShape;
@@ -58,6 +58,7 @@ type
   btn_OK: TSpeedButton;
   procedure btn_CancelClick(Sender: TObject);
   procedure btn_OKClick(Sender: TObject);
+  procedure LegendPaint(Sender: TObject);
  private
 
  public
@@ -71,11 +72,18 @@ implementation
 
 {$R *.lfm}
 
+uses MainUnit;
+
 { TImageDetailForm }
 
 procedure TImageDetailForm.btn_OKClick(Sender: TObject);
 begin
  ModalResult:=mrOK;
+end;
+
+procedure TImageDetailForm.LegendPaint(Sender: TObject);
+begin
+ MainForm.FileInfoPanelPaint(Sender);
 end;
 
 procedure TImageDetailForm.btn_CancelClick(Sender: TObject);

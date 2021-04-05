@@ -27,7 +27,6 @@ uses
  Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ExtCtrls,Buttons;
 
 type
-
  { TNewImageForm }
 
  TNewImageForm = class(TForm)
@@ -43,6 +42,7 @@ type
   procedure ADFSClick(Sender: TObject);
   procedure btn_CancelClick(Sender: TObject);
   procedure btn_OKClick(Sender: TObject);
+  procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
   procedure MainFormatClick(Sender: TObject);
  private
@@ -57,6 +57,8 @@ var
 implementation
 
 {$R *.lfm}
+
+uses MainUnit;
 
 { TNewImageForm }
 
@@ -124,6 +126,12 @@ end;
 procedure TNewImageForm.btn_OKClick(Sender: TObject);
 begin
  ModalResult:=mrOK;
+end;
+
+//Texturise the form
+procedure TNewImageForm.FormPaint(Sender: TObject);
+begin
+ MainForm.FileInfoPanelPaint(Sender);
 end;
 
 end.
