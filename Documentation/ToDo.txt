@@ -12,6 +12,7 @@ General
  + Add in Sprite support - in progress.
  + Add in BBC Basic token support.
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
+* The initial directory arrow button does not appear when an entry is added to a new directory.
 
 Command Line
 none

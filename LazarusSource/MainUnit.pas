@@ -373,7 +373,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.19';
+    ApplicationVersion = '1.05.19.1';
    procedure AfterConstruction; override;
   end;
 
@@ -1708,7 +1708,8 @@ begin
  dir  :=TMyTreeNode(Node).ParentDir;
  entry:=Node.Index;
  //Are we ADFS?
- if (Image.FormatNumber>=$10) and (Image.FormatNumber<=$1F) then
+ if((Image.FormatNumber>=$10)and(Image.FormatNumber<=$1F))
+ and(Length(Image.Disc)>0)then
  begin
   //Default is a file with load and exec address
   ft:=loadexec;

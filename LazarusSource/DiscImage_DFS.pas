@@ -223,13 +223,13 @@ begin
     Result[s-mmbdisc].Entries[f-1].Attributes:='L'
    else
     Result[s-mmbdisc].Entries[f-1].Attributes:='';
-   //Load address
+   //Load address - need to multiply bits 16/17 by $55 to expand it to 8 bits
    Result[s-mmbdisc].Entries[f-1].LoadAddr:=
-      (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$0C)<<14))
+      (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$0C)<<14)*$55)
         +Read16b( ConvertDFSSector(diroff+$100+($08*ptr),s));
-   //Execution address
+   //Execution address - need to multiply bits 16/17 by $55 to expand it to 8 bits
    Result[s-mmbdisc].Entries[f-1].ExecAddr:=
-      (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$C0)<<10))
+      (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$C0)<<10)*$55)
       +  Read16b( ConvertDFSSector(diroff+$102+($08*ptr),s));
    //Length
    Result[s-mmbdisc].Entries[f-1].Length:=

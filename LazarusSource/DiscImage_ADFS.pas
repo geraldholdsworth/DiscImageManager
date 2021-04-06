@@ -1783,6 +1783,17 @@ begin
             (timestamp DIV $100000000);
         FDisc[dir].Entries[ptr].ExecAddr:=timestamp MOD $100000000;
        end;
+       //File imported from DFS, expand the tube address, if needed
+       if (FDisc[dir].Entries[ptr].LoadAddr>>16=$00FF)
+       and(FDisc[dir].Entries[ptr].ExecAddr>>16=$00FF)then
+       begin
+        FDisc[dir].Entries[ptr].LoadAddr:=
+                                (FDisc[dir].Entries[ptr].LoadAddr AND $0000FFFF)
+                                OR$FFFF0000;
+        FDisc[dir].Entries[ptr].ExecAddr:=
+                                (FDisc[dir].Entries[ptr].ExecAddr AND $0000FFFF)
+                                OR$FFFF0000;
+       end;
        //Is the file actually a directory?
        if Pos('D',file_details.Attributes)>0 then
        begin
