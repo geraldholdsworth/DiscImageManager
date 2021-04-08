@@ -25,7 +25,7 @@ interface
 
 uses
  Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Grids,ExtCtrls,Buttons,
- StdCtrls,ComCtrls,DiscImageUtils,Global;
+ StdCtrls,ComCtrls,DiscImageUtils,Global,StrUtils;
 
 type
 
@@ -44,6 +44,12 @@ type
   edXOR: TEdit;
   HexDumpDisplay: TStringGrid;
   JumpToLabel: TLabel;
+  BasicOutput: TMemo;
+  PageControl: TPageControl;
+  HexDump: TTabSheet;
+  BasicViewer: TTabSheet;
+  SpriteOutput: TScrollBox;
+  SpriteViewer: TTabSheet;
   XORLabel: TLabel;
   NavImages: TImageList;
   ToolPanel: TPanel;
@@ -77,8 +83,10 @@ type
    const Value: String);
   procedure HexDumpDisplayValidateEntry(sender: TObject; aCol, aRow: Integer;
    const OldValue: String; var NewValue: String);
+  function IsBasicFile: Boolean;
+  procedure DecodeBasicFile;
  private
-
+  basiclength     : Cardinal;
  public
   buffer          : TDIByteArray;
 
@@ -102,6 +110,7 @@ procedure THexDumpForm.FormShow(Sender: TObject);
 var
  c: Integer;
 begin
+ PageControl.ActivePage:=HexDump;
  //Set up the String Grid
  HexDumpDisplay.FixedCols:=1;
  HexDumpDisplay.FixedRows:=1;
@@ -325,14 +334,16 @@ begin
   //Clear the character column string
   chars:='';
   //Display the address in the first column - to 10 digits
-  HexDumpDisplay.Cells[0,line+1]:=IntToHex((start div $10)*$10,10);
+  if line+1<HexDumpDisplay.RowCount then
+   HexDumpDisplay.Cells[0,line+1]:=IntToHex((start div $10)*$10,10);
   //Go through the data just read in
   for ch:=0 to len-1 do
   begin
    //Display each one as hex - colours are dealt with elsewhere
-   HexDumpDisplay.Cells[ch+1,line+1]:=IntToHex(buffer[start+ch]XOR key,2);
+   if(ch+1<HexDumpDisplay.ColCount)and(line+1<HexDumpDisplay.RowCount)then
+    HexDumpDisplay.Cells[ch+1,line+1]:=IntToHex(buffer[start+ch]XOR key,2);
    //Add add to the character column
-   if (buffer[start+ch]XOR key>31) AND (buffer[start+ch]XOR key<127) then
+   if(buffer[start+ch]XOR key>31)AND(buffer[start+ch]XOR key<127)then
     chars:=chars+Chr(buffer[start+ch]XOR key) //Printable
    else
     chars:=chars+'.';                   //Not printable
@@ -340,13 +351,15 @@ begin
   //Are there more cells than data?
   if len<$10 then
    for ch:=len to $0F do
-    HexDumpDisplay.Cells[ch+1,line+1]:='';
+    if(ch+1<HexDumpDisplay.ColCount)and(line+1<HexDumpDisplay.RowCount)then
+     HexDumpDisplay.Cells[ch+1,line+1]:=' ';
   //Display the characters in the final coluumn
-  HexDumpDisplay.Cells[17,line+1]:=chars;
+  if line+1<HexDumpDisplay.RowCount then
+   HexDumpDisplay.Cells[17,line+1]:=chars;
   //And move onto the next line
   inc(line);
   inc(start,len);
- until (start>=Length(buffer)-1) //Continue until the end of the file
+ until (start-$10>=Length(buffer)-1) //Continue until the end of the file
  or (line+1=HexDumpDisplay.Height div HexDumpDisplay.DefaultRowHeight); //Or form
 end;
 
@@ -564,6 +577,204 @@ begin
  end
  else //Otherwise, change back to what it was before
   NewValue:=OldValue;
+end;
+
+{                                                                              }
+{ Analysis a file to see if it is a BASIC file or not                          }
+{                                                                              }
+function THexDumpForm.IsBasicFile: Boolean;
+var
+ ptr: Integer;
+begin
+ //It should start with 0x0D, then two bytes later should have a pointer to the
+ //next 0x0D, all the way to the end of the file.
+ Result:=False;
+ if buffer[0]=$0D then
+ begin
+  Result:=True;
+  ptr:=0;
+  // $0D is followed by two byte line number, then the line length
+  while(ptr+3<basiclength)and(Result)do
+  begin
+   // $FF marks the end of file, which doesn't always happen at the end
+   if(buffer[ptr+1]=$FF)and(buffer[ptr+3]<5) then
+    basiclength:=ptr+1 //So we truncate the file
+   else
+   begin
+    //Move onto the next pointer
+    inc(ptr,buffer[ptr+3]);
+    if buffer[ptr]<>$0D then Result:=False;
+   end;
+  end;
+ end;
+end;
+
+{                                                                              }
+{ Decodes a BBC BASIC file, or displays as text                                }
+{                                                                              }
+procedure THexDumpForm.DecodeBasicFile;
+var
+ ptr,
+ linenum : Integer;
+ linelen,
+ lineptr,
+ c,t,
+ basicver: Byte;
+ linetxt : String;
+ detok,
+ rem,
+ isbasic : Boolean;
+const
+ // $80 onwards, single token per keyword
+ tokens: array[0..127] of String = (
+  'AND'   ,'DIV'    ,'EOR'     ,'MOD'    ,'OR'       ,'ERROR' ,'LINE'    ,'OFF',
+  'STEP'  ,'SPC'    ,'TAB('    ,'ELSE'   ,'THEN'     ,'line'  ,'OPENIN'  ,'PTR',
+  'PAGE'  ,'TIME'   ,'LOMEM'   ,'HIMEM'  ,'ABS'      ,'ACS'   ,'ADVAL'   ,'ASC',
+  'ASN'   ,'ATN'    ,'BGET'    ,'COS'    ,'COUNT'    ,'DEG'   ,'ERL'     ,'ERR',
+  'EVAL'  ,'EXP'    ,'EXT'     ,'FALSE'  ,'FN'       ,'GET'   ,'INKEY'   ,'INSTR(',
+  'INT'   ,'LEN'    ,'LN'      ,'LOG'    ,'NOT'      ,'OPENUP','OPENOUT' ,'PI',
+  'POINT(','POS'    ,'RAD'     ,'RND'    ,'SGN'      ,'SIN'   ,'SQR'     ,'TAN',
+  'TO'    ,'TRUE'   ,'USR'     ,'VAL'    ,'VPOS'     ,'CHR$'  ,'GET$'    ,'INKEY$',
+  'LEFT$(','MID$('  ,'RIGHT$(' ,'STR$'   ,'STRING$(' ,'EOF'   ,'SUM'     ,'WHILE',
+  'CASE'  ,'WHEN'   ,'OF'      ,'ENDCASE','OTHERWISE','ENDIF' ,'ENDWHILE','PTR',
+  'PAGE'  ,'TIME'   ,'LOMEM'   ,'HIMEM'  ,'SOUND'    ,'BPUT'  ,'CALL'    ,'CHAIN',
+  'CLEAR' ,'CLOSE'  ,'CLG'     ,'CLS'    ,'DATA'     ,'DEF'   ,'DIM'     ,'DRAW',
+  'END'   ,'ENDPROC','ENVELOPE','FOR'    ,'GOSUB'    ,'GOTO'  ,'GCOL'    ,'IF',
+  'INPUT' ,'LET'    ,'LOCAL'   ,'MODE'   ,'MOVE'     ,'NEXT'  ,'ON'      ,'VDU',
+  'PLOT'  ,'PRINT'  ,'PROC'    ,'READ'   ,'REM'      ,'REPEAT','REPORT'  ,'RESTORE',
+  'RETURN','RUN'    ,'STOP'    ,'COLOUR' ,'TRACE'    ,'UNTIL' ,'WIDTH'   ,'OSCLI');
+ //Extended tokens, $C6 then $8E onwards
+ exttokens1: array[0..1] of String = ('SUM', 'BEAT');
+ //Extended tokens, $C7 then $8E onwards
+ exttokens2: array[0..17] of String = (
+  'APPEND','AUTO'    ,'CRUNCH'  ,'DELET','EDIT' ,'HELP',
+  'LIST'  ,'LOAD'    ,'LVAR'    ,'NEW'  ,'OLD'  ,'RENUMBER',
+  'SAVE'  ,'TEXTLOAD','TEXTSAVE','TWIN' ,'TWINO','INSTALL');
+ //Extended tokens, $C8 then $8E onwards
+ exttokens3: array[0..21] of String = (
+  'CASE' ,'CIRCLE','FILL'  ,'ORIGIN','PSET'   ,'RECT'   ,'SWAP','WHILE',
+  'WAIT' ,'MOUSE' ,'QUIT'  ,'SYS'   ,'INSTALL','LIBRARY','TINT','ELLIPSE',
+  'BEATS','TEMPO' ,'VOICES','VOICE' ,'STEREO' ,'OVERLAY');
+begin
+ basiclength:=Length(buffer);
+ //First we'll analyse the data to see if it is a BBC BASIC file
+ isbasic:=IsBasicFile;
+ //Our pointer into the file
+ ptr:=0;
+ //Clear the output container
+ BasicOutput.Clear;
+ //Is it a BBC BASIC file?
+ if isbasic then
+ begin
+  //BBC BASIC version
+  basicver:=1;
+  //Continue until the end of the file
+  while ptr+3<basiclength do
+  begin
+   //Read in the line
+   if buffer[ptr]=$0D then
+   begin
+    //Line number
+    linenum:=buffer[ptr+2]+buffer[ptr+1]<<8;
+    linetxt:=PadLeft(IntToStr(linenum),5)+' ';
+    //Line length
+    linelen:=buffer[ptr+3];
+    //Move our line pointer one
+    lineptr:=4;
+    //Whether to detokenise or not (i.e. within quotes or not)
+    detok:=True;
+    //Has a REM been issued?
+    rem:=False;
+    //While we are within bounds
+    while lineptr<linelen do
+    begin
+     //Get the next character
+     c:=buffer[ptr+lineptr];
+     //And move on
+     inc(lineptr);
+     //Is it a token?
+     if(c>$7F)and(detok)then
+     begin
+      //Is token a REM?
+      if c=$F4 then
+      begin
+       detok:=False;
+       rem:=True;
+      end;
+      //Set the BASIC version
+      if(c=$AD)or(c=$FF)then basicver:=2;
+      if(c=$CA)or(c=$CB)or(c=$CD)or(c=$CE)then basicver:=5;
+      //Normal token (BASIC I,II,III and IV)
+      if(c<$C6)or(c>$C8)then
+      begin
+       if c-$80<=High(tokens) then linetxt:=linetxt+tokens[c-$80];
+      end
+      else //Extended tokens (BASIC V)
+      begin
+       basicver:=5;
+       //Extended token number
+       t:=buffer[ptr+lineptr];
+       //Move on
+       inc(lineptr);
+       //Decode the token
+       if t>$8D then
+       begin
+        if c=$C6 then
+         if t-$8E<=High(exttokens1)then linetxt:=linetxt+exttokens1[t-$8E];
+        if c=$C7 then
+         if t-$8E<=High(exttokens2)then linetxt:=linetxt+exttokens2[t-$8E];
+        if c=$C8 then
+         if t-$8E<=High(exttokens3)then linetxt:=linetxt+exttokens3[t-$8E];
+       end;
+      end;
+      //Reset c
+      c:=0;
+     end;
+     //We can get control characters in BBC BASIC, but macOS can't deal with them
+     if c>31 then
+     begin
+      linetxt:=linetxt+Chr(c AND$7F);
+      //Do not detokenise within quotes
+      if(c=34)and(not rem)then detok:=not detok;
+     end;
+    end;
+    //Add the complete line to the output container
+    BasicOutput.Lines.Add(linetxt);
+    //And move onto the next line
+    inc(ptr,linelen);
+   end;
+  end;
+  linetxt:='';
+  case basicver of
+   1: linetxt:=' I';
+   2: linetxt:=' II';
+   3: linetxt:=' III';
+   4: linetxt:=' IV';
+   5: linetxt:=' V';
+  end;
+  BasicViewer.Caption:='BBC BASIC'+linetxt;
+ end
+ else
+ begin
+  BasicViewer.Caption:='Text File';
+  linetxt:='';
+  while ptr<Length(buffer) do
+  begin
+   c:=buffer[ptr];
+   inc(ptr);
+   //Can't deal with control characters on macOS
+   if(c>31)and(c<127)then linetxt:=linetxt+chr(c);
+   //New line
+   if c=$0A then
+   begin
+    BasicOutput.Lines.Add(linetxt);
+    linetxt:='';
+   end;
+  end;
+  //At the end, anything left then push to the output container
+  if linetxt<>'' then BasicOutput.Lines.Add(linetxt);
+ end;
+ BasicViewer.TabVisible:=True;
 end;
 
 end.

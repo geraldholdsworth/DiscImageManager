@@ -8,11 +8,8 @@ General
 * Application to application communications.
 * Duplicate files (i.e. like copy and rename into same directory) - just do this via file context menu, Image main menu and toolbar button.
 * Copy entire files onto clipboard? And then paste from clipboard?
-* When a file is double clicked, if it is a file that can be opened and displayed (e.g. text file), display it as such instead of a Hex Dump:
- + Add in Sprite support - in progress.
- + Add in BBC Basic token support.
+* Add in Sprite support to File Viewer - in progress.
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
-* The initial directory arrow button does not appear when an entry is added to a new directory.
 
 Command Line
 none

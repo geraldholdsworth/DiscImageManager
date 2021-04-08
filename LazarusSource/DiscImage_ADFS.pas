@@ -106,12 +106,14 @@ begin
      //These are the minimum we require to find the map
      if emuheader+dr_ptr+$40<GetDataLength then
      begin
-      secsize   :=1 shl ReadByte(dr_ptr+$00); //Sector size
+      secsize   :=1<<ReadByte(dr_ptr+$00); //Sector size
       idlen     :=ReadByte(dr_ptr+$04);       //idlen
-      bpmb      :=1 shl ReadByte(dr_ptr+$05); //Bits per map bit
+      bpmb      :=1<<ReadByte(dr_ptr+$05); //Bits per map bit
       nzones    :=ReadByte(dr_ptr+$09)
                  +ReadByte(dr_ptr+$2A)*$100;  //nzones is 2 bytes, for E+ and F+
       zone_spare:=Read16b(dr_ptr+$0A);        //Zone spare bits
+      rootfrag  :=Read32b(dr_ptr+$0C);        //Indirect address of root
+      root_size :=Read32b(dr_ptr+$10);        //Size of root
      end;
      //If there are more than 2 zones, we need the disc record size in bits
      if nzones>2 then
@@ -175,6 +177,17 @@ begin
       if FFormat<>$1F then inc(FFormat);
       FDirType:=2;
      end;
+     //Root address for old map
+     if FDirType=0 then
+     begin
+      root:=$200;
+      root_size:=1280;
+     end;
+     if(FDirType=1)and(not FMap)then
+     begin
+      root:=$400;
+      root_size:=2048;
+     end;
     end;
    end;
   end;
@@ -204,6 +217,7 @@ var
  dirchk,NewDirAtts  : Byte;
  validdir,validentry,
  endofentry         : Boolean;
+// dirbuffer          : TDIByteArray;
 const
  //Attributes - not to be confused with what is returned from OSFILE
  //See the function GetAttributes in DiscImageUtils
@@ -244,203 +258,221 @@ begin
  if FMap then
  begin
   //New Map, so the sector will be an internal disc address
-  if dirname=root_name then addr:=NewDiscAddrToOffset(0)
+  if dirname=root_name then addr:=NewDiscAddrToOffset(rootfrag)
   else addr:=NewDiscAddrToOffset(sector);
   //But we need it as an offset into the data
   if Length(addr)>0 then
+  begin
    sector:=addr[0].Offset;
+   dirsize:=0;
+   for amt:=0 to Length(addr)-1 do
+    inc(dirsize,addr[amt].Length);
+  end;
  end
- else sector:=sector*$100; //Is Old Map, so offset is just the sector * $100
- //Read in the directory header
- case FDirType of
-  0,1: //Old and New Directory
-  begin
-   StartSeq :=ReadByte(sector);        //Start Sequence Number to match with end
-   StartName:=ReadString(sector+1,-4); //Hugo or Nick
-   if FDirType=0 then //Old Directory
-   begin
-    numentrys:=47;                     //Number of entries per directory
-    dirsize  :=1280;                   //Directory size in bytes
-    tail     :=$35;                    //Size of directory tail
-   end;
-   if FDirType=1 then //New Directory
-   begin
-    numentrys:=77;                     //Number of entries per directory
-    dirsize  :=2048;                   //Directory size in bytes
-    tail     :=$29;                    //Size of directory tail
-   end;
-   entrys   :=$05;                     //Pointer to entries, from sector
-   entrysize:=$1A;                     //Size of each entry
-  end;
-  2:   //Big Directory
-  begin
-   StartSeq :=ReadByte(sector);         //Start sequence number to match with end
-   StartName:=ReadString(sector+$04,-4);//Should be SBPr
-   NameLen  :=Read32b(sector+$08);     //Length of directory name
-   dirsize  :=Read32b(sector+$0C);     //Directory size in bytes
-   numentrys:=Read32b(sector+$10);     //Number of entries in this directory
-   namesize :=Read32b(sector+$14);     //Size of the name heap in bytes
-   dirname  :=ReadString(sector+$1C,-NameLen);//Directory name
-   entrys   :=(($1C+NameLen+1+3)div 4)*4;         //Pointer to entries, from sector
-   tail     :=$08;                                //Size of directory tail
-   entrysize:=$1C;                                //Size of each entry
-   nameheap :=entrys+numentrys*entrysize;         //Offset of name heap
-  end;
- end;
- //Now we know the size of the directory, we can read in the tail
- tail:=dirsize-tail;
- //And mark it on the Free Space Map
- for amt:=sector to sector+dirsize do ADFSFillFreeSpaceMap(amt,$FD);
- //Not all of the tail is read in
- case FDirType of
-  0:
-  begin
-   dirtitle:=ReadString(sector+tail+$0E,-19);//Title of the directory
-   EndSeq  :=ReadByte(sector+tail+$2F);      //End sequence number to match with start
-   EndName :=ReadString(sector+tail+$30,-4); //Hugo or Nick
-   dirchk  :=ReadByte(sector+tail+$34);      //Directory Check Byte
-  end;
-  1:
-  begin
-   dirtitle:=ReadString(sector+tail+$06,-19);//Title of the directory
-   EndSeq  :=ReadByte(sector+tail+$23);      //End sequence number to match with start
-   EndName :=ReadString(sector+tail+$24,-4); //Hugo or Nick
-   dirchk  :=ReadByte(sector+tail+$28);      //Directory Check Byte
-  end;
-  2:
-  begin
-   EndName :=ReadString(sector+tail+$00,-4); //Should be oven
-   EndSeq  :=ReadByte(sector+tail+$04);      //End sequence number to match with start
-   dirtitle:=dirname;                        //Does not have a directory title
-   dirchk  :=ReadByte(sector+tail+$07);      //Directory Check Byte
-  end;
- end;
- //Save the directory title
- Result.Title:=dirtitle;
- //Check for broken directory
- //This can result in having a valid directory structure, but a broken directory
- //ADFS normally refuses to list broken directories, but we will list them anyway,
- //just marking the directory as broken and return an error code
- Result.ErrorCode:=0;
- if (EndSeq<>StartSeq) then
-  Result.ErrorCode:=Result.ErrorCode OR $01;
- if ((FDirType<2) and (StartName<>EndName)) then
-  Result.ErrorCode:=Result.ErrorCode OR $02;
- if ((FDirType=2) and ((StartName<>'SBPr') or (EndName<>'oven'))) then
-  Result.ErrorCode:=Result.ErrorCode OR $04;
- Result.Broken:=Result.ErrorCode<>$00;
- //Check for valid directory
- //We won't try and get the directory structure if it appears that it is invalid
- //Could just be that one of the names has got corrupt, but could be much worse
- validdir:=False;
- if((FDirType<2)and(StartName=EndName)and((StartName='Hugo')or(StartName='Nick')))
- or((FDirType=2)and(StartName='SBPr')and(EndName='oven'))then
-  validdir:=True;
- //Load the entries
- if validdir then
+ else
  begin
-  //Set up the array
-  SetLength(Result.Entries,0);
-  //Pointer to entry number - we'll use this later to find the end of the list
-  ptr:=0;
-  //Flag for a valid entry
-  validentry:=True;
-  while (ptr<numentrys) and (validentry) do
-  begin
-   //Offset to entry
-   offset:=sector+entrys+ptr*entrysize;
-   //Blank the entries
-   ResetDirEntry(Entry);
-   Entry.Parent:=pathname;
-   //Read in the entries
-   case FDirType of
-    0,1: //Old and New Directory
-     if ReadByte(offset)<>0 then //0 marks the end of the entries
-     begin
-      Entry.Filename :=ReadString(offset,-10,True);//Filename (including attributes for old)
-      Entry.LoadAddr :=Read32b(offset+$0A);  //Load Address (can be timestamp)
-      Entry.ExecAddr :=Read32b(offset+$0E);  //Execution Address (can be filetype)
-      Entry.Length   :=Read32b(offset+$12);  //Length in bytes
-      Entry.Sector   :=Read24b(offset+$16);  //How to find the file
-      temp:='';
-      //Old directories - attributes are in the filename's top bit
-      if FDirType=0 then
-      begin
-       endofentry:=False;
-       for amt:=0 to Length(Entry.Filename)-1 do
-       begin
-        if ord(Entry.Filename[amt+1])shr 7=1 then
-         temp:=temp+OldAtts[amt];
-        if ord(Entry.Filename[amt+1])AND$7F=$0D then endofentry:=True;
-        //Clear the top bit
-        if not endofentry then
-         Entry.Filename[amt+1]:=chr(ord(Entry.Filename[amt+1]) AND $7F)
-        else
-         Entry.Filename[amt+1]:=' ';
-       end;
-       RemoveSpaces(Entry.Filename);
-       //Reverse the attribute order to match actual ADFS
-       for amt:=Length(temp) downto 1 do
-        Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
-      end;
-      //New directories - attributes are separate, so filenames can have top bit set
-      if FDirType=1 then
-       NewDirAtts   :=ReadByte(offset+$19);  //Attributes will be disected with Big
-     end
-     else validentry:=False;
-    2: //Big Directory
+  sector:=sector*$100; //Is Old Map, so offset is just the sector * $100
+  SetLength(addr,1);
+  addr[0].Offset:=sector;
+  if FDirType=0 then addr[0].Length:=1280;
+  if FDirType=1 then addr[0].Length:=2048;
+  dirsize:=addr[0].Length;
+ end;
+ //Read the entire directory into a buffer
+{ if ExtractFragmentedData(addr,dirsize,dirbuffer) then
+ begin
+  sector:=0;}
+  //Read in the directory header
+  case FDirType of
+   0,1: //Old and New Directory
+   begin
+    StartSeq :=ReadByte(sector);        //Start Sequence Number to match with end
+    StartName:=ReadString(sector+1,-4); //Hugo or Nick
+    if FDirType=0 then //Old Directory
     begin
-     Entry.LoadAddr :=Read32b(offset+$00);  //Load Address
-     Entry.ExecAddr :=Read32b(offset+$04);  //Execution Address
-     Entry.Length   :=Read32b(offset+$08);  //Length in bytes
-     Entry.Sector   :=Read32b(offset+$0C);  //How to find file
-     NewDirAtts     :=Read32b(offset+$10);  //Attributes (as New)
-     NameLen        :=Read32b(offset+$14);  //Length of filename
-     NameOff        :=Read32b(offset+$18);  //Offset into heap of filename
-     Entry.Filename :=ReadString(sector+nameheap+NameOff,-NameLen); //Filename
+     numentrys:=47;                     //Number of entries per directory
+     dirsize  :=1280;                   //Directory size in bytes
+     tail     :=$35;                    //Size of directory tail
+    end;
+    if FDirType=1 then //New Directory
+    begin
+     numentrys:=77;                     //Number of entries per directory
+     dirsize  :=2048;                   //Directory size in bytes
+     tail     :=$29;                    //Size of directory tail
+    end;
+    entrys   :=$05;                     //Pointer to entries, from sector
+    entrysize:=$1A;                     //Size of each entry
+   end;
+   2:   //Big Directory
+   begin
+    StartSeq :=ReadByte(sector);         //Start sequence number to match with end
+    StartName:=ReadString(sector+$04,-4);//Should be SBPr
+    NameLen  :=Read32b(sector+$08);     //Length of directory name
+    dirsize  :=Read32b(sector+$0C);     //Directory size in bytes
+    numentrys:=Read32b(sector+$10);     //Number of entries in this directory
+    namesize :=Read32b(sector+$14);     //Size of the name heap in bytes
+    dirname  :=ReadString(sector+$1C,-NameLen);//Directory name
+    entrys   :=(($1C+NameLen+1+3)div 4)*4;         //Pointer to entries, from sector
+    tail     :=$08;                                //Size of directory tail
+    entrysize:=$1C;                                //Size of each entry
+    nameheap :=entrys+numentrys*entrysize;         //Offset of name heap
+   end;
+  end;
+  //Now we know the size of the directory, we can read in the tail
+  tail:=dirsize-tail;
+  //And mark it on the Free Space Map
+  for amt:=sector to sector+dirsize do ADFSFillFreeSpaceMap(amt,$FD);
+  //Not all of the tail is read in
+  case FDirType of
+   0:
+   begin
+    dirtitle:=ReadString(sector+tail+$0E,-19);//Title of the directory
+    EndSeq  :=ReadByte(sector+tail+$2F);      //End sequence number to match with start
+    EndName :=ReadString(sector+tail+$30,-4); //Hugo or Nick
+    dirchk  :=ReadByte(sector+tail+$34);      //Directory Check Byte
+   end;
+   1:
+   begin
+    dirtitle:=ReadString(sector+tail+$06,-19);//Title of the directory
+    EndSeq  :=ReadByte(sector+tail+$23);      //End sequence number to match with start
+    EndName :=ReadString(sector+tail+$24,-4); //Hugo or Nick
+    dirchk  :=ReadByte(sector+tail+$28);      //Directory Check Byte
+   end;
+   2:
+   begin
+    EndName :=ReadString(sector+tail+$00,-4); //Should be oven
+    EndSeq  :=ReadByte(sector+tail+$04);      //End sequence number to match with start
+    dirtitle:=dirname;                        //Does not have a directory title
+    dirchk  :=ReadByte(sector+tail+$07);      //Directory Check Byte
+   end;
+  end;
+  //Save the directory title
+  Result.Title:=dirtitle;
+  //Check for broken directory
+  //This can result in having a valid directory structure, but a broken directory
+  //ADFS normally refuses to list broken directories, but we will list them anyway,
+  //just marking the directory as broken and return an error code
+  Result.ErrorCode:=0;
+  if (EndSeq<>StartSeq) then
+   Result.ErrorCode:=Result.ErrorCode OR $01;
+  if ((FDirType<2) and (StartName<>EndName)) then
+   Result.ErrorCode:=Result.ErrorCode OR $02;
+  if ((FDirType=2) and ((StartName<>'SBPr') or (EndName<>'oven'))) then
+   Result.ErrorCode:=Result.ErrorCode OR $04;
+  Result.Broken:=Result.ErrorCode<>$00;
+  //Check for valid directory
+  //We won't try and get the directory structure if it appears that it is invalid
+  //Could just be that one of the names has got corrupt, but could be much worse
+  validdir:=False;
+  if((FDirType<2)and(StartName=EndName)and((StartName='Hugo')or(StartName='Nick')))
+  or((FDirType=2)and(StartName='SBPr')and(EndName='oven'))then
+   validdir:=True;
+  //Load the entries
+  if validdir then
+  begin
+   //Set up the array
+   SetLength(Result.Entries,0);
+   //Pointer to entry number - we'll use this later to find the end of the list
+   ptr:=0;
+   //Flag for a valid entry
+   validentry:=True;
+   while (ptr<numentrys) and (validentry) do
+   begin
+    //Offset to entry
+    offset:=sector+entrys+ptr*entrysize;
+    //Blank the entries
+    ResetDirEntry(Entry);
+    Entry.Parent:=pathname;
+    //Read in the entries
+    case FDirType of
+     0,1: //Old and New Directory
+      if ReadByte(offset)<>0 then //0 marks the end of the entries
+      begin
+       Entry.Filename :=ReadString(offset,-10,True);//Filename (including attributes for old)
+       Entry.LoadAddr :=Read32b(offset+$0A);  //Load Address (can be timestamp)
+       Entry.ExecAddr :=Read32b(offset+$0E);  //Execution Address (can be filetype)
+       Entry.Length   :=Read32b(offset+$12);  //Length in bytes
+       Entry.Sector   :=Read24b(offset+$16);  //How to find the file
+       temp:='';
+       //Old directories - attributes are in the filename's top bit
+       if FDirType=0 then
+       begin
+        endofentry:=False;
+        for amt:=0 to Length(Entry.Filename)-1 do
+        begin
+         if ord(Entry.Filename[amt+1])shr 7=1 then
+          temp:=temp+OldAtts[amt];
+         if ord(Entry.Filename[amt+1])AND$7F=$0D then endofentry:=True;
+         //Clear the top bit
+         if not endofentry then
+          Entry.Filename[amt+1]:=chr(ord(Entry.Filename[amt+1]) AND $7F)
+         else
+          Entry.Filename[amt+1]:=' ';
+        end;
+        RemoveSpaces(Entry.Filename);
+        //Reverse the attribute order to match actual ADFS
+        for amt:=Length(temp) downto 1 do
+         Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
+       end;
+       //New directories - attributes are separate, so filenames can have top bit set
+       if FDirType=1 then
+        NewDirAtts   :=ReadByte(offset+$19);  //Attributes will be disected with Big
+      end
+      else validentry:=False;
+     2: //Big Directory
+     begin
+      Entry.LoadAddr :=Read32b(offset+$00);  //Load Address
+      Entry.ExecAddr :=Read32b(offset+$04);  //Execution Address
+      Entry.Length   :=Read32b(offset+$08);  //Length in bytes
+      Entry.Sector   :=Read32b(offset+$0C);  //How to find file
+      NewDirAtts     :=Read32b(offset+$10);  //Attributes (as New)
+      NameLen        :=Read32b(offset+$14);  //Length of filename
+      NameOff        :=Read32b(offset+$18);  //Offset into heap of filename
+      Entry.Filename :=ReadString(sector+nameheap+NameOff,-NameLen); //Filename
+     end;
+    end;
+    RemoveControl(Entry.Filename);
+    //Attributes for New and Big
+    if FDirType>0 then
+    begin
+     temp:='';
+     for amt:=0 to 7 do
+      if IsBitSet(NewDirAtts,amt) then temp:=temp+NewAtts[amt];
+     //Reverse the attribute order to match actual ADFS
+     for amt:=Length(temp) downto 1 do
+      Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
+    end;
+    //If we have a valid entry then we can see if it is filetyped/datestamped
+    //and add it to the list
+    if validentry then
+    begin
+     //RISC OS - file may be datestamped and filetyped
+     ADFSCalcFileDate(Entry);
+     //Not a directory - default. Will be determined later
+     Entry.DirRef:=-1;
+     //Add to the result
+     SetLength(Result.Entries,Length(Result.Entries)+1);
+     Result.Entries[Length(Result.Entries)-1]:=Entry;
+     //Move on to next
+     inc(ptr);
     end;
    end;
-   RemoveControl(Entry.Filename);
-   //Attributes for New and Big
-   if FDirType>0 then
+   //Now we can run the directory check on DirCheckByte
+   //But only for New and Big Directories, optional for old (ignored if zero)
+   if ((FDirType=0) and (dirchk<>0)) or (FDirType>0) then
    begin
-    temp:='';
-    for amt:=0 to 7 do
-     if IsBitSet(NewDirAtts,amt) then temp:=temp+NewAtts[amt];
-    //Reverse the attribute order to match actual ADFS
-    for amt:=Length(temp) downto 1 do
-     Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
-   end;
-   //If we have a valid entry then we can see if it is filetyped/datestamped
-   //and add it to the list
-   if validentry then
-   begin
-    //RISC OS - file may be datestamped and filetyped
-    ADFSCalcFileDate(Entry);
-    //Not a directory - default. Will be determined later
-    Entry.DirRef:=-1;
-    //Add to the result
-    SetLength(Result.Entries,Length(Result.Entries)+1);
-    Result.Entries[Length(Result.Entries)-1]:=Entry;
-    //Move on to next
-    inc(ptr);
+    //This value is the check byte.
+    dircheck:=CalculateADFSDirCheck(sector);
+    //Compare with what is stored
+    if dirchk<>dircheck then
+    begin
+     //If different, just mark as broken directory
+     Result.Broken:=True;
+     Result.ErrorCode:=Result.ErrorCode OR $08;
+    end;
    end;
   end;
-  //Now we can run the directory check on DirCheckByte
-  //But only for New and Big Directories, optional for old (ignored if zero)
-  if ((FDirType=0) and (dirchk<>0)) or (FDirType>0) then
-  begin
-   //This value is the check byte.
-   dircheck:=CalculateADFSDirCheck(sector);
-   //Compare with what is stored
-   if dirchk<>dircheck then
-   begin
-    //If different, just mark as broken directory
-    Result.Broken:=True;
-    Result.ErrorCode:=Result.ErrorCode OR $08;
-   end;
-  end;
- end;
+// end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -477,6 +509,10 @@ end;
 Calculate the directory check byte
 -------------------------------------------------------------------------------}
 function TDiscImage.CalculateADFSDirCheck(sector:Cardinal): Byte;
+begin
+ Result:=CalculateADFSDirCheck(sector,nil);
+end;
+function TDiscImage.CalculateADFSDirCheck(sector:Cardinal;buffer:TDIByteArray): Byte;
 var
  dircheck,
  amt,
@@ -2781,10 +2817,9 @@ Extracts a file, filename contains complete path
 function TDiscImage.ExtractADFSFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- source        : Integer;
+ source,
  entry,dir,
- frag,dest,
- fragptr,len,
+ fragptr,
  filelen       : Cardinal;
  fragments     : TFragmentArray;
 begin
@@ -2799,25 +2834,39 @@ begin
   //FileExists returns a pointer to the file
   entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=fragptr div $10000;  //Top 16 bits - directory reference
-  //Make space to receive the file
   filelen:=FDisc[dir].Entries[entry].Length;
-  SetLength(buffer,filelen);
-  //Pointer into the fragment array
-  frag   :=0;
   //Get the starting position
   if not FMap then //Old Map
-   source:=FDisc[dir].Entries[entry].Sector*$100;
-  if FMap then //New Map
   begin
+   SetLength(fragments,1);
+   fragments[0].Offset:=FDisc[dir].Entries[entry].Sector*$100;
+   fragments[0].Length:=filelen;
+  end;
+  if FMap then //New Map
    //Get the fragment offsets of the file
    fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
-   //No fragments have been returned - we have an error
-   if Length(fragments)=0 then
-   begin
-    Result:=False;
-    exit;
-   end;
-  end;
+  Result:=ExtractFragmentedData(fragments,filelen,buffer);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Extracts data given fragments (New Map)
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractFragmentedData(fragments: TFragmentArray;
+                            filelen: Cardinal;var buffer: TDIByteArray):Boolean;
+var
+ dest,
+ len,
+ source,
+ frag   : Cardinal;
+begin
+ Result:=False;
+ //Pointer into the fragment array
+ frag   :=0;
+ //No fragments have been given - we have an error
+ if Length(fragments)>0 then
+ begin
+  SetLength(buffer,filelen);
   dest  :=0;      //Length pointer/Destination pointer
   len   :=filelen;//Amount of data to read in
   repeat
@@ -2832,14 +2881,14 @@ begin
    if dest+len>filelen then
     len:=filelen-dest;
    //Read the data into the buffer
-   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
+   ReadDiscData(source,len,0,buffer[dest]);
    //Move the size pointer on, by the amount read
    inc(dest,len);
    //Get the next block pointer
    inc(frag);
   until dest>=filelen; //Once we've reached the file length, we're done
+  Result:=True;
  end;
- Result:=True;
 end;
 
 {-------------------------------------------------------------------------------

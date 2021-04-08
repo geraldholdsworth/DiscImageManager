@@ -291,8 +291,6 @@ type
     ErrorReporting:Boolean;
     //Delay flag
     progsleep     :Boolean;
-    //Size of arrows in Directory Tree
-    arrowsize     :Integer;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..140] of String =
@@ -373,7 +371,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.05.19.1';
+    ApplicationVersion = '1.20';
    procedure AfterConstruction; override;
   end;
 
@@ -623,7 +621,7 @@ begin
   end;
  end;
  //First, if there is no selection, make one, or if multiple, select the root
- if (DirList.SelectionCount=0) OR (DirList.SelectionCount>1) then
+ if(DirList.SelectionCount=0)OR(DirList.SelectionCount>1)then
  begin
   DirList.ClearSelection;
   DirList.Items[0].Selected:=True;
@@ -634,8 +632,8 @@ begin
   if TMyTreeNode(DirList.Selected).IsDir then
   begin
    //Find out which side of a DFS disc it is
-   if  (Image.FormatNumber mod 2=1)
-   and (Image.FormatNumber shr 4=0) then //Only for DFS double sided
+   if (Image.FormatNumber mod 2=1)
+   and(Image.FormatNumber>>4=diAcornDFS)then //Only for DFS double sided
    //As with DFS we can only Add with the root selected, the index will be the side
     side:=DirList.Selected.Index
    else
@@ -659,8 +657,8 @@ begin
     //Does the filename contain the filetype?
     if ((Pos(',',importfilename)>0)
     or  (Pos('.',importfilename)>0))
-    and((Image.FormatNumber shr 4=1)      //ADFS
-    or  (Image.FormatNumber shr 4=2))then //Commodore
+    and((Image.FormatNumber>>4=diAcornADFS)      //ADFS
+    or  (Image.FormatNumber>>4=diCommodore))then //Commodore
     begin
      i:=Length(importfilename);
      while (importfilename[i]<>'.')and(importfilename[i]<>',')do dec(i);
@@ -673,14 +671,16 @@ begin
       if Copy(Extensions[index],4)=LowerCase(filetype) then
        filetype:=LeftStr(Extensions[index],3);
      //ADFS
-     if Image.FormatNumber shr 4=1 then
+     if Image.FormatNumber>>4=diAcornADFS then
      begin
       filetype:=IntToHex(StrToIntDef('$'+filetype,0),3);
       if filetype='000' then filetype:='';//None, so reset
      end;
     end;
     //ADFS, DFS & CFS only stuff
-    if((Image.FormatNumber<$20)or(Image.FormatNumber=$50))
+    if((Image.FormatNumber>>4=diAcornDFS)
+     or(Image.FormatNumber>>4=diAcornADFS)
+     or(Image.FormatNumber>>4=diAcornUEF))
     and(filename<>'')then
     begin
      //Is there an inf file?
@@ -716,12 +716,14 @@ begin
     attributes:=''; //Default
     if attr1='' then
     begin
-     if Image.FormatNumber shr 4=$1 then attributes:='WR';//Default for ADFS
-     if Image.FormatNumber shr 4=$3 then attributes:='C' ;//Default for Commodore
+     if Image.FormatNumber>>4=diAcornADFS then attributes:='WR';//Default for ADFS
+     if Image.FormatNumber>>4=diCommodore then attributes:='C' ;//Default for Commodore
     end;
     attributes:=attributes+GetAttributes(attr1,Image.FormatNumber shr 4);
     //Validate the filename (ADFS, DFS & CFS only)
-    if(Image.FormatNumber<$20)or(Image.FormatNumber=$50)then
+    if(Image.FormatNumber>>4=diAcornDFS)
+     or(Image.FormatNumber>>4=diAcornADFS)
+     or(Image.FormatNumber>>4=diAcornUEF)then
     begin
      //Remove any extraenous specifiers
      while (importfilename[4]=Image.DirSep) do
@@ -732,7 +734,9 @@ begin
      //Convert a Windows filename to a BBC filename
      WinToBBC(importfilename);
      //Check to make sure that a DFS directory hasn't been changed
-     if (Image.FormatNumber<$20) and (importfilename[2]='/') then
+     if((Image.FormatNumber>>4=diAcornDFS)
+      or(Image.FormatNumber>>4=diAcornADFS))
+     and(importfilename[2]='/')then
       importfilename[2]:=Image.DirSep;
      //Remove any spaces, unless it is a big directory
      if Image.DirectoryType<>2 then
@@ -746,7 +750,7 @@ begin
     NewFile.Attributes   :=attributes;
     NewFile.DirRef       :=-1; //Not a directory
     NewFile.ShortFileType:=filetype;
-    if Image.FormatNumber shr 4=1 then //Need the selected directory for ADFS
+    if Image.FormatNumber>>4=diAcornADFS then //Need the selected directory for ADFS
      if DirList.Selected.Text='$' then NewFile.Parent:='$'
      else
       NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
@@ -808,6 +812,7 @@ begin
  else
   TMyTreeNode(Result).ParentDir:=ParentNode.Index; //But may not be the only root
  TMyTreeNode(Result).IsDir:=dir;
+ DirList.Repaint;
  //And update the free space display
  UpdateImageInfo;
 end;
@@ -1027,23 +1032,31 @@ var
  inffile,
  imagefilename,
  windowsfilename: String;
- attributes     : Byte;
+ attributes,
+ hexlen         : Byte;
  t              : Integer;
 const
  adfsattr = 'RWELrwel';
 begin
+ hexlen:=8;
+ if Image.FormatNumber>>4=diAcornDFS then hexlen:=6;
  //DFS, ADFS and CFS only
- if(Image.FormatNumber shr 4<2)or(Image.FormatNumber shr 4=5)then
+ if(Image.FormatNumber>>4=diAcornDFS)
+ or(Image.FormatNumber>>4=diAcornADFS)
+ or(Image.FormatNumber>>4=diAcornUEF)then
  begin
   imagefilename:=Image.Disc[dir].Entries[entry].Filename;
   windowsfilename:=GetWindowsFilename(dir,entry);
+  //Add the root, if DFS and no directory specifier
+  if(Image.FormatNumber>>4=diAcornDFS)and(imagefilename[2]<>'.')then
+   imagefilename:=RightStr(Image.Disc[dir].Entries[entry].Parent,1)+'.'+imagefilename;
   //Put quotes round the filename if it contains a space
   if Pos(' ',imagefilename)>0 then imagefilename:='"'+imagefilename+'"';
   //Create the string
   inffile:=PadRight(LeftStr(imagefilename,12),12)+' '
-          +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8)+' '
-          +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8)+' '
-          +IntToHex(Image.Disc[dir].Entries[entry].Length,8);
+          +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+' '
+          +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+' '
+          +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen);
   //Create the attributes
   attributes:=$00;
   if(Image.FormatNumber shr 4=0)or(Image.FormatNumber shr 4=5)then //DFS and CFS
@@ -2706,6 +2719,7 @@ var
  entry    : Integer;
  filename,
  ext      : String;
+ hexlen   : Byte;
 begin
  //Remove the existing part of the original filename
  filename:=ExtractFileName(Image.Filename);
@@ -2716,6 +2730,8 @@ begin
  //Show the dialogue box
  if SaveCSV.Execute then
  begin
+  hexlen:=8;
+  if Image.FormatNumber>>4=diAcornDFS then hexlen:=6;
   //Show a progress message
   ProgressForm.Show;
   //Process the messages to close the file dialogue box
@@ -2733,9 +2749,9 @@ begin
     //write out each entry
     WriteLine(F,'"'+Image.Disc[dir].Entries[entry].Parent+'","'
                    +Image.Disc[dir].Entries[entry].Filename+'","'
-                   +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8)+'","'
-                   +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8)+'","'
-                   +IntToHex(Image.Disc[dir].Entries[entry].Length,8)+'","'
+                   +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+'","'
+                   +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+'","'
+                   +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen)+'","'
                    +Image.Disc[dir].Entries[entry].Attributes+'","'
                    +Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent
                                     +Image.DirSep
@@ -2789,7 +2805,6 @@ begin
   TV:=TTreeView(Sender);
   if ACollapsed then Index:=1 else Index:=0;
   TImageList(TV.StateImages).StretchDraw(TV.Canvas,Index,ARect);
-  arrowsize:=ARect.Width;
  end;
 end;
 
@@ -2799,10 +2814,11 @@ end;
 procedure TMainForm.DirListCustomDrawItem(Sender: TCustomTreeView;
  Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
 var
- NodeRect: TRect;
+ NodeRect : TRect;
  indent,
- arrowin : Integer;
- TV      : TTreeView;
+ arrowin,
+ arrowsize: Integer;
+ TV       : TTreeView;
 begin
  if Sender is TTreeView then
  begin
@@ -2813,16 +2829,25 @@ begin
    begin
     indent:=(Node.Level*TV.Indent)+TV.Indent+1;
     //We'll 'claim' the draw
-    DefaultDraw := False;
-    if TMyTreeNode(Node).IsDir then
+    DefaultDraw:=False;
+    if(TMyTreeNode(Node).IsDir)and(Node.HasChildren)then
     begin
      NodeRect:=Node.DisplayRect(False);
      //Draw the button
+     arrowsize:=DirList.ExpandSignSize;
+     {$IFDEF Darwin}
+     dec(arrowsize); //For some reason macOS size is 1px smaller
+     {$ENDIF}
+     //Centralise it
      arrowin:=(NodeRect.Height-arrowsize)div 2;
-     NodeRect.Left:=NodeRect.Left+TV.Indent+arrowin;
+     //Adjust the lefthand position to accomodate the arrow
+     NodeRect.Left:=NodeRect.Left+indent+arrowin-NodeRect.Height-1;
+     //And the top
      NodeRect.Top:=NodeRect.Top+arrowin;
+     //Set the size
      NodeRect.Width:=arrowsize;
      NodeRect.Height:=arrowsize;
+     //And call the OnCustomDrawArrow procedure
      DirListCustomDrawArrow(Sender,NodeRect,not Node.Expanded);
     end;
     //Draw the Image
@@ -3524,6 +3549,12 @@ begin
       HexDump[index].buffer[i]:=buffer[i];
      //And show it
      HexDump[index].Show;
+     //Is it a BASIC file, or a text viewable file?
+     if(Image.Disc[dir].Entries[entry].ShortFileType='FFB')
+     or(Image.Disc[dir].Entries[entry].ShortFileType='FFF')
+     or(Image.Disc[dir].Entries[entry].ShortFileType='FEB')
+     or(HexDump[index].IsBasicFile)then
+      HexDump[index].DecodeBasicFile;
     end;
    end;
   end;

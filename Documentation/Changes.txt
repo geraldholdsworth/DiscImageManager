@@ -369,14 +369,23 @@ New or improved features
 Bug fixes
 * A bug was introduced in the last version where loading an ADFS image, in most cases, left it in an infinite loop.
 
-1.05.20 - 
-------------------------
+1.20 - 8th April 2021
+---------------------
 New or improved features
-* Expands a file's load and execution address, when imported from DFS to ADFS, from 00FFxxxx to FFFFxxxx.
+* Change the version numbering. We are now at 1.20, from 1.05.19.
+* Expands a file's load and execution address, when imported from DFS to ADFS, from FFxxxx to FFFFxxxx.
+* When exporting a file, the inf file now has variable length hex addresses depending on the source filing system.
+* When exporting an image's contents as a CSV, the hex addresses are now variable length, as per inf format.
+* Hex Dump is now File Viewer.
+* Show Hex Dump in the context menu is now Show File Contents.
+* File Viewer will now show text, obey or BBC BASIC files as text on a separate tab.
+* When exporting a file from DFS, which does not have a directory specifier, the root is added to the filename in the inf file.
 
 Bug fixes
 * Introduced a bug in 1.05.16 where the DFS load and execution addresses were 03xxxx instead of FFxxxx.
 * Loading a DFS image, then creating a new ADFS S image caused the application to crash.
+* The File Viewer did not always display the last line in the Hex Dump view.
+* The initial directory arrow button did not appear when an entry is added to a new directory.
 
 
 Platform History

@@ -502,10 +502,10 @@ begin
   WriteByte(FDisc[side].Entries[i].Sector  and $FF,
                              ConvertDFSSector(s+$107+$08*(c+1),side));
   //Extra bits for Load,Execution,Length and Start Sector
-  t:=((Integer(FDisc[side].Entries[i].Sector)  and   $300) shr  8) //bits 0,1
-   OR((Integer(FDisc[side].Entries[i].LoadAddr)and $30000) shr 14) //bits 2,3
-   OR((Integer(FDisc[side].Entries[i].Length  )and $30000) shr 12) //bits 4,5
-   OR((Integer(FDisc[side].Entries[i].ExecAddr)and $30000) shr 10);//bits 6,7
+  t:=((Integer(FDisc[side].Entries[i].Sector)  and   $300)>> 8) //bits 0,1
+   OR((Integer(FDisc[side].Entries[i].LoadAddr)and $30000)>>14) //bits 2,3
+   OR((Integer(FDisc[side].Entries[i].Length  )and $30000)>>12) //bits 4,5
+   OR((Integer(FDisc[side].Entries[i].ExecAddr)and $30000)>>10);//bits 6,7
   WriteByte(t,               ConvertDFSSector(s+$106+$08*(c+1),side));
  end;
 end;

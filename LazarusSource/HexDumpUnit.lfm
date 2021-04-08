@@ -14,207 +14,265 @@ object HexDumpForm: THexDumpForm
   OnShow = FormShow
   Position = poMainFormCenter
   LCLVersion = '2.0.12.0'
-  object HexDumpDisplay: TStringGrid
+  object PageControl: TPageControl
     Left = 0
-    Height = 604
-    Top = 32
-    Width = 603
-    Align = alClient
-    AlternateColor = clCream
-    AutoAdvance = aaNone
-    BorderStyle = bsNone
-    Color = 15790320
-    ColCount = 18
-    DefaultColWidth = 25
-    FixedColor = 16753991
-    Font.Height = -11
-    Font.Name = 'Courier New'
-    ParentFont = False
-    RowCount = 1
-    ScrollBars = ssNone
-    TabOrder = 0
-    TitleFont.Height = -11
-    TitleFont.Name = 'Courier New'
-    TitleFont.Style = [fsBold]
-    OnGetCellHint = HexDumpDisplayGetCellHint
-    OnKeyPress = HexDumpDisplayKeyPress
-    OnPrepareCanvas = HexDumpDisplayPrepareCanvas
-    OnSelectCell = HexDumpDisplaySelectCell
-    OnSetEditText = HexDumpDisplaySetEditText
-    OnValidateEntry = HexDumpDisplayValidateEntry
-  end
-  object ToolPanel: TPanel
-    Left = 0
-    Height = 32
+    Height = 636
     Top = 0
     Width = 635
-    Align = alTop
-    ClientHeight = 32
-    ClientWidth = 635
-    TabOrder = 1
-    object JumpToLabel: TLabel
-      Left = 8
-      Height = 16
-      Top = 8
-      Width = 55
-      Caption = 'Jump To:'
-      ParentColor = False
+    ActivePage = SpriteViewer
+    Align = alClient
+    Images = MainForm.ToolBarImages
+    ImagesWidth = 16
+    TabIndex = 2
+    TabOrder = 0
+    object HexDump: TTabSheet
+      Caption = 'Hex Dump'
+      ClientHeight = 606
+      ClientWidth = 629
+      ImageIndex = 14
+      object HexDumpDisplay: TStringGrid
+        Left = 0
+        Height = 574
+        Top = 32
+        Width = 597
+        Align = alClient
+        AlternateColor = clCream
+        AutoAdvance = aaNone
+        BorderStyle = bsNone
+        Color = 15527148
+        ColCount = 18
+        DefaultColWidth = 25
+        FixedColor = 16753991
+        Font.Height = -11
+        Font.Name = 'Courier New'
+        ParentFont = False
+        RowCount = 1
+        ScrollBars = ssNone
+        TabOrder = 0
+        TitleFont.Height = -11
+        TitleFont.Name = 'Courier New'
+        TitleFont.Style = [fsBold]
+        OnGetCellHint = HexDumpDisplayGetCellHint
+        OnKeyPress = HexDumpDisplayKeyPress
+        OnPrepareCanvas = HexDumpDisplayPrepareCanvas
+        OnSelectCell = HexDumpDisplaySelectCell
+        OnSetEditText = HexDumpDisplaySetEditText
+        OnValidateEntry = HexDumpDisplayValidateEntry
+      end
+      object ToolPanel: TPanel
+        Left = 0
+        Height = 32
+        Top = 0
+        Width = 629
+        Align = alTop
+        BevelOuter = bvNone
+        ClientHeight = 32
+        ClientWidth = 629
+        TabOrder = 1
+        object JumpToLabel: TLabel
+          Left = 8
+          Height = 16
+          Top = 8
+          Width = 55
+          Caption = 'Jump To:'
+          ParentColor = False
+        end
+        object edJump: TEdit
+          Left = 72
+          Height = 24
+          Top = 4
+          Width = 96
+          Alignment = taCenter
+          AutoSize = False
+          Font.Height = -13
+          Font.Name = 'Courier New'
+          MaxLength = 10
+          ParentFont = False
+          TabOrder = 0
+          Text = '0000000000'
+        end
+        object btnSaveText: TSpeedButton
+          Left = 174
+          Height = 32
+          Hint = 'Save as Text File'
+          Top = 0
+          Width = 32
+          Flat = True
+          Images = ButtonImages
+          ImageIndex = 1
+          OnClick = btnSaveTextClick
+        end
+        object XORLabel: TLabel
+          Left = 208
+          Height = 16
+          Top = 8
+          Width = 55
+          Caption = 'XOR key:'
+          ParentColor = False
+        end
+        object edXOR: TEdit
+          Left = 272
+          Height = 24
+          Top = 4
+          Width = 32
+          Alignment = taCenter
+          AutoSize = False
+          Enabled = False
+          Font.Height = -13
+          Font.Name = 'Courier New'
+          MaxLength = 2
+          ParentFont = False
+          TabOrder = 1
+          Text = '00'
+        end
+        object pbProgress: TProgressBar
+          Left = 304
+          Height = 28
+          Top = 0
+          Width = 327
+          Color = clBlue
+          ParentColor = False
+          Smooth = True
+          Step = 1
+          TabOrder = 2
+          Visible = False
+        end
+      end
+      object ScrollPanel: TPanel
+        Left = 597
+        Height = 574
+        Top = 32
+        Width = 32
+        Align = alRight
+        BevelOuter = bvNone
+        ClientHeight = 574
+        ClientWidth = 32
+        TabOrder = 2
+        object btnMoveUp: TSpeedButton
+          Left = 0
+          Height = 32
+          Hint = 'Move Up A Page'
+          Top = 32
+          Width = 32
+          Align = alTop
+          Flat = True
+          Images = NavImages
+          ImageIndex = 5
+          OnClick = btnMoveUpClick
+        end
+        object btnMoveDown: TSpeedButton
+          Left = 0
+          Height = 32
+          Hint = 'Move Down A Page'
+          Top = 510
+          Width = 32
+          Align = alBottom
+          Flat = True
+          Images = NavImages
+          ImageIndex = 1
+          OnClick = btnMoveDownClick
+        end
+        object btnMoveDownLine: TSpeedButton
+          Left = 0
+          Height = 32
+          Hint = 'Move Down A Line'
+          Top = 478
+          Width = 32
+          Align = alBottom
+          Flat = True
+          Images = NavImages
+          ImageIndex = 0
+          OnClick = btnMoveDownLineClick
+        end
+        object btnMoveUpLine: TSpeedButton
+          Left = 0
+          Height = 32
+          Hint = 'Move Up A Line'
+          Top = 64
+          Width = 32
+          Align = alTop
+          Flat = True
+          Images = NavImages
+          ImageIndex = 4
+          OnClick = btnMoveUpLineClick
+        end
+        object btnMoveToTop: TSpeedButton
+          Left = 0
+          Height = 32
+          Hint = 'Move To Top'
+          Top = 0
+          Width = 32
+          Align = alTop
+          Flat = True
+          Images = NavImages
+          ImageIndex = 3
+          OnClick = btnMoveToTopClick
+        end
+        object btnMoveToBottom: TSpeedButton
+          Left = 0
+          Height = 32
+          Hint = 'Move To Bottom'
+          Top = 542
+          Width = 32
+          Align = alBottom
+          Flat = True
+          Images = NavImages
+          ImageIndex = 2
+          OnClick = btnMoveToBottomClick
+        end
+        object ScrollBar: TScrollBar
+          Left = 0
+          Height = 382
+          Top = 96
+          Width = 24
+          Align = alClient
+          BorderSpacing.Right = 8
+          Enabled = False
+          Kind = sbVertical
+          Max = 0
+          PageSize = 0
+          TabOrder = 0
+          OnScroll = ScrollBarScroll
+        end
+      end
     end
-    object edJump: TEdit
-      Left = 72
-      Height = 24
-      Top = 4
-      Width = 96
-      Alignment = taCenter
-      AutoSize = False
-      Font.Height = -13
-      Font.Name = 'Courier New'
-      MaxLength = 10
-      ParentFont = False
-      TabOrder = 0
-      Text = '0000000000'
+    object BasicViewer: TTabSheet
+      Caption = 'BBC BASIC File'
+      ClientHeight = 606
+      ClientWidth = 629
+      TabVisible = False
+      object BasicOutput: TMemo
+        Left = 0
+        Height = 606
+        Top = 0
+        Width = 629
+        Align = alClient
+        BorderStyle = bsNone
+        Color = 15527148
+        Font.Name = 'Courier New'
+        Lines.Strings = (        )
+        ParentFont = False
+        ReadOnly = True
+        ScrollBars = ssAutoBoth
+        TabOrder = 0
+      end
     end
-    object btnSaveText: TSpeedButton
-      Left = 174
-      Height = 32
-      Hint = 'Save as Text File'
-      Top = 0
-      Width = 32
-      Flat = True
-      Images = ButtonImages
-      ImageIndex = 1
-      OnClick = btnSaveTextClick
-    end
-    object XORLabel: TLabel
-      Left = 208
-      Height = 16
-      Top = 8
-      Width = 55
-      Caption = 'XOR key:'
-      ParentColor = False
-    end
-    object edXOR: TEdit
-      Left = 272
-      Height = 24
-      Top = 4
-      Width = 32
-      Alignment = taCenter
-      AutoSize = False
-      Enabled = False
-      Font.Height = -13
-      Font.Name = 'Courier New'
-      MaxLength = 2
-      ParentFont = False
-      TabOrder = 1
-      Text = '00'
-    end
-    object pbProgress: TProgressBar
-      Left = 304
-      Height = 28
-      Top = 0
-      Width = 327
-      Color = clBlue
-      ParentColor = False
-      Smooth = True
-      Step = 1
-      TabOrder = 2
-      Visible = False
-    end
-  end
-  object ScrollPanel: TPanel
-    Left = 603
-    Height = 604
-    Top = 32
-    Width = 32
-    Align = alRight
-    ClientHeight = 604
-    ClientWidth = 32
-    TabOrder = 2
-    object btnMoveUp: TSpeedButton
-      Left = 1
-      Height = 32
-      Hint = 'Move Up A Page'
-      Top = 33
-      Width = 30
-      Align = alTop
-      Flat = True
-      Images = NavImages
-      ImageIndex = 5
-      OnClick = btnMoveUpClick
-    end
-    object btnMoveDown: TSpeedButton
-      Left = 1
-      Height = 32
-      Hint = 'Move Down A Page'
-      Top = 539
-      Width = 30
-      Align = alBottom
-      Flat = True
-      Images = NavImages
-      ImageIndex = 1
-      OnClick = btnMoveDownClick
-    end
-    object btnMoveDownLine: TSpeedButton
-      Left = 1
-      Height = 32
-      Hint = 'Move Down A Line'
-      Top = 507
-      Width = 30
-      Align = alBottom
-      Flat = True
-      Images = NavImages
-      ImageIndex = 0
-      OnClick = btnMoveDownLineClick
-    end
-    object btnMoveUpLine: TSpeedButton
-      Left = 1
-      Height = 32
-      Hint = 'Move Up A Line'
-      Top = 65
-      Width = 30
-      Align = alTop
-      Flat = True
-      Images = NavImages
-      ImageIndex = 4
-      OnClick = btnMoveUpLineClick
-    end
-    object btnMoveToTop: TSpeedButton
-      Left = 1
-      Height = 32
-      Hint = 'Move To Top'
-      Top = 1
-      Width = 30
-      Align = alTop
-      Flat = True
-      Images = NavImages
-      ImageIndex = 3
-      OnClick = btnMoveToTopClick
-    end
-    object btnMoveToBottom: TSpeedButton
-      Left = 1
-      Height = 32
-      Hint = 'Move To Bottom'
-      Top = 571
-      Width = 30
-      Align = alBottom
-      Flat = True
-      Images = NavImages
-      ImageIndex = 2
-      OnClick = btnMoveToBottomClick
-    end
-    object ScrollBar: TScrollBar
-      Left = 1
-      Height = 410
-      Top = 97
-      Width = 22
-      Align = alClient
-      BorderSpacing.Right = 8
-      Enabled = False
-      Kind = sbVertical
-      Max = 0
-      PageSize = 0
-      TabOrder = 0
-      OnScroll = ScrollBarScroll
+    object SpriteViewer: TTabSheet
+      Caption = 'Sprite Viewer'
+      ClientHeight = 606
+      ClientWidth = 629
+      TabVisible = False
+      object SpriteOutput: TScrollBox
+        Left = 0
+        Height = 606
+        Top = 0
+        Width = 629
+        HorzScrollBar.Page = 1
+        VertScrollBar.Page = 1
+        Align = alClient
+        BorderStyle = bsNone
+        TabOrder = 0
+      end
     end
   end
   object ButtonImages: TImageList
