@@ -387,6 +387,20 @@ Bug fixes
 * The File Viewer did not always display the last line in the Hex Dump view.
 * The initial directory arrow button did not appear when an entry is added to a new directory.
 
+1.21 - 21st April 2021
+----------------------
+New or improved features
+* Double clicking on a file, if it is recognised as a PNG, Bitmap or JPEG, is displayed alongside the Hex Dump of the same file.
+* Double clicking on a sprite file will display the sprites alongside the Hex Dump.
+* ADFS directories are now read in, in their entirety, and written back out, in their entirety using a directory cache. This gets around the issue of fractured ADFS directories which occur with Big Directories.
+* The reading and writing of bytes (single, double, triple and quadruple - i.e. 8 to 32 bit lengths) has been improved.
+* The extending of ADFS big directories has been disabled, for now. However, due to the using of a directory cache, the writing to such directories is now possible, as long as they do not need extending, which will return a fail.
+* Creating a new, blank, ADFS image will now title the disc with a default name 'DiscImgMgr'.
+
+Bug fixes
+* Introduced a bug in 1.20 where some ADFS (and, possibly, other formats) images failed to open.
+* The application has never been able to reliably read fractured directories from an Big Directory New Map image. A fix has been effected, which caused the above bug in the first place.
+
 
 Platform History
 ----------------

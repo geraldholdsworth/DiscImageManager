@@ -217,7 +217,7 @@ var
  dirchk,NewDirAtts  : Byte;
  validdir,validentry,
  endofentry         : Boolean;
-// dirbuffer          : TDIByteArray;
+ dirbuffer          : TDIByteArray;
 const
  //Attributes - not to be confused with what is returned from OSFILE
  //See the function GetAttributes in DiscImageUtils
@@ -258,7 +258,7 @@ begin
  if FMap then
  begin
   //New Map, so the sector will be an internal disc address
-  if dirname=root_name then addr:=NewDiscAddrToOffset(rootfrag)
+  if dirname=root_name then addr:=NewDiscAddrToOffset(rootfrag) {0}
   else addr:=NewDiscAddrToOffset(sector);
   //But we need it as an offset into the data
   if Length(addr)>0 then
@@ -279,15 +279,15 @@ begin
   dirsize:=addr[0].Length;
  end;
  //Read the entire directory into a buffer
-{ if ExtractFragmentedData(addr,dirsize,dirbuffer) then
+ if ExtractFragmentedData(addr,dirsize,dirbuffer) then
  begin
-  sector:=0;}
+  sector:=0;
   //Read in the directory header
   case FDirType of
    0,1: //Old and New Directory
    begin
-    StartSeq :=ReadByte(sector);        //Start Sequence Number to match with end
-    StartName:=ReadString(sector+1,-4); //Hugo or Nick
+    StartSeq :=ReadByte(sector,dirbuffer);        //Start Sequence Number to match with end
+    StartName:=ReadString(sector+1,-4,dirbuffer); //Hugo or Nick
     if FDirType=0 then //Old Directory
     begin
      numentrys:=47;                     //Number of entries per directory
@@ -305,13 +305,13 @@ begin
    end;
    2:   //Big Directory
    begin
-    StartSeq :=ReadByte(sector);         //Start sequence number to match with end
-    StartName:=ReadString(sector+$04,-4);//Should be SBPr
-    NameLen  :=Read32b(sector+$08);     //Length of directory name
-    dirsize  :=Read32b(sector+$0C);     //Directory size in bytes
-    numentrys:=Read32b(sector+$10);     //Number of entries in this directory
-    namesize :=Read32b(sector+$14);     //Size of the name heap in bytes
-    dirname  :=ReadString(sector+$1C,-NameLen);//Directory name
+    StartSeq :=ReadByte(sector,dirbuffer);         //Start sequence number to match with end
+    StartName:=ReadString(sector+$04,-4,dirbuffer);//Should be SBPr
+    NameLen  :=Read32b(sector+$08,dirbuffer);     //Length of directory name
+    dirsize  :=Read32b(sector+$0C,dirbuffer);     //Directory size in bytes
+    numentrys:=Read32b(sector+$10,dirbuffer);     //Number of entries in this directory
+    namesize :=Read32b(sector+$14,dirbuffer);     //Size of the name heap in bytes
+    dirname  :=ReadString(sector+$1C,-NameLen,dirbuffer);//Directory name
     entrys   :=(($1C+NameLen+1+3)div 4)*4;         //Pointer to entries, from sector
     tail     :=$08;                                //Size of directory tail
     entrysize:=$1C;                                //Size of each entry
@@ -326,24 +326,24 @@ begin
   case FDirType of
    0:
    begin
-    dirtitle:=ReadString(sector+tail+$0E,-19);//Title of the directory
-    EndSeq  :=ReadByte(sector+tail+$2F);      //End sequence number to match with start
-    EndName :=ReadString(sector+tail+$30,-4); //Hugo or Nick
-    dirchk  :=ReadByte(sector+tail+$34);      //Directory Check Byte
+    dirtitle:=ReadString(sector+tail+$0E,-19,dirbuffer);//Title of the directory
+    EndSeq  :=ReadByte(sector+tail+$2F,dirbuffer);      //End sequence number to match with start
+    EndName :=ReadString(sector+tail+$30,-4,dirbuffer); //Hugo or Nick
+    dirchk  :=ReadByte(sector+tail+$34,dirbuffer);      //Directory Check Byte
    end;
    1:
    begin
-    dirtitle:=ReadString(sector+tail+$06,-19);//Title of the directory
-    EndSeq  :=ReadByte(sector+tail+$23);      //End sequence number to match with start
-    EndName :=ReadString(sector+tail+$24,-4); //Hugo or Nick
-    dirchk  :=ReadByte(sector+tail+$28);      //Directory Check Byte
+    dirtitle:=ReadString(sector+tail+$06,-19,dirbuffer);//Title of the directory
+    EndSeq  :=ReadByte(sector+tail+$23,dirbuffer);      //End sequence number to match with start
+    EndName :=ReadString(sector+tail+$24,-4,dirbuffer); //Hugo or Nick
+    dirchk  :=ReadByte(sector+tail+$28,dirbuffer);      //Directory Check Byte
    end;
    2:
    begin
-    EndName :=ReadString(sector+tail+$00,-4); //Should be oven
-    EndSeq  :=ReadByte(sector+tail+$04);      //End sequence number to match with start
+    EndName :=ReadString(sector+tail+$00,-4,dirbuffer); //Should be oven
+    EndSeq  :=ReadByte(sector+tail+$04,dirbuffer);      //End sequence number to match with start
     dirtitle:=dirname;                        //Does not have a directory title
-    dirchk  :=ReadByte(sector+tail+$07);      //Directory Check Byte
+    dirchk  :=ReadByte(sector+tail+$07,dirbuffer);      //Directory Check Byte
    end;
   end;
   //Save the directory title
@@ -386,13 +386,13 @@ begin
     //Read in the entries
     case FDirType of
      0,1: //Old and New Directory
-      if ReadByte(offset)<>0 then //0 marks the end of the entries
+      if ReadByte(offset,dirbuffer)<>0 then //0 marks the end of the entries
       begin
-       Entry.Filename :=ReadString(offset,-10,True);//Filename (including attributes for old)
-       Entry.LoadAddr :=Read32b(offset+$0A);  //Load Address (can be timestamp)
-       Entry.ExecAddr :=Read32b(offset+$0E);  //Execution Address (can be filetype)
-       Entry.Length   :=Read32b(offset+$12);  //Length in bytes
-       Entry.Sector   :=Read24b(offset+$16);  //How to find the file
+       Entry.Filename :=ReadString(offset,-10,dirbuffer,True);//Filename (including attributes for old)
+       Entry.LoadAddr :=Read32b(offset+$0A,dirbuffer);  //Load Address (can be timestamp)
+       Entry.ExecAddr :=Read32b(offset+$0E,dirbuffer);  //Execution Address (can be filetype)
+       Entry.Length   :=Read32b(offset+$12,dirbuffer);  //Length in bytes
+       Entry.Sector   :=Read24b(offset+$16,dirbuffer);  //How to find the file
        temp:='';
        //Old directories - attributes are in the filename's top bit
        if FDirType=0 then
@@ -416,19 +416,19 @@ begin
        end;
        //New directories - attributes are separate, so filenames can have top bit set
        if FDirType=1 then
-        NewDirAtts   :=ReadByte(offset+$19);  //Attributes will be disected with Big
+        NewDirAtts   :=ReadByte(offset+$19,dirbuffer);  //Attributes will be disected with Big
       end
       else validentry:=False;
      2: //Big Directory
      begin
-      Entry.LoadAddr :=Read32b(offset+$00);  //Load Address
-      Entry.ExecAddr :=Read32b(offset+$04);  //Execution Address
-      Entry.Length   :=Read32b(offset+$08);  //Length in bytes
-      Entry.Sector   :=Read32b(offset+$0C);  //How to find file
-      NewDirAtts     :=Read32b(offset+$10);  //Attributes (as New)
-      NameLen        :=Read32b(offset+$14);  //Length of filename
-      NameOff        :=Read32b(offset+$18);  //Offset into heap of filename
-      Entry.Filename :=ReadString(sector+nameheap+NameOff,-NameLen); //Filename
+      Entry.LoadAddr :=Read32b(offset+$00,dirbuffer);  //Load Address
+      Entry.ExecAddr :=Read32b(offset+$04,dirbuffer);  //Execution Address
+      Entry.Length   :=Read32b(offset+$08,dirbuffer);  //Length in bytes
+      Entry.Sector   :=Read32b(offset+$0C,dirbuffer);  //How to find file
+      NewDirAtts     :=Read32b(offset+$10,dirbuffer);  //Attributes (as New)
+      NameLen        :=Read32b(offset+$14,dirbuffer);  //Length of filename
+      NameOff        :=Read32b(offset+$18,dirbuffer);  //Offset into heap of filename
+      Entry.Filename :=ReadString(sector+nameheap+NameOff,-NameLen,dirbuffer); //Filename
      end;
     end;
     RemoveControl(Entry.Filename);
@@ -462,7 +462,7 @@ begin
    if ((FDirType=0) and (dirchk<>0)) or (FDirType>0) then
    begin
     //This value is the check byte.
-    dircheck:=CalculateADFSDirCheck(sector);
+    dircheck:=CalculateADFSDirCheck(sector,dirbuffer);
     //Compare with what is stored
     if dirchk<>dircheck then
     begin
@@ -472,7 +472,7 @@ begin
     end;
    end;
   end;
-// end;
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -537,18 +537,18 @@ begin
  begin
   //Count the number of entries
   numentrys:=0;
-  while ReadByte(sector+$05+numentrys*$1A)<>0 do inc(numentrys);
+  while ReadByte(sector+$05+numentrys*$1A,buffer)<>0 do inc(numentrys);
   EndOfChk:=numentrys*$1A+$05;
  end;
  if FDirType=2 then  //Big Directory
  begin
   //Need to do some more calculation for the end of check figure
-  dirsize:=Read32b(sector+$0C);
+  dirsize:=Read32b(sector+$0C,buffer);
   tail:=dirsize-$08;
-  numentrys:=Read32b(sector+$10);
-  EndOfChk:=((($1C+Read32b(sector+$08)+1+3)div 4)*4)
+  numentrys:=Read32b(sector+$10,buffer);
+  EndOfChk:=((($1C+Read32b(sector+$08,buffer)+1+3)div 4)*4)
             +(numentrys*$1C)
-            +Read32b(sector+$14);
+            +Read32b(sector+$14,buffer);
  end;
  //This has virtually the same loop repeated 5 times - but it is less code to
  //do it like this, than a single loop with if...then conditions to determine
@@ -558,7 +558,7 @@ begin
  //Stage 1: All the whole words at the start of the directory are accumulated
  while amt+3<EndOfChk do
  begin
-  offset:=Read32b(sector+amt);
+  offset:=Read32b(sector+amt,buffer);
   dircheck:=offset XOR ROR13(dircheck);
   inc(amt,4);
  end;
@@ -566,7 +566,7 @@ begin
  //individually.
  while amt<EndOfChk do
  begin
-  offset:=ReadByte(sector+amt);
+  offset:=ReadByte(sector+amt,buffer);
   dircheck:=offset XOR ROR13(dircheck);
   inc(amt);
  end;
@@ -578,7 +578,7 @@ begin
  //very last word which is excluded as it contains the check byte.
  while amt+3<dirsize-4 do
  begin
-  offset:=Read32b(sector+amt);
+  offset:=Read32b(sector+amt,buffer);
   dircheck:=offset XOR ROR13(dircheck);
   inc(amt,4);
  end;
@@ -587,7 +587,7 @@ begin
  if FDirType=2 then
   while amt<dirsize-1 do
   begin
-   offset:=ReadByte(sector+amt);
+   offset:=ReadByte(sector+amt,buffer);
    dircheck:=offset XOR ROR13(dircheck);
    inc(amt);
   end;
@@ -714,6 +714,13 @@ begin
      //Add the zone of this fragment
      Result[i].Zone  :=fragid[i].Zone;
     end;
+   //Root indirect address
+   if(addr=rootfrag)and(Length(Result)>1)and(nzones>1)and(Result[0].Offset=sector*secsize)then
+   begin
+    for i:=1 to Length(Result) do
+     Result[i-1]:=Result[i];
+    SetLength(Result,Length(Result)-1);
+   end;
   end;
  end;
 end;
@@ -1122,6 +1129,8 @@ var
  t,mapsize: Integer;
  check    : Byte;
  dirid,att: String;
+const
+ disctitle='DiscImgMgr';
 begin
  //Blank everything
  ResetVariables;
@@ -1164,6 +1173,7 @@ begin
    root_size:=$800;           //Size of the root
   end;
   nzones:=1;                   //Number of zones (not required)
+  rootfrag:=root;
  end;
  if minor>3 then //New maps (E, E+, F, and F+)
  begin
@@ -1201,6 +1211,12 @@ begin
  begin
   //Old map FreeStart
   Write24b((root+root_size)div$100,$000);
+  //Disc title
+  for t:=0 to 9 do
+  begin
+   if t mod 2=0 then WriteByte(Ord(disctitle[t+1]),$0F7+(t div 2));
+   if t mod 2=1 then WriteByte(Ord(disctitle[t+1]),$1F6+(t div 2));
+  end;
   //Disc size
   Write24b(disc_size div$100,$0FC);
   //Checksum
@@ -1227,9 +1243,10 @@ begin
    WriteByte($07,bootmap+$09); //log2bpmb
    Write16b($0520,bootmap+$0E);//zone_spare
    if FDirType=1 then          //root
-    Write32b($00000203,bootmap+$10)
+    rootfrag:=$00000203
    else
-    Write32b($00000301,bootmap+$10);
+    rootfrag:=$00000301;
+   Write32b(rootfrag,bootmap+$10);
    //Allocation map
    WriteByte($02,bootmap+$40);
    if FDirType=2 then
@@ -1255,9 +1272,10 @@ begin
    WriteByte(nzones,$DC9);
    Write16b($0640,$DCA);//zone_spare
    if FDirType=1 then   //root
-    Write32b($00000209,$DCC)
+    rootfrag:=$00000209
    else
-    Write32b($00033801,$DCC);
+    rootfrag:=$00033801;
+   Write32b(rootfrag,$DCC);
    Write32b(disc_size,$DD0);
    if FDirType=2 then Write32b($00000001,$DEC); //format version (+)
    WriteByte(ByteCheckSum($C00,$200),$DFF);  //Checksum
@@ -1269,10 +1287,7 @@ begin
    WriteByte($04,bootmap+$07); //Density
    WriteByte($06,bootmap+$09); //log2bpmb
    Write16b($0640,bootmap+$0E);//zone_spare
-   if FDirType=1 then          //root
-    Write32b($00000209,bootmap+$10)
-   else
-    Write32b($00033801,bootmap+$10);
+   Write32b(rootfrag,bootmap+$10);//root
    //Allocation map - zone 0
    WriteByte($02,bootmap+$40);
    WriteByte($80,bootmap+$47);
@@ -1314,6 +1329,7 @@ begin
   WriteByte(nzones,bootmap+$0D);
   Write32b(disc_size,bootmap+$14);
   Write16b($4077,bootmap+$18);//disc id
+  for t:=0 to 9 do WriteByte(Ord(disctitle[t+1]),bootmap+$1A+t); //Disc title
   if FDirType=2 then // '+' only attributes
   begin
    Write32b($00000001,bootmap+$30);//format version
@@ -1482,7 +1498,7 @@ end;
 Write a file to ADFS image
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteADFSFile(var file_details:TDirEntry;var buffer:TDIByteArray;
-                    directory:Boolean=False;extend:Boolean=True): Integer;
+                    {directory:Boolean=False;}extend:Boolean=True): Integer;
 //Set directory to TRUE to ensure it doesn't get fragmented (New Map)
 //Set extend to FALSE to ensure that the ExtendDirectory is run (Big Directory)
 var
@@ -1511,7 +1527,7 @@ begin
  or((file_details.Filename='$')and(FDirType=2))then
   //Get the directory where we are adding it to, and make sure it exists
   if (FileExists(file_details.Parent,ref)) OR (file_details.Parent='$')
-  or ((file_details.Filename='$')and(FDirType=2)) then
+  {or ((file_details.Filename='$')and(FDirType=2))} then
   begin
    if file_details.filename<>'$' then
    begin
@@ -1588,7 +1604,7 @@ begin
         //Continue for all fragments or we found somewhere
        until (i=Length(fsfragments)) or (spacefound);
        //None were big enough, so we'll need to fragment the file
-       if(not spacefound)and(not directory)then //Only if not a directory
+       if(not spacefound){and(not directory)}then //Only if not a directory
        begin
         //Go through the fragments again
         i:=0;
@@ -1624,32 +1640,15 @@ begin
      if(spacefound)and(Length(fragments)>0)then
      begin
       Result:=-5;//Unknown error
-      //Counter into the data
-      ptr:=0;
-      //Set to true for now, if one of the writes fails, it will remain at False
-      success:=True;
-      //Go through the fragments and write them
-      for ref:=0 to Length(fragments)-1 do
-      begin
-       //Amount of data to write for this fragment
-       if fragments[ref].Length>Length(buffer)-ptr then
-        j:=Length(buffer)-ptr
-       else
-        j:=fragments[ref].Length;
-       //Write the data, return a true or false, ANDed with past results
-       success:=success AND WriteDiscData(fragments[ref].Offset,0,
-                                          buffer,
-                                          j,
-                                          ptr);
-       inc(ptr,fragments[ref].Length); //Next fragment of data
-      end;
+      //Write the data back to the image
+      success:=WriteFragmentedData(fragments,buffer);
       //Set this marker to the start of the first offset
       dest:=fragments[0].Offset;
      end;
      //If it wrote OK, then continue
      if success then
      begin
-      //Update the 'parent' address for the root
+{      //Update the 'parent' address for the root (this only ever gets here for big dirs)
       if file_details.Filename='$' then
       begin
        //Into the directory header
@@ -1660,9 +1659,9 @@ begin
        if nzones>1 then Write32b(fragid*$100,$DCC);
        //Update our root address
        root:=dest;
-      end;
+      end;}
       //Update the checksum, if it is a directory
-      if(Pos('D',file_details.Attributes)>0)or(file_details.filename='$')then
+      if(Pos('D',file_details.Attributes)>0){or(file_details.filename='$')}then
        if FDirType>0 then //New/Big Directory (Old Dir has zero for checksum)
         WriteByte(CalculateADFSDirCheck(dest),dest+(file_details.Length-1));
       //Now update the free space map
@@ -1866,6 +1865,40 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Write data to fragments
+-------------------------------------------------------------------------------}
+function TDiscImage.WriteFragmentedData(fragments: TFragmentArray;
+                    var buffer: TDIByteArray): Boolean;
+var
+ ptr,
+ ref,j : Cardinal;
+begin
+ Result:=False;
+ if Length(fragments)>0 then
+ begin
+  //Counter into the data
+  ptr:=0;
+  //Set to true for now, if one of the writes fails, it will remain at False
+  Result:=True;
+  //Go through the fragments and write them
+  for ref:=0 to Length(fragments)-1 do
+  begin
+   //Amount of data to write for this fragment
+   if fragments[ref].Length>Length(buffer)-ptr then
+    j:=Length(buffer)-ptr
+   else
+    j:=fragments[ref].Length;
+   //Write the data, return a true or false, ANDed with past results
+   Result:=Result AND WriteDiscData(fragments[ref].Offset,0,
+                                      buffer,
+                                      j,
+                                      ptr);
+   inc(ptr,fragments[ref].Length); //Next fragment of data
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
 Create a directory
 -------------------------------------------------------------------------------}
 function TDiscImage.CreateADFSDirectory(var dirname,parent,attributes: String): Integer;
@@ -1883,7 +1916,7 @@ var
 begin
  Result:=-3;//Directory already exists
  if (dirname='$') OR (parent='$') then //Creating the root
-  parentaddr:=root DIV $100
+  parentaddr:=rootfrag// DIV $100
  else
  begin
   FileExists(parent,ref);
@@ -2023,17 +2056,19 @@ end;
 {-------------------------------------------------------------------------------
 Update a directory catalogue
 -------------------------------------------------------------------------------}
-procedure TDiscImage.UpdateADFSCat(directory: String);
+procedure TDiscImage.UpdateADFSCat(directory: String;newname: String='');
 var
  dir,
  diraddr,
  ref,i,
  head,
  heapctr,
- tail      : Cardinal;
+ tail,
+ dirlen    : Cardinal;
  c,a       : Byte;
  temp      : String;
  fragments : TFragmentArray;
+ dirbuffer : TDIByteArray;
 const
  oldattr = 'RWLDErweP'+#00;
  newattr = 'RWLDrw';
@@ -2044,7 +2079,8 @@ begin
   if directory='$' then
   begin
    dir  :=0;
-   diraddr:=root;
+   if FMap then diraddr:=rootfrag
+   else diraddr:=root;
   end
   else
   begin
@@ -2053,127 +2089,159 @@ begin
   end;
   //Make the sector address a disc address
   if not FMap then
-   diraddr:=diraddr*$100 //Old map
+  begin //Old map
+   diraddr:=diraddr*$100; //This can be removed once working
+   //Create a fragment array
+   SetLength(fragments,1);
+   fragments[0].Offset:=diraddr; //Once the above line is removed, add the *$100 here
+   if FDirType=0 then fragments[0].Length:=$500;
+   if FDirType=1 then fragments[0].Length:=$800;
+   dirlen:=fragments[0].Length;
+  end
   else //New map
-  if directory<>'$' then //But not root, as this is given as direct
+  begin
+   //Get the fragments of the directory
+   fragments:=NewDiscAddrToOffset(diraddr);
+   if Length(fragments)=0 then exit;
+   dirlen:=0;
+   for i:=0 to Length(fragments)-1 do inc(dirlen,fragments[i].Length);
+   //This is redundant - can be removed once working
+   diraddr:=fragments[0].Offset;
+  end;
+  //Read in and cache the directory
+  if ExtractFragmentedData(fragments,dirlen,dirbuffer) then
+  begin
+   diraddr:=0; //This, and all following references to it, can be removed once working
+   //Update the directory title
+   temp:=FDisc[dir].Title+#$0D;
+   for i:=0 to 18 do
    begin
-    fragments:=NewDiscAddrToOffset(diraddr);
-    //Directories don't get fragmented
-    diraddr:=fragments[0].Offset;
+    //Padded with nulls
+    c:=$00;
+    if i<Length(temp) then c:=Ord(temp[i+1]);//AND$7F;
+    //Write the byte - Old and New only
+    if FDirType=0 then WriteByte(c AND$7F,diraddr+$4CB+$0E+i,dirbuffer);
+    if FDirType=1 then WriteByte(c,diraddr+$7D7+$06+i,dirbuffer);
    end;
-  //Update the directory title
-  temp:=FDisc[dir].Title+#$0D;
-  for i:=0 to 18 do
-  begin
-   //Padded with nulls
-   c:=$00;
-   if i<Length(temp) then c:=Ord(temp[i+1]);//AND$7F;
-   //Write the byte - Old and New only
-   if FDirType=0 then WriteByte(c AND$7F,diraddr+$4CB+$0E+i);
-   if FDirType=1 then WriteByte(c,diraddr+$7D7+$06+i);
-  end;
-  //Clear the directory
-  c:=0;
-  if FDirType=0 then c:=47;
-  if FDirType=1 then c:=77;
-  if c>0 then //Old and New type only
-   for i:=0 to c-1 do
-    for ref:=0 to $19 do WriteByte($00,diraddr+$05+ref+i*$1A);
-  if FDirType=2 then //Big type
-  begin
-   //Get the size of the header, with padding
-   head:=Read32b(diraddr+$08)+$1C+1; //Size
-   head:=((head+3)div 4)*4;//Pad to word boundary
-   //Get the size of the directory, minus tail
-   tail:=Read32b(diraddr+$0C)-8;
-   //Now clear the directory entries
-   for i:=head to tail-head do //Tail is 8 bytes
-    WriteByte($00,diraddr+i);
-  end;
-  //Heap pointer for Big Directories
-  heapctr:=0;
-  if FDirType=2 then //Write the number of entries for big directory
-   Write32b(Length(FDisc[dir].Entries),diraddr+$10);
-  //Go through each entry and add it
-  if Length(FDisc[dir].Entries)>0 then
-   for ref:=0 to Length(FDisc[dir].Entries)-1 do
+   //Update the directory name
+   if newname<>'' then
    begin
-    //Filename - needs terminated with CR
-    temp:=FDisc[dir].Entries[ref].Filename+#$0D;
-    //Attributes (used by New and Big)
-    a:=0;
-    for i:=0 to 5 do
-     if Pos(newattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
-      inc(a,1 shl i);
-    if FDirType<2 then //Old and New only
+    newname:=newname+#$0D;
+    for i:=0 to 9 do
     begin
-     for i:=0 to 9 do
-     begin
-      //Padded with nulls
-      c:=$00;
-      if i<Length(temp) then c:=Ord(temp[i+1]);//AND$7F;
-      //Add the attributes
-      if FDirType=0 then //Old directory only
-       if Pos(oldattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
-        c:=c+$80;
-      //Write the byte
-      WriteByte(c,diraddr+$05+i+ref*$1A);
-     end;
-     //Load Address
-     Write32b(FDisc[dir].Entries[ref].LoadAddr,diraddr+$05+$0A+ref*$1A);
-     //Execution Address
-     Write32b(FDisc[dir].Entries[ref].ExecAddr,diraddr+$05+$0E+ref*$1A);
-     //Length
-     Write32b(FDisc[dir].Entries[ref].Length  ,diraddr+$05+$12+ref*$1A);
-     //Sector
-     Write24b(FDisc[dir].Entries[ref].Sector  ,diraddr+$05+$16+ref*$1A);
-     if FDirType=0 then
-      //This is what appears in brackets after the file - old directory
-      WriteByte(00                             ,diraddr+$05+$19+ref*$1A)
-     else //New directory - attributes
-      WriteByte(a                              ,diraddr+$05+$19+ref*$1A);
-    end;
-    if FDirType=2 then //Big only
-    begin
-     //Load Address
-     Write32b(FDisc[dir].Entries[ref].LoadAddr        ,diraddr+head+$00+ref*$1C);
-     //Execution Address
-     Write32b(FDisc[dir].Entries[ref].ExecAddr        ,diraddr+head+$04+ref*$1C);
-     //Length
-     Write32b(FDisc[dir].Entries[ref].Length          ,diraddr+head+$08+ref*$1C);
-     //Sector
-     Write24b(FDisc[dir].Entries[ref].Sector          ,diraddr+head+$0C+ref*$1C);
-     //Tail copy of the sector
-     Write32b(FDisc[dir].Entries[ref].Sector,
-                            (diraddr+tail)-(Length(FDisc[dir].Entries)*4)+ref*4);
-     //Attributes
-     Write24b(a                                       ,diraddr+head+$10+ref*$1C);
-     //Length of filename (not including CR)
-     Write24b(Length(temp)-1                          ,diraddr+head+$14+ref*$1C);
-     //Where to find the filename
-     Write24b(heapctr                                 ,diraddr+head+$18+ref*$1C);
-     //Write the filename
-     for i:=0 to (((Length(temp)+3)div 4)*4)-1 do
-     begin
-      c:=0; //Padded with nulls to word boundary
-      if i<Length(temp) then c:=Ord(temp[i+1]);//AND$7F;
-      if c=32 then c:=c OR $80;
-      //dir address+header+length of all entries+counter into heap+character
-      WriteByte(c,diraddr+head+heapctr+i+Length(FDisc[dir].Entries)*$1C);
-     end;
-     //Move the heap counter on
-     inc(heapctr,((Length(temp)+3)div 4)*4);
+     //Padded with nulls
+     c:=$00;
+     if i<Length(newname) then c:=Ord(newname[i+1]);//AND$7F;
+     //Write the byte - Old and New only
+     if FDirType=0 then WriteByte(c AND$7F,diraddr+$4CB+$01+i,dirbuffer);
+     if FDirType=1 then WriteByte(c,diraddr+$7D7+$19+i,dirbuffer);
     end;
    end;
-  If FDirType=2 then
-   Write32b(heapctr,diraddr+$14); //BigDirNamesSize
-  //Update the checksum
-  if FDirType=0 then //Old - can be zero
-   WriteByte($00,diraddr+$4FF);
-  if FDirType=1 then //New
-   WriteByte(CalculateADFSDirCheck(diraddr),diraddr+$7FF);
-  if FDirType=2 then //Big
-   WriteByte(CalculateADFSDirCheck(diraddr),diraddr+(Read32b(diraddr+$0C)-1));
+   //Clear the directory
+   c:=0;
+   if FDirType=0 then c:=47;
+   if FDirType=1 then c:=77;
+   if c>0 then //Old and New type only
+    for i:=0 to c-1 do
+     for ref:=0 to $19 do WriteByte($00,diraddr+$05+ref+i*$1A,dirbuffer);
+   if FDirType=2 then //Big type
+   begin
+    //Get the size of the header, with padding
+    head:=Read32b(diraddr+$08,dirbuffer)+$1C+1; //Size
+    head:=((head+3)div 4)*4;//Pad to word boundary
+    //Get the size of the directory, minus tail
+    tail:=Read32b(diraddr+$0C,dirbuffer)-8;
+    //Now clear the directory entries
+    for i:=head to tail-head do //Tail is 8 bytes
+     WriteByte($00,diraddr+i,dirbuffer);
+   end;
+   //Heap pointer for Big Directories
+   heapctr:=0;
+   if FDirType=2 then //Write the number of entries for big directory
+    Write32b(Length(FDisc[dir].Entries),diraddr+$10,dirbuffer);
+   //Go through each entry and add it
+   if Length(FDisc[dir].Entries)>0 then
+    for ref:=0 to Length(FDisc[dir].Entries)-1 do
+    begin
+     //Filename - needs terminated with CR
+     temp:=FDisc[dir].Entries[ref].Filename+#$0D;
+     //Attributes (used by New and Big)
+     a:=0;
+     for i:=0 to 5 do
+      if Pos(newattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
+       inc(a,1 shl i);
+     if FDirType<2 then //Old and New only
+     begin
+      for i:=0 to 9 do
+      begin
+       //Padded with nulls
+       c:=$00;
+       if i<Length(temp) then c:=Ord(temp[i+1]);//AND$7F;
+       //Add the attributes
+       if FDirType=0 then //Old directory only
+        if Pos(oldattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
+         c:=c+$80;
+       //Write the byte
+       WriteByte(c,diraddr+$05+i+ref*$1A,dirbuffer);
+      end;
+      //Load Address
+      Write32b(FDisc[dir].Entries[ref].LoadAddr,diraddr+$05+$0A+ref*$1A,dirbuffer);
+      //Execution Address
+      Write32b(FDisc[dir].Entries[ref].ExecAddr,diraddr+$05+$0E+ref*$1A,dirbuffer);
+      //Length
+      Write32b(FDisc[dir].Entries[ref].Length  ,diraddr+$05+$12+ref*$1A,dirbuffer);
+      //Sector
+      Write24b(FDisc[dir].Entries[ref].Sector  ,diraddr+$05+$16+ref*$1A,dirbuffer);
+      if FDirType=0 then
+       //This is what appears in brackets after the file - old directory
+       WriteByte(00                             ,diraddr+$05+$19+ref*$1A,dirbuffer)
+      else //New directory - attributes
+       WriteByte(a                              ,diraddr+$05+$19+ref*$1A,dirbuffer);
+     end;
+     if FDirType=2 then //Big only
+     begin
+      //Load Address
+      Write32b(FDisc[dir].Entries[ref].LoadAddr        ,diraddr+head+$00+ref*$1C,dirbuffer);
+      //Execution Address
+      Write32b(FDisc[dir].Entries[ref].ExecAddr        ,diraddr+head+$04+ref*$1C,dirbuffer);
+      //Length
+      Write32b(FDisc[dir].Entries[ref].Length          ,diraddr+head+$08+ref*$1C,dirbuffer);
+      //Sector
+      Write24b(FDisc[dir].Entries[ref].Sector          ,diraddr+head+$0C+ref*$1C,dirbuffer);
+      //Tail copy of the sector
+      Write32b(FDisc[dir].Entries[ref].Sector,
+                             (diraddr+tail)-(Length(FDisc[dir].Entries)*4)+ref*4,dirbuffer);
+      //Attributes
+      Write24b(a                                       ,diraddr+head+$10+ref*$1C,dirbuffer);
+      //Length of filename (not including CR)
+      Write24b(Length(temp)-1                          ,diraddr+head+$14+ref*$1C,dirbuffer);
+      //Where to find the filename
+      Write24b(heapctr                                 ,diraddr+head+$18+ref*$1C,dirbuffer);
+      //Write the filename
+      for i:=0 to (((Length(temp)+3)div 4)*4)-1 do
+      begin
+       c:=0; //Padded with nulls to word boundary
+       if i<Length(temp) then c:=Ord(temp[i+1]);//AND$7F;
+       if c=32 then c:=c OR $80;
+       //dir address+header+length of all entries+counter into heap+character
+       WriteByte(c,diraddr+head+heapctr+i+Length(FDisc[dir].Entries)*$1C,dirbuffer);
+      end;
+      //Move the heap counter on
+      inc(heapctr,((Length(temp)+3)div 4)*4);
+     end;
+    end;
+   If FDirType=2 then
+    Write32b(heapctr,diraddr+$14,dirbuffer); //BigDirNamesSize
+   //Update the checksum
+   if FDirType=0 then //Old - can be zero
+    WriteByte($00,diraddr+$4FF,dirbuffer);
+   if FDirType=1 then //New
+    WriteByte(CalculateADFSDirCheck(diraddr,dirbuffer),diraddr+$7FF,dirbuffer);
+   if FDirType=2 then //Big
+    WriteByte(CalculateADFSDirCheck(diraddr,dirbuffer),diraddr+(Read32b(diraddr+$0C,dirbuffer)-1),dirbuffer);
+   //Write the directory back out to the image
+   WriteFragmentedData(fragments,dirbuffer);
+  end;
  end;
 end;
 
@@ -2263,7 +2331,7 @@ begin
    ptr:=FDisc[dir].Entries[entry].Sector;
   end;
   if not FMap then ptr:=ptr*$100;
-  //Update the title
+  //Update the title - this will get done by UpdateADFSCat, so the below is unnecessary
   temp:=newtitle+#$0D;
   for i:=0 to 18 do
   begin
@@ -2871,7 +2939,7 @@ begin
   len   :=filelen;//Amount of data to read in
   repeat
    //Fragmented filing system, so need to work out source and length
-   if FMap then
+//   if FMap then
     if frag<Length(fragments) then
     begin
      source:=fragments[frag].Offset;           //Source of data
@@ -2964,6 +3032,7 @@ var
  heapsize : Cardinal;
  frag     : TFragmentArray;
 begin
+ //ADFS does fragment big directories, so the code below needs to reflect this
  Result:=False; //By default - fail to extend/contract
  //We won't take account of minus sizes, so zero it if it is
  if space<0 then space:=0;
@@ -3037,7 +3106,7 @@ begin
  //extend = True  : extend by 2048 bytes
  //extend = False : contract by 2048 bytes
  Result:=False;
- ok:=False;
+{ ok:=False;
  //Both extract and contract will need to treat the directory as a file
  if(dir<>$FFFF)and(entry<>$FFFF)then //Not the root
  begin
@@ -3146,7 +3215,7 @@ begin
    if ptr<>$0 then
     WriteByte(CalculateADFSDirCheck(ptr),ptr+dirsize-1);
   end;
- end;
+ end;}
 end;
 
 {-------------------------------------------------------------------------------
@@ -3257,6 +3326,9 @@ begin
    //Get the fragments for the directory (should only be one)
    fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
    i:=-1;
+   //Needs looked at - we now remove the system area from the root fragments
+   //and directories can have multiple fragments.
+   //We will tackle this, as before, by using a directory cache.
    if Length(fragments)>0 then i:=0;
    if Length(fragments)>1 then i:=1; //System areas have two
    if i>=0 then

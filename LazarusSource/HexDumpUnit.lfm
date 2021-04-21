@@ -268,10 +268,47 @@ object HexDumpForm: THexDumpForm
         Top = 0
         Width = 629
         HorzScrollBar.Page = 1
-        VertScrollBar.Page = 1
+        HorzScrollBar.Visible = False
+        VertScrollBar.Page = 258
         Align = alClient
         BorderStyle = bsNone
+        ClientHeight = 606
+        ClientWidth = 629
         TabOrder = 0
+        OnResize = SpriteOutputResize
+        object SpritePanel: TPanel
+          Left = 249
+          Height = 50
+          Top = 208
+          Width = 170
+          TabOrder = 0
+          OnPaint = ImagePanelPaint
+        end
+      end
+    end
+    object ImageViewer: TTabSheet
+      Caption = 'Image Viewer'
+      ClientHeight = 606
+      ClientWidth = 629
+      TabVisible = False
+      object ImagePanel: TPanel
+        Left = 0
+        Height = 606
+        Top = 0
+        Width = 629
+        Align = alClient
+        ClientHeight = 606
+        ClientWidth = 629
+        TabOrder = 0
+        OnPaint = ImagePanelPaint
+        object ImageDisplay: TImage
+          Left = 1
+          Height = 604
+          Top = 1
+          Width = 627
+          Align = alClient
+          Center = True
+        end
       end
     end
   end

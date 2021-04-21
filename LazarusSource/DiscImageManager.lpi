@@ -19,10 +19,9 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
-      <MinorVersionNr Value="20"/>
-      <BuildNr Value="2"/>
+      <MinorVersionNr Value="21"/>
       <Language Value="0809"/>
-      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.20"/>
+      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.21"/>
     </VersionInfo>
     <BuildModes Count="6">
       <Item1 Name="Default" Default="True"/>
@@ -192,7 +191,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="13">
+    <Units Count="14">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -269,6 +268,10 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit12>
+      <Unit13>
+        <Filename Value="SpriteFile.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit13>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

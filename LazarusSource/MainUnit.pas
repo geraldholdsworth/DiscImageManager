@@ -324,7 +324,6 @@ type
                                '!scicalc','!serialdev','!showscrap','!sparkfs',
                                '!sparkfs1','!sparkfs2','!sparkfs3','!squash',
                                '!system','!t1tofont');
-    //
     //Windows extension - used to translate from RISC OS to Windows
     Extensions: array[1..42] of String =
                          ('004aim','132ico' ,'190dsk' ,'198z80'   ,'1A6CPM',
@@ -371,7 +370,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.20';
+    ApplicationVersion = '1.21';
    procedure AfterConstruction; override;
   end;
 
@@ -3555,6 +3554,11 @@ begin
      or(Image.Disc[dir].Entries[entry].ShortFileType='FEB')
      or(HexDump[index].IsBasicFile)then
       HexDump[index].DecodeBasicFile;
+     //Is in an image we can show?
+     HexDump[index].DisplayImage; //If not, it won't show it
+     //Is it a sprite file?
+     if Image.Disc[dir].Entries[entry].ShortFileType='FF9' then
+      HexDump[index].DisplaySpriteFile;
     end;
    end;
   end;

@@ -8,7 +8,6 @@ General
 * Application to application communications.
 * Duplicate files (i.e. like copy and rename into same directory) - just do this via file context menu, Image main menu and toolbar button.
 * Copy entire files onto clipboard? And then paste from clipboard?
-* Add in Sprite support to File Viewer - in progress.
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
 
 Command Line
@@ -21,7 +20,7 @@ DFS
 none
 
 ADFS
-* New Map directories can be split across fragments. I need to work out how to deal with this.
+* Go through each ADFS function and add in the Big Dir use.
 * Reverse the moving of directories when expanded/contracted for Big Dirs and split them instead.
 * Looks like there is a bug involving directories getting broken and not detected. I suspect that the calculation for the checksum is incorrect.
 

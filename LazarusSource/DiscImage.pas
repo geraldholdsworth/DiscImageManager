@@ -162,10 +162,12 @@ type
   function UpdateADFSBootOption(option: Byte): Boolean;
   function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
   function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
-                         directory:Boolean=False;extend:Boolean=True): Integer;
+                         {directory:Boolean=False;}extend:Boolean=True): Integer;
+  function WriteFragmentedData(fragments: TFragmentArray;
+                                            var buffer: TDIByteArray): Boolean;
   procedure ADFSCalcFileDate(var Entry: TDirEntry);
   function CreateADFSDirectory(var dirname,parent,attributes: String): Integer;
-  procedure UpdateADFSCat(directory: String);
+  procedure UpdateADFSCat(directory: String;newname: String='');
   function UpdateADFSFileAttributes(filename,attributes: String): Boolean;
   function ValidateADFSFilename(filename: String): String;
   function RetitleADFSDirectory(filename,newtitle: String): Boolean;
@@ -370,8 +372,11 @@ end;
 Extract a string from ptr to the next chr(term) or length(-term)
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadString(ptr,term: Integer;control: Boolean=True): String;
+var
+ buffer: TDIByteArray;
 begin
- Result:=ReadString(ptr,term,Fdata,control);
+ buffer:=nil;
+ Result:=ReadString(ptr,term,buffer,control);
 end;
 function TDiscImage.ReadString(ptr,term: Integer;var buffer:TDIByteArray;
                                   control: Boolean=True): String;
@@ -581,187 +586,215 @@ end;
 Read in 4 bytes (word)
 -------------------------------------------------------------------------------}
 function TDiscImage.Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+var
+ buffer: TDIByteArray;
 begin
- Result:=Read32b(offset,Fdata,bigendian);
+ //Need to pass a zero length array, as we can't simply pass 'nil'
+ SetLength(buffer,0);
+ Result:=Read32b(offset,buffer,bigendian);
 end;
 function TDiscImage.Read32b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
+var
+ i: Integer;
+const
+ x = 3;
 begin
- Result:=$FFFFFFFF; //Default value
- //Big Endian
+ Result:=0; //Default value
  if bigendian then
-  Result:=ReadByte(offset+3,buffer)
-         +ReadByte(offset+2,buffer)<<8
-         +ReadByte(offset+1,buffer)<<16
-         +ReadByte(offset+0,buffer)<<24
+  //Big Endian
+  for i:=0 to x do inc(Result,ReadByte(offset+(x-i),buffer)<<(8*i))
  else
   //Little Endian
-  Result:=ReadByte(offset+0,buffer)
-         +ReadByte(offset+1,buffer)<<8
-         +ReadByte(offset+2,buffer)<<16
-         +ReadByte(offset+3,buffer)<<24;
+  for i:=0 to x do inc(Result,ReadByte(offset+i,buffer)<<(8*i));
 end;
 
 {-------------------------------------------------------------------------------
 Read in 3 bytes
 -------------------------------------------------------------------------------}
 function TDiscImage.Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+var
+ buffer: TDIByteArray;
 begin
- Result:=Read24b(offset,Fdata,bigendian);
+ //Need to pass a zero length array, as we can't simply pass 'nil'
+ SetLength(buffer,0);
+ Result:=Read24b(offset,buffer,bigendian);
 end;
 function TDiscImage.Read24b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
+var
+ i: Integer;
+const
+ x = 2;
 begin
- Result:=$FFFFFF; //Default value
- //Big Endian
+ Result:=0; //Default value
  if bigendian then
-  Result:=ReadByte(offset+2,buffer)
-         +ReadByte(offset+1,buffer)<<8
-         +ReadByte(offset+0,buffer)<<16
+  //Big Endian
+  for i:=0 to x do inc(Result,ReadByte(offset+(x-i),buffer)<<(8*i))
  else
   //Little Endian
-  Result:=ReadByte(offset+0,buffer)
-         +ReadByte(offset+1,buffer)<<8
-         +ReadByte(offset+2,buffer)<<16;
+  for i:=0 to x do inc(Result,ReadByte(offset+i,buffer)<<(8*i));
 end;
 
 {-------------------------------------------------------------------------------
 Read in 2 bytes
 -------------------------------------------------------------------------------}
 function TDiscImage.Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
+var
+ buffer: TDIByteArray;
 begin
- Result:=Read16b(offset,Fdata,bigendian);
+ //Need to pass a zero length array, as we can't simply pass 'nil'
+ SetLength(buffer,0);
+ Result:=Read16b(offset,buffer,bigendian);
 end;
 function TDiscImage.Read16b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Word;
+var
+ i: Integer;
+const
+ x = 1;
 begin
- Result:=$FFFF; //Default value
- //Big Endian
+ Result:=0; //Default value
  if bigendian then
-  Result:=ReadByte(offset+1,buffer)
-         +ReadByte(offset+0,buffer)<<8
+  //Big Endian
+  for i:=0 to x do inc(Result,ReadByte(offset+(x-i),buffer)<<(8*i))
  else
   //Little Endian
-  Result:=ReadByte(offset+0,buffer)
-         +ReadByte(offset+1,buffer)<<8;
+  for i:=0 to x do inc(Result,ReadByte(offset+i,buffer)<<(8*i));
 end;
 
 {-------------------------------------------------------------------------------
 Read in a byte
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadByte(offset: Cardinal): Byte;
+var
+ buffer: TDIByteArray;
 begin
- Result:=$FF; //Default value
- //Compensate for interleaving (ADFS L)
- if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
- //Compensate for emulator header
- inc(offset,emuheader);
- //If we are inside the data, read the byte
- if offset<GetDataLength then
-  Result:=ReadByte(offset,Fdata);
+ //Need to pass a zero length array, as we can't simply pass 'nil'
+ SetLength(buffer,0);
+ Result:=ReadByte(offset,buffer);
 end;
 function TDiscImage.ReadByte(offset: Cardinal;var buffer: TDIByteArray): Byte;
 begin
- if buffer=nil then Result:=ReadByte(offset)
- else if offset<Length(buffer) then Result:=buffer[offset];
+ Result:=$FF;
+ if buffer<>nil then
+  if offset<Length(buffer) then Result:=buffer[offset];
+ //If no buffer has been passed, resort to the standard function
+ if buffer=nil then {Result:=ReadByte(offset);}
+ begin
+  //Compensate for interleaving (ADFS L)
+  if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
+  //Compensate for emulator header
+  inc(offset,emuheader);
+  //If we are inside the data, read the byte
+  if offset<Length(Fdata) then Result:=Fdata[offset];
+ end;
 end;
 
 {-------------------------------------------------------------------------------
 Write 4 bytes (word)
 -------------------------------------------------------------------------------}
 procedure TDiscImage.Write32b(value, offset: Cardinal; bigendian: Boolean=False);
+var
+ buffer: TDIByteArray;
 begin
- Write32b(value,offset,Fdata,bigendian);
+ //Need to pass a zero length array, as we can't simply pass 'nil'
+ SetLength(buffer,0);
+ Write32b(value,offset,buffer,bigendian);
 end;
 procedure TDiscImage.Write32b(value, offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
+var
+ i: Integer;
+const
+ x = 3;
 begin
  if bigendian then
- begin
   //Big Endian
-  WriteByte( value     mod $100,offset+3,buffer);
-  WriteByte((value>>8) mod $100,offset+2,buffer);
-  WriteByte((value>>16)mod $100,offset+1,buffer);
-  WriteByte((value>>24)mod $100,offset+0,buffer);
- end
+  for i:=0 to x do WriteByte((value>>(i*8))mod$100,offset+(x-i),buffer)
  else
- begin
   //Little Endian
-  WriteByte( value     mod $100,offset+0,buffer);
-  WriteByte((value>>8) mod $100,offset+1,buffer);
-  WriteByte((value>>16)mod $100,offset+2,buffer);
-  WriteByte((value>>24)mod $100,offset+3,buffer);
- end;
+  for i:=0 to x do WriteByte((value>>(i*8))mod$100,offset+i,buffer);
 end;
 
 {-------------------------------------------------------------------------------
 Write 3 bytes
 -------------------------------------------------------------------------------}
 procedure TDiscImage.Write24b(value,offset: Cardinal; bigendian: Boolean=False);
+var
+ buffer: TDIByteArray;
 begin
- Write24b(value,offset,Fdata,bigendian);
+ //Need to pass a zero length array, as we can't simply pass 'nil'
+ SetLength(buffer,0);
+ Write24b(value,offset,buffer,bigendian);
 end;
 procedure TDiscImage.Write24b(value,offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
+var
+ i: Integer;
+const
+ x = 2;
 begin
  if bigendian then
- begin
   //Big Endian
-  WriteByte( value     mod $100,offset+2,buffer);
-  WriteByte((value>>8) mod $100,offset+1,buffer);
-  WriteByte((value>>16)mod $100,offset+0,buffer);
- end
+  for i:=0 to x do WriteByte((value>>(i*8))mod$100,offset+(x-i),buffer)
  else
- begin
   //Little Endian
-  WriteByte( value     mod $100,offset+0,buffer);
-  WriteByte((value>>8) mod $100,offset+1,buffer);
-  WriteByte((value>>16)mod $100,offset+2,buffer);
- end;
+  for i:=0 to x do WriteByte((value>>(i*8))mod$100,offset+i,buffer);
 end;
 
 {-------------------------------------------------------------------------------
 Write 2 bytes
 -------------------------------------------------------------------------------}
 procedure TDiscImage.Write16b(value: Word; offset: Cardinal; bigendian: Boolean=False);
+var
+ buffer: TDIByteArray;
 begin
- Write16b(value,offset,Fdata,bigendian);
+ //Need to pass a zero length array, as we can't simply pass 'nil'
+ SetLength(buffer,0);
+ Write16b(value,offset,buffer,bigendian);
 end;
 procedure TDiscImage.Write16b(value: Word; offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
+var
+ i: Integer;
+const
+ x = 1;
 begin
  if bigendian then
- begin
   //Big Endian
-  WriteByte( value    mod $100,offset+1,buffer);
-  WriteByte((value>>8)mod $100,offset+0,buffer);
- end
+  for i:=0 to x do WriteByte((value>>(i*8))mod$100,offset+(x-i),buffer)
  else
- begin
   //Little Endian
-  WriteByte( value    mod $100,offset+0,buffer);
-  WriteByte((value>>8)mod $100,offset+1,buffer);
- end;
+  for i:=0 to x do WriteByte((value>>(i*8))mod$100,offset+i,buffer);
 end;
 
 {-------------------------------------------------------------------------------
 Write byte
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteByte(value: Byte; offset: Cardinal);
+var
+ buffer: TDIByteArray;
 begin
- //Compensate for interleaving (ADFS L)
- if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
- //Compensate for emulator header
- inc(offset,emuheader);
- //Will it go beyond the size of the array?
- if offset>=GetDataLength then
-  SetDataLength(offset+1); //Then increase the array to compensate
- WriteByte(value,offset,Fdata);
+ SetLength(buffer,0);
+ WriteByte(value,offset,buffer);
 end;
 procedure TDiscImage.WriteByte(value: Byte; offset: Cardinal;var buffer: TDIByteArray);
 begin
- //Write the byte
- buffer[offset]:=value;
+ if buffer=nil then
+ begin
+  //Compensate for interleaving (ADFS L)
+  if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
+  //Compensate for emulator header
+  inc(offset,emuheader);
+  //Will it go beyond the size of the array?
+  if offset<Length(Fdata) then
+   Fdata[offset]:=value; //Write the byte
+ end
+ else
+  //Will it go beyond the size of the array?
+  if offset<Length(buffer) then
+   buffer[offset]:=value; //Write the byte
 end;
 
 {-------------------------------------------------------------------------------
