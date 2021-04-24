@@ -401,6 +401,20 @@ Bug fixes
 * Introduced a bug in 1.20 where some ADFS (and, possibly, other formats) images failed to open.
 * The application has never been able to reliably read fractured directories from an Big Directory New Map image. A fix has been effected, which caused the above bug in the first place.
 
+1.22 - 24th April 2021
+----------------------
+New or improved features
+* Root address, for ADFS new map, is now reported in File Details as an indirect address instead of a direct address.
+* Fixing ADFS directories now works on a cached copy of the directory before writing it all back.
+* Now extends ADFS big directories, fragmenting them if necessary.
+* Now contracts ADFS big directories. This copies the ADFS behaviour of leaving the original fragments as they were when bigger, but still reduces the directory size.
+* Texture tiled the Sprite tab and image tab in the file viewer.
+* BBC BASIC file viewer is now white text on blue background.
+* Changed the way that ADFS files and directories are renamed and re-titled.
+
+Bug fixes
+* Found a bug where the ADFS new map wasn't being written correctly when objects were added.
+
 
 Platform History
 ----------------

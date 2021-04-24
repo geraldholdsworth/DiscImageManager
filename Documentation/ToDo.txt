@@ -9,6 +9,7 @@ General
 * Duplicate files (i.e. like copy and rename into same directory) - just do this via file context menu, Image main menu and toolbar button.
 * Copy entire files onto clipboard? And then paste from clipboard?
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
+* Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
 
 Command Line
 none
@@ -20,8 +21,6 @@ DFS
 none
 
 ADFS
-* Go through each ADFS function and add in the Big Dir use.
-* Reverse the moving of directories when expanded/contracted for Big Dirs and split them instead.
 * Looks like there is a bug involving directories getting broken and not detected. I suspect that the calculation for the checksum is incorrect.
 
 Commodore

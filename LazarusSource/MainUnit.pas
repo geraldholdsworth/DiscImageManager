@@ -370,7 +370,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.21';
+    ApplicationVersion = '1.22';
    procedure AfterConstruction; override;
   end;
 
@@ -3536,6 +3536,8 @@ begin
       HexDump[index]:=THexDumpForm.Create(nil);
       //Put the name in the caption
       HexDump[index].Caption:=filename;
+      //Switch to the Hex Dump tab (this can change, depending on the contents)
+      HexDump[index].PageControl.ActivePage:=HexDump[index].HexDump;
       //Add to the menu
       menuitem:=TMenuItem.Create(HexDumpMenu);
       menuitem.Caption:=filename;

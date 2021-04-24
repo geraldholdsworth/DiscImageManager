@@ -145,6 +145,7 @@ type
   function GetCRC(var buffer: TDIByteArray): String;
   function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
   procedure UpdateProgress(Fupdate: String);
+  function GetRootAddress: Cardinal;
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
@@ -163,8 +164,11 @@ type
   function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
   function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
                          {directory:Boolean=False;}extend:Boolean=True): Integer;
+  function ADFSFindFreeSpace(filelen: Cardinal;var fragid: Cardinal): TFragmentArray;
   function WriteFragmentedData(fragments: TFragmentArray;
                                             var buffer: TDIByteArray): Boolean;
+  procedure ADFSAllocateFreeSpace(filelen,freeptr: Cardinal);
+  procedure ADFSAllocateFreeSpace(filelen,fragid: Cardinal;fragments: TFragmentArray); overload;
   procedure ADFSCalcFileDate(var Entry: TDirEntry);
   function CreateADFSDirectory(var dirname,parent,attributes: String): Integer;
   procedure UpdateADFSCat(directory: String;newname: String='');
@@ -173,8 +177,11 @@ type
   function RetitleADFSDirectory(filename,newtitle: String): Boolean;
   function RenameADFSFile(oldfilename: String;var newfilename: String):Integer;
   procedure ConsolodateADFSFreeSpaceMap;
+  procedure ConsolodateADFSFragments(fragid: Cardinal);
   function DeleteADFSFile(filename: String;
                          TreatAsFile:Boolean=False;extend:Boolean=True):Boolean;
+  procedure ADFSDeAllocateFreeSpace(addr,len: Cardinal);
+  procedure ADFSDeAllocateFreeSpace(addr: Cardinal); overload;
   function ExtractADFSFile(filename: String;var buffer: TDIByteArray): Boolean;
   function ExtractFragmentedData(fragments: TFragmentArray;
                             filelen: Cardinal;var buffer: TDIByteArray):Boolean;
@@ -313,7 +320,7 @@ type
   property Filename:            String        read imagefilename;
   property FreeSpaceMap:        TSide         read free_space_map;
   property BootOpt:             TDIByteArray  read bootoption;
-  property RootAddress:         Cardinal      read root;
+  property RootAddress:         Cardinal      read GetRootAddress;
   property CRC32:               String        read GetImageCrc;
   property ProgressIndicator:   TProgressProc write FProgress;
  public
@@ -980,6 +987,16 @@ procedure TDiscImage.UpdateProgress(Fupdate: String);
 begin
  //If the main program has defined a procedure then call it
  if Assigned(FProgress) then FProgress(Fupdate);
+end;
+
+{-------------------------------------------------------------------------------
+Return the root address, depending on format
+-------------------------------------------------------------------------------}
+function TDiscImage.GetRootAddress: Cardinal;
+begin
+ Result:=root;
+ if FFormat>>4=diAcornADFS then //New map will return the fragment ID
+  if FMap then Result:=rootfrag;
 end;
 
 //++++++++++++++++++ Published Methods +++++++++++++++++++++++++++++++++++++++++

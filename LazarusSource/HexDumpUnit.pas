@@ -125,6 +125,7 @@ begin
  HexDumpDisplay.FixedCols:=1;
  HexDumpDisplay.FixedRows:=1;
  HexDumpDisplay.RowCount :=1;
+ HexDumpDisplay.Font.Size:=Round(8*Screen.PixelsPerInch/96);
  //Header
  HexDumpDisplay.ColWidths[0] :=80;
  HexDumpDisplay.Cells[0,0]   :='Address';
@@ -763,6 +764,7 @@ begin
     inc(ptr,linelen);
    end;
   end;
+  //Display the minimum compatible BASIC version
   linetxt:='';
   case basicver of
    1: linetxt:=' I';
@@ -772,9 +774,13 @@ begin
    5: linetxt:=' V';
   end;
   BasicViewer.Caption:='BBC BASIC'+linetxt;
+  //Change the colour
+  BasicOutput.Color:=$FF0000;
+  BasicOutput.Font.Color:=$FFFFFF;
  end
  else
  begin
+  //It is not a BASIC file, so just display as text
   BasicViewer.Caption:='Text File';
   linetxt:='';
   while ptr<Length(buffer) do
@@ -794,6 +800,8 @@ begin
   if linetxt<>'' then BasicOutput.Lines.Add(linetxt);
  end;
  BasicViewer.TabVisible:=True;
+ //And switch to it
+ PageControl.ActivePage:=BasicViewer;
 end;
 
 {------------------------------------------------------------------------------}
@@ -849,6 +857,8 @@ begin
   ms.Free;
   //And make the tab visible
   ImageViewer.TabVisible:=True;
+  //And switch to it
+  PageControl.ActivePage:=ImageViewer;
  end;
 end;
 
@@ -933,6 +943,8 @@ begin
   end;
   //Make the tab visible, so we can see them
   SpriteViewer.TabVisible:=True;
+  //And switch to it
+  PageControl.ActivePage:=SpriteViewer;
  end;
  //Free up the memory stream and sprite file
  ms.Free;
