@@ -4,16 +4,16 @@ unit HexDumpUnit;
 Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free
-Software Foundation; either version 3 of the License, or (at your option)
+the terms of the GNU General Public Licence as published by the Free
+Software Foundation; either version 3 of the Licence, or (at your option)
 any later version.
 
 This code is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more
 details.
 
-A copy of the GNU General Public License is available on the World Wide Web
+A copy of the GNU General Public Licence is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
@@ -125,7 +125,7 @@ begin
  HexDumpDisplay.FixedCols:=1;
  HexDumpDisplay.FixedRows:=1;
  HexDumpDisplay.RowCount :=1;
- HexDumpDisplay.Font.Size:=Round(8*Screen.PixelsPerInch/96);
+ HexDumpDisplay.Font.Size:=Round(8*Screen.PixelsPerInch/DesignTimePPI);
  //Header
  HexDumpDisplay.ColWidths[0] :=80;
  HexDumpDisplay.Cells[0,0]   :='Address';
@@ -878,11 +878,11 @@ var
  size  : Integer;
 begin
  //Width of each sprite, including name
- spritew:=Round(70*Screen.PixelsPerInch/96);
+ spritew:=Round(70*Screen.PixelsPerInch/DesignTimePPI);
  //Height of each sprite, including name
- spriteh:=Round(64*Screen.PixelsPerInch/96);
+ spriteh:=Round(64*Screen.PixelsPerInch/DesignTimePPI);
  //Actual width and height of the sprite image
- size:=Round(32*Screen.PixelsPerInch/96);
+ size:=Round(32*Screen.PixelsPerInch/DesignTimePPI);
  //Create the memory stream which we will use to transfer the file
  ms:=TMemoryStream.Create;
  //Transfer the data from the array to the stream

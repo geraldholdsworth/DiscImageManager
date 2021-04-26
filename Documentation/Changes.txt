@@ -415,6 +415,16 @@ New or improved features
 Bug fixes
 * Found a bug where the ADFS new map wasn't being written correctly when objects were added.
 
+1.23 - 26th April 2021
+----------------------
+New or improved features
+* When a spark archive is added, a check is done to make sure that the contents will fit before commencing de-archiving. If it will not then the archive will just be added as is, assuming that will fit.
+
+Bug fixes
+* When importing the contents of a Spark archive (zip file), and the image gets full, the application would still attempt to add the rest of the files, sometimes corrupting the image. It now aborts the operation.
+* The allocation of fragments for ADFS new map was not taking the minimum fragment size into account, and was also not sector aligning the objects. This resulted in some images being unreadable by ADFS and/or causing RISC OS to hang.
+* Some sizes where not getting reported correctly, losing any initial zeros in the decimal part.
+
 
 Platform History
 ----------------

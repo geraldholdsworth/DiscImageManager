@@ -19,9 +19,9 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
-      <MinorVersionNr Value="22"/>
+      <MinorVersionNr Value="23"/>
       <Language Value="0809"/>
-      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.21"/>
+      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.23"/>
     </VersionInfo>
     <BuildModes Count="6">
       <Item1 Name="Default" Default="True"/>
@@ -86,6 +86,11 @@
               </Win32>
             </Options>
           </Linking>
+          <Other>
+            <CompilerMessages>
+              <IgnoredMessages idx5094="True" idx5091="True" idx5060="True" idx5057="True" idx4081="True" idx4080="True" idx4079="True" idx4035="True"/>
+            </CompilerMessages>
+          </Other>
         </CompilerOptions>
       </Item3>
       <Item4 Name="Release Windows 32 bit">
@@ -144,6 +149,11 @@
               </Win32>
             </Options>
           </Linking>
+          <Other>
+            <CompilerMessages>
+              <IgnoredMessages idx5094="True" idx5091="True" idx5060="True" idx5057="True" idx4081="True" idx4080="True" idx4079="True" idx4035="True"/>
+            </CompilerMessages>
+          </Other>
         </CompilerOptions>
       </Item5>
       <Item6 Name="Release Linux 32 bit">
@@ -293,7 +303,7 @@
     </Linking>
     <Other>
       <CompilerMessages>
-        <IgnoredMessages idx5094="True" idx5091="True" idx5060="True" idx5057="True"/>
+        <IgnoredMessages idx5094="True" idx5091="True" idx5060="True" idx5057="True" idx4081="True" idx4080="True" idx4079="True" idx4035="True"/>
       </CompilerMessages>
     </Other>
   </CompilerOptions>

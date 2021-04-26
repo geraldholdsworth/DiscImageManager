@@ -12,16 +12,16 @@ class.
 Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free
-Software Foundation; either version 3 of the License, or (at your option)
+the terms of the GNU General Public Licence as published by the Free
+Software Foundation; either version 3 of the Licence, or (at your option)
 any later version.
 
 This code is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more
 details.
 
-A copy of the GNU General Public License is available on the World Wide Web
+A copy of the GNU General Public Licence is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
@@ -254,9 +254,9 @@ type
                                   index: Integer;dir: Boolean): TTreeNode;
    procedure AddDirectoryToImage(dirname: String);
    procedure AddSparkToImage(filename: String);
-   procedure AddFileToImage(filename: String);
-   procedure AddFileToImage(filename: String;filedetails: TDirEntry;
-                               buffer:TDIByteArray=nil); overload;
+   function AddFileToImage(filename: String):Boolean;
+   function AddFileToImage(filename: String;filedetails: TDirEntry;
+                               buffer:TDIByteArray=nil):Boolean; overload;
    procedure UpdateImageInfo;
    procedure ArrangeFileDetails;
    procedure ReportError(error: String);
@@ -370,7 +370,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.22';
+    ApplicationVersion = '1.23';
    procedure AfterConstruction; override;
   end;
 
@@ -396,14 +396,17 @@ See: http://zarko-gajic.iz.hr/delphi-high-dpi-road-ensuring-your-ui-looks-correc
 and https://wiki.lazarus.freepascal.org/High_DPI
 }
  inherited;
- if Screen.PixelsPerInch<>96 then //as I’m designing at 96 DPI
+ if Screen.PixelsPerInch<>DesignTimePPI then
  begin
   //Status Bar
-  ImageDetails.Height:=Round(ImageDetails.Height*Screen.PixelsPerInch/96);
+  ImageDetails.Height:=
+                  Round(ImageDetails.Height*Screen.PixelsPerInch/DesignTimePPI);
   ImageDetails.Panels[0].Width:=ImageDetails.Height;
   for i:=0 to -1+ImageDetails.Panels.Count do
-   ImageDetails.Panels[i].Width:=Round(ImageDetails.Panels[i].Width*Screen.PixelsPerInch/96);
-  MainToolBar.ImagesWidth:=Round(MainToolBar.ImagesWidth*Screen.PixelsPerInch/96);
+   ImageDetails.Panels[i].Width:=
+         Round(ImageDetails.Panels[i].Width*Screen.PixelsPerInch/DesignTimePPI);
+  MainToolBar.ImagesWidth:=
+              Round(MainToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
   //Can use TMonitor.PixelsPerInch to scale to a big monitor
  end;
 end;
@@ -543,7 +546,7 @@ begin
     begin
      //Select the parent node
      if SparkFile.FileList[Index].Parent<>'' then
-      SelectNode(ParentDir+'.'+SparkFile.FileList[Index].Parent)
+      SelectNode(ParentDir+Image.DirSep+SparkFile.FileList[Index].Parent)
      else
       SelectNode(ParentDir);
      filedetails.Attributes:=GetAttributes(
@@ -558,12 +561,15 @@ begin
       //Get the data
       buffer:=SparkFile.ExtractFileData(Index);
       //Set up the Dir Entry
-      filedetails.Filename  :=SparkFile.FileList[Index].Filename;
-      filedetails.LoadAddr  :=SparkFile.FileList[Index].LoadAddr;
-      filedetails.ExecAddr  :=SparkFile.FileList[Index].ExecAddr;
-      filedetails.Length    :=SparkFile.FileList[Index].Length;
-      //Add the file
-      AddFileToImage('',filedetails,buffer);
+      if SparkFile.FileList[Index].Filename<>'' then //We need a filename
+      begin
+       filedetails.Filename  :=SparkFile.FileList[Index].Filename;
+       filedetails.LoadAddr  :=SparkFile.FileList[Index].LoadAddr;
+       filedetails.ExecAddr  :=SparkFile.FileList[Index].ExecAddr;
+       filedetails.Length    :=SparkFile.FileList[Index].Length;
+       //Add the file
+       if not AddFileToImage('',filedetails,buffer) then exit;
+      end;
      end;
     end;
   end;
@@ -574,7 +580,7 @@ end;
 {------------------------------------------------------------------------------}
 //Add a file to an image
 {------------------------------------------------------------------------------}
-procedure TMainForm.AddFileToImage(filename: String);
+function TMainForm.AddFileToImage(filename: String):Boolean;
 var
  filedetails: TDirEntry;
 begin
@@ -582,10 +588,10 @@ begin
  filedetails.LoadAddr:=0;
  filedetails.ExecAddr:=0;
  filedetails.Filename:='';
- AddFileToImage(filename,filedetails);
+ Result:=AddFileToImage(filename,filedetails);
 end;
-procedure TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry;
-                               buffer:TDIByteArray=nil);
+function TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry;
+                               buffer:TDIByteArray=nil):Boolean;
 var
   NewFile        : TDirEntry;
   index          : Integer;
@@ -602,6 +608,7 @@ var
   chr            : Char;
   F              : TFileStream;
 begin
+ Result:=False;
  //If there is nothing in the buffer
  if Length(buffer)=0 then
  begin
@@ -763,18 +770,19 @@ begin
     begin
      HasChanged:=True;
      AddFileToTree(DirList.Selected,NewFile.Filename,index,False);
+     Result:=True;
     end
     else
     begin
      //For some reason the operation failed to write the data
-     if index=-1 then ReportError('Could not load "'+filename+'"');
-     if index=-2 then ReportError('Could not add file - image full');
-     if index=-3 then ReportError('File already exists in image');
+     if index=-1 then ReportError('Could not load "'+NewFile.Filename+'"');
+     if index=-2 then ReportError('Could not add "'+NewFile.Filename+'" - image full');
+     if index=-3 then ReportError('File "'+NewFile.Filename+'" already exists in image');
      if index=-4 then ReportError('Catalogue full');
-     if index=-5 then ReportError('Could not write file - error unknown');
+     if index=-5 then ReportError('Could not write file "'+NewFile.Filename+'" - error unknown');
      if index=-6 then ReportError('Destination directory does not exist');
-     If index=-7 then ReportError('Could not write file - map full');
-     if index=-8 then ReportError('Could not write file - nothing to write');
+     If index=-7 then ReportError('Could not write file "'+NewFile.Filename+'" - map full');
+     if index=-8 then ReportError('Could not write file "'+NewFile.Filename+'" - nothing to write');
      if index=-9 then ReportError('Could not extend directory');
     end;
    end;
@@ -2266,6 +2274,8 @@ var
  NewImage  : TDiscImage;
  open      : Byte;
  SparkFile : TSpark;
+ sparksize : Cardinal;
+ isspark   : Boolean;
 const
  dlg = 'Open, Add, or Import Contents?';
 begin
@@ -2306,16 +2316,19 @@ begin
     //Is this 32bit ADFS?
     if(Image.DirectoryType>0)and(Image.FormatNumber shr 4=1)then
     begin
+     //See if it is a spark archive
      SparkFile:=TSpark.Create(FileName);
+     sparksize:=SparkFile.UncompressedSize;
+     isspark:=SparkFile.IsSpark;
+     SparkFile.Free;
      //Is it a valid Spark Archive?
-     if SparkFile.IsSpark then
+     if(isspark)and(sparksize<Image.FreeSpace)then
      begin //Ask user if they would like it uncompressed
       if QuestionDlg('Uncompress','This has been detected as a Spark archive. '
                     +'Would you like to uncompress and add the contents?',
                     mtConfirmation,[300,'Yes',301,'No - just add'],0)=300 then
       begin
        open:=$00; //Yes, so reset the open flag so it doesn't add it
-       SparkFile.Free;
        AddSparkToImage(FileName);
       end;
      end;
@@ -3785,8 +3798,8 @@ begin
   //Then the decimal portion, but only if there is one
   if new_size_dec>0 then
   begin
-   //Add an extra zero, which will be removed
-   Result:=Result+'.'+IntToStr(new_size_dec)+'0';
+   //Add an extra zero, which will be removed, and pad to the left with zeros
+   Result:=Result+'.'+RightStr('000'+IntToStr(new_size_dec),3)+'0';
    //Now remove all the surplus zeros
    repeat
     Result:=Copy(Result,1,Length(Result)-1);

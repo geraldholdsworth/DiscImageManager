@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class
+TDiscImage class V1.23
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -10,16 +10,16 @@ filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
 Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free
-Software Foundation; either version 3 of the License, or (at your option)
+the terms of the GNU General Public Licence as published by the Free
+Software Foundation; either version 3 of the Licence, or (at your option)
 any later version.
 
 This code is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more
 details.
 
-A copy of the GNU General Public License is available on the World Wide Web
+A copy of the GNU General Public Licence is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
@@ -163,12 +163,13 @@ type
   function UpdateADFSBootOption(option: Byte): Boolean;
   function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
   function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
-                         {directory:Boolean=False;}extend:Boolean=True): Integer;
+                         extend:Boolean=True): Integer;
   function ADFSFindFreeSpace(filelen: Cardinal;var fragid: Cardinal): TFragmentArray;
   function WriteFragmentedData(fragments: TFragmentArray;
                                             var buffer: TDIByteArray): Boolean;
   procedure ADFSAllocateFreeSpace(filelen,freeptr: Cardinal);
   procedure ADFSAllocateFreeSpace(filelen,fragid: Cardinal;fragments: TFragmentArray); overload;
+  function ADFSSectorAlignLength(filelen: Cardinal): Cardinal;
   procedure ADFSCalcFileDate(var Entry: TDirEntry);
   function CreateADFSDirectory(var dirname,parent,attributes: String): Integer;
   procedure UpdateADFSCat(directory: String;newname: String='');
@@ -514,7 +515,7 @@ var
 begin
  //If the length is 0, nothing to write. Cardinals are 32 bits
  //(we could use Integers, but these are signed)
- if (length>0) and (length<33) then
+ if(length>0)and(length<33)then
  begin
   //Initialise the variables
   pos:=$FFFFFFFF;
@@ -603,7 +604,7 @@ end;
 function TDiscImage.Read32b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
 var
- i: Integer;
+ i: Cardinal;
 const
  x = 3;
 begin
@@ -630,7 +631,7 @@ end;
 function TDiscImage.Read24b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
 var
- i: Integer;
+ i: Cardinal;
 const
  x = 2;
 begin
@@ -657,7 +658,7 @@ end;
 function TDiscImage.Read16b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Word;
 var
- i: Integer;
+ i: Cardinal;
 const
  x = 1;
 begin
@@ -712,7 +713,7 @@ end;
 procedure TDiscImage.Write32b(value, offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
- i: Integer;
+ i: Cardinal;
 const
  x = 3;
 begin
@@ -738,7 +739,7 @@ end;
 procedure TDiscImage.Write24b(value,offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
- i: Integer;
+ i: Cardinal;
 const
  x = 2;
 begin
@@ -764,7 +765,7 @@ end;
 procedure TDiscImage.Write16b(value: Word; offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
- i: Integer;
+ i: Cardinal;
 const
  x = 1;
 begin
@@ -883,11 +884,11 @@ function TDiscImage.DirTypeToString: String;
 begin
  Result:='Not ADFS/AmigaDOS';
  case FDirType of
-  $00: Result:='ADFS Old Directory';
-  $01: Result:='ADFS New Directory';
-  $02: Result:='ADFS Big Directory';
-  $10: Result:='AmigaDOS Directory';
-  $11: Result:='AmigaDOS Directory Cache';
+  diADFSOldDir: Result:='ADFS Old Directory';
+  diADFSNewDir: Result:='ADFS New Directory';
+  diADFSBigDir: Result:='ADFS Big Directory';
+  diAmigaDir  : Result:='AmigaDOS Directory';
+  diAmigaCache: Result:='AmigaDOS Directory Cache';
  end;
 end;
 
@@ -1481,6 +1482,7 @@ var
  i   : Cardinal;
  temp: TDIByteArray;
 begin
+ SetLength(temp,0);
  //Simply copy from source to destination
  //ReadByte will compensate if offset is out of range
  //All but DFS
@@ -1739,10 +1741,11 @@ var
  entry,
  dir,
  d,e         : Cardinal;
-// R           : Integer;
  newparent   : String;
  file_details: TDirEntry;
 begin
+ ptr:=0;
+ SetLength(buffer,0);
  //Need to extract the filename from the full path...and ensure the file exists
  Result:=-1; //Could not load file
  if FileExists(filename,ptr) then
