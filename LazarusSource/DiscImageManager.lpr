@@ -12,7 +12,8 @@ uses
   ImageDetailUnit in 'ImageDetailUnit.pas',
   HexDumpUnit in 'HexDumpUnit.pas',
   SplitDFSUnit in 'SplitDFSUnit.pas',
-  SearchUnit in 'SearchUnit.pas';
+  SearchUnit in 'SearchUnit.pas',
+  CustomDialogueUnit in 'CustomDialogueUnit.pas';
 
 {$R *.res}
 
@@ -27,5 +28,6 @@ begin
  Application.CreateForm(TImageDetailForm, ImageDetailForm);
  Application.CreateForm(TSplitDFSForm, SplitDFSForm);
  Application.CreateForm(TSearchForm, SearchForm);
+ Application.CreateForm(TCustomDialogue, CustomDialogue);
  Application.Run;
 end.

@@ -897,7 +897,7 @@ begin
    lowsector   :=ReadByte(bootmap+$0C);
    nzones      :=ReadByte(bootmap+$0D);
    zone_spare  :=Read16b(bootmap+$0E);
-   root        :=Read32b(bootmap+$10);
+   rootfrag    :=Read32b(bootmap+$10);
    disc_size   :=Read32b(bootmap+$14);
    disc_id     :=Read16b(bootmap+$18);
    disc_name   :=ReadString(bootmap+$1A,-10);
@@ -910,16 +910,18 @@ begin
    format_vers :=Read32b(bootmap+$30);
    root_size   :=Read32b(bootmap+$34);
    //The root does not always follow the map
-   addr:=NewDiscAddrToOffset(root);
+   addr:=NewDiscAddrToOffset(rootfrag);
    //So, find it - first reset it
    root:=0;
-   //Look for a fragment of the correct length...only works on '+' formats
-   for d:=0 to Length(addr)-1 do
-    if addr[d].Length=root_size then root:=addr[d].Offset;
-   //This failed to find it, so 'guess' - we'll assume it is after the bootmap
-   if root=0 then
-    for d:=Length(addr)-1 downto 0 do
-     if addr[d].Offset>bootmap then root:=addr[d].Offset;
+   if Length(addr)>0 then
+   begin
+    //The above method removes the initial system fragment, if present
+    root:=addr[0].Offset;
+    //This failed to find it, so 'guess' - we'll assume it is after the bootmap
+    if root=0 then
+     for d:=Length(addr)-1 downto 0 do
+      if addr[d].Offset>bootmap then root:=addr[d].Offset;
+   end;
    //Failed to find, so resort to where we expect to find it
    if root=0 then root:=bootmap+(nzones*secsize*2);
    //Update the Format, now we know the disc size
@@ -1443,20 +1445,27 @@ Retrieve all the free space fragments on ADFS New Map
 -------------------------------------------------------------------------------}
 function TDiscImage.ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
 var
+ zonecounter  : Integer;
  zone,
- zonecounter,
+ startoffset,
  startzone,
  freelink,
  i,j          : Cardinal;
  fragments    : TFragmentArray;
+ zonecheck    : array of Boolean;
 begin
  Result:=nil;
  fragments:=nil;
  startzone:=nzones div 2; //Where to start looking
+ SetLength(zonecheck,nzones); //So we can check each zone
+ for i:=0 to nzones-1 do zonecheck[i]:=False;
  // Start at the start zone to find a hole big enough for the file to fit
- for zonecounter:=0 to nzones-1 do
+ zonecounter:=startzone;
+ startoffset:=0;
+// for zonecounter:=0 to nzones-1 do
+ while startoffset<Ceil(nzones/2) do
  begin
-  zone:=(zonecounter+startzone)mod nzones;
+  zone:=(zonecounter{+startzone}){mod nzones};
   //i is the bit counter...number of bits from the first freelink
   //Get the first freelink of the zone and set our counter
   i:=ReadBits(bootmap+(zone*secsize)+1,0,15);
@@ -1498,6 +1507,29 @@ begin
     inc(i,freelink);
    until (freelink=0)                   //Unless the next link is zero,
       or (i>=32+(secsize*8-zone_spare));//or we run out of zone
+  end;
+  //Set this zone to having been checked
+  zonecheck[zonecounter]:=True;
+  //Work out the next one, centralising around the root
+  while(startoffset<Ceil(nzones/2))and(zonecheck[zonecounter])do
+  begin
+   //Have we checked below?
+   if zonecounter=startzone-startoffset then
+    //Then check above
+    if startzone+startoffset<Length(zonecheck) then
+     zonecounter:=startzone+startoffset;
+   //Has it been checked already?
+   if zonecheck[zonecounter] then
+   begin
+    //Move to next
+    inc(startoffset);
+    zonecounter:=startzone-startoffset;
+    //A couple of checks to make sure we're not out of bounds
+    if(zonecounter<0)and(startzone+startoffset<Length(zonecheck))then
+     zonecounter:=startzone+startoffset;
+    if(zonecounter<0)or(zonecounter>=Length(zonecheck))then
+     startoffset:=nzones; //This will finish off the loop
+   end;
   end;
  end;
  Result:=fragments;

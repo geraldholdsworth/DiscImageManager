@@ -425,6 +425,19 @@ Bug fixes
 * The allocation of fragments for ADFS new map was not taking the minimum fragment size into account, and was also not sector aligning the objects. This resulted in some images being unreadable by ADFS and/or causing RISC OS to hang.
 * Some sizes where not getting reported correctly, losing any initial zeros in the decimal part.
 
+1.24 - 28th April 2021
+----------------------
+New or improved features
+* Copying how ADFS assigns fragments, the application now tries to centralise fragments around the root, in a multi-zone ADFS new map image.
+* Created a custom error/confirmation/message dialogue box in a RISC OS style.
+* Reduced the initial size of the main form.
+
+Bug fixes
+* After re-titling a directory, saving the image, then either closing the application or closing the image, the application would still think that there are unsaved changes.
+* The buttons in the Split DFS facility had got swapped round and then did not make sense.
+* A bug was introduced in 1.23 where, when saving a UEF, the data block was not made big enough before trying to write some data, resulting in some parameters not being written correctly.
+* On Windows, when a file was double clicked to open in the File Viewer, it also triggered the drag and drop copy operation in the directory tree.
+
 
 Platform History
 ----------------

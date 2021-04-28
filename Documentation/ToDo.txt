@@ -21,8 +21,8 @@ DFS
 none
 
 ADFS
-* Currently files are allocated fragments for new map starting from the root zone, then moving up and wrapping round (e.g. 2,3,0,1). ADFS tries to centralise around the root zone (e.g. 2,1,3,0). This is in ADFSGetFreeFragments.
 * Currently multi-zone sized files are allocated fragments for new map starting from the root zone, but ADFS starts from zone 0 for such files.
+* Create blank hard drives.
 
 Commodore
 none
@@ -38,3 +38,6 @@ Spectrum/Amstrad
 
 CFS
 * Enable the code to move files - both this and the previous require the Drop and Drag to be enabled for CFS.
+
+MMFS
+* Write entire module.

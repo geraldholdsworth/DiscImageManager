@@ -260,6 +260,8 @@ type
    procedure UpdateImageInfo;
    procedure ArrangeFileDetails;
    procedure ReportError(error: String);
+   function AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
+   procedure ShowInfo(info: String);
    function GetCopyMode(Shift: TShiftState): Boolean;
    function GetNodeAt(Y: Integer): TTreeNode;
    procedure UpdateProgress(Fupdate: String);
@@ -370,7 +372,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.23';
+    ApplicationVersion = '1.24';
    procedure AfterConstruction; override;
   end;
 
@@ -382,7 +384,8 @@ implementation
 {$R *.lfm}
 
 uses
-  AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SplitDFSUnit,SearchUnit;
+  AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SplitDFSUnit,SearchUnit,
+  CustomDialogueUnit;
 
 {------------------------------------------------------------------------------}
 //Rescale the form
@@ -1362,6 +1365,7 @@ begin
   DFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
   //Position the tick box inside
   DFSAttributeLabel.Top:=0;
+  DFSAttributeLabel.Left:=(DFSAttrPanel.Width-DFSAttributeLabel.Width)div 2;
   cb_DFS_l.Top:=DFSAttributeLabel.Top+DFSAttributeLabel.Height;
   cb_DFS_l.Left:=(DFSAttrPanel.Width-cb_DFS_l.Width)div 2;
   //And change the panel height to accomodate
@@ -1413,6 +1417,7 @@ begin
    C64AttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
    //Position the ticks box inside
    C64AttributeLabel.Top:=0;
+   C64AttributeLabel.Left:=(C64AttrPanel.Width-C64AttributeLabel.Width)div 2;
    cb_DFS_l.Top:=C64AttributeLabel.Top+C64AttributeLabel.Height;
    cb_C64_c.Top:=0;
    cb_C64_l.Top:=0;
@@ -1824,8 +1829,8 @@ begin
  //Keep the application open
  KeepOpen:=True;
  //Initial width and height of form
- Width:=1042;
- Height:=751;
+ Width:=749;
+ Height:=515;
  //Enable or disable buttons
  DisableControls;
  //Reset the file details panel
@@ -2251,8 +2256,10 @@ function TMainForm.QueryUnsaved: Boolean;
 begin
  Result:=True;
  if HasChanged then
-  Result:=MessageDlg('You have unsaved changes. Do you wish to continue?',
-                mtInformation,[mbYes,mbNo],0)=mrYes;
+ begin
+  Result:=AskConfirm('You have unsaved changes. Do you wish to continue?',
+                            'Yes','No','')=mrOK;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2276,8 +2283,9 @@ var
  SparkFile : TSpark;
  sparksize : Cardinal;
  isspark   : Boolean;
-const
- dlg = 'Open, Add, or Import Contents?';
+ confirm   : TModalResult;
+{const
+ dlg = 'Open, Add, or Import Contents?';}
 begin
  //Create a new DiscImage instance
  NewImage:=TDiscImage.Create;
@@ -2306,10 +2314,12 @@ begin
     if(fmt[1]='A')or(fmt[1]='E')or(fmt[1]='I')or(fmt[1]='O')or(fmt[1]='U')then
      msg:=msg+'n';
     msg:=msg+' '+fmt+' image, add this file to existing image, ';
-    msg:=msg+'import this file''s contents to existing image?';
+    msg:=msg+'or import this file''s contents to existing image?';
     //Pose question
-    open:=QuestionDlg(dlg,msg,mtConfirmation,
-                   [300,'Open',301,'Add',302,'Import'],0)-299;
+    confirm:=AskConfirm(msg,'Open','Add','Import');
+    if confirm=mrOK     then open:=$01;
+    if confirm=mrCancel then open:=$02;
+    if confirm=mrIgnore then open:=$03;
    end;
    if open=$02 then //Add file
    begin
@@ -2324,9 +2334,11 @@ begin
      //Is it a valid Spark Archive?
      if(isspark)and(sparksize<Image.FreeSpace)then
      begin //Ask user if they would like it uncompressed
-      if QuestionDlg('Uncompress','This has been detected as a Spark archive. '
-                    +'Would you like to uncompress and add the contents?',
-                    mtConfirmation,[300,'Yes',301,'No - just add'],0)=300 then
+      if AskConfirm('This has been detected as a Spark archive. '
+                   +'Would you like to uncompress and add the contents?',
+                    'Yes',
+                    'No - just add',
+                    '')=mrOK then
       begin
        open:=$00; //Yes, so reset the open flag so it doesn't add it
        AddSparkToImage(FileName);
@@ -2500,10 +2512,13 @@ begin
   filename:=lb_Parent.Caption+Image.DirSep+filename;
  //Then send to be retitled
  newtitle:=ed_title.Text;
- if Image.RetitleDirectory(filename,newtitle) then
+ if newtitle<>lb_title.Caption then //Only if something has changed
  begin
-  lb_title.Caption:=newtitle; //If success, then change the text
-  HasChanged:=True;
+  if Image.RetitleDirectory(filename,newtitle) then
+  begin
+   lb_title.Caption:=newtitle; //If success, then change the text
+   HasChanged:=True;
+  end;
  end;
  lb_title.Visible:=True;
  ed_title.Visible:=False;
@@ -2783,9 +2798,9 @@ begin
  SplitDFSForm.ShowModal;
  //Report back to the user the result
  if SplitDFSForm.ModalResult=mrOK then
-  ReportError('Operation was a success'); //Not really an error
+  ShowInfo('Operation was a success');
  if SplitDFSForm.ModalResult=mrAbort then
-  ReportError('Operation failed');        //Certainly an error
+  ReportError('Operation failed');
  //We'll ignore cancel, as this was a user operation
 end;
 
@@ -2979,9 +2994,9 @@ procedure TMainForm.DirListMouseDown(Sender: TObject; Button: TMouseButton;
 begin
  if ssLeft in Shift then //Only if left button is clicked
   //ADFS, double sided DFS, or AmigaDOS
-  if((Image.FormatNumber shr 4=0) AND (Image.DoubleSided))
-  or (Image.FormatNumber shr 4=1)
-  or (Image.FormatNumber shr 4=4) then
+  if((Image.FormatNumber>>4=diAcornDFS) AND (Image.DoubleSided))
+  or (Image.FormatNumber>>4=diAcornADFS)
+  or (Image.FormatNumber>>4=diAmiga) then
   begin
    //Remember the node being dragged
    DraggedItem:=DirList.GetNodeAt(X,Y);
@@ -3028,7 +3043,7 @@ begin
  xpos:=-10;
  Result:=nil;
  //'GetNodeAt' only returns the node *under* the mouse, so we ignore the 'X'
- while (Result=nil) and (xpos<DirList.Width) do
+ while(Result=nil)and(xpos<DirList.Width)do
  begin
   //So we go from left to right until we find a node, or reach the other side
   inc(xpos,10);
@@ -3434,14 +3449,14 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DeleteFile1Click(Sender: TObject);
 var
- R: Boolean;
+ R  : Boolean;
 begin
  //Result of the confirmation - assumed Yes for now
  R:=True;
  //For mulitple deletes, ensure that the user really wants to
  if DirList.SelectionCount>1 then
-   R:=MessageDlg('Delete '+IntToStr(DirList.SelectionCount)+' files?',
-                 mtInformation,[mbYes, mbNo],0)=mrYes;
+  R:=AskConfirm('Delete '+IntToStr(DirList.SelectionCount)+' files?'
+               ,'Yes','No','')=mrOK;
  //If user does, or single file, continue
  if R then DeleteFile(True);
 end;
@@ -3461,8 +3476,8 @@ begin
   //Get the full path to the file
   filepath:=GetFilePath(DirList.Selections[i]);
   //If singular, check if the user wants to
-  if (DirList.SelectionCount=1) and (confirm) then
-   R:=MessageDlg('Delete '+filepath+'?',mtInformation,[mbYes, mbNo],0)=mrYes
+  if(DirList.SelectionCount=1)and(confirm)then
+   R:=AskConfirm('Delete '+filepath+'?','Yes','No','')=mrOK
   else R:=True;
   //If so, then delete
   if R then
@@ -3509,6 +3524,12 @@ var
  buffer  : TDIByteArray;
  menuitem: TMenuItem;
 begin
+ //Reset the drag/drop flags
+ imgCopy.Visible:=False;
+ MouseIsDown:=False;
+ IsDragging:=False;
+ if ObjectDrag<>nil then ObjectDrag.Free;
+ ObjectDrag:=nil;
  //Get the selected Node (currently only a single node can be selected)
  Node:=DirList.Selected;
  //Only act on it if there is one selected
@@ -3824,7 +3845,7 @@ end;
 procedure TMainForm.ImageDetailsDrawPanel(StatusBar: TStatusBar;
  Panel: TStatusPanel; const Rect: TRect);
 var
- png: Byte;
+ png    : Byte;
  imgRect: TRect;
 begin
  //Set up the rectangle for the image - giving it 2px border
@@ -3833,30 +3854,32 @@ begin
  imgRect.Height:=Rect.Height-6;
  imgRect.Width:=imgRect.Height;
  //First panel - we want to put the 'not saved' indicator here
- if (Panel.Index=0) and (HasChanged) then
+ if(Panel.Index=0)and(HasChanged)then
   icons.StretchDraw(StatusBar.Canvas,changedicon,imgRect);
  //Second panel - needs a logo
- if (Panel.Index=1) and (Panel.Text<>'') then
+ if(Panel.Index=1)and(Panel.Text<>'')then
  begin
   png:=0;
-  case Image.FormatNumber shr 4 of
-   0: png:=bbclogo;       //BBC Micro logo for DFS
-   1:
+  case Image.FormatNumber>>4 of
+   diAcornDFS : png:=bbclogo;       //BBC Micro logo for DFS
+   diAcornADFS:
    begin
     if(Image.FormatNumber mod $10<>3)
     and(Image.MapType=0) then png:=acornlogo; //Acorn logo for 8 bit ADFS
     if(Image.FormatNumber mod $10=3)
     or(Image.MapType=1) then png:=riscoslogo; //RISC OS logo for 32 bit ADFS
    end;
-   2: png:=commodorelogo; //Commodore logo
-   3: png:=sinclairlogo;  //Sinclair logo
-   4: png:=amigalogo;     //Amiga logo
-   5: png:=acornlogo;     //Acorn logo for CFS
-   6: png:=bbclogo;       //BBC Micro logo for MMFS
+   diCommodore: png:=commodorelogo; //Commodore logo
+   diSinclair : png:=sinclairlogo;  //Sinclair logo
+   diAmiga    : png:=amigalogo;     //Amiga logo
+   diAcornUEF : png:=acornlogo;     //Acorn logo for CFS
+   diMMFS     : png:=bbclogo;       //BBC Micro logo for MMFS
   end;
   Rect.Height:=Rect.Height-2;
+  //Draw the icon
   if png<>0 then
    icons.StretchDraw(StatusBar.Canvas,png,imgRect);
+  //And display the text
   StatusBar.Canvas.TextRect(Rect,
                             Rect.Left+imgRect.Width+5,
                             Rect.Top+1,
@@ -3901,7 +3924,35 @@ begin
   if ParamCount>0 then
    WriteLn(error)
   else //Otherwise, display a nice window on the screen
-   QuestionDlg('Error',error,mtError,[mbOK],0);
+   CustomDialogue.ShowError(error,'');
+   //QuestionDlg('Error',error,mtError,[mbOK],0);
+end;
+
+{------------------------------------------------------------------------------}
+//Ask the user for confirmation
+{------------------------------------------------------------------------------}
+function TMainForm.AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
+begin
+ if ErrorReporting then
+  //If we are in command line mode, then do not use the GUI
+{  if ParamCount>0 then
+   WriteLn(confirm)
+  else //Otherwise, display a nice window on the screen}
+   CustomDialogue.ShowConfirm(confim,okbtn,cancelbtn,ignorebtn);
+ Result:=CustomDialogue.ModalResult;
+end;
+
+{------------------------------------------------------------------------------}
+//Show information to the user
+{------------------------------------------------------------------------------}
+procedure TMainForm.ShowInfo(info: String);
+begin
+ if ErrorReporting then
+  //If we are in command line mode, then do not use the GUI
+  if ParamCount>0 then
+   WriteLn(info)
+  else //Otherwise, display a nice window on the screen
+   CustomDialogue.ShowInfo(info,'');
 end;
 
 {------------------------------------------------------------------------------}

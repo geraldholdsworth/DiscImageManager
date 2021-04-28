@@ -319,7 +319,7 @@ begin
      //Header CRC-16
      Write16b(GetCRC16(ptr-Length(temp),Length(temp)+17,dummy),ptr+17);
      //Data
-     SetDataLength(GetDataLength+len+1);
+     SetDataLength(GetDataLength+len+3);
      for j:=0 to len do WriteByte(CFSFiles[entry][fileptr+j],ptr+19+j);
      //Data CRC-16
      Write16b(GetCRC16(ptr+19,len,dummy),ptr+19+len);
