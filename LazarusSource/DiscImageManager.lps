@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectSession>
     <Version Value="11"/>
-    <BuildModes Active="Default"/>
+    <BuildModes Active="Release platform native"/>
     <Units Count="23">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
@@ -19,8 +19,8 @@
         <ResourceBaseClass Value="Form"/>
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="3526"/>
-        <CursorPos X="18" Y="3532"/>
+        <TopLine Value="365"/>
+        <CursorPos X="33" Y="375"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -29,7 +29,7 @@
         <Filename Value="DiscImage.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="5"/>
-        <TopLine Value="776"/>
+        <TopLine Value="775"/>
         <CursorPos X="2" Y="761"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
@@ -162,7 +162,7 @@
         <EditorIndex Value="2"/>
         <TopLine Value="7"/>
         <CursorPos X="29" Y="81"/>
-        <UsageCount Value="65"/>
+        <UsageCount Value="66"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit14>
@@ -214,8 +214,8 @@
       <Unit21>
         <Filename Value="DiscImage_CFS.pas"/>
         <EditorIndex Value="18"/>
-        <TopLine Value="215"/>
-        <CursorPos X="24" Y="229"/>
+        <TopLine Value="282"/>
+        <CursorPos X="23" Y="301"/>
         <UsageCount Value="114"/>
         <Loaded Value="True"/>
       </Unit21>
@@ -228,7 +228,7 @@
         <Loaded Value="True"/>
       </Unit22>
     </Units>
-    <JumpHistory Count="28" HistoryIndex="27">
+    <JumpHistory Count="29" HistoryIndex="28">
       <Position1>
         <Filename Value="CustomDialogueUnit.pas"/>
         <Caret Line="87" Column="32" TopLine="66"/>
@@ -341,6 +341,10 @@
         <Filename Value="MainUnit.pas"/>
         <Caret Line="204" Column="15" TopLine="194"/>
       </Position28>
+      <Position29>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="3532" Column="18" TopLine="3526"/>
+      </Position29>
     </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>

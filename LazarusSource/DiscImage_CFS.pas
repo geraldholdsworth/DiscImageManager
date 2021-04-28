@@ -227,6 +227,7 @@ var
  dummy   : TDIByteArray;
  F       : TGZFileStream;
  Func    : TFileStream;
+ d1:Integer;
 begin
  SetLength(dummy,0);
  //Only continue if there are any entries
@@ -297,7 +298,7 @@ begin
      for i:=1 to Length(temp) do WriteByte(Ord(temp[i]),ptr+i);
      inc(ptr,Length(temp)+1);
      //Rest of the header
-     SetDataLength(GetDataLength+19);
+     SetDataLength(ptr+19);
      //Load Address
      Write32b(FDisc[0].Entries[entry].LoadAddr,ptr);
      //Exec Address
@@ -317,6 +318,7 @@ begin
      //Unused bytes
      Write32b($00,ptr+13);
      //Header CRC-16
+     d1:=Length(Fdata);
      Write16b(GetCRC16(ptr-Length(temp),Length(temp)+17,dummy),ptr+17);
      //Data
      SetDataLength(GetDataLength+len+3);

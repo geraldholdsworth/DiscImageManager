@@ -372,7 +372,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.24';
+    ApplicationVersion = '1.24.1';
    procedure AfterConstruction; override;
   end;
 
