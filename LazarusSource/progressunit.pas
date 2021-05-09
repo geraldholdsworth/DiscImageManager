@@ -60,6 +60,8 @@ begin
  Width:=MainForm.Width;
  Height:=MainForm.Height+MainForm.ImageDetails.Height;
  UpdateProgress.Caption:='';
+ WaitLabel.Left:=(Width-WaitLabel.Width)div 2;
+ WaitLabel.Top:=(Height-WaitLabel.Height)div 2;
 end;
 
 procedure TProgressForm.FormPaint(Sender: TObject);

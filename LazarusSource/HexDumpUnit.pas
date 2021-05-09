@@ -25,7 +25,7 @@ interface
 
 uses
  Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Grids,ExtCtrls,Buttons,
- StdCtrls,ComCtrls,DiscImageUtils,Global,StrUtils,SpriteFile;
+ StdCtrls,ComCtrls, IpHtml,DiscImageUtils,Global,StrUtils,SpriteFile;
 
 type
 
@@ -44,8 +44,8 @@ type
   edXOR: TEdit;
   HexDumpDisplay: TStringGrid;
   ImageDisplay: TImage;
+  BasicOutput: TIpHtmlPanel;
   JumpToLabel: TLabel;
-  BasicOutput: TMemo;
   PageControl: TPageControl;
   HexDump: TTabSheet;
   BasicViewer: TTabSheet;
@@ -644,6 +644,8 @@ var
  detok,
  rem,
  isbasic : Boolean;
+ fs      : TStringStream;
+ pHTML   : TIpHtml;
 const
  // $80 onwards, single token per keyword
  tokens: array[0..127] of String = (
@@ -675,6 +677,9 @@ const
   'CASE' ,'CIRCLE','FILL'  ,'ORIGIN','PSET'   ,'RECT'   ,'SWAP','WHILE',
   'WAIT' ,'MOUSE' ,'QUIT'  ,'SYS'   ,'INSTALL','LIBRARY','TINT','ELLIPSE',
   'BEATS','TEMPO' ,'VOICES','VOICE' ,'STEREO' ,'OVERLAY');
+ keywordstyle = 'style="color:#FFFF00"';
+ linenumstyle = 'style="color:#00FF00"';
+ quotestyle   = 'style="color:#00FFFF"';
 begin
  basiclength:=Length(buffer);
  //First we'll analyse the data to see if it is a BBC BASIC file
@@ -682,10 +687,11 @@ begin
  //Our pointer into the file
  ptr:=0;
  //Clear the output container
- BasicOutput.Clear;
+ fs:=TStringStream.Create('<html><head><title>Basic Listing</title></head>');
  //Is it a BBC BASIC file?
  if isbasic then
  begin
+  fs.WriteString('<body style="background-color:#0000FF;color:#FFFFFF;font-weight:bold">');
   //BBC BASIC version
   basicver:=1;
   //Continue until the end of the file
@@ -696,7 +702,9 @@ begin
    begin
     //Line number
     linenum:=buffer[ptr+2]+buffer[ptr+1]<<8;
-    linetxt:=PadLeft(IntToStr(linenum),5)+' ';
+    linetxt:='<span '+linenumstyle+'>'
+            +StringReplace(PadLeft(IntToStr(linenum),5),' ','&nbsp;',[rfReplaceAll])
+            +'</span>&nbsp;';
     //Line length
     linelen:=buffer[ptr+3];
     //Move our line pointer one
@@ -727,7 +735,8 @@ begin
       //Normal token (BASIC I,II,III and IV)
       if(c<$C6)or(c>$C8)then
       begin
-       if c-$80<=High(tokens) then linetxt:=linetxt+tokens[c-$80];
+       if c-$80<=High(tokens) then
+        linetxt:=linetxt+'<span '+keywordstyle+'>'+tokens[c-$80]+'</span>';
       end
       else //Extended tokens (BASIC V)
       begin
@@ -740,11 +749,14 @@ begin
        if t>$8D then
        begin
         if c=$C6 then
-         if t-$8E<=High(exttokens1)then linetxt:=linetxt+exttokens1[t-$8E];
+         if t-$8E<=High(exttokens1)then
+          linetxt:=linetxt+'<span '+keywordstyle+'>'+exttokens1[t-$8E]+'</span>';
         if c=$C7 then
-         if t-$8E<=High(exttokens2)then linetxt:=linetxt+exttokens2[t-$8E];
+         if t-$8E<=High(exttokens2)then
+          linetxt:=linetxt+'<span '+keywordstyle+'>'+exttokens2[t-$8E]+'</span>';
         if c=$C8 then
-         if t-$8E<=High(exttokens3)then linetxt:=linetxt+exttokens3[t-$8E];
+         if t-$8E<=High(exttokens3)then
+          linetxt:=linetxt+'<span '+keywordstyle+'>'+exttokens3[t-$8E]+'</span>';
        end;
       end;
       //Reset c
@@ -753,13 +765,21 @@ begin
      //We can get control characters in BBC BASIC, but macOS can't deal with them
      if c>31 then
      begin
-      linetxt:=linetxt+Chr(c AND$7F);
+      if not rem then if(c=34)AND(detok)then
+       linetxt:=linetxt+'<span '+quotestyle+'>';
+      if(c<>32)and(c<>38)and(c<>60)and(c<>62)then
+       linetxt:=linetxt+Chr(c AND$7F);
+      if c=32 then linetxt:=linetxt+'&nbsp;';
+      if c=38 then linetxt:=linetxt+'&amp;';
+      if c=60 then linetxt:=linetxt+'&lt;';
+      if c=62 then linetxt:=linetxt+'&gt;';
+      if not rem then if(c=34)and(not detok)then linetxt:=linetxt+'</span>';
       //Do not detokenise within quotes
       if(c=34)and(not rem)then detok:=not detok;
      end;
     end;
     //Add the complete line to the output container
-    BasicOutput.Lines.Add(linetxt);
+    fs.WriteString(linetxt+'<br>');
     //And move onto the next line
     inc(ptr,linelen);
    end;
@@ -782,6 +802,7 @@ begin
  begin
   //It is not a BASIC file, so just display as text
   BasicViewer.Caption:='Text File';
+  fs.WriteString('<body style="background-color:#ECECEC;color:#000000";font-weight:Bold>');
   linetxt:='';
   while ptr<Length(buffer) do
   begin
@@ -792,13 +813,33 @@ begin
    //New line
    if c=$0A then
    begin
-    BasicOutput.Lines.Add(linetxt);
+    StringReplace(linetxt,'&','&amp;',[rfReplaceAll]);
+    StringReplace(linetxt,' ','&nbsp;',[rfReplaceAll]);
+    StringReplace(linetxt,'<','&lt;',[rfReplaceAll]);
+    StringReplace(linetxt,'>','&gt;',[rfReplaceAll]);
+    fs.WriteString(linetxt+'<br>');
     linetxt:='';
    end;
   end;
   //At the end, anything left then push to the output container
-  if linetxt<>'' then BasicOutput.Lines.Add(linetxt);
+  if linetxt<>'' then
+  begin
+   StringReplace(linetxt,'&','&amp;',[rfReplaceAll]);
+   StringReplace(linetxt,' ','&nbsp;',[rfReplaceAll]);
+   StringReplace(linetxt,'<','&lt;',[rfReplaceAll]);
+   StringReplace(linetxt,'>','&gt;',[rfReplaceAll]);
+   fs.WriteString(linetxt+'<br>');
+  end;
  end;
+ //Finish off the HTML
+ fs.WriteString('</body></html>');
+ //Now upload the document to the display
+ pHTML:=TIpHtml.Create;
+ fs.Position:=0;
+ pHTML.LoadFromStream(fs);
+ fs.Free;
+ BasicOutput.SetHtml(pHTML);
+ //Make the tab visible
  BasicViewer.TabVisible:=True;
  //And switch to it
  PageControl.ActivePage:=BasicViewer;

@@ -32,9 +32,21 @@ type
  { TImageDetailForm }
 
  TImageDetailForm = class(TForm)
-  btn_Cancel: TSpeedButton;
+  btn_Cancel: TBitBtn;
+  btn_OK: TBitBtn;
   cbBootOption0: TComboBox;
   cbBootOption1: TComboBox;
+  DirLabel: TLabel;
+  DirPanel: TPanel;
+  AcornLogo: TImage;
+  AmigaLogo: TImage;
+  CommodoreLogo: TImage;
+  SinclairLogo: TImage;
+  lbDirType: TLabel;
+  MapLabel: TLabel;
+  MapPanel: TPanel;
+  FormatLabel: TLabel;
+  FormatPanel: TPanel;
   edDiscTitle0: TEdit;
   edDiscTitle1: TEdit;
   DiscName0Label: TLabel;
@@ -43,6 +55,10 @@ type
   lbBootOption0: TLabel;
   DiscName1Label: TLabel;
   lbBootOption1: TLabel;
+  CRCPanel: TPanel;
+  lbMap: TLabel;
+  lbImgFormat: TLabel;
+  OKBtnBack: TPanel;
   pnSide0: TGroupBox;
   FreeLabel: TLabel;
   SystemLabel: TLabel;
@@ -55,9 +71,6 @@ type
   colDir: TShape;
   colFile: TShape;
   pnSide1: TGroupBox;
-  btn_OK: TSpeedButton;
-  procedure btn_CancelClick(Sender: TObject);
-  procedure btn_OKClick(Sender: TObject);
   procedure LegendPaint(Sender: TObject);
  private
 
@@ -76,19 +89,9 @@ uses MainUnit;
 
 { TImageDetailForm }
 
-procedure TImageDetailForm.btn_OKClick(Sender: TObject);
-begin
- ModalResult:=mrOK;
-end;
-
 procedure TImageDetailForm.LegendPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
-end;
-
-procedure TImageDetailForm.btn_CancelClick(Sender: TObject);
-begin
- ModalResult:=mrCancel;
 end;
 
 end.

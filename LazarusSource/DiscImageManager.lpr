@@ -13,7 +13,8 @@ uses
   HexDumpUnit in 'HexDumpUnit.pas',
   SplitDFSUnit in 'SplitDFSUnit.pas',
   SearchUnit in 'SearchUnit.pas',
-  CustomDialogueUnit in 'CustomDialogueUnit.pas';
+  CustomDialogueUnit in 'CustomDialogueUnit.pas',
+  HardDriveUnit in 'HardDriveUnit.pas';
 
 {$R *.res}
 
@@ -29,5 +30,6 @@ begin
  Application.CreateForm(TSplitDFSForm, SplitDFSForm);
  Application.CreateForm(TSearchForm, SearchForm);
  Application.CreateForm(TCustomDialogue, CustomDialogue);
+ Application.CreateForm(THardDriveForm, HardDriveForm);
  Application.Run;
 end.

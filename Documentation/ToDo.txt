@@ -10,6 +10,7 @@ General
 * Copy entire files onto clipboard? And then paste from clipboard?
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
+* Overhaul of the free-space display. It currently takes too long (especially for big drives) to create a graphic. Looking at ditching the idea of separating system areas, files and directories and just have free space and used space. I can then utilise the fragment arrays to pass this information up to the GUI.
 
 Command Line
 none
@@ -21,8 +22,7 @@ DFS
 none
 
 ADFS
-* Currently multi-zone sized files are allocated fragments for new map starting from the root zone, but ADFS starts from zone 0 for such files.
-* Create blank hard drives.
+none
 
 Commodore
 none
@@ -37,7 +37,7 @@ Spectrum/Amstrad
 * Write entire module.
 
 CFS
-* Enable the code to move files - both this and the previous require the Drop and Drag to be enabled for CFS.
+* Enable the code to move files - this requires the Drop and Drag to be enabled for CFS.
 
 MMFS
 * Write entire module.

@@ -19,10 +19,9 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
-      <MinorVersionNr Value="24"/>
-      <RevisionNr Value="1"/>
+      <MinorVersionNr Value="25"/>
       <Language Value="0809"/>
-      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.24"/>
+      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.25"/>
     </VersionInfo>
     <BuildModes Count="6">
       <Item1 Name="Default" Default="True"/>
@@ -154,6 +153,7 @@
             <CompilerMessages>
               <IgnoredMessages idx5094="True" idx5091="True" idx5060="True" idx5057="True" idx4081="True" idx4080="True" idx4079="True" idx4035="True"/>
             </CompilerMessages>
+            <CustomOptions Value="-XR/Library/Developer/CommandLineTools/SDKs/MacOSX10.13.sdk/"/>
           </Other>
         </CompilerOptions>
       </Item5>
@@ -197,12 +197,15 @@
       <FormatVersion Value="2"/>
       <Modes Count="0"/>
     </RunParams>
-    <RequiredPackages Count="1">
+    <RequiredPackages Count="2">
       <Item1>
-        <PackageName Value="LCL"/>
+        <PackageName Value="TurboPowerIPro"/>
       </Item1>
+      <Item2>
+        <PackageName Value="LCL"/>
+      </Item2>
     </RequiredPackages>
-    <Units Count="15">
+    <Units Count="16">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -290,6 +293,13 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit14>
+      <Unit15>
+        <Filename Value="HardDriveUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="HardDriveForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit15>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -59,7 +59,7 @@ object AboutForm: TAboutForm
     object lb_Version: TLabel
       Left = 1
       Height = 19
-      Top = 53
+      Top = 66
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -74,7 +74,7 @@ object AboutForm: TAboutForm
     object GHWebsiteLabel: TLabel
       Left = 1
       Height = 19
-      Top = 72
+      Top = 85
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -90,7 +90,7 @@ object AboutForm: TAboutForm
     object GitHubWebsiteLabel: TLabel
       Left = 1
       Height = 19
-      Top = 95
+      Top = 108
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -106,7 +106,7 @@ object AboutForm: TAboutForm
     object LicenceLabel: TLabel
       Left = 1
       Height = 13
-      Top = 118
+      Top = 131
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -121,7 +121,7 @@ object AboutForm: TAboutForm
     object AckLabel: TLabel
       Left = 1
       Height = 96
-      Top = 131
+      Top = 144
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -131,6 +131,22 @@ object AboutForm: TAboutForm
       ParentColor = False
       ParentFont = False
       WordWrap = True
+    end
+    object GraphicsLabel: TLabel
+      Left = 1
+      Height = 13
+      Top = 53
+      Width = 518
+      Align = alTop
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'RISC OS 5 graphics designed by Richard Hallas'
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
     end
   end
   object IconImage: TImage

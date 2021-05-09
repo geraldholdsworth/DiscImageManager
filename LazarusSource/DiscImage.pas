@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.23
+TDiscImage class V1.25
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -158,7 +158,10 @@ type
   function ReadADFSDisc: TDisc;
   procedure ADFSFreeSpaceMap;
   procedure ADFSFillFreeSpaceMap(address: Cardinal;usage: Byte);
-  function FormatADFS(minor: Byte): TDisc;
+  function FormatADFSFloppy(minor: Byte): TDisc;
+  procedure FormatOldMapADFS(disctitle: String);
+  procedure FormatNewMapADFS(disctitle: String);
+  function FormatADFSHDD(harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):TDisc;
   function UpdateADFSDiscTitle(title: String): Boolean;
   function UpdateADFSBootOption(option: Byte): Boolean;
   function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
@@ -193,6 +196,8 @@ type
   procedure ReduceADFSCat(dir,entry: Cardinal);
   function FixBrokenADFSDirectories: Boolean;
   procedure FixADFSDirectory(dir,entry: Integer);
+  function ADFSGetHardDriveParams(Ldiscsize:Cardinal;bigmap:Boolean;
+              var Lidlen,Lzone_spare,Lnzones,Llog2bpmb,Lroot: Cardinal):Boolean;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
@@ -256,7 +261,7 @@ type
   function CFSBlockStatus(status: Byte): String;
   function CFSTargetMachine(machine: Byte): String;
   function ExtractCFSFile(entry: Integer;var buffer:TDIByteArray):Boolean;
-  procedure WriteUEFFile(filename: String;uncompress: Boolean=True);
+  procedure WriteUEFFile(filename: String;uncompress: Boolean=False);
   function FormatCFS:TDisc;
   function DeleteCFSFile(entry: Cardinal): Boolean;
   function UpdateCFSAttributes(entry: Cardinal;attributes:String): Boolean;
@@ -275,6 +280,8 @@ type
    CDRFileTypes : array[0.. 5] of String = (
                                    'DELDeleted'  ,'SEQSequence' ,'PRGProgram'  ,
                                    'USRUser File','RELRelative' ,'CBMCBM'      );
+   //Disc title for new images
+   disctitle = 'DiscImgMgr';
    {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
  published
   //Methods
@@ -282,9 +289,10 @@ type
   function LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
   function IDImage: Boolean;
   procedure ReadImage;
-  procedure SaveToFile(filename: String;uncompress: Boolean=True);
+  procedure SaveToFile(filename: String;uncompress: Boolean=False);
   procedure Close;
-  function Format(major,minor,tracks: Byte): Boolean;
+  function FormatFDD(major,minor,tracks: Byte): Boolean;
+  function FormatHDD(major:Byte;harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):Boolean;
   function ExtractFile(filename:String;var buffer:TDIByteArray;entry:Cardinal=0): Boolean;
   function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
   function FileExists(filename: String; var Ref: Cardinal): Boolean;
@@ -304,6 +312,7 @@ type
   function RetitleDirectory(var filename,newtitle: String): Boolean;
   function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function FixDirectories: Boolean;
+  function SaveFilter(var FilterIndex: Integer):String;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -432,12 +441,12 @@ const
   ('','','','','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''));
 begin
- if FFormat<>$FF then
+ Result:='';
+ if(FFormat>>4<=High(FS))and(FFormat mod $10<=High(SUB[FFormat>>4]))then
  begin
   Result:= FS[FFormat>>4]+' '
          +SUB[FFormat>>4,FFormat MOD $10];
- end
- else Result:='unknown';
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -454,11 +463,12 @@ const
   ('uef','','','','','','','','','','','','','','',''),
   ('mmb','','','','','','','','','','','','','','',''));
 begin
- if FFormat<>$FF then
- begin
-  Result:=EXT[FFormat>>4,FFormat MOD $10];
- end
- else Result:='unk';
+ Result:='';
+ if FFormat>>4<=High(EXT) then
+  if FFormat mod $10<=High(EXT[FFormat>>4]) then
+  begin
+   Result:=EXT[FFormat>>4,FFormat MOD $10];
+  end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1044,6 +1054,43 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Construct a save filter
+-------------------------------------------------------------------------------}
+function TDiscImage.SaveFilter(var FilterIndex: Integer):String;
+var
+ currentformat,
+ queryformat   : Byte;
+ ext           : String;
+ index         : Integer;
+begin
+ Result:='';
+ //Save the current format
+ currentformat:=FFormat;
+ index:=0;
+ for queryformat:=$00 to $6F do
+ begin
+  //Set the format
+  FFormat:=queryformat;
+  //Get the current extension
+  ext:=FormatToExt;
+  //If it is empty, skip
+  if ext<>'' then
+  begin
+   //If the current string is not empty, add a delimiter
+   if Result<>'' then Result:=Result+'|';
+   //Add the format string and extension
+   ext:=FormatToString+'|*.'+ext;
+   Result:=Result+ext;
+   inc(index);
+   //Set the filter index, if we are at the current format
+   if currentformat=queryformat then FilterIndex:=index;
+  end;
+ end;
+ //Restore the current format
+ FFormat:=currentformat;
+end;
+
+{-------------------------------------------------------------------------------
 Load an image from a file, unGZIPping it, if necessary
 -------------------------------------------------------------------------------}
 function TDiscImage.LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
@@ -1162,7 +1209,7 @@ Read the disc in, depending on the format
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReadImage;
 begin
- case FFormat shr 4 of
+ case FFormat>>4 of
   diAcornDFS : FDisc:=ReadDFSDisc;     //Acorn DFS
   diAcornADFS: FDisc:=ReadADFSDisc;    //Acorn ADFS
   diCommodore: FDisc:=ReadCDRDisc;     //Commodore
@@ -1176,7 +1223,7 @@ end;
 {-------------------------------------------------------------------------------
 Saves an image to a file
 -------------------------------------------------------------------------------}
-procedure TDiscImage.SaveToFile(filename: String;uncompress: Boolean=True);
+procedure TDiscImage.SaveToFile(filename: String;uncompress: Boolean=False);
 var
  FDiscDrive: TFileStream;
  ext: String;
@@ -1219,7 +1266,7 @@ end;
 {-------------------------------------------------------------------------------
 Create and format a new disc image
 -------------------------------------------------------------------------------}
-function TDiscImage.Format(major,minor,tracks: Byte): Boolean;
+function TDiscImage.FormatFDD(major,minor,tracks: Byte): Boolean;
 begin
  Result:=False;
  //Make sure the numbers are within bounds
@@ -1234,7 +1281,7 @@ begin
    end;
   diAcornADFS://Create ADFS
    begin
-    FDisc:=FormatADFS(minor);
+    FDisc:=FormatADFSFloppy(minor);
     Result:=Length(FDisc)>0;
    end;
   diCommodore://Create Commodore 64/128
@@ -1255,6 +1302,22 @@ begin
   diAcornUEF://Create CFS
    begin
     FDisc:=FormatCFS;
+    Result:=Length(FDisc)>0;
+   end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Create and format a new hard disc image
+-------------------------------------------------------------------------------}
+function TDiscimage.FormatHDD(major:Byte;harddrivesize:Cardinal;newmap:Boolean;
+                                                          dirtype:Byte):Boolean;
+begin
+ Result:=False;
+ case major of
+  diAcornADFS: //Create ADFS
+   begin
+    FDisc:=FormatADFSHDD(harddrivesize,newmap,dirtype);
     Result:=Length(FDisc)>0;
    end;
  end;
@@ -1486,7 +1549,7 @@ begin
  //Simply copy from source to destination
  //ReadByte will compensate if offset is out of range
  //All but DFS
- if FFormat shr 4<>0 then
+ if FFormat>>4<>diAcornDFS then
  begin
   SetLength(temp,count);
   if count>0 then
@@ -1494,7 +1557,7 @@ begin
     temp[i]:=ReadByte(addr+i);
  end;
  //DFS
- if FFormat shr 4=0 then
+ if FFormat>>4=diAcornDFS then
  begin
   SetLength(temp,count);
   if count>0 then
@@ -1713,21 +1776,21 @@ function TDiscImage.MoveFile(filename, directory: String): Integer;
 begin
  Result:=-12;
  //Can only move files on DFS (between drives), ADFS, Amiga and CFS
- if FFormat shr 4=0 then //Move on DFS
+ if FFormat>>4=diAcornDFS then //Move on DFS
  begin
   //Moving and copying are the same, essentially
   Result:=CopyFile(filename,directory);
   //We just need to delete the original once copied
   if Result>-1 then DeleteFile(filename);
  end;
- if FFormat shr 4=1 then Result:=MoveADFSFile(filename,directory);
- if FFormat shr 4=4 then Result:=MoveAmigaFile(filename,directory);
+ if FFormat>>4=diAcornADFS then Result:=MoveADFSFile(filename,directory);
+ if FFormat>>4=diAmiga     then Result:=MoveAmigaFile(filename,directory);
 end;
 function TDiscImage.MoveFile(source: Cardinal;dest: Integer): Integer;
 begin
  Result:=-12;
  //Can only move files on DFS (between drives), ADFS, Amiga and CFS
- if FFormat shr 4=5 then //Move on CFS
+ if FFormat>>4=diAcornUEF then //Move on CFS
   Result:=MoveCFSFile(source,dest);
 end;
 
@@ -1767,7 +1830,7 @@ begin
      //Set up the filedetails
      file_details:=FDisc[dir].Entries[entry];
      file_details.Parent:=directory;
-     if FFormat shr 4=0 then //DFS
+     if FFormat>>4=diAcornDFS then //DFS
       if(directory[1]=':')and(directory[2]='2') then
        file_details.Side:=1
       else

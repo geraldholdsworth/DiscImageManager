@@ -81,7 +81,7 @@ begin
     if ctr=16 then FFormat:=$22; //1581
    end;
    FDSD  :=(FFormat>$20)and(FFormat<$2F); //Set/reset the DoubleSided flag
-   Result:=FFormat shr 4=2;               //Return TRUE if succesful ID
+   Result:=FFormat>>4=diCommodore;        //Return TRUE if succesful ID
    If Result then FMap:=False;            //and reset the NewMap flag
   end;
  end;
@@ -237,7 +237,8 @@ Create a new, blank, disc
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatCDR(minor: Byte): TDisc;
 var
- t,i    : Integer;
+ t,i : Integer;
+ c   : Byte;
 begin
  //Blank everything
  ResetVariables;
@@ -285,7 +286,12 @@ begin
    WriteByte((1 shl (CDRnumsects[i]-16))-1,$16503+(t*4));
   end;
   //Disc Name
-  for t:=0 to 15 do WriteByte($A0,$16590+t);
+  for t:=0 to 15 do
+  begin
+   c:=$A0;//Top bit set space, by default
+   if t<Length(disctitle) then c:=Ord(disctitle[t+1]);
+   WriteByte(c,$16590+t);
+  end;
   //Reserved
   Write16b($A0A0,$165A0);
   //Disc ID

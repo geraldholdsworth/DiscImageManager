@@ -76,6 +76,7 @@ type
   diAmiga      = $04;
   diAcornUEF   = $05;
   diMMFS       = $06;
+  diInvalidImg = $FF;
   diADFSOldDir = $00;
   diADFSNewDir = $01;
   diADFSBigDir = $02;
@@ -279,8 +280,6 @@ function GetAttributes(attr: String;format: Byte):String;
 var
  attr1 : String;
  attr2 : Byte;
-{const
- osfile='RWELrwel';}
 begin
  {This converts a hex number to attributes. This hex number is different to what
  is used by ADFS internally (and saved to the disc images) but is what is

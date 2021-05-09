@@ -19,11 +19,11 @@ object HexDumpForm: THexDumpForm
     Height = 636
     Top = 0
     Width = 635
-    ActivePage = BasicViewer
+    ActivePage = HexDump
     Align = alClient
     Images = MainForm.ToolBarImages
     ImagesWidth = 16
-    TabIndex = 1
+    TabIndex = 0
     TabOrder = 0
     object HexDump: TTabSheet
       Caption = 'Hex Dump'
@@ -241,19 +241,25 @@ object HexDumpForm: THexDumpForm
       ClientHeight = 606
       ClientWidth = 629
       TabVisible = False
-      object BasicOutput: TMemo
+      object BasicOutput: TIpHtmlPanel
         Left = 0
         Height = 606
         Top = 0
         Width = 629
         Align = alClient
-        BorderStyle = bsNone
-        Color = 15527148
-        Font.Name = 'Courier New'
-        Lines.Strings = (        )
-        ParentFont = False
-        ReadOnly = True
-        ScrollBars = ssAutoBoth
+        FixedTypeface = 'Courier'
+        DefaultTypeFace = 'Courier New'
+        DefaultFontSize = 12
+        FlagErrors = False
+        PrintSettings.MarginLeft = 0.5
+        PrintSettings.MarginTop = 0.5
+        PrintSettings.MarginRight = 0.5
+        PrintSettings.MarginBottom = 0.5
+        PrintSettings.Preview.AntiAliasingMode = amOn
+        PrintSettings.Preview.Left = 360
+        PrintSettings.Preview.Top = 225
+        PrintSettings.Preview.Width = 1080
+        PrintSettings.Preview.Height = 675
         TabOrder = 0
       end
     end

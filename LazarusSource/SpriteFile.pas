@@ -60,10 +60,6 @@ type
   Mask          : array of TDynByteArray;   // Transparency Mask
  end;
  TSpriteFile = class
-{ private
- type
-  //Provides feedback
-  TProgressProc = procedure(Fupdate: Integer) of Object;}
  private
   FSpritePool  : TDynByteArray;//The actual sprite file data
   FSpriteFile  : String;       //Filename of the sprite file

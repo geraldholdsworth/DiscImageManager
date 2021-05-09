@@ -32,6 +32,7 @@ type
  { TSearchForm }
 
  TSearchForm = class(TForm)
+  sb_SearchButton: TBitBtn;
   ed_filenamesearch: TEdit;
   ed_filetypesearch: TEdit;
   lb_searchresults: TListBox;
@@ -39,7 +40,6 @@ type
   SearchFilenameLabel: TLabel;
   SearchFiletypeLabel: TLabel;
   searchresultscount: TLabel;
-  sb_SearchButton: TSpeedButton;
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
   procedure sb_searchClick(Sender: TObject);
@@ -81,8 +81,6 @@ begin
   search.ShortFiletype:=ed_filetypesearch.Text //Hex number specified?
  else
   search.Filetype:=ed_filetypesearch.Text; //Or full filetype string?
-{ //Validate that the length entered is a hex number or zero if not
- search.Length:=StrToIntDef('$'+ed_lengthsearch.Text,0);}
  //Search for files
  results:=MainForm.Image.FileSearch(search);
  //Clear the results
@@ -148,7 +146,6 @@ procedure TSearchForm.ResetSearchFields;
 begin
  lb_searchresults.Clear;
  ed_filenamesearch.Text:='';
- //ed_lengthsearch.Text:='';
  searchresultscount.Caption:='Number of results found: '+IntToStr(lb_searchresults.Count);
 end;
 

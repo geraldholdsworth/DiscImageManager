@@ -213,7 +213,7 @@ end;
 {-------------------------------------------------------------------------------
 Rebuilds and saves a UEF file
 -------------------------------------------------------------------------------}
-procedure TDiscImage.WriteUEFFile(filename: String;uncompress: Boolean=True);
+procedure TDiscImage.WriteUEFFile(filename: String;uncompress: Boolean=False);
 var
  entry,
  ptr,
@@ -227,7 +227,6 @@ var
  dummy   : TDIByteArray;
  F       : TGZFileStream;
  Func    : TFileStream;
- d1:Integer;
 begin
  SetLength(dummy,0);
  //Only continue if there are any entries
@@ -244,33 +243,33 @@ begin
   Write16b($0000,$0C);
   Write32b(Length(temp),$0E);
   for i:=1 to Length(temp) do WriteByte(Ord(temp[i]),$11+i);
-  //Set up our file pointer
-  ptr:=GetDataLength;
   //Files
   for entry:=0 to Length(FDisc[0].Entries)-1 do
   begin
+   //Set up our file pointer
+   ptr:=GetDataLength;
    //Get the file - Only write the file if there is something to write
    if ExtractCFSFile(entry,buffer) then
    begin
     //Write the leading tone, single byte data block and another tone to start
     //Leading tone, 5 seconds
-    SetDataLength(GetDataLength+8);
+    SetDataLength(ptr+8);
     Write16b($0110,ptr);
     Write32b(2,ptr+2);
     Write16b($05DC,ptr+6);
-    inc(ptr,8);
+    ptr:=GetDataLength;
     //Single byte data block
-    SetDataLength(GetDataLength+7);
+    SetDataLength(ptr+7);
     Write16b($0100,ptr);
     Write32b(1,ptr+2);
     WriteByte($DC,ptr+6);
-    inc(ptr,7);
+    ptr:=GetDataLength;
     //Second leading tone, 5 seconds
-    SetDataLength(GetDataLength+8);
+    SetDataLength(ptr+8);
     Write16b($0110,ptr);
     Write32b(2,ptr+2);
     Write16b($05DC,ptr+6);
-    inc(ptr,8);
+    ptr:=GetDataLength;
     //Where are we in the file?
     fileptr:=0;
     //Block counter
@@ -278,7 +277,7 @@ begin
     while fileptr<Length(CFSFiles[entry]) do
     begin
      //Data block
-     SetDataLength(GetDataLength+6);
+     SetDataLength(ptr+6);
      Write16b($100,ptr);
      //We need to know the length of this block
      if fileptr+$100>Length(CFSFiles[entry]) then
@@ -289,7 +288,7 @@ begin
      temp:=FDisc[0].Entries[entry].Filename+#00;
      //Then write the length of the chunk
      Write32b(len+22+Length(temp),ptr+2);
-     inc(ptr,6);
+     ptr:=GetDataLength;
      //Now the data block header
      SetDataLength(GetDataLength+1);
      WriteByte($2A,ptr); //Sync byte
@@ -318,7 +317,6 @@ begin
      //Unused bytes
      Write32b($00,ptr+13);
      //Header CRC-16
-     d1:=Length(Fdata);
      Write16b(GetCRC16(ptr-Length(temp),Length(temp)+17,dummy),ptr+17);
      //Data
      SetDataLength(GetDataLength+len+3);
@@ -343,7 +341,7 @@ begin
     //Write a silence gap
     if entry<Length(FDisc[0].Entries)-1 then
     begin
-     SetDataLength(GetDataLength+8);
+     SetDataLength(ptr+8);
      Write16b($112,ptr);
      Write32b(2,ptr+2);
      Write16b($07D0,ptr+6);

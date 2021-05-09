@@ -41,8 +41,11 @@ Parameters:<dirname>|<title>
 Sets the directory title for the specified directory.
 
 --extract -e Extract files or directories
-Parameters:<filename>
-Extracts file(s) specified in <filename> to the local OS path.
+Parameters:<filename>[|<destination>]
+Extracts file(s) specified in <filename> to the local OS path, or to the destination folder if specified. <filename> can contain wildcards:
+* : one or many characters
+# : any character
+e.g. to extract everything from an ADFS image, both --extract:$ and --extract:$.* will work. DFS will require the drive specifier, i.e. --extract:":0.$" or --extract:":0.$.*".
 
 --insert -i Open image file
 Parameters:<filename>
@@ -78,6 +81,17 @@ C1581	: Commodore 1581
 AMIGADD	: Commodore Amiga DD
 AMIGAHD	: Commodore Amiga HD
 CFS	: Acorn Cassette Filing System
+ADFSHDD : Acorn ADFS hard drive image
+When creating a hard drive image, an additional parameter is required. However, this is optional and leaving it off will result in an old map, old directory 20MB image being created. The second paramter takes the form:
+<O|N><O|N|B><capacity>[M] where
+<O|N> is the map O: Old or N: New;
+<O|N|B> is the directory type O: Old, N: New, B: Big; and
+<capacity>[M] is the capacity of the image in bytes (or MB if the M is included).
+Notes: The minimum capacity is 20MB, while the largest is 1000MB (512MB for old map). The combinations of map and directory are:
+OO: Old map old directory (similar to S, M and L shape floppy);
+ON: Old map new directory (similar to D shape floppy);
+NN: New map new directory (similar to E and F shape floppy); and
+NB: New map big directory (similar to E+ and F+ shape floppy).
 
 --opt -o Set boot option
 Parameters:<opt>

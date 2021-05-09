@@ -438,6 +438,29 @@ Bug fixes
 * A bug was introduced in 1.23 where, when saving a UEF, the data block was not made big enough before trying to write some data, resulting in some parameters not being written correctly.
 * On Windows, when a file was double clicked to open in the File Viewer, it also triggered the drag and drop copy operation in the directory tree.
 
+1.25 - 
+----------------------
+New or improved features
+* Tidied up some code dealing with saving UEF files.
+* Can now create new, blank, ADFS hard drive images. Min size 20MB; max size 1000MB.
+* A BBC BASIC file is now beautified.
+* Added option for the command line to create an ADFS hard drive image.
+* Resized the New Image dialogue box.
+* Changed the buttons in the New Image dialogue to the 'RISC OS' style being used in the application, and swapped them around.
+* Added image format, map type and directory type to the Image Details dialogue.
+* Added a platform logo to the Image Details dialogue.
+* Changed the buttons in Image Details dialogue to the 'RISC OS' style.
+* Removed the 'Side 0' when the image only has a single side, in Image Details dialogue.
+* Changed the filters in the Save dialogue boxes, and in the Open Image dialogue box.
+* The filter in the Save Image dialogue box now matches the detected format of the currently open image.
+* New DFS and Commodore images are now titled, as per ADFS.
+* Speeded up the creation of the free space graphic(s).
+* When Image Details is clicked, the cursor changes to an hourglass.
+* The Progress window now shows the cursor as an hourglass.
+
+Bug fixes
+* UEF files were getting saved uncompressed by default. This has been changed to saving compressed by default.
+* When checking multizone ADFS discs for free space, zone 0 was missed.
 
 Platform History
 ----------------

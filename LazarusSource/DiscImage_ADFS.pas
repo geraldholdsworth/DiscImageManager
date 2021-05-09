@@ -1133,64 +1133,54 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Create ADFS blank image
+Create ADFS blank floppy image
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatADFS(minor: Byte): TDisc;
+function TDiscImage.FormatADFSFloppy(minor: Byte): TDisc;
 var
- t,mapsize: Integer;
- check    : Byte;
- dirid,att: String;
-const
- disctitle='DiscImgMgr';
+ t     : Integer;
+ dirid,
+ att   : String;
 begin
  //Blank everything
  ResetVariables;
+ SetDataLength(0);
  //Set the format
  FFormat:=$10+minor;
  //Set the filename
  imagefilename:='Untitled.'+FormatExt;
  //Setup the data area
  case minor of
-  0 : SetDataLength( 160*1024);  //S (160KB)
-  1 : SetDataLength( 320*1024);  //M (320KB)
-  2 : SetDataLength( 640*1024);  //L (640KB)
-  3 : SetDataLength( 800*1024);  //D (800KB)
-  4 : SetDataLength( 800*1024);  //E (800KB)
-  5 : SetDataLength( 800*1024);  //E+(800KB)
-  6 : SetDataLength(1600*1024);  //F (1.6MB)
-  7 : SetDataLength(1600*1024);  //F+(1.6MB)
+  0 : disc_size:= 160*1024;  //S (160KB)
+  1 : disc_size:= 320*1024;  //M (320KB)
+  2 : disc_size:= 640*1024;  //L (640KB)
+  3 : disc_size:= 800*1024;  //D (800KB)
+  4 : disc_size:= 800*1024;  //E (800KB)
+  5 : disc_size:= 800*1024;  //E+(800KB)
+  6 : disc_size:=1600*1024;  //F (1.6MB)
+  7 : disc_size:=1600*1024;  //F+(1.6MB)
  end;
+ SetDataLength(disc_size);
  //Setup the variables
- if minor<4 then //Old maps (S, M, L and D)
+ if minor<4 then  //Old maps (S, M, L and D)
  begin
   FMap:=False;
   if minor<3 then //ADFS S, M and L
   begin
-   FDirType:=diADFSOldDir;               //Old Directory
+   FDirType:=diADFSOldDir;    //Old Directory
    secspertrack:=16;          //Sectors Per Track
    secsize:=256;              //Sector size
-   root:=$200;                //Where the root is
-   heads:=1;                  //Number of heads
-   if minor=2 then heads:=2;
-   root_size:=$500;           //Size of the root
   end;
   if minor=3 then //ADFS D
-  begin
-   FDirType:=diADFSNewDir;               //New Directory
-   secspertrack:=5;           //Sectors Per Track
-   secsize:=1024;             //Sector size
-   root:=$400;                //Where the root is
-   heads:=2;                  //Number of heads
-   root_size:=$800;           //Size of the root
-  end;
-  nzones:=1;                   //Number of zones (not required)
-  rootfrag:=root div $100;
+   FDirType:=diADFSNewDir;    //New Directory
  end;
  if minor>3 then //New maps (E, E+, F, and F+)
  begin
   FMap:=True;
   secsize:=1024;
   heads:=2;
+  idlen:=$F;
+  skew:=1;
+  root_size:=$800;
   //New Directory : E and F
   if (minor=4) OR (minor=6) then FDirType:=diADFSNewDir;
   //Big Directory : E+ and F+
@@ -1200,170 +1190,322 @@ begin
   begin
    secspertrack:=5;
    nzones:=1;
+   density:=2;
+   bpmb:=1<<7;
+   zone_spare:=$520;
+   if FDirType=diADFSNewDir then
+    rootfrag:=$00000203
+   else
+    rootfrag:=$00000301;
   end;
   //F and F+
   if (minor=6) OR (minor=7) then
   begin
    secspertrack:=10;
    nzones:=4;
-  end;
- end;
- //Fill with zeros
- for t:=0 to GetDataLength-1 do WriteByte(0,t);
- //Set the boot option
- SetLength(bootoption,1);
- bootoption[0]:=0;
- SetLength(free_space_map,1); //Free Space Map
- disc_size:=GetDataLength;    //Disc Size
- //Fill with zeros
- for t:=0 to disc_size-1 do WriteByte(0,t);
- //Write the map
- if not FMap then //Old Map
- begin
-  //Old map FreeStart
-  Write24b((root+root_size)div$100,$000);
-  //Disc title
-  for t:=0 to 9 do
-  begin
-   if t mod 2=0 then WriteByte(Ord(disctitle[t+1]),$0F7+(t div 2));
-   if t mod 2=1 then WriteByte(Ord(disctitle[t+1]),$1F6+(t div 2));
-  end;
-  //Disc size
-  Write24b(disc_size div$100,$0FC);
-  //Checksum
-  WriteByte(ByteCheckSum($0000,$100),$0FF);
-  //Old map FreeLen
-  Write24b((disc_size-(root+root_size))div$100,$100);
-  //Disc ID
-  Write24b($4077,$1FB); //Random 16 bit number
-  //Old map FreeEnd
-  WriteByte($03,$1FE);
-  //Checksum
-  WriteByte(ByteCheckSum($0100,$100),$1FF);
- end;
- if FMap then //New Map
- begin
-  if nzones=1 then
-  begin
-   bootmap:=$0000;
-   //Zone header
-   Write16b($8218,bootmap+$01); //FreeLink
-   WriteByte($FF, bootmap+$03); //CrossCheck
-   //Part of the full disc record
-   WriteByte($02,bootmap+$07); //Density
-   WriteByte($07,bootmap+$09); //log2bpmb
-   Write16b($0520,bootmap+$0E);//zone_spare
-   if FDirType=diADFSNewDir then          //root
-    rootfrag:=$00000203
-   else
-    rootfrag:=$00000301;
-   Write32b(rootfrag,bootmap+$10);
-   //Allocation map
-   WriteByte($02,bootmap+$40);
-   if FDirType=diADFSBigDir then
-   begin
-    WriteByte($80,bootmap+$41);
-    WriteByte($03,bootmap+$42);
-   end;
-   WriteByte($80,bootmap+$43);
-   WriteByte($80,bootmap+$35F);
-  end;
-  if nzones>1 then //Write the Boot Block (multizone only)
-  begin
-   //Defect List
-   Write32b($20000000,$C00); //Terminate the list
-   //Partial Disc Record
-   WriteByte($0A,$DC0); //log2secsize
-   WriteByte(secspertrack,$DC1);
-   WriteByte($02,$DC2); //heads
-   WriteByte($04,$DC3); //Density
-   WriteByte($0F,$DC4); //idlen
-   WriteByte($06,$DC5); //log2bpmb
-   WriteByte($01,$DC6); //skew
-   WriteByte(nzones,$DC9);
-   Write16b($0640,$DCA);//zone_spare
+   density:=4;
+   bpmb:=1<<6;
+   zone_spare:=$640;
    if FDirType=diADFSNewDir then   //root
     rootfrag:=$00000209
    else
     rootfrag:=$00033801;
-   Write32b(rootfrag,$DCC);
-   Write32b(disc_size,$DD0);
-   if FDirType=diADFSBigDir then Write32b($00000001,$DEC); //format version (+)
-   WriteByte(ByteCheckSum($C00,$200),$DFF);  //Checksum
-   bootmap:=$C6800; //Middle of the disc
-   //Zone 0 header
-   Write16b($8238,bootmap+1); //FreeLink
-   //ZoneCheck
-   //Part of the full disc record
-   WriteByte($04,bootmap+$07); //Density
-   WriteByte($06,bootmap+$09); //log2bpmb
-   Write16b($0640,bootmap+$0E);//zone_spare
-   Write32b(rootfrag,bootmap+$10);//root
-   //Allocation map - zone 0
-   WriteByte($02,bootmap+$40);
-   WriteByte($80,bootmap+$47);
-   WriteByte($80,bootmap+$33B); //End of free area
-   //Allocation map - zones 1 to 3
-   for t:=1 to nzones-1 do
-   begin
-    //Zone header
-    Write16b($8018,($400*t)+bootmap+$01); //FreeLink
-    if t=2 then
-    begin
-     Write16b($80B8,$C7001);
-     WriteByte($02,$C7004); //This marks the location and length of the root
-     if FDirType=diADFSBigDir then
-     begin
-      WriteByte($80,$C7013); //(for big dirs, the root is separate)
-      Write16b($0338,$C7014);
-     end;
-     WriteByte($80,$C7017); //which will point towards $C8800
-    end;
-    if t=3 then Write16b($0180,$C7717); //Marks the end of the disc.
-    check:=$00;
-    if t=3 then check:=$FF; //All four cross checks XOR together need to be $FF
-    WriteByte(check,($400*t)+bootmap+$03); //CrossCheck
-    WriteByte($80,($400*t)+bootmap+$33B); //End of free area
-   end;
-   // $33B is used as the end of the free area because:
-   //zone_spare = $640 div 8 = $C8 + zone_header = $CC
-   //secsize = ($400-1) - $CC = $33B
   end;
-  mapsize:=secsize*nzones;
-  root_size:=$800;
-  //Full Disc Record and allocation map - all formats
-  WriteByte($0A,bootmap+$04); //log2secsize
-  WriteByte(secspertrack,bootmap+$05);
-  WriteByte($02,bootmap+$06); //heads
-  WriteByte($0F,bootmap+$08); //idlen
-  WriteByte($01,bootmap+$0A); //skew
-  WriteByte(nzones,bootmap+$0D);
-  Write32b(disc_size,bootmap+$14);
-  Write16b($4077,bootmap+$18);//disc id
-  for t:=0 to 9 do WriteByte(Ord(disctitle[t+1]),bootmap+$1A+t); //Disc title
-  if FDirType=diADFSBigDir then // '+' only attributes
-  begin
-   Write32b($00000001,bootmap+$30);//format version
-   Write32b(root_size,bootmap+$34);//root size
-   Write32b($20158318,bootmap+$24);//disctype
-  end
-  else // non '+' only attributes
-   Write32b($20158C78,bootmap+$24); //disctype
-  //Zone checks for all zones
-  for t:=0 to nzones-1 do
-   WriteByte(GeneralChecksum(bootmap+$00+(t*secsize),secsize,secsize+4,$4,true),
-             bootmap+(t*secsize)+$00);
-  //Next create a copy of everything
-  for t:=0 to mapsize-1 do
-   WriteByte(ReadByte(bootmap+t),bootmap+mapsize+t);
-  root:=bootmap+mapsize+mapsize;
+  big_flag:=0;
+  format_vers:=0;
+  if FDirType=diADFSBigDir then format_vers:=1;
  end;
+ //Fill with zeros
+ for t:=0 to disc_size-1 do WriteByte(0,t);
+ //Set the boot option
+ SetLength(bootoption,1);
+ bootoption[0]:=0;
+ SetLength(free_space_map,1); //Free Space Map
+ //Write the map
+ if not FMap then //Old Map
+  FormatOldMapADFS(disctitle);
+ if FMap then //New Map
+  FormatNewMapADFS(disctitle);
  //Now write the root
  dirid:='$';
  att:='DLR';
  CreateADFSDirectory(dirid,dirid,att);
  //Finalise all the variables by reading the data in again
  Result:=ReadADFSDisc;
+end;
+
+{-------------------------------------------------------------------------------
+Format an old map ADFS image
+-------------------------------------------------------------------------------}
+procedure TDiscImage.FormatOldMapADFS(disctitle: String);
+var
+ t: Byte;
+begin
+ if FDirType=diADFSOldDir then
+ begin
+  secspertrack:=16;          //Sectors Per Track
+  secsize:=256;              //Sector size
+  root:=$200;                //Where the root is
+  heads:=1;                  //Number of heads
+  if FFormat=$12 then heads:=2;
+  root_size:=$500;           //Size of the root
+ end;
+ if FDirType=diADFSNewDir then
+ begin
+  secspertrack:=5;           //Sectors Per Track
+  secsize:=1024;             //Sector size
+  root:=$400;                //Where the root is
+  heads:=2;                  //Number of heads
+  root_size:=$800;           //Size of the root
+ end;
+ nzones:=1;                   //Number of zones (not required for old map)
+ rootfrag:=root div $100;
+ //Old map FreeStart
+ Write24b((root+root_size)div$100,$000);
+ //Disc title
+ for t:=0 to 9 do
+ begin
+  if t mod 2=0 then WriteByte(Ord(disctitle[t+1]),$0F7+(t div 2));
+  if t mod 2=1 then WriteByte(Ord(disctitle[t+1]),$1F6+(t div 2));
+ end;
+ //Disc size
+ Write24b(disc_size div$100,$0FC);
+ //Checksum
+ WriteByte(ByteCheckSum($0000,$100),$0FF);
+ //Old map FreeLen
+ Write24b((disc_size-(root+root_size))div$100,$100);
+ //Disc ID
+ Write24b($4077,$1FB); //Random 16 bit number
+ //Old map FreeEnd
+ WriteByte($03,$1FE);
+ //Checksum
+ WriteByte(ByteCheckSum($0100,$100),$1FF);
+end;
+
+{-------------------------------------------------------------------------------
+Format a new map ADFS image
+-------------------------------------------------------------------------------}
+procedure TDiscImage.FormatNewMapADFS(disctitle: String);
+var
+ log2secsize,
+ log2bpmb    : Byte;
+ t           : Integer;
+ frags       : TFragmentArray;
+ eodoffset,
+ filelen     : Cardinal;
+begin
+ log2secsize:=0;
+ //Work out log2secsize
+ while secsize<>1<<log2secsize do inc(log2secsize);
+ log2bpmb   :=0;
+ //Work out log2bpmb
+ while bpmb<>1<<log2bpmb do inc(log2bpmb);
+ if nzones>1 then //Write the Boot Block (multizone only)
+ begin
+  //Defect List
+  Write32b($20000000,$C00); //Terminate the list
+  Write32b($FFFFFFFF,$DAC); //Not sure - is never explained
+  //Partial Disc Record
+  WriteByte(log2secsize,$DC0); //log2secsize
+  WriteByte(secspertrack,$DC1);
+  WriteByte(heads,$DC2); //heads
+  WriteByte(density,$DC3); //Density
+  WriteByte(idlen,$DC4); //idlen
+  WriteByte(log2bpmb,$DC5); //log2bpmb
+  WriteByte(skew,$DC6); //skew
+  WriteByte(lowsector,$DC8); //lowsector
+  WriteByte(nzones,$DC9);
+  Write16b(zone_spare,$DCA);//zone_spare
+  Write32b(rootfrag,$DCC);
+  Write32b(disc_size,$DD0);
+  if FDirType=diADFSBigDir then Write32b($00000001,$DEC); //format version (+)
+  WriteByte(ByteCheckSum($C00,$200),$DFF);  //Checksum
+  bootmap:=((nzones div 2)*(8*secsize-zone_spare)-480)*bpmb; //Middle of the disc
+ end;
+ if nzones=1 then bootmap:=0;
+ //Write the zone headers (freelink - we'll do the checkbytes later)
+ for t:=0 to nzones-1 do
+ begin
+  Write16b($8018,bootmap+1+(secsize*t)); //FreeLink
+  //Write the terminating bit for the end of free space
+  WriteBits(1,(bootmap+(secsize*t))+4+(((secsize*8-zone_spare)-1)div 8)
+             ,(((secsize*8)-zone_spare)-1)mod 8,1);
+ end;
+ //Freelink zone 0
+ Write16b($81F8,bootmap+1);
+ //Zonecheck zone 0
+ WriteByte($FF,bootmap+3);
+ //Final zone, mark off the end of the disc
+ eodoffset:=(disc_size div bpmb)+(zone_spare*(nzones-1))+480+32; //In bits
+ //The 480 is the disc record in bits, and the 32 is the last zone header in bits
+ if eodoffset<secsize*nzones*8 then //Only if the end falls in the last zone
+ begin
+  //Terminating bit of the good area
+  WriteBits(1,bootmap+((eodoffset-1)div 8),(eodoffset-1)mod 8,1);
+  //Write the defect ID of 1
+  WriteBits(1,bootmap+(eodoffset div 8),eodoffset mod 8,idlen);
+ end;
+ //Part of the full disc record
+ WriteByte(log2secsize,bootmap+4+$00); //log2secsize
+ WriteByte(secspertrack,bootmap+4+$01);
+ WriteByte(heads,bootmap+4+$02); //heads
+ WriteByte(density,bootmap+4+$03); //Density
+ WriteByte(idlen,bootmap+4+$04); //idlen
+ WriteByte(log2bpmb,bootmap+4+$05); //log2bpmb
+ WriteByte(skew,bootmap+4+$06); //skew
+ WriteByte(lowsector,bootmap+4+$08); //lowsector
+ WriteByte(nzones mod $100,bootmap+4+$09); //nzones lsb
+ Write16b(zone_spare,bootmap+4+$0A);//zone_spare
+ Write32b(rootfrag,bootmap+4+$0C);//root
+ Write32b(disc_size,bootmap+4+$10);//disc_size
+ Write16b($8DC5,bootmap+4+$14);//disc_id
+ for t:=0 to 9 do WriteByte(Ord(disctitle[t+1]),bootmap+4+$16+t); //Disc title
+ if FDirType=diADFSBigDir then // '+' only attributes
+ begin
+  Write32b($20158318,bootmap+4+$20);//disctype
+  Write32b(disc_size>>32,bootmap+4+$24);//High word of disc size
+  WriteByte(1,bootmap+4+$28);//log2sharesize
+  WriteByte(big_flag,bootmap+4+$29);//big flag
+  WriteByte(nzones>>8,bootmap+4+$2A);//nzones msb
+  Write32b(format_vers,bootmap+4+$2C);//format version
+  Write32b(root_size,bootmap+4+$30);//root size
+ end
+ else // non '+' only attributes
+  Write32b($20158C78,bootmap+4+$20); //disctype
+ //Create the fragments for the system areas
+ if nzones>1 then
+ begin
+  SetLength(frags,2);
+  frags[0].Offset:=0;
+  frags[0].Length:=$1000;
+  frags[0].Zone:=0;
+  frags[1].Offset:=bootmap;
+  frags[1].Length:=secsize*nzones*2;
+  frags[1].Zone:=nzones div 2;
+ end;
+ if nzones=1 then
+ begin
+  SetLength(frags,1);
+  frags[0].Offset:=0;
+  frags[0].Length:=secsize*2;
+  frags[0].Zone:=0;
+ end;
+ //Is root a part of this, then increase the second fragment
+ if rootfrag>>8=2 then
+  inc(frags[Length(frags)-1].Length,root_size);
+ //Write the fragments
+ filelen:=0;
+ for t:=0 to Length(frags)-1 do inc(filelen,frags[t].Length);
+ ADFSAllocateFreeSpace(filelen,$2,frags);
+ //Create the fragments for the root
+ if rootfrag>>8<>2 then
+ begin
+  SetLength(frags,1);
+  frags[0].Offset:=bootmap+secsize*nzones*2;
+  frags[0].Length:=root_size;
+  frags[0].Zone:=nzones div 2;
+  //Write the fragment
+  ADFSAllocateFreeSpace(root_size,rootfrag>>8,frags);
+ end;
+ //Zone checks for all zones
+ for t:=0 to nzones-1 do
+  WriteByte(GeneralChecksum(bootmap+$00+(t*secsize),secsize,secsize+4,$4,true),
+            bootmap+(t*secsize)+$00);
+ //Next create a copy of everything
+ for t:=0 to (nzones*secsize)-1 do
+  WriteByte(ReadByte(bootmap+t),bootmap+(nzones*secsize)+t);
+ root:=bootmap+nzones*secsize*2;
+end;
+
+{-------------------------------------------------------------------------------
+Create ADFS blank hard disc image
+-------------------------------------------------------------------------------}
+function TDiscImage.FormatADFSHDD(harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):TDisc;
+var
+ bigmap,
+ ok           : Boolean;
+ Lidlen,
+ Lzone_spare,
+ Lnzones,
+ Llog2bpmb,
+ Lroot        : Cardinal;
+ t            : Byte;
+ dirid,att    : String;
+begin
+ //Initialise the variables
+ bigmap:=False;
+ if dirtype=diADFSBigDir then bigmap:=True;
+ Lidlen:=0;
+ Lzone_spare:=0;
+ Lnzones:=0;
+ Llog2bpmb:=0;
+ Lroot:=0;
+ //Old or new map?
+ dirtype:=dirtype mod 3;//Can only be 0, 1 or 2
+ if dirtype=0 then newmap:=False; //Old directory only on old map
+ if(not newmap)and(harddrivesize>512*1024*1024)then
+  harddrivesize:=512*1024*1024; //512MB max on old map
+ //Work out the parameters based on the drive size
+ if newmap then //But only for new map
+  ok:=ADFSGetHardDriveParams(harddrivesize,bigmap,Lidlen,Lzone_spare,Lnzones,
+                             Llog2bpmb,Lroot)
+ else
+  ok:=True; //old map is easier
+ //Got some figures OK, so now do the formatting
+ if ok then
+ begin
+  //Blank everything
+  ResetVariables;
+  SetDataLength(0);
+  //Set the format
+  FFormat:=$1F;
+  //Set the map and directory
+  FMap:=newmap;
+  FDirType:=dirtype;
+  //Set the filename
+  imagefilename:='Untitled.'+FormatExt;
+  //Setup the data area
+  emuheader:=0;//If required, put $200 in here.
+  SetDataLength(harddrivesize+emuheader);
+  //Fill with zeros
+  for t:=0 to GetDataLength-1 do WriteByte(0,t);
+  //Set the boot option
+  SetLength(bootoption,1);
+  bootoption[0]:=0;
+  SetLength(free_space_map,1); //Free Space Map
+  disc_size:=harddrivesize;    //Disc Size
+  //Set up old map
+  if not FMap then FormatOldMapADFS(disctitle);
+  //Set up new map
+  if FMap then
+  begin
+   idlen:=Lidlen;
+   zone_spare:=Lzone_spare;
+   nzones:=Lnzones;
+   bpmb:=1<<Llog2bpmb;
+   rootfrag:=Lroot;
+   secsize:=1<<9;
+   heads:=16;
+   secspertrack:=63;
+   density:=0;
+   skew:=0;
+   lowsector:=1;
+   root_size:=$800;
+   if FDirType=2 then
+   begin
+    format_vers:=1;
+    big_flag:=0;
+    if disc_size>512*1024*1024 then big_flag:=1;
+   end;
+   FormatNewMapADFS(disctitle);
+  end;
+  //Now write the root
+  dirid:='$';
+  att:='DLR';
+  CreateADFSDirectory(dirid,dirid,att);
+  //Finalise all the variables by reading the data in again
+  Result:=ReadADFSDisc;
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1463,7 +1605,7 @@ begin
  zonecounter:=startzone;
  startoffset:=0;
 // for zonecounter:=0 to nzones-1 do
- while startoffset<Ceil(nzones/2) do
+ while startoffset<=Ceil(nzones/2) do
  begin
   zone:=(zonecounter{+startzone}){mod nzones};
   //i is the bit counter...number of bits from the first freelink
@@ -1511,7 +1653,7 @@ begin
   //Set this zone to having been checked
   zonecheck[zonecounter]:=True;
   //Work out the next one, centralising around the root
-  while(startoffset<Ceil(nzones/2))and(zonecheck[zonecounter])do
+  while(startoffset<=Ceil(nzones/2))and(zonecheck[zonecounter])do
   begin
    //Have we checked below?
    if zonecounter=startzone-startoffset then
@@ -1809,7 +1951,8 @@ begin
    zone:=Result[0].Zone; //Zone of the first fragment
    // IDs start here for this zone
    fragid:=zone*(((secsize*8)-zone_spare)div(idlen+1));
-   if zone=0 then j:=3 else j:=0; //Highest used ID in this zone
+   if fragid<3 then fragid:=3; //Can't be 0,1 or 2
+   {if zone=0 then j:=3 else }j:=0; //Highest used ID in this zone
    //Check each fragment ID until we find one that doesn't exist
    while Length(NewDiscAddrToOffset((fragid+j)*$100))>0 do
     inc(j);
@@ -3527,4 +3670,119 @@ begin
    end;
   end;
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Calculates the parameters for a new map hard drive
+-------------------------------------------------------------------------------}
+function TDiscImage.ADFSGetHardDriveParams(Ldiscsize:Cardinal;bigmap:Boolean;
+              var Lidlen,Lzone_spare,Lnzones,Llog2bpmb,Lroot: Cardinal):Boolean;
+ //Adapted from the RISC OS RamFS ARM code procedure InitDiscRec in RamFS50
+var
+ r0,r1,r2,r3,r4,r6,r7,r8,r9,r10,r11,
+ lr,minidlen: Integer;
+label //Don't like using labels and GOTO, but it was easier to adapt from the ARM code
+ FT01,FT02,FT10,FT20,FT30,FT35,FT40,FT45,FT50,FT60,FT70,FT80,FT90;
+const
+ maxidlen=21;			//Maximum possible
+ minlog2bpmb=8;                 //RamFS starts at 7. I've found better results with 8
+ maxlog2bpmb=12;
+ minzonespare=32;
+ maxzonespare=128;              //RamFS limit is 64. The upper limit can be $FFFF
+ minzones=1;
+ maxzones=127;			//RamFS limit is 127. The upper limit can be $FFFF
+ zone0bits=8*60;
+ bigdirminsize=2048;
+ newdirsize=$500;
+ Llog2secsize=9;                //Min is 8, max is 12. HForm fixes this at 9.
+begin
+ //heads should be 16, and secspertrack should be 63
+ Result:=False;
+  minidlen:=Llog2secsize+3;     //idlen MUST be at least log2secsize+3
+  r0:=minlog2bpmb;		//Initialise log2bpmb
+ FT10:
+  r4:=Ldiscsize>>r0;		//Map bits for disc
+  r1:=minzonespare;		//Initialise zone_spare
+ FT20:
+  r6:=(8<<Llog2secsize)-r1;	//Bits in a zone Minus sparebits
+  r2:=minzones;			//Minimum of one zone
+  r7:=r6-zone0bits;		//Minus bits in zone 0
+ FT30:
+  IF r7>r4 THEN GOTO FT35;	//Do we have enough allocation bits yet? then accept
+  inc(r7,r6);			//More map bits
+  inc(r2,1);			//and another zone
+  IF r2<=maxzones THEN GOTO FT30;//Still OK?
+  GOTO FT80;			//Here when too many zones, try a higher log2bpmb
+ FT35:
+				 //Now we have to choose idlen. We want idlen to be
+				 //the smallest it can be for the disc.
+  r3:=minidlen;			//Minimum value of idlen
+ FT40:
+  r8:=r6 DIV (r3+1);		//ids per zone
+  r9:=1<<r3;			//work out 1<<idlen
+  lr:=r8*r2;			//total ids needed
+  IF lr>r9 THEN GOTO FT60;	//idlen too small?
+				 //We're nearly there. Now to work out if the last zone
+				 //can be handled correctly.
+  lr:=r7-r4;
+  IF lr=0 THEN GOTO FT50;
+  IF lr<r3 THEN GOTO FT60;	//Must be at least idlen+1 bits
+				 //Check also that we're not too close to the start of the zone
+  lr:=r7-r6;			//Get the start of the zone
+  lr:=r4-lr;			//lr = bits available in last zone
+  IF lr<r3 THEN GOTO FT60;
+				 //If the last zone is the map zone (ie nzones<=2), check it's
+				 //big enough to hold 2 copies of he map+the root directory
+  IF r2>2 THEN GOTO FT50;
+  r10:=r2*(2<<Llog2secsize);	//r10 = 2*map size (in disc bytes)
+  r11:=(1<<r0)-1;		//r11 = LFAU-1 (in disc bytes), for rounding up
+  IF not bigmap THEN
+  begin
+   inc(r10,newdirsize);		//Short filename: add dir size to map
+   GOTO FT45;
+  end;
+				 //Long filename case - root is separate object in map zone
+  r9:=(r11+bigdirminsize)>>r0;   //r9=directory size (in map bits)
+  IF r9<=r3 THEN r9:=r3+1;	//Ensure at least idlen+1
+  dec(lr,r9);
+  IF lr<0 THEN GOTO FT60;
+ FT45:
+  inc(r10,r11);
+  r10:=r10>>r0;			//r10=map (+dir) size (in map bits)
+  IF r10<=r3 THEN r10:=r3+1;	//Ensure at least idlen+1
+  IF lr<r10 THEN GOTO FT60;
+ FT50:				//We've found a result - fill in the disc record
+  Lidlen:=r3;
+  Lzone_spare:=r1;
+  Lnzones:=r2;
+  Llog2bpmb:=r0;
+  Result:=True; //Mark as result found
+  IF not bigmap THEN GOTO FT01; //Do we have long filenames?
+			        //The root dir's ID is the first available ID in the middle
+				//zone of the map
+  r2:=r2>>1;			//zones/2
+  IF r2<>0 THEN lr:=r2*r8	// * ids per zone
+           ELSE lr:=3;		//If zones/2=0 then only one zone so ID is 3
+  lr:=(lr<<8)OR 1;		//Construct full indirect disc address with sharing offset of 1
+  GOTO FT02;
+ FT01:				//not long filenames. root dir is &2nn where nn is ((zones<<1)+1)
+  lr:=(r2<<1)+$201;
+ FT02:
+  Lroot:=lr;
+  GOTO FT90;
+ FT60:                           //Increase idlen
+  inc(r3);
+  IF r3<=maxidlen THEN GOTO FT40;
+ FT70:                           //Increase zone_spare
+  inc(r1);
+  IF r1<=maxzonespare THEN GOTO FT20;
+ FT80:                           //Increase log2bpmb
+  inc(r0);
+  IF r0<=maxlog2bpmb THEN GOTO FT10;
+ FT90:
+  //Won't bother with the big map flags here - we can deal with this elsewhere
+  {r4:=bigmapflags;
+  IF discsize>512<<20 THEN r4:=r4 OR bigmapflags
+                      ELSE r4:=r4 AND ($FF EOR bigmapflags);
+  bigmapflags:=r4;}
 end;

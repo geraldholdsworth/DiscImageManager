@@ -634,7 +634,7 @@ begin
   //Directory name - as DFS only has $, this will be the drive number + '$'
   Result[s].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
   //Get the disc title(s)
-  Result[s].Title:='';
+  Result[s].Title:=disctitle;
   if s>0 then disc_name:=disc_name+' and ';
   disc_name:=disc_name+Result[s].Title;
   //Disc Size
@@ -645,6 +645,8 @@ begin
   WriteByte(side_size div $100,ConvertDFSSector($106,s));
   WriteByte(side_size mod $100,ConvertDFSSector($107,s));
   inc(disc_size,side_size*$100);
+  //Disc Title
+  UpdateDFSDiscTitle(disctitle,tracks);
   //Directory size
   inc(free_space,$200);
   //Next side
@@ -662,13 +664,17 @@ var
  a  : Cardinal;
  b,c: Byte;
 begin
- //Set the DFS root directory title
- FDisc[side].Title:=title;
- //Set the disc_name for both sides
- if Length(FDisc)>1 then
-  disc_name:=FDisc[0].Title+' and '+FDisc[1].Title
- else
-  disc_name:=FDisc[0].Title;
+ Result:=False;
+ if Length(FDisc)>0 then
+ begin
+  //Set the DFS root directory title
+  FDisc[side].Title:=title;
+  //Set the disc_name for both sides
+  if Length(FDisc)>1 then
+   disc_name:=FDisc[0].Title+' and '+FDisc[1].Title
+  else
+   disc_name:=FDisc[0].Title;
+ end;
  //Update the data
  for c:=0 to 11 do
  begin

@@ -24,23 +24,22 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ExtCtrls,Buttons;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ExtCtrls,Buttons,DiscImageUtils;
 
 type
  { TNewImageForm }
 
  TNewImageForm = class(TForm)
+  btn_Cancel: TBitBtn;
   MainFormat: TRadioGroup;
   DFS: TRadioGroup;
   ADFS: TRadioGroup;
   C64: TRadioGroup;
   Amiga: TRadioGroup;
   DFSTracks: TRadioGroup;
+  OKBtnBack: TPanel;
+  btn_OK: TBitBtn;
   Spectrum: TRadioGroup;
-  btn_OK: TSpeedButton;
-  btn_Cancel: TSpeedButton;
-  procedure ADFSClick(Sender: TObject);
-  procedure btn_CancelClick(Sender: TObject);
   procedure btn_OKClick(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
@@ -48,7 +47,9 @@ type
  private
 
  public
-
+  harddrivesize : Cardinal;
+  newmap        : Boolean;
+  dirtype       : Byte;
  end;
 
 var
@@ -58,11 +59,13 @@ implementation
 
 {$R *.lfm}
 
-uses MainUnit;
+uses MainUnit,HardDriveUnit;
 
 { TNewImageForm }
 
-//Options have changed
+{-------------------------------------------------------------------------------
+Options have changed
+-------------------------------------------------------------------------------}
 procedure TNewImageForm.MainFormatClick(Sender: TObject);
 begin
  //First, hide all the sub options
@@ -87,7 +90,9 @@ begin
                OR(MainFormat.ItemIndex=5);//CFS
 end;
 
-//Form is being displayed
+{-------------------------------------------------------------------------------
+Form is being displayed
+-------------------------------------------------------------------------------}
 procedure TNewImageForm.FormShow(Sender: TObject);
 begin
  //Reset to the default options
@@ -109,26 +114,39 @@ begin
  btn_OK.Enabled      :=True;
 end;
 
-//User has clicked on cancel
-procedure TNewImageForm.btn_CancelClick(Sender: TObject);
-begin
- ModalResult:=mrCancel;
-end;
-
-//Select type of ADFS disc
-procedure TNewImageForm.ADFSClick(Sender: TObject);
-begin
- //Currently, only certain types of format can be created
- btn_OK.Enabled:=ADFS.ItemIndex<8; //Not hard drive yet
-end;
-
-//User has clicked on create
+{-------------------------------------------------------------------------------
+User has clicked on create
+-------------------------------------------------------------------------------}
 procedure TNewImageForm.btn_OKClick(Sender: TObject);
+var
+ ok: Boolean;
 begin
- ModalResult:=mrOK;
+ ok:=True;
+ //Are we creating a hard drive?
+ if(MainFormat.ItemIndex=1)AND(ADFS.ItemIndex=8)then
+ begin
+  //Then we need to open the additional dialogue to configure this
+  HardDriveForm.ShowModal;
+  ok:=HardDriveForm.ModalResult=mrOK;
+  if ok then
+  begin
+   //Selected hard drive size in MB
+   harddrivesize:=HardDriveForm.CapacitySlider.Position*10*63*16*512;
+   //New or old map
+   newmap:=HardDriveForm.cb_NewMap.Checked;
+   //Directory type
+   dirtype:=diADFSOldDir;
+   if HardDriveForm.rb_NewDir.Checked then dirtype:=diADFSNewDir;
+   if HardDriveForm.rb_BigDir.Checked then dirtype:=diADFSBigDir;
+  end;
+ end;
+ //Return to the calling form
+ if ok then ModalResult:=mrOK;
 end;
 
-//Texturise the form
+{-------------------------------------------------------------------------------
+Texturise the form
+-------------------------------------------------------------------------------}
 procedure TNewImageForm.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);

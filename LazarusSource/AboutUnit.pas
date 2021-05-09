@@ -40,6 +40,7 @@ type
     WrittenByLabel: TLabel;
     lb_Version: TLabel;
     GHWebsiteLabel: TLabel;
+    GraphicsLabel: TLabel;
     procedure CreditsPanelPaint(Sender: TObject);
   private
     { Private declarations }

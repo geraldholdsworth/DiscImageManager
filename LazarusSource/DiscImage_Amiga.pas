@@ -101,7 +101,7 @@ begin
       ResetVariables;
     end;
    end;
-   Result:=FFormat shr 4=4;
+   Result:=FFormat>>4=diAmiga;
   end;
  end;
 end;

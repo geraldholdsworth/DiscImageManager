@@ -1,11 +1,12 @@
 object ProgressForm: TProgressForm
+  Cursor = crHourGlass
   Left = 454
-  Height = 41
+  Height = 200
   Top = 190
   Width = 597
   BorderIcons = []
   BorderStyle = bsNone
-  ClientHeight = 41
+  ClientHeight = 200
   ClientWidth = 597
   Color = 15527148
   OnShow = FormShow
@@ -13,11 +14,11 @@ object ProgressForm: TProgressForm
   LCLVersion = '2.0.12.0'
   object MainPanel: TPanel
     Left = 0
-    Height = 41
+    Height = 200
     Top = 0
     Width = 597
     Align = alClient
-    ClientHeight = 41
+    ClientHeight = 200
     ClientWidth = 597
     Font.Height = -32
     Font.Style = [fsBold]
@@ -27,7 +28,7 @@ object ProgressForm: TProgressForm
     object UpdateProgress: TLabel
       Left = 1
       Height = 18
-      Top = 22
+      Top = 181
       Width = 595
       Align = alBottom
       Alignment = taRightJustify
@@ -41,10 +42,9 @@ object ProgressForm: TProgressForm
     end
     object WaitLabel: TLabel
       Left = 1
-      Height = 21
+      Height = 38
       Top = 1
-      Width = 595
-      Align = alClient
+      Width = 322
       Alignment = taCenter
       Caption = 'Please wait, working...'
       ParentColor = False

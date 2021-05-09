@@ -34,7 +34,7 @@ interface
 uses
   SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
   DiscImageUtils,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,
-  Clipbrd,HexDumpUnit,Spark;
+  Clipbrd,HexDumpUnit,Spark,FPImage,IntfGraphics,GraphType;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -67,6 +67,7 @@ type
    FilenameLabel: TLabel;
    icons: TImageList;
    FileImages: TImageList;
+   RO4TextureTile: TImage;
    StateIcons: TImageList;
    lb_FileName: TLabel;
    menuFileSearch: TMenuItem;
@@ -85,7 +86,7 @@ type
    ToolSplitter: TSplitter;
    TimeStampPanel: TPanel;
    ParentPanel: TPanel;
-   TextureTile: TImage;
+   RO5TextureTile: TImage;
    MiscButtons: TImageList;
    imgCopy: TImage;
    PubAttributeLabel: TLabel;
@@ -115,7 +116,6 @@ type
    menuImageDetails: TMenuItem;
    menuExtractFile: TMenuItem;
    menuAddFile: TMenuItem;
-   SaveCSV: TSaveDialog;
    sb_Clipboard: TSpeedButton;
    DelayTimer: TTimer;
    ToolBarImages: TImageList;
@@ -140,7 +140,6 @@ type
    ToolButton5: TToolButton;
    btn_About: TToolButton;
    OpenImageFile: TOpenDialog;
-   ExtractDialogue: TSaveDialog;
    DirList: TTreeView;
    FileInfoPanel: TPanel;
    img_FileType: TImage;
@@ -293,6 +292,8 @@ type
     ErrorReporting:Boolean;
     //Delay flag
     progsleep     :Boolean;
+    //Texture type
+    TextureType   :Byte;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..140] of String =
@@ -372,7 +373,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.24.1';
+    ApplicationVersion = '1.25';
    procedure AfterConstruction; override;
   end;
 
@@ -459,7 +460,7 @@ begin
  end;
  OriginalNode:=DirList.Selected;
  //If ADFS, create the directory, then select it
- if Image.FormatNumber shr 4=1 then
+ if Image.FormatNumber>>4=diAcornADFS then
  begin
   importname:=ExtractFilename(dirname);
   attr      :='DLR';
@@ -728,7 +729,7 @@ begin
      if Image.FormatNumber>>4=diAcornADFS then attributes:='WR';//Default for ADFS
      if Image.FormatNumber>>4=diCommodore then attributes:='C' ;//Default for Commodore
     end;
-    attributes:=attributes+GetAttributes(attr1,Image.FormatNumber shr 4);
+    attributes:=attributes+GetAttributes(attr1,Image.FormatNumber>>4);
     //Validate the filename (ADFS, DFS & CFS only)
     if(Image.FormatNumber>>4=diAcornDFS)
      or(Image.FormatNumber>>4=diAcornADFS)
@@ -882,6 +883,11 @@ var
  showsave,
  selectroot : Boolean;
 begin
+ //Set up the save dialogue box
+ SaveImage.DefaultExt:='';
+ SaveImage.Filter:='';
+ SaveImage.FilterIndex:=1;
+ SaveImage.Title:='Extract File(s)/Directory(s)';
  selectroot:=False;
  showsave:=not ShowDialogue; //Indicates whether the dialogue has been shown
  //if the root is selected, then select everything else
@@ -932,20 +938,20 @@ begin
       begin
        //Set the default filename as either the disc title or '$'
        if Image.Title='' then
-        ExtractDialogue.FileName:=DirList.Items[0].Text
+        SaveImage.FileName:=DirList.Items[0].Text
        else
-        ExtractDialogue.FileName:=Image.Title;
+        SaveImage.FileName:=Image.Title;
       end
       else
-       ExtractDialogue.FileName:=GetWindowsFilename(dir,entry);
+       SaveImage.FileName:=GetWindowsFilename(dir,entry);
       //Get the result
-      saver:=ExtractDialogue.Execute;
+      saver:=SaveImage.Execute;
       //User clicked on Cancel, so exit
       if not saver then exit;
       if (saver) and (selectroot) then //Root was selected, so create the directory
       begin
-       CreateDir(ExtractDialogue.FileName);
-       ExtractDialogue.Filename:=ExtractDialogue.Filename+PathDelim+'root';
+       CreateDir(SaveImage.FileName);
+       SaveImage.Filename:=SaveImage.Filename+PathDelim+'root';
       end;
      end;
      if s>0 then saver:=True;
@@ -953,7 +959,7 @@ begin
      if saver then
       //Do not download if the parent is selected, as this will get downloaded anyway
       if not DirList.Selections[s].Parent.Selected then
-       DownLoadFile(dir,entry,ExtractFilePath(ExtractDialogue.FileName));
+       DownLoadFile(dir,entry,ExtractFilePath(SaveImage.FileName));
     end;
    end;
   end;
@@ -989,9 +995,10 @@ begin
  if (Image.Disc[dir].Entries[entry].ShortFileType<>'')
  and(Image.Disc[dir].Entries[entry].DirRef=-1) then
  begin
-  if Image.FormatNumber shr 4<2 then extsep:=','; //DFS and ADFS
-  if(Image.FormatNumber shr 4=2)                  //Commodore
-  or(Image.FormatNumber shr 4=4)then extsep:='.'; //Amiga
+  if(Image.FormatNumber>>4=diAcornDFS)
+  or(Image.FormatNumber>>4=diAcornADFS)then extsep:=','; //DFS and ADFS
+  if(Image.FormatNumber>>4=diCommodore)                  //Commodore
+  or(Image.FormatNumber>>4=diAmiga)then extsep:='.'; //Amiga
   Result:=Result+extsep+Image.Disc[dir].Entries[entry].ShortFileType;
  end;
 end;
@@ -1069,9 +1076,10 @@ begin
           +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen);
   //Create the attributes
   attributes:=$00;
-  if(Image.FormatNumber shr 4=0)or(Image.FormatNumber shr 4=5)then //DFS and CFS
+  if(Image.FormatNumber>>4=diAcornDFS)
+  or(Image.FormatNumber>>4=diAcornUEF)then //DFS and CFS
    if Image.Disc[dir].Entries[entry].Attributes='L' then attributes:=$08;
-  if Image.FormatNumber shr 4=1 then //ADFS
+  if Image.FormatNumber>>4=diAcornADFS then //ADFS
    for t:=0 to 7 do
     if Pos(adfsattr[t+1],Image.Disc[dir].Entries[entry].Attributes)>0 then
      inc(attributes,1 shl t);
@@ -1214,67 +1222,63 @@ begin
   //Change the application title (what appears on SHIFT+TAB, etc.)
   Caption:=ApplicationTitle;
   if title<>'' then Caption:=Caption+' - '+ExtractFileName(title);
-  //If the format is a recognised one
-  if Image.FormatString<>'' then
+  //Clear the tree view, prior to populating it
+  DirList.Items.Clear;
+  //Set the highdir to zero - which will be root to start with
+  highdir:=0;
+  //Then add the directories, if there is at least one
+  if Length(Image.Disc)>0 then
   begin
-   //Populate the tree view
-   DirList.Items.Clear;
-   //Set the highdir to zero - which will be root to start with
-   highdir:=0;
-   //Then add the directories, if there is at least one
-   if Length(Image.Disc)>0 then
+   //Start by adding the root (could be more than one root, particularly on
+   //double sided discs)
+   repeat
+    //This will initiate the recursion through the directory structure, per side
+    AddDirectoryToTree(DirList.Items.Add(nil,Image.Disc[highdir].Directory),highdir,highdir);
+    //Finished on this directory structure, so increase the highdir
+    inc(highdir);
+    //and continue until we have everything on the disc. This will, in effect,
+    //add the second root for double sided discs.
+   until highdir=Length(Image.Disc);
+   //Expand the top level of the tree (but not MMB)
+   if Image.FormatNumber>>4<>6 then DirList.TopItem.Expand(False);
+   //And the root for the other side of the disc
+   if Image.DoubleSided then
    begin
-    //Start by adding the root (could be more than one root, particularly on
-    //double sided discs)
+    //First, we need to find it
     repeat
-     //This will initiate the recursion through the directory structure, per side
-     AddDirectoryToTree(DirList.Items.Add(nil,Image.Disc[highdir].Directory),highdir,highdir);
-     //Finished on this directory structure, so increase the highdir
-     inc(highdir);
-     //and continue until we have everything on the disc. This will, in effect,
-     //add the second root for double sided discs.
-    until highdir=Length(Image.Disc);
-    //Expand the top level of the tree (but not MMB)
-    if Image.FormatNumber>>4<>6 then DirList.TopItem.Expand(False);
-    //And the root for the other side of the disc
-    if Image.DoubleSided then
-    begin
-     //First, we need to find it
-     repeat
-      inc(highdir)
-      //If there is one, of course - but it must be a directory
-     until (highdir>=DirList.Items.Count) or (TMyTreeNode(DirList.Items[highdir-1]).IsDir);
-     if highdir>DirList.Items.Count then
-      highdir:=DirList.Items.Count;
-     //Found? then expand it
-     if TMyTreeNode(DirList.Items[highdir-1]).IsDir then
-      DirList.Items[highdir-1].Expand(False);
-    end;
+     inc(highdir)
+     //If there is one, of course - but it must be a directory
+    until (highdir>=DirList.Items.Count) or (TMyTreeNode(DirList.Items[highdir-1]).IsDir);
+    if highdir>DirList.Items.Count then
+     highdir:=DirList.Items.Count;
+    //Found? then expand it
+    if TMyTreeNode(DirList.Items[highdir-1]).IsDir then
+     DirList.Items[highdir-1].Expand(False);
    end;
-   //Populate the info box
-   UpdateImageInfo;
-   //Enable the controls
-   btn_SaveImage.Enabled :=True;
-   menuSaveImage.Enabled :=True;
-   btn_SaveAsCSV.Enabled :=True;
-   menuSaveAsCSV.Enabled :=True;
-   btn_CloseImage.Enabled:=True;
-   menuCloseImage.Enabled:=True;
-   btn_FileSearch.Enabled:=True;
-   menuFileSearch.Enabled:=True;
-   if Length(Image.FreeSpaceMap)>0 then
-   begin
-    btn_ImageDetails.Enabled:=True;
-    menuImageDetails.Enabled:=True;
-   end;
-   if Image.FormatNumber shr 4=1 then
-   begin
-    btn_FixADFS.Enabled:=True;
-    menuFixADFS.Enabled:=True;
-   end;
-   //Enable the directory view
-   DirList.Enabled:=True;
   end;
+  //Populate the info box
+  UpdateImageInfo;
+  //Enable the controls
+  btn_SaveImage.Enabled :=True;
+  menuSaveImage.Enabled :=True;
+  btn_SaveAsCSV.Enabled :=True;
+  menuSaveAsCSV.Enabled :=True;
+  btn_CloseImage.Enabled:=True;
+  menuCloseImage.Enabled:=True;
+  btn_FileSearch.Enabled:=True;
+  menuFileSearch.Enabled:=True;
+  if Length(Image.FreeSpaceMap)>0 then
+  begin
+   btn_ImageDetails.Enabled:=True;
+   menuImageDetails.Enabled:=True;
+  end;
+  if Image.FormatNumber>>4=diAcornADFS then
+  begin
+   btn_FixADFS.Enabled:=True;
+   menuFixADFS.Enabled:=True;
+  end;
+  //Enable the directory view
+  DirList.Enabled:=True;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1286,7 +1290,7 @@ var
  title: String;
 begin
  //Only if there is a valid image
- if Image.FormatNumber<>$FF then
+ if Image.FormatNumber<>diInvalidImg then
  begin
   //Image Format
   ImageDetails.Panels[1].Text:=Image.FormatString;
@@ -1495,7 +1499,8 @@ begin
   RenameFile1.Enabled   :=True;
   btn_Rename.Enabled    :=True;
   menuRenameFile.Enabled:=True;
-  if(Image.FormatNumber shr 4=1)OR(Image.FormatNumber shr 4=4)then //ADFS and Amiga
+  if(Image.FormatNumber>>4=diAcornADFS)
+  OR(Image.FormatNumber>>4=diAmiga)then //ADFS and Amiga
   begin
    NewDirectory1.Enabled   :=True;
    btn_NewDirectory.Enabled:=True;
@@ -1621,11 +1626,6 @@ begin
    btn_NewDirectory.Enabled:=False;
    menuNewDir.Enabled      :=False;
   end;
-{  //Testing - can be safetly removed
-  if TMyTreeNode(Node).ParentDir<>-1 then
-  filename:=filename
-  +' dir:'+IntToStr(dir)+' entry:'+IntToStr(entry)
-  +' ParentDir:'+IntToStr(TMyTreeNode(Node).ParentDir);}
   //Filename
   RemoveTopBit(filename);
   lb_FileName.Caption:=filename;
@@ -1638,23 +1638,18 @@ begin
    else
     ft:=directory;
   end;
-  //Create a purple background, as a transparent mask
-{  img_FileType.Transparent:=True;
-  img_FileType.Canvas.Pen.Color:=FileInfoPanel.Color;// $FF00FF;
-  img_FileType.Canvas.Brush.Color:=FileInfoPanel.Color;// $FF00FF;
-  img_FileType.Canvas.Rectangle(0,0,img_FileType.Width,img_FileType.Height);}
-  img_FileType.Canvas.Draw(0,0,TextureTile.Picture.Bitmap);
+  //Draw the texture over it (probably don't need this)
+  img_FileType.Canvas.Draw(0,0,RO5TextureTile.Picture.Bitmap);
   //Paint the picture onto it
-//  FileImages.GetBitmap(ft,img_FileType.Picture.Bitmap);
   R.Top:=0;
   R.Left:=0;
   R.Width:=img_FileType.Width;
   R.Height:=img_FileType.Height;
   FileImages.StretchDraw(img_FileType.Canvas,ft,R);
   //Filetype text - only show for certain systems
-  if(Image.FormatNumber shr 4=1) //ADFS
-  or(Image.FormatNumber shr 4=2) //C64
-  or(Image.FormatNumber shr 4=4) then //AmigaDOS
+  if(Image.FormatNumber>>4=diAcornADFS) //ADFS
+  or(Image.FormatNumber>>4=diCommodore) //C64
+  or(Image.FormatNumber>>4=diAmiga) then //AmigaDOS
    lb_FileType.Caption:=filetype;
   if dir>=0 then
   begin
@@ -1667,7 +1662,7 @@ begin
    lb_parent.Caption:=temp;
    //Timestamp - ADFS only
    if(Image.Disc[dir].Entries[entry].TimeStamp>0)
-   and(Image.FormatNumber shr 4=1)then
+   and(Image.FormatNumber>>4=diAcornADFS)then
     lb_timestamp.Caption:=FormatDateTime('hh:nn:ss dd mmm yyyy',
                                        Image.Disc[dir].Entries[entry].TimeStamp)
    else
@@ -1690,18 +1685,18 @@ begin
    if Image.MapType=$01 then
     location:='Indirect address: 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
    //Commodore formats - Sector and Track
-   if ((Image.FormatNumber>=$20) and (Image.FormatNumber<=$2F)) then
+   if Image.FormatNumber>>4=diCommodore then
     location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)+' ';
    //All other formats - Sector
-   if (Image.FormatNumber<=$0F)
-   or ((Image.FormatNumber>=$20) and (Image.FormatNumber<=$2F))
-   or ((Image.FormatNumber>=$40) and (Image.FormatNumber<=$4F)) then
+   if(Image.FormatNumber>>4=diAcornDFS)
+   or(Image.FormatNumber>>4=diAcornADFS)
+   or(Image.FormatNumber>>4=diAmiga) then
     location:=location+'Sector '+IntToStr(Image.Disc[dir].Entries[entry].Sector)+' ';
    //DFS - indicates which side also
-   if Image.FormatNumber<=$0F then
+   if Image.FormatNumber>>4=diAcornDFS then
     location:=location+'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side);
    //CFS - indicates offset to starting block
-   if Image.FormatNumber shr 4=$5 then
+   if Image.FormatNumber>>4=diAcornUEF then
     location:='Starting Block 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
    lb_location.Caption:=location;
   end;
@@ -1733,8 +1728,7 @@ begin
  dir  :=TMyTreeNode(Node).ParentDir;
  entry:=Node.Index;
  //Are we ADFS?
- if((Image.FormatNumber>=$10)and(Image.FormatNumber<=$1F))
- and(Length(Image.Disc)>0)then
+ if(Image.FormatNumber>>4=diAcornADFS)and(Length(Image.Disc)>0)then
  begin
   //Default is a file with load and exec address
   ft:=loadexec;
@@ -1917,16 +1911,18 @@ end;
 procedure TMainForm.ParseCommandLine(cmd: String);
 var
  index,
- side       : Integer;
- r          : Boolean;
+ side         : Integer;
+ harddrivesize: Cardinal;
+ dirtype      : Byte;
+ r,newmap     : Boolean;
  option,
  param,
- param2     : String;
- Dir        : TSearchRec;
- Files      : TSearchResults;
- F          : TFileStream;
- fields     : TStringArray;
- filedetails: TDirEntry;
+ param2       : String;
+ Dir          : TSearchRec;
+ Files        : TSearchResults;
+ F            : TFileStream;
+ fields       : TStringArray;
+ filedetails  : TDirEntry;
 const DiscFormats = //Accepted format strings
  'DFSS    DFSS40  DFSD    DFSD40  WDFSS   WDFSS40 WDFSD   WDFSD40 ADFSS   ADFSM   '+
  'ADFSL   ADFSD   ADFSE   ADFSE+  ADFSF   ADFSF+  C1541   C1571   C1581   AMIGADD '+
@@ -1982,18 +1978,50 @@ begin
   //New Image command ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (option='--new') or (option='-n') then
   begin
-   index:=(Pos(UpperCase(param),DiscFormats) DIV 8)+1;
-   //Create new image
-   if Image.Format(DiscNumber[index] DIV $100,
-                  (DiscNumber[index] DIV $10)MOD $10,
-                   DiscNumber[index] MOD $10) then
+   if UpperCase(param)='ADFSHDD' then //Create ADFS HDD
    begin
-    HasChanged:=True;
-    ShowNewImage(Image.Filename);
+    //Minimum length for second parameter is 3
+    if Length(param2)>3 then
+    begin
+     newmap:=False; //Default
+     if(param2[1]='N')or(param2[1]='n')then newmap:=True;
+     dirtype:=0; //Default
+     if(param2[2]='N')or(param2[2]='n')then dirtype:=1;//New dir
+     if(param2[2]='B')or(param2[2]='b')then dirtype:=2;//Big dir
+     if(newmap)and(dirtype=0)then dirtype:=1; //Can't have old dir on new map
+     if(not newmap)and(dirtype=2)then dirtype:=1;//Can't have big dir on old map
+     if(param2[Length(param2)]='M')or(param2[Length(param2)]='M')then //in MB
+      harddrivesize:=StrToIntDef(Copy(param2,3,Length(param2)-3),20)*1024*1024
+     else                                                             //in bytes
+      harddrivesize:=StrToIntDef(Copy(param2,3),20*1024*1024);
+     if harddrivesize<20*1024*1024 then harddrivesize:=20*1024*1024;//20MB min
+     if harddrivesize>1000*1024*1024 then harddrivesize:=1000*1024*1024;//1000MB max
+     if(not newmap)and(harddrivesize>512*1024*1024)then
+      harddrivesize:=512*1024*1024;//512MB max for old map
+     //OK, now create it
+     if Image.FormatHDD(1,harddrivesize,newmap,dirtype) then
+     begin
+      HasChanged:=True;
+      ShowNewImage(Image.Filename);
+     end;
+    end;
+   end
+   else
+   begin
+    index:=(Pos(UpperCase(param),DiscFormats) DIV 8)+1;
+    if(index>=Low(DiscNumber))and(index<=High(DiscNumber))then
+     //Create new image
+     if Image.FormatFDD(DiscNumber[index] DIV $100,
+                       (DiscNumber[index] DIV $10)MOD $10,
+                        DiscNumber[index] MOD $10) then
+     begin
+      HasChanged:=True;
+      ShowNewImage(Image.Filename);
+     end;
    end;
   end;
   //Commands that require at least one parameter and an image ------------------
-  if Image.FormatNumber<>$FF then
+  if Image.FormatNumber<>diInvalidImg then
   begin
    //Add new file command +++++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--add') or (option='-a') then
@@ -2081,8 +2109,8 @@ begin
    if (option='--extract') or (option='-e') then
    begin
     //Select the destination OS folder
-    if param2='' then ExtractDialogue.FileName:=PathDelim
-    else ExtractDialogue.FileName:=param2+PathDelim;
+    if param2='' then SaveImage.FileName:=PathDelim
+    else SaveImage.FileName:=param2+PathDelim;
     ResetDirEntry(filedetails);
     //Select the file
     filedetails.Filename:=param;
@@ -2147,7 +2175,7 @@ begin
  end;
  //Save image ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  if (option='--save') or (option='-s') then
-  if Image.FormatNumber<>$FF then
+  if Image.FormatNumber<>diInvalidImg then
   begin
    if param='' then param:=Image.Filename;
    Image.SaveToFile(param,UpperCase(param2)='TRUE');
@@ -2174,6 +2202,8 @@ begin
  imgCopy.Parent:=DirList;
  //Turn error reporting on
  ErrorReporting:=True;
+ //Texture style
+ TextureType:=1;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2229,14 +2259,21 @@ procedure TMainForm.btn_SaveImageClick(Sender: TObject);
 var
  ext,
  filename: String;
+ index: Integer;
 begin
  //Remove the existing part of the original filename
  filename:=ExtractFileName(Image.Filename);
  ext:=ExtractFileExt(filename);
  filename:=LeftStr(filename,Length(filename)-Length(ext));
+ SaveImage.Title:='Save Image As';
+ //Populate the filter part of the dialogue
+ index:=0;
+ SaveImage.Filter:=Image.SaveFilter(index);
+ if index=0 then index:=1;
+ SaveImage.FilterIndex:=index;
  //Populate the filename part of the dialogue
  SaveImage.FileName:=filename+'.'+Image.FormatExt;
- SaveImage.DefaultExt:=Image.FormatExt;
+ SaveImage.DefaultExt:='.'+Image.FormatExt;
  //Show the dialogue
  If SaveImage.Execute then
  begin
@@ -2284,8 +2321,6 @@ var
  sparksize : Cardinal;
  isspark   : Boolean;
  confirm   : TModalResult;
-{const
- dlg = 'Open, Add, or Import Contents?';}
 begin
  //Create a new DiscImage instance
  NewImage:=TDiscImage.Create;
@@ -2299,7 +2334,7 @@ begin
    //Load and ID the file
    NewImage.LoadFromFile(FileName,false);
    //Valid image?
-   if NewImage.FormatNumber<>$FF then open:=open OR $01; //Is an image
+   if NewImage.FormatNumber<>diInvalidImg then open:=open OR $01; //Is an image
    //Get the detected format string
    fmt:=NewImage.FormatString;
    //Is there something loaded?
@@ -2324,7 +2359,7 @@ begin
    if open=$02 then //Add file
    begin
     //Is this 32bit ADFS?
-    if(Image.DirectoryType>0)and(Image.FormatNumber shr 4=1)then
+    if(Image.DirectoryType>0)and(Image.FormatNumber>>4=diAcornADFS)then
     begin
      //See if it is a spark archive
      SparkFile:=TSpark.Create(FileName);
@@ -2400,8 +2435,8 @@ begin
  end
  else //Nothing selected, then this is the root
   rootname:=Image.Disc[0].Directory;
- curformat:=Image.FormatNumber shr 4;   //Format of the current open image
- newformat:=NewImage.FormatNumber shr 4;//Format of the importing image
+ curformat:=Image.FormatNumber>>4;   //Format of the current open image
+ newformat:=NewImage.FormatNumber>>4;//Format of the importing image
  //Go through each directory
  if Length(NewImage.Disc)>0 then
   for dir:=0 to Length(NewImage.Disc)-1 do
@@ -2538,9 +2573,23 @@ var
  bootlbs   : array[0..1] of TLabel;
  title     : String;
  numsides,
- size,skip : Byte;
+ skip      : Byte;
+ img       : TLazIntfImage;
+ function ConvertColour(col: TColor):TFPColor;
+ begin
+  //Convert from TColor to TFPColor
+  Result.Alpha:=$FF;
+  Result.Blue :=(col>>16)AND$FF;
+  Result.Green:=(col>> 8)AND$FF;
+  Result.Red  := col     AND$FF;
+  //TFPColor is 16 bit per Result
+  Result.Alpha:=Result.Alpha or Result.Alpha<<8;
+  Result.Red  :=Result.Red or Result.Red<<8;
+  Result.Green:=Result.Green or Result.Green<<8;
+  Result.Blue :=Result.Blue or Result.Blue<<8;
+ end;
 begin
- size:=8; //Pixel size
+ Cursor:=crHourglass;
  //Add the editable controls to arrays - makes it easier later on
  titles[0] :=ImageDetailForm.edDiscTitle0;
  titles[1] :=ImageDetailForm.edDiscTitle1;
@@ -2549,7 +2598,46 @@ begin
  bootlbs[0]:=ImageDetailForm.lbBootOption0;
  bootlbs[1]:=ImageDetailForm.lbBootOption1;
  //CRC32
- ImageDetailForm.lbCRC32.Caption:=Image.CRC32;
+ ImageDetailForm.lbCRC32.Caption    :=Image.CRC32;
+ //Format
+ ImageDetailForm.lbImgFormat.Caption:=Image.FormatString;
+ //Map type
+ ImageDetailForm.lbMap.Caption      :=Image.MapTypeString;
+ //Directory type
+ ImageDetailForm.lbDirType.Caption  :=Image.DirectoryTypeString;
+ //Logo
+ t:=ImageDetailForm.DirPanel.Top+ImageDetailForm.DirPanel.Height;
+ s:=ImageDetailForm.OKBtnBack.Top-t;
+ //Centralise vertical
+ ImageDetailForm.AcornLogo.Top    :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
+ ImageDetailForm.CommodoreLogo.Top:=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
+ ImageDetailForm.AmigaLogo.Top    :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
+ ImageDetailForm.SinclairLogo.Top :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
+ //Centralise horizontal
+ s:=ImageDetailForm.Legend.Width;
+ ImageDetailForm.AcornLogo.Left    :=(s-ImageDetailForm.AcornLogo.Width)div 2;
+ ImageDetailForm.CommodoreLogo.Left:=(s-ImageDetailForm.AcornLogo.Width)div 2;
+ ImageDetailForm.AmigaLogo.Left    :=(s-ImageDetailForm.AcornLogo.Width)div 2;
+ ImageDetailForm.SinclairLogo.Left :=(s-ImageDetailForm.AcornLogo.Width)div 2;
+ //Hide them all
+ ImageDetailForm.AcornLogo.Visible    :=False;
+ ImageDetailForm.CommodoreLogo.Visible:=False;
+ ImageDetailForm.AmigaLogo.Visible    :=False;
+ ImageDetailForm.SinclairLogo.Visible :=False;
+ //Now display the appropriate one
+ case Image.FormatNumber>>4 of
+  diAcornDFS,
+  diAcornADFS,
+  diAcornUEF  : ImageDetailForm.AcornLogo.Visible    :=True;
+  diCommodore : ImageDetailForm.CommodoreLogo.Visible:=True;
+  diAmiga     : ImageDetailForm.AmigaLogo.Visible    :=True;
+  diSinclair  : ImageDetailForm.SinclairLogo.Visible :=True;
+ end;
+ //Should we label the top box?
+ if Image.DoubleSided then
+  ImageDetailForm.pnSide0.Caption:='Side 0'
+ else
+  ImageDetailForm.pnSide0.Caption:='';
  //How many sides
  numsides:=Length(Image.FreeSpaceMap);
  //Show the Free Space Map graphic
@@ -2575,41 +2663,44 @@ begin
    FSMlabel[side].Left:=4+(204*side);
    //We'll stretch it later
    FSM[side].Stretch:=False;
-   //Set the initial size
-   while (size>1) AND (Length(Image.FreeSpaceMap[0])*size>100000) do dec(size);
    //Work out what tracks to skip (images over 100000 pixels high will crash)
-   skip:=((Length(Image.FreeSpaceMap[0])*size)div 100000)+1;
+   skip:=(Length(Image.FreeSpaceMap[0])div 100000)+1;
    //Set the graphic size
-   t:=Length(Image.FreeSpaceMap[0])*size;
-   s:=Length(Image.FreeSpaceMap[0,0])*size;
+   t:=Length(Image.FreeSpaceMap[0]);
+   s:=Length(Image.FreeSpaceMap[0,0]);
    FSM[side].Height:=t div skip;
    FSM[side].Width:=s;
+   //Initiate the canvas 
+   img:=TLazIntfImage.Create(0,0,[riqfRGB, riqfAlpha]);
+   img.SetSize(FSM[side].Width,FSM[side].Height);
+   //Colour in the free space
+   img.FillPixels(ConvertColour(ImageDetailForm.colFree.Brush.Color));
    //Now draw all the sectors in tracks
    for t:=0 to Length(Image.FreeSpaceMap[side])-1 do
     if t mod skip=0 then
     for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
-    begin
-     //Colour for free space
-     col:=ImageDetailForm.colFree.Brush.Color;
-     //Other colours
-     if Image.FreeSpaceMap[side,t,s]=$FF then
-      col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
-     if Image.FreeSpaceMap[side,t,s]=$FE then
-      col:=ImageDetailForm.colSystem.Brush.Color;    //System
-     if Image.FreeSpaceMap[side,t,s]=$FD then
-      col:=ImageDetailForm.colDir.Brush.Color;       //Directories
-     //Change the canvas colour
-     FSM[side].Canvas.Pen.Color:=col;
-     FSM[side].Canvas.Brush.Color:=col;
-     //Now draw a rectangle to represent the sector
-     FSM[side].Canvas.Rectangle(s*size,    (t div skip)*size,
-                                (s+1)*size,((t div skip)+1)*size);
-    end;
+     if Image.FreeSpaceMap[side,t,s]>$FC then
+     begin
+      //Other colours
+      if Image.FreeSpaceMap[side,t,s]=$FF then
+       col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
+      if Image.FreeSpaceMap[side,t,s]=$FE then
+       col:=ImageDetailForm.colSystem.Brush.Color;    //System
+      if Image.FreeSpaceMap[side,t,s]=$FD then
+       col:=ImageDetailForm.colDir.Brush.Color;       //Directories
+      //Set the colour
+      img.Colors[s,t div skip]:=ConvertColour(col);
+     end;
+   //Copy the graphic to the display
+   FSM[side].Picture.PNG.PixelFormat:=pf32bit;
+   FSM[side].Picture.PNG.LoadFromIntfImage(img);
    //Stretch the image
    FSM[side].Stretch:=True;
    //And resize to fit the window
    FSM[side].Height:=ImageDetailForm.ClientHeight-24;
    FSM[side].Width:=200;
+   //Free the graphic container
+   img.Free;
    //Set the label size
    FSMlabel[side].Height:=20;
    FSMlabel[side].Width:=200;
@@ -2617,9 +2708,11 @@ begin
    FSMlabel[side].AutoSize:=False;
    //And fill in the details
    FSMlabel[side].Font.Style:=[fsBold];
-   FSMlabel[side].Caption:='Free Space Map Side '+IntToStr(side);
+   FSMlabel[side].Caption:='Free Space Map';
+   if Image.DoubleSided then
+    FSMlabel[side].Caption:=FSMlabel[side].Caption+' Side '+IntToStr(side);
    //Disc Title
-   if Image.FormatNumber shr 4=0 then title:=Image.Disc[side].Title
+   if Image.FormatNumber>>4=diAcornDFS then title:=Image.Disc[side].Title
    else title:=Image.Title;
    //Remove top bit - this can cause havoc with Mac OS
    RemoveTopBit(title);
@@ -2627,8 +2720,8 @@ begin
    titles[side].Text:=title;
    titles[0].Enabled:=True;
    //Limit the length
-   if Image.FormatNumber shr 4=0 then titles[0].MaxLength:=12; //DFS
-   if Image.FormatNumber shr 4=1 then titles[0].MaxLength:=10; //ADFS
+   if Image.FormatNumber>>4=diAcornDFS then titles[0].MaxLength:=12; //DFS
+   if Image.FormatNumber>>4=diAcornADFS then titles[0].MaxLength:=10; //ADFS
    //Boot Option
    boots[side].Visible  :=True;
    if Length(Image.BootOpt)>0 then
@@ -2636,13 +2729,14 @@ begin
    else
     boots[side].Visible:=False;
    bootlbs[side].Visible:=boots[side].Visible;
-   end;
+  end;
   //Change the dialogue box width
   ImageDetailForm.ClientWidth:=(Length(Image.FreeSpaceMap)*204)
                               +4+ImageDetailForm.Legend.Width;
   //Show/Hide the second detail panel
   ImageDetailForm.pnSide1.Visible:=numsides>1;
   //Show the window, modally
+  Cursor:=crDefault;
   if ImageDetailForm.ShowModal=mrOK then
   begin
    for side:=0 to numsides-1 do
@@ -2752,10 +2846,15 @@ begin
  filename:=ExtractFileName(Image.Filename);
  ext:=ExtractFileExt(filename);
  filename:=LeftStr(filename,Length(filename)-Length(ext));
+ //Populate the save dialogue box
+ SaveImage.DefaultExt:='.csv';
+ SaveImage.Filter:='CSV File|*.csv';
+ SaveImage.FilterIndex:=1;
+ SaveImage.Title:='Save CSV of image contents';
  //Add the csv extension
- SaveCSV.Filename:=filename+'.csv';
+ SaveImage.Filename:=filename+'.csv';
  //Show the dialogue box
- if SaveCSV.Execute then
+ if SaveImage.Execute then
  begin
   hexlen:=8;
   if Image.FormatNumber>>4=diAcornDFS then hexlen:=6;
@@ -2764,7 +2863,7 @@ begin
   //Process the messages to close the file dialogue box
   Application.ProcessMessages;
   //Open a new file
-  F:=TFileStream.Create(SaveCSV.FileName,fmCreate OR fmShareDenyNone);
+  F:=TFileStream.Create(SaveImage.FileName,fmCreate OR fmShareDenyNone);
   //Write the image details
   WriteLine(F,'"'+Image.Filename+'","'+Image.CRC32+'"');
   //Write the headers
@@ -3337,6 +3436,7 @@ end;
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
 var
  minor,tracks: Byte;
+ ok: Boolean;
 begin
  if QueryUnsaved then
  begin
@@ -3360,7 +3460,16 @@ begin
    if NewImageForm.MainFormat.ItemIndex=0 then
     tracks:=NewImageForm.DFSTracks.ItemIndex;
    //Now create the image
-   if Image.Format(NewImageForm.MainFormat.ItemIndex,minor,tracks) then
+   ok:=False;
+   //ADFS Hard Drive
+   if(NewImageForm.MainFormat.ItemIndex=1)and(minor=8)then
+    ok:=Image.FormatHDD(NewImageForm.MainFormat.ItemIndex,
+                        NewImageForm.harddrivesize,
+                        NewImageForm.newmap,
+                        NewImageForm.dirtype)
+   else //Floppy Drive
+    ok:=Image.FormatFDD(NewImageForm.MainFormat.ItemIndex,minor,tracks);
+   if ok then
    begin
     CloseAllHexDumps;
     HasChanged:=True;
@@ -3920,12 +4029,10 @@ end;
 procedure TMainForm.ReportError(error: String);
 begin
  if ErrorReporting then
-  //If we are in command line mode, then do not use the GUI
-  if ParamCount>0 then
+  if ParamCount>0 then //If we are in command line mode, then do not use the GUI
    WriteLn(error)
   else //Otherwise, display a nice window on the screen
    CustomDialogue.ShowError(error,'');
-   //QuestionDlg('Error',error,mtError,[mbOK],0);
 end;
 
 {------------------------------------------------------------------------------}
@@ -3933,13 +4040,12 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
 begin
+ Result:=mrOK; //Default
  if ErrorReporting then
-  //If we are in command line mode, then do not use the GUI
-{  if ParamCount>0 then
-   WriteLn(confirm)
-  else //Otherwise, display a nice window on the screen}
-   CustomDialogue.ShowConfirm(confim,okbtn,cancelbtn,ignorebtn);
- Result:=CustomDialogue.ModalResult;
+ begin
+  CustomDialogue.ShowConfirm(confim,okbtn,cancelbtn,ignorebtn);
+  Result:=CustomDialogue.ModalResult;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -3948,8 +4054,7 @@ end;
 procedure TMainForm.ShowInfo(info: String);
 begin
  if ErrorReporting then
-  //If we are in command line mode, then do not use the GUI
-  if ParamCount>0 then
+  if ParamCount>0 then //If we are in command line mode, then do not use the GUI
    WriteLn(info)
   else //Otherwise, display a nice window on the screen
    CustomDialogue.ShowInfo(info,'');
@@ -3978,11 +4083,17 @@ procedure TMainForm.TileCanvas(c: TCanvas;rc: TRect);
 var
  b: TBrush;
 begin
- b:=Tbrush.Create;
- b.Bitmap:=TextureTile.Picture.Bitmap;
- c.Brush :=b;
- c.FillRect(rc);
- b.Free;
+ //Allows the configuration of the texture style
+ if TextureType>0 then
+ begin
+  b:=TBrush.Create;
+  //At the moment, only two types
+  if TextureType=1 then b.Bitmap:=RO5TextureTile.Picture.Bitmap; //RISC OS 5
+  if TextureType=2 then b.Bitmap:=RO4TextureTile.Picture.Bitmap; //RISC OS 4
+  c.Brush :=b;
+  c.FillRect(rc);
+  b.Free;
+ end;
 end;
 
 end.
