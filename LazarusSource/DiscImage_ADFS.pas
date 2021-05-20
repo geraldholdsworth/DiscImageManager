@@ -484,27 +484,18 @@ Convert a load and execution address to filetype and date/time
 procedure TDiscImage.ADFSCalcFileDate(var Entry: TDirEntry);
 var
  temp: String;
- amt : Cardinal;
+ rotd: Int64;
 begin
  if(Entry.LoadAddr>>20=$FFF)and(FFormat>$12)then
  begin
   //Get the 12 bit filetype
-  temp:=IntToHex((Entry.LoadAddr AND$000FFF00)div$100,3);
-  amt:=0;
-  //Look it up in the table of RISC OS issued types
-  repeat
-   inc(amt);
-  until (Integer(amt)=Length(FileTypes)) OR (temp=Copy(FileTypes[amt],1,3));
-  //Found? Then assign to the Filetype property
-  if temp=Copy(FileTypes[amt],1,3) then
-   Entry.Filetype:=Copy(FileTypes[amt],4,Length(FileTypes[amt]))
-  else
-  //Otherwise just put the 12 bit filetype in
-   Entry.Filetype:=temp;
+  temp:=IntToHex((Entry.LoadAddr AND$000FFF00)>>8,3);
+  Entry.Filetype:=GetFiletypeFromNumber(StrToInt('$'+temp));
   Entry.ShortFiletype:=temp;
   //Now sort the timestamp
-  Entry.TimeStamp:=RISCOSToTimeDate(Entry.ExecAddr+
-                                   (Entry.LoadAddr AND $FF)*$100000000);
+  rotd:=Entry.LoadAddr AND$FF; //Convert to 64 bit integer
+  rotd:=(rotd<<32)OR Entry.ExecAddr; //Shift to the left and add the rest
+  Entry.TimeStamp:=RISCOSToTimeDate(rotd);
  end;
 end;
 
@@ -1800,9 +1791,8 @@ begin
         begin
          FDisc[dir].Entries[ptr].LoadAddr:=FDisc[dir].Entries[ptr].LoadAddr OR
             (StrToIntDef('$'+FDisc[dir].Entries[ptr].ShortFileType,0)<<8);
-         for ref:=1 to Length(FileTypes) do
-          if LeftStr(FileTypes[ref],3)=UpperCase(FDisc[dir].Entries[ptr].ShortFileType) then
-           FDisc[dir].Entries[ptr].FileType:=Copy(FileTypes[ref],4);
+         FDisc[dir].Entries[ptr].FileType:=
+          GetFiletypeFromNumber(StrToIntDef('$'+FDisc[dir].Entries[ptr].ShortFileType,0));
         end;
         //Timestamp it, if not already done
         timestamp:=TimeDateToRISCOS(Now);
@@ -3780,9 +3770,137 @@ begin
   inc(r0);
   IF r0<=maxlog2bpmb THEN GOTO FT10;
  FT90:
-  //Won't bother with the big map flags here - we can deal with this elsewhere
-  {r4:=bigmapflags;
-  IF discsize>512<<20 THEN r4:=r4 OR bigmapflags
-                      ELSE r4:=r4 AND ($FF EOR bigmapflags);
-  bigmapflags:=r4;}
+end;
+
+{-------------------------------------------------------------------------------
+Update a file's load or execution address
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateADFSFileAddr(filename:String;newaddr:Cardinal;
+                                                           load:Boolean):Boolean;
+var
+ ptr,
+ dir,
+ entry: Cardinal;
+begin
+ Result:=False;
+ ptr:=0;
+ //Ensure the file actually exists
+ if FileExists(filename,ptr) then
+ begin
+  //Extract the references
+  dir  :=ptr DIV $10000;
+  entry:=ptr MOD $10000;
+  //Are they valid?
+  if dir<Length(FDisc)then
+   if entry<Length(FDisc[dir].Entries)then
+   begin
+    //Update our entry
+    if load then FDisc[dir].Entries[entry].LoadAddr:=newaddr AND$FFFFFFFF
+            else FDisc[dir].Entries[entry].ExecAddr:=newaddr AND$FFFFFFFF;
+    //And update the catalogue for the parent directory
+    UpdateADFSCat(FDisc[dir].Entries[entry].Parent);
+    //Return a positive result
+    Result:=True;
+   end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update a file's filetype
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateADFSFileType(filename:String;newtype:String):Boolean;
+var
+ ptr,
+ dir,
+ entry: Cardinal;
+ newft: Integer;
+begin
+ Result:=False;
+ ptr:=0;
+ //Ensure the file actually exists
+ if FileExists(filename,ptr) then
+ begin
+  //Extract the references
+  dir  :=ptr DIV $10000;
+  entry:=ptr MOD $10000;
+  //Are they valid?
+  if dir<Length(FDisc)then
+   if entry<Length(FDisc[dir].Entries)then
+   begin
+    //Hex number?
+    if IntToHex(StrToIntDef('$'+newtype,0),3)<>UpperCase(newtype) then
+     newft:=GetFileTypeFromName(newtype) //No, so translate
+    else
+     newft:=StrToInt('$'+newtype);       //Yes, just convert
+    //Valid filetype?
+    if newft>=0 then
+    begin
+     //Calculate the new load address
+     ptr:=FDisc[dir].Entries[entry].LoadAddr;
+     //Set the top 12 bits to indicate filetyped
+     ptr:=ptr OR$FFF00000;
+     //Clear the filetype area, preserving the rest
+     ptr:=ptr AND$FFF000FF;
+     //Set the filetype
+     ptr:=ptr OR(newft<<8);
+     //Now just make the call to update the load address
+     if UpdateADFSFileAddr(filename,ptr,True) then
+     begin
+      //And update the local copy of the filetypes
+      FDisc[dir].Entries[entry].ShortFileType:=IntToHex(newft,3);
+      FDisc[dir].Entries[entry].Filetype:=GetFileTypeFromNumber(newft);
+      //And set a positive result
+      Result:=True;
+     end;
+    end;
+   end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update a file's timestamp
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateADFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
+var
+ ptr,
+ dir,
+ entry: Cardinal;
+ rotd : Int64;
+begin
+ Result:=False;
+ ptr:=0;
+ //Ensure the file actually exists
+ if FileExists(filename,ptr) then
+ begin
+  //Extract the references
+  dir  :=ptr DIV $10000;
+  entry:=ptr MOD $10000;
+  //Are they valid?
+  if dir<Length(FDisc)then
+   if entry<Length(FDisc[dir].Entries)then
+   begin
+    //Convert to RISC OS time format
+    rotd:=TimeDatetoRISCOS(newtimedate);//RISC OS TimeDate is 40 bits long
+    //Calculate the new load address
+    ptr:=FDisc[dir].Entries[entry].LoadAddr;
+    //Set the top 12 bits to indicate filetyped, and preserve the rest
+    ptr:=ptr OR$FFF00000;
+    //Clear the bottom 8 bits
+    ptr:=ptr AND$FFFFFF00;
+    //Set the bottom 8 bits with the new time
+    ptr:=ptr OR(rotd>>32);
+    //Update the load address
+    if UpdateADFSFileAddr(filename,ptr,True) then
+    begin
+     //Now calculate the new exec address
+     ptr:=rotd AND $FFFFFFFF;
+     //Update the exec address
+     if UpdateADFSFileAddr(filename,ptr,False) then
+     begin
+      FDisc[dir].Entries[entry].TimeStamp:=newtimedate;
+      Result:=True;
+     end;
+    end;
+   end;
+ end;
 end;

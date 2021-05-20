@@ -546,3 +546,20 @@ begin
    Result:=entry;
   end;
 end;
+
+{-------------------------------------------------------------------------------
+Update a file's load or execution address
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateCFSFileAddr(entry,newaddr:Cardinal;load:Boolean):Boolean;
+begin
+ Result:=False;
+ if Length(FDisc)=1 then //Check to make sure we have something
+  if entry<Length(FDisc[0].Entries) then //And to make sure we're not overshooting
+  begin
+   //Simply just adjust it
+   if load then FDisc[0].Entries[entry].LoadAddr:=newaddr AND$FFFFFFFF
+           else FDisc[0].Entries[entry].ExecAddr:=newaddr AND$FFFFFFFF;
+   //And return a positive result
+   Result:=True;
+  end;
+end;

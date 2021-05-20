@@ -46,6 +46,7 @@ type
   ImageDisplay: TImage;
   BasicOutput: TIpHtmlPanel;
   JumpToLabel: TLabel;
+  TextOutput: TMemo;
   PageControl: TPageControl;
   HexDump: TTabSheet;
   BasicViewer: TTabSheet;
@@ -54,6 +55,7 @@ type
   SpriteOutput: TScrollBox;
   SpriteViewer: TTabSheet;
   ImageViewer: TTabSheet;
+  TextViewer: TTabSheet;
   XORLabel: TLabel;
   NavImages: TImageList;
   ToolPanel: TPanel;
@@ -686,11 +688,11 @@ begin
  isbasic:=IsBasicFile;
  //Our pointer into the file
  ptr:=0;
- //Clear the output container
- fs:=TStringStream.Create('<html><head><title>Basic Listing</title></head>');
  //Is it a BBC BASIC file?
  if isbasic then
  begin
+  //Clear the output container and write the headers
+  fs:=TStringStream.Create('<html><head><title>Basic Listing</title></head>');
   fs.WriteString('<body style="background-color:#0000FF;color:#FFFFFF;font-weight:bold">');
   //BBC BASIC version
   basicver:=1;
@@ -797,12 +799,23 @@ begin
   //Change the colour
   BasicOutput.Color:=$FF0000;
   BasicOutput.Font.Color:=$FFFFFF;
+  //Finish off the HTML
+  fs.WriteString('</body></html>');
+  //Now upload the document to the display
+  pHTML:=TIpHtml.Create;
+  fs.Position:=0;
+  pHTML.LoadFromStream(fs);
+  fs.Free;
+  BasicOutput.SetHtml(pHTML);
+  //Make the tab visible
+  BasicViewer.TabVisible:=True;
+  //And switch to it
+  PageControl.ActivePage:=BasicViewer;
  end
  else
  begin
   //It is not a BASIC file, so just display as text
-  BasicViewer.Caption:='Text File';
-  fs.WriteString('<body style="background-color:#ECECEC;color:#000000";font-weight:Bold>');
+  TextOutput.Clear;
   linetxt:='';
   while ptr<Length(buffer) do
   begin
@@ -813,36 +826,20 @@ begin
    //New line
    if c=$0A then
    begin
-    StringReplace(linetxt,'&','&amp;',[rfReplaceAll]);
-    StringReplace(linetxt,' ','&nbsp;',[rfReplaceAll]);
-    StringReplace(linetxt,'<','&lt;',[rfReplaceAll]);
-    StringReplace(linetxt,'>','&gt;',[rfReplaceAll]);
-    fs.WriteString(linetxt+'<br>');
+    TextOutput.Lines.Add(linetxt);
     linetxt:='';
    end;
   end;
   //At the end, anything left then push to the output container
-  if linetxt<>'' then
-  begin
-   StringReplace(linetxt,'&','&amp;',[rfReplaceAll]);
-   StringReplace(linetxt,' ','&nbsp;',[rfReplaceAll]);
-   StringReplace(linetxt,'<','&lt;',[rfReplaceAll]);
-   StringReplace(linetxt,'>','&gt;',[rfReplaceAll]);
-   fs.WriteString(linetxt+'<br>');
-  end;
+  if linetxt<>'' then TextOutput.Lines.Add(linetxt);
+  //Move the cursor to the beginning
+  TextOutput.SelStart:=0;
+  TextOutput.SelLength:=0;
+  //Make the tab visible
+  TextViewer.TabVisible:=True;
+  //And switch to it
+  PageControl.ActivePage:=TextViewer;
  end;
- //Finish off the HTML
- fs.WriteString('</body></html>');
- //Now upload the document to the display
- pHTML:=TIpHtml.Create;
- fs.Position:=0;
- pHTML.LoadFromStream(fs);
- fs.Free;
- BasicOutput.SetHtml(pHTML);
- //Make the tab visible
- BasicViewer.TabVisible:=True;
- //And switch to it
- PageControl.ActivePage:=BasicViewer;
 end;
 
 {------------------------------------------------------------------------------}

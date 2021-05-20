@@ -733,3 +733,35 @@ begin
   Result:=True;
  end;
 end;
+
+{-------------------------------------------------------------------------------
+Update a file's load or execution address
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateDFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+var
+ ptr,
+ dir,
+ entry: Cardinal;
+begin
+ Result:=False;
+ ptr:=0;
+ //Ensure the file actually exists
+ if FileExists(filename,ptr) then
+ begin
+  //Extract the references
+  dir  :=ptr DIV $10000;
+  entry:=ptr MOD $10000;
+  //Are they valid?
+  if dir<Length(FDisc)then
+   if entry<Length(FDisc[dir].Entries)then
+   begin
+    //Update our entry
+    if load then FDisc[dir].Entries[entry].LoadAddr:=newaddr AND$FFFFFF
+            else FDisc[dir].Entries[entry].ExecAddr:=newaddr AND$FFFFFF;
+    //And update the catalogue for the parent directory
+    UpdateDFSCat(FDisc[dir].Entries[entry].Side);
+    //Return a positive result
+    Result:=True;
+   end;
+ end;
+end;

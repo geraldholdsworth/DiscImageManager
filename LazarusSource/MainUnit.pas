@@ -32,9 +32,10 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
-  DiscImageUtils,ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,
-  Clipbrd,HexDumpUnit,Spark,FPImage,IntfGraphics,GraphType;
+  SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls, DiscImage,
+  Global, DiscImageUtils, ExtCtrls, Buttons, ComCtrls, Menus, DateUtils,
+  ImgList, StrUtils, Clipbrd, HexDumpUnit, Spark, FPImage, IntfGraphics,
+  ActnList, GraphType, DateTimePicker;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -51,6 +52,9 @@ type
   { TMainForm }
 
   TMainForm = class(TForm)
+   PasteFromClipboard: TAction;
+   CopyToClipboard: TAction;
+   KeyboardShortcuts: TActionList;
    cb_C64_c: TCheckBox;
    cb_C64_l: TCheckBox;
    cb_DFS_l: TCheckBox;
@@ -63,6 +67,9 @@ type
    cb_ADFS_pubw: TCheckBox;
    cb_ADFS_pube: TCheckBox;
    C64AttributeLabel: TLabel;
+   ed_timestamp: TDateTimePicker;
+   ed_loadaddr: TEdit;
+   ed_execaddr: TEdit;
    ed_title: TEdit;
    FilenameLabel: TLabel;
    icons: TImageList;
@@ -116,7 +123,6 @@ type
    menuImageDetails: TMenuItem;
    menuExtractFile: TMenuItem;
    menuAddFile: TMenuItem;
-   sb_Clipboard: TSpeedButton;
    DelayTimer: TTimer;
    ToolBarImages: TImageList;
    AddNewFile: TOpenDialog;
@@ -177,9 +183,14 @@ type
    procedure btn_NewDirectoryClick(Sender: TObject);
    procedure btn_SaveAsCSVClick(Sender: TObject);
    procedure btn_SplitDFSClick(Sender: TObject);
-   procedure FileInfoPanelResize(Sender: TObject);
+   procedure ed_timestampEditingDone(Sender: TObject);
    procedure HexDumpSubItemClick(Sender: TObject);
+   procedure lb_execaddrClick(Sender: TObject);
+   procedure lb_loadaddrClick(Sender: TObject);
+   procedure lb_timestampClick(Sender: TObject);
    procedure lb_titleClick(Sender: TObject);
+   procedure sb_FileTypeClick(Sender: TObject);
+   procedure FileTypeClick(Sender: TObject);
    procedure btn_NewImageClick(Sender: TObject);
    procedure btn_SaveImageClick(Sender: TObject);
    procedure AttributeChangeClick(Sender: TObject);
@@ -209,6 +220,7 @@ type
    procedure FormShow(Sender: TObject);
    procedure FormCreate(Sender: TObject);
    //Events - Other
+   procedure ed_execaddrEditingDone(Sender: TObject);
    procedure ed_titleEditingDone(Sender: TObject);
    procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
    procedure DirListEditingEnd(Sender: TObject; Node: TTreeNode;
@@ -226,9 +238,15 @@ type
    procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
     const Rect: TRect);
    procedure FileInfoPanelPaint(Sender: TObject);
+   procedure FileInfoPanelResize(Sender: TObject);
+   procedure ed_execaddrKeyPress(Sender: TObject; var Key: char);
+   procedure FileTypeKeyPress(Sender: TObject; var Key: char);
+   procedure CopyToClipboardExecute(Sender: TObject);
+   procedure PasteFromClipboardExecute(Sender: TObject);
    //Misc
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure ImportFiles(NewImage: TDiscImage);
+   procedure SwapLabelEdit(editcont: TEdit;labelcont: TLabel;dir,hex: Boolean);
    function QueryUnsaved: Boolean;
    function GetFilePath(Node: TTreeNode): String;
    procedure DeleteFile(confirm: Boolean);
@@ -266,6 +284,7 @@ type
    procedure UpdateProgress(Fupdate: String);
    procedure TileCanvas(c: TCanvas);
    procedure TileCanvas(c: TCanvas;rc: TRect); overload;
+   procedure CreateFileTypeDialogue;
   private
    var
     //To keep track of renames
@@ -294,6 +313,14 @@ type
     progsleep     :Boolean;
     //Texture type
     TextureType   :Byte;
+    //Filetype Dialogue Form
+    FTDialogue    :TForm;
+    //Filetype buttons on dialogue form
+    FTButtons     :array of TSpeedButton;
+    //Dummy button for dialogue form
+    FTDummyBtn    :TSpeedButton;
+    //Custom filetype on dialogue form
+    FTEdit        :TEdit;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..140] of String =
@@ -367,13 +394,15 @@ type
     commodorelogo = 4;
     riscoslogo    = 5;
     sinclairlogo  = 6;
+    //Time and Date format
+    TimeDateFormat = 'hh:nn:ss dd mmm yyyy';
   public
    //The image
    Image: TDiscImage;
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.25';
+    ApplicationVersion = '1.26';
    procedure AfterConstruction; override;
   end;
 
@@ -395,10 +424,6 @@ procedure TMainForm.AfterConstruction;
 var
  i: Integer;
 begin
-{
-See: http://zarko-gajic.iz.hr/delphi-high-dpi-road-ensuring-your-ui-looks-correctly/
-and https://wiki.lazarus.freepascal.org/High_DPI
-}
  inherited;
  if Screen.PixelsPerInch<>DesignTimePPI then
  begin
@@ -1178,8 +1203,31 @@ end;
 //Copy CRC32 to clipboard
 {------------------------------------------------------------------------------}
 procedure TMainForm.sb_ClipboardClick(Sender: TObject);
+var
+ nowtime,
+ starttime: TDateTime;
+ labcont  : TLabel;
 begin
- Clipboard.AsText:=lb_CRC32.Caption;
+ if Sender is TLabel then
+ begin
+  //Get the calling control - this is so we can service multiple labels with one method
+  labcont:=TLabel(Sender);
+  //Briefly change to blue
+  labcont.Font.Color:=$FF0000;
+  //Copy to clipboard
+  Clipboard.AsText:=labcont.Caption;
+  //Create a delay timer
+  starttime:=Round(Time*100000);
+  //TDateTime is a Double, with the time being the fraction part
+  //So multiplying by 100000 gets the number of seconds
+  nowtime:=starttime;
+  repeat
+   Application.ProcessMessages;
+   nowtime:=Round(Time*100000);
+  until nowtime-starttime>=1;
+  //Change back to default
+  labcont.Font.Color:=$000000;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1352,12 +1400,6 @@ begin
  ed_title.Top          :=lb_title.Top;
  ArrangeComponent(LocationPanel ,DirTitlePanel   ,lb_location); //Location
  ArrangeComponent(CRC32Panel    ,LocationPanel   ,lb_CRC32);    //CRC32
- sb_Clipboard.Top      :=lb_CRC32.Top+lb_CRC32.Height;
- sb_Clipboard.Width    :=DirList.ImagesWidth+5;
- sb_Clipboard.Height   :=DirList.ImagesWidth+5;
- sb_Clipboard.ImageWidth:=DirList.ImagesWidth+5;
- sb_Clipboard.Left     :=(CRC32Panel.Width-sb_Clipboard.Width)div 2;
- CRC32Panel.Height     :=sb_Clipboard.Top+sb_Clipboard.Height;  //Clipboard button
  //Make the appropriate panel visible
  //DFS and UEF
  if(Image.FormatNumber>>4=diAcornDFS)
@@ -1616,6 +1658,9 @@ begin
      filetype:=filetype+' (BROKEN - 0x'
                        +IntToHex(Image.Disc[0].ErrorCode,2)+')';
    end;
+   //Can't edit a directory's filetype
+   img_Filetype.Hint:='';
+   lb_FileType.Hint :='';
   end
   else //Can only add files to a directory
   begin
@@ -1625,6 +1670,9 @@ begin
    NewDirectory1.Enabled   :=False;
    btn_NewDirectory.Enabled:=False;
    menuNewDir.Enabled      :=False;
+   //Can edit a file's filetype
+   img_Filetype.Hint:='Click to edit';
+   lb_FileType.Hint :='Click to edit';
   end;
   //Filename
   RemoveTopBit(filename);
@@ -1646,6 +1694,7 @@ begin
   R.Width:=img_FileType.Width;
   R.Height:=img_FileType.Height;
   FileImages.StretchDraw(img_FileType.Canvas,ft,R);
+  img_FileType.Tag:=ft; //To keep track of which image it is
   //Filetype text - only show for certain systems
   if(Image.FormatNumber>>4=diAcornADFS) //ADFS
   or(Image.FormatNumber>>4=diCommodore) //C64
@@ -1663,15 +1712,17 @@ begin
    //Timestamp - ADFS only
    if(Image.Disc[dir].Entries[entry].TimeStamp>0)
    and(Image.FormatNumber>>4=diAcornADFS)then
-    lb_timestamp.Caption:=FormatDateTime('hh:nn:ss dd mmm yyyy',
+    lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
                                        Image.Disc[dir].Entries[entry].TimeStamp)
    else
     if Image.Disc[dir].Entries[entry].DirRef=-1 then
     begin
      //Load address
      lb_loadaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
+     ed_loadaddr.Enabled:=True; //Allow editing
      //Execution address
      lb_execaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
+     ed_execaddr.Enabled:=True; //Allow editing
     end;
    //Length
    lb_length.Caption:=ConvertToKMG(Image.Disc[dir].Entries[entry].Length)+
@@ -1689,7 +1740,7 @@ begin
     location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)+' ';
    //All other formats - Sector
    if(Image.FormatNumber>>4=diAcornDFS)
-   or(Image.FormatNumber>>4=diAcornADFS)
+   //or(Image.FormatNumber>>4=diAcornADFS)
    or(Image.FormatNumber>>4=diAmiga) then
     location:=location+'Sector '+IntToStr(Image.Disc[dir].Entries[entry].Sector)+' ';
    //DFS - indicates which side also
@@ -1854,6 +1905,16 @@ begin
   //Close the application, unless otherwise specified
   if not KeepOpen then MainForm.Close;
  end;
+ //Create the dialogue boxes
+ CreateFileTypeDialogue;
+ //Create the copy and paste shortcuts
+ CopyToClipboard.ShortCut   :=$4000 OR ord('C'); //Ctrl+C (WindowsLinux)
+ PasteFromClipboard.ShortCut:=$4000 OR ord('V'); //Ctrl+V (Windows/Linux)
+ {$IFDEF Darwin}
+ CopyToClipboard.ShortCut   :=$1000 OR ord('C'); //Meta+C (Mac)
+ PasteFromClipboard.ShortCut:=$1000 OR ord('V'); //Meta+V (Mac)
+ {$ENDIF}
+ //Meta/Cmd = $1000, Shift = $2000, Ctrl = $4000, Alt = $8000
 end;
 
 {------------------------------------------------------------------------------}
@@ -2514,22 +2575,188 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//User has clicked on directory title
+//Edit the filetypes
 {------------------------------------------------------------------------------}
-procedure TMainForm.lb_titleClick(Sender: TObject);
+procedure TMainForm.sb_FileTypeClick(Sender: TObject);
+var
+ ft,i,
+ dir,
+ entry: Integer;
+begin
+ //ADFS non directories only
+ if (Image.FormatNumber>>4=diAcornADFS)
+ and(not TMyTreeNode(DirList.Selected).IsDir)then
+ begin
+  //Get the references
+  entry:=DirList.Selected.Index;
+  dir:=TMyTreeNode(DirList.Selected).ParentDir;
+  //And ensure they are valid
+  if dir<Length(Image.Disc) then
+   if entry<Length(Image.Disc[dir].Entries)then
+   begin
+    //Get the current filetype
+    ft:=StrToIntDef('$'+Image.Disc[dir].Entries[entry].ShortFileType,0);
+    //Reset all the buttons to up
+    FTDummyBtn.Down:=True;
+    //Now set the one for our filetype, if it is there, to down
+    for i:=0 to Length(FTButtons)-1 do
+     if FTButtons[i].Tag=ft then FTButtons[i].Down:=True;
+    //Set the custom filetype to this filetype
+    FTEdit.Text:=IntToHex(ft,3);
+    //Show the dialogue modally
+    FTDialogue.ShowModal;
+   end;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//User has selected a filetype
+{------------------------------------------------------------------------------}
+procedure TMainForm.FileTypeClick(Sender: TObject);
+var
+ ft,
+ dir,
+ entry: Integer;
+begin
+ //Default filetype
+ ft:=-1;
+ //Get the selected filetype
+ if Sender is TSpeedButton then ft:=TSpeedButton(Sender).Tag;
+ //Hide the dialogue by setting it's ModalResult (doesn't matter what to)
+ FTDialogue.ModalResult:=mrOK;
+ //If a filetype was selected, then update it
+ if ft<>-1 then
+ begin
+  //Get the references
+  entry:=DirList.Selected.Index;
+  dir:=TMyTreeNode(DirList.Selected).ParentDir;
+  //And ensure they are valid
+  if dir<Length(Image.Disc) then
+   if entry<Length(Image.Disc[dir].Entries)then
+    //Change the filetype
+    if Image.ChangeFileType(Image.Disc[dir].Entries[entry].Parent
+                           +Image.DirSep
+                           +Image.Disc[dir].Entries[entry].Filename
+                           ,IntToHex(ft,3))then
+    begin
+     //If all went OK, update the display
+     DirListChange(Sender,DirList.Selected);
+     //And mark as changed
+     HasChanged:=True;
+    end;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//Swap the label for an edit - user clicked on the label
+{------------------------------------------------------------------------------}
+procedure TMainForm.SwapLabelEdit(editcont:TEdit;labelcont:TLabel;dir,hex:Boolean);
+var
+ edittext: String;
 begin
  //If there is only one selection
  if DirList.SelectionCount=1 then
   //And it is a directory
-  if TMyTreeNode(DirList.Selected).IsDir then
+  if TMyTreeNode(DirList.Selected).IsDir=dir then
    //And the editor is enabled
-   if ed_title.Enabled then
-   begin //Then show it, with the title text
-    ed_title.Visible  :=True;
-    ed_title.Text     :=lb_title.Caption;
-    ed_title.SetFocus; //Put the cursor in the control
-    lb_title.Visible  :=False;
+   if editcont.Enabled then
+   begin //Then show it
+    editcont.Visible  :=True;
+    edittext:=labelcont.Caption;
+    //For hex number, remove the intial '0x'
+    if(hex)and(LeftStr(edittext,2)='0x')then edittext:=Copy(edittext,3);
+    editcont.Text     :=edittext;
+    //Put the cursor in the control
+    editcont.SetFocus;
+    //And hide the original label
+    labelcont.Visible :=False;
    end;
+end;
+
+{------------------------------------------------------------------------------}
+//User has clicked on directory title
+{------------------------------------------------------------------------------}
+procedure TMainForm.lb_titleClick(Sender: TObject);
+begin
+ SwapLabelEdit(ed_title,lb_title,True,False);
+end;
+
+{------------------------------------------------------------------------------}
+//User has clicked on execution address
+{------------------------------------------------------------------------------}
+procedure TMainForm.lb_execaddrClick(Sender: TObject);
+begin
+ SwapLabelEdit(ed_execaddr,lb_execaddr,False,True);
+end;
+
+{------------------------------------------------------------------------------}
+//User has clicked on load address
+{------------------------------------------------------------------------------}
+procedure TMainForm.lb_loadaddrClick(Sender: TObject);
+begin
+ SwapLabelEdit(ed_loadaddr,lb_loadaddr,False,True);
+end;
+
+{------------------------------------------------------------------------------}
+//User has clicked on the timestamp label
+{------------------------------------------------------------------------------}
+procedure TMainForm.lb_timestampClick(Sender: TObject);
+var
+ dir,
+ entry: Integer;
+begin
+ //ADFS only
+ if Image.FormatNumber>>4=diAcornADFS then
+ begin
+  //Get the references
+  entry:=DirList.Selected.Index;
+  dir:=TMyTreeNode(DirList.Selected).ParentDir;
+  //And ensure they are valid
+  if dir<Length(Image.Disc) then
+   if entry<Length(Image.Disc[dir].Entries)then
+   begin
+    //Ensure that the control has the same time/date as the label
+    ed_timestamp.DateTime:=Image.Disc[dir].Entries[entry].TimeStamp;
+    //Re-position the control (as this does not span the panel)
+    ed_timestamp.Top:=lb_timestamp.Top-4;
+    ed_timestamp.Left:=Round((lb_timestamp.Width-ed_timestamp.Width)/2);
+    //Swap the control and label round
+    lb_timestamp.Visible:=False;
+    ed_timestamp.Visible:=True;
+   end;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//User has finished editing the time/date
+{------------------------------------------------------------------------------}
+procedure TMainForm.ed_timestampEditingDone(Sender: TObject);
+var
+ newtimedate: TDateTime;
+ dir,
+ entry      : Integer;
+begin
+ ed_timestamp.Visible:=False;
+ lb_timestamp.Visible:=True;
+ //Get the adjusted time
+ newtimedate:=ed_timestamp.DateTime;
+ //Get the references
+ entry:=DirList.Selected.Index;
+ dir:=TMyTreeNode(DirList.Selected).ParentDir;
+ //And ensure they are valid
+ if dir<Length(Image.Disc) then
+  if entry<Length(Image.Disc[dir].Entries)then
+   if newtimedate<>Image.Disc[dir].Entries[entry].TimeStamp then //And different
+    if Image.TimeStampFile(Image.Disc[dir].Entries[entry].Parent
+                          +Image.DirSep
+                          +Image.Disc[dir].Entries[entry].Filename
+                          ,newtimedate) then //So send to the class
+    begin
+     //Display the new details
+     lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
+                                       Image.Disc[dir].Entries[entry].TimeStamp);
+     HasChanged:=True;
+    end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2557,6 +2784,66 @@ begin
  end;
  lb_title.Visible:=True;
  ed_title.Visible:=False;
+end;
+
+{------------------------------------------------------------------------------}
+//User has done editing Execution or Load Address
+{------------------------------------------------------------------------------}
+procedure TMainForm.ed_execaddrEditingDone(Sender: TObject);
+var
+ filename,
+ newaddr,
+ oldaddr  : String;
+ dir,
+ entry    : Integer;
+ ok       : Boolean;
+begin
+ //Get the filename of the file being edited
+ filename:=lb_Filename.Caption;
+ //Add the path, if there is one
+ if lb_Parent.Caption<>'' then
+  filename:=lb_Parent.Caption+Image.DirSep+filename;
+ //Get the old address
+ oldaddr:='';
+ newaddr:='';
+ if Sender is TEdit then
+ begin
+  //Address to change to
+  newaddr:='0x'+TEdit(Sender).Text;
+  oldaddr:=newaddr;
+  //Address to change from
+  if TEdit(Sender)=ed_execaddr then oldaddr:=lb_execaddr.Caption;
+  if TEdit(Sender)=ed_loadaddr then oldaddr:=lb_loadaddr.Caption;
+  //Get the references
+  entry:=DirList.Selected.Index;
+  dir:=TMyTreeNode(DirList.Selected).ParentDir;
+  if dir<Length(Image.Disc) then
+   if entry<Length(Image.Disc[dir].Entries) then
+   begin
+    //Then send to be changed
+    if newaddr<>oldaddr then //Only if something has changed
+    begin
+     ok:=False;
+     //Send to the class
+     if TEdit(Sender)=ed_execaddr then
+      ok:=Image.UpdateExecAddr(filename,StrToIntDef('$'+Copy(newaddr,3),0));
+     if TEdit(Sender)=ed_loadaddr then
+      ok:=Image.UpdateLoadAddr(filename,StrToIntDef('$'+Copy(newaddr,3),0));
+     if ok then
+     begin
+      //If success, then change the text
+      lb_execaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
+      lb_loadaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
+      HasChanged:=True;
+     end;
+    end;
+   end;
+ end;
+ //Hide the edit control and show the label
+ lb_execaddr.Visible:=True;
+ ed_execaddr.Visible:=False;
+ lb_loadaddr.Visible:=True;
+ ed_loadaddr.Visible:=False;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2904,6 +3191,67 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Copy to clipboard
+{------------------------------------------------------------------------------}
+procedure TMainForm.CopyToClipboardExecute(Sender: TObject);
+begin
+ //ShowMessage('Copy');
+end;
+
+{------------------------------------------------------------------------------}
+//Paste From Clipboard
+{------------------------------------------------------------------------------}
+procedure TMainForm.PasteFromClipboardExecute(Sender: TObject);
+begin
+ //ShowMessage('Paste');
+end;
+
+{------------------------------------------------------------------------------}
+//Ensure we have a hex number being entered
+{------------------------------------------------------------------------------}
+procedure TMainForm.ed_execaddrKeyPress(Sender: TObject; var Key: char);
+begin
+ //Verify it is in hex, delete, backspace or Enter
+ if not(Key in ['0'..'9']+['A'..'F']+['a'..'f'])
+ and(Key<>chr(127))AND(Key<>chr(8))AND(Key<>chr(13))then Key:=#0;
+end;
+
+{------------------------------------------------------------------------------}
+//Custom filetype keypress
+{------------------------------------------------------------------------------}
+procedure TMainForm.FileTypeKeyPress(Sender: TObject; var Key: char);
+var
+ ft   : String;
+ dir,
+ entry: Integer;
+begin
+ //Check for enter
+ if Key=chr(13) then
+ begin
+  ft:=FTEdit.Text;
+  //Hide the dialogue by setting it's ModalResult (doesn't matter what to)
+  FTDialogue.ModalResult:=mrOK;
+  //Get the references
+  entry:=DirList.Selected.Index;
+  dir:=TMyTreeNode(DirList.Selected).ParentDir;
+  //And ensure they are valid
+  if dir<Length(Image.Disc) then
+   if entry<Length(Image.Disc[dir].Entries)then
+    //Change the filetype
+    if Image.ChangeFileType(Image.Disc[dir].Entries[entry].Parent
+                           +Image.DirSep
+                           +Image.Disc[dir].Entries[entry].Filename
+                           ,ft)then
+    begin
+     //If all went OK, update the display
+     DirListChange(Sender,DirList.Selected);
+     //And mark as changed
+     HasChanged:=True;
+    end;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
 //Paint the Directory Tree
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListCustomDraw(Sender: TCustomTreeView;
@@ -3013,6 +3361,8 @@ begin
   TileCanvas(TToolBar(Sender).Canvas); //for a TToolBar
  if Sender is TForm then
   TileCanvas(TForm(Sender).Canvas); //For a TForm
+ if Sender is TScrollBox then
+  TileCanvas(TScrollBox(Sender).Canvas); //For a TForm
 end;
 
 {------------------------------------------------------------------------------}
@@ -3866,6 +4216,14 @@ begin
  lb_title.Visible    :=True;
  ed_title.Visible    :=False;
  ed_title.Enabled    :=False;
+ //Enable/Disable the Load Address editing
+ lb_loadaddr.Visible :=True;
+ ed_loadaddr.Visible :=False;
+ ed_loadaddr.Enabled :=False;
+ //Enable/Disable the Execution Address editing
+ lb_execaddr.Visible :=True;
+ ed_execaddr.Visible :=False;
+ ed_execaddr.Enabled :=False;
  //Blank the Filetype bitmap
  img_FileType.Picture.Bitmap:=nil;
  //Disable the access tick boxes
@@ -4094,6 +4452,69 @@ begin
   c.FillRect(rc);
   b.Free;
  end;
+end;
+
+{------------------------------------------------------------------------------}
+//Create the ADFS Filetype Dialogue box
+{------------------------------------------------------------------------------}
+procedure TMainForm.CreateFileTypeDialogue;
+var
+ i: Integer;
+ sc: TScrollBox;
+begin
+ //Create the filetype pop-up
+ FTDialogue:=TForm.Create(nil);
+ FTDialogue.Parent:=nil;
+ FTDialogue.BorderIcons:=[biSystemMenu];
+ FTDialogue.BorderStyle:=bsDialog;
+ FTDialogue.BorderWidth:=0;
+ FTDialogue.Caption:='RISC OS Filetypes';
+ FTDialogue.Color:=$ECECEC;
+ FTDialogue.Visible:=False;
+ FTDialogue.Width:=Round((64*5)*(Screen.PixelsPerInch/DesignTimePPI));
+ FTDialogue.Position:=poMainFormCenter;
+ //Scrollbox
+ sc:=TScrollbox.Create(FTDialogue);
+ sc.Parent:=FTDialogue;
+ sc.Align:=alClient;
+ sc.BorderStyle:=bsSingle;
+ sc.OnPaint:=@FileInfoPanelPaint;
+ //Controls
+ SetLength(FTButtons,riscoshigh-2);
+ for i:=3 to riscoshigh do
+ begin
+  FTButtons[i-3]:=TSpeedButton.Create(sc);
+  FTButtons[i-3].Parent:=sc;
+  FTButtons[i-3].Width:=Round(64*(Screen.PixelsPerInch/DesignTimePPI));
+  FTButtons[i-3].Height:=Round(64*(Screen.PixelsPerInch/DesignTimePPI));
+  FTButtons[i-3].Caption:=Image.GetFileTypeFromNumber(StrToInt('$'+FileTypes[i]));
+  FTButtons[i-3].Tag:=StrToInt('$'+FileTypes[i]);
+  FTButtons[i-3].Left:=((i-3)mod 5)*FTButtons[i-3].Width;
+  FTButtons[i-3].Top :=((i-3)div 5)*FTButtons[i-3].Height;
+  FTButtons[i-3].Flat:=True;
+  FTButtons[i-3].GroupIndex:=1;
+  FTButtons[i-3].Images:=FileImages;
+  FTButtons[i-3].ImageWidth:=Round(32*(Screen.PixelsPerInch/DesignTimePPI));
+  FTButtons[i-3].Layout:=blGlyphTop;
+  FTButtons[i-3].ImageIndex:=i;
+  FTButtons[i-3].OnClick:=@FileTypeClick;
+ end;
+ //Create a dummy button, for no selection
+ FTDummyBtn:=TSpeedButton.Create(sc);
+ FTDummyBtn.Parent:=sc;
+ FTDummyBtn.GroupIndex:=1;
+ FTDummyBtn.Visible:=False;
+ //Custom filetype
+ FTEdit:=TEdit.Create(sc);
+ FTEdit.Parent:=sc;
+ FTEdit.Width:=Round(64*(Screen.PixelsPerInch/DesignTimePPI));
+ FTEdit.Text:='';
+ FTEdit.Font.Name:='Courier New';
+ FTEdit.Alignment:=taCenter;
+ i:=Round(64*(Screen.PixelsPerInch/DesignTimePPI));
+ FTEdit.Top:=(((riscoshigh-2)div 5)*i)+Round((i-FTEdit.Height)/2);
+ FTEdit.Left:=((riscoshigh-2)mod 5)*FTEdit.Width;
+ FTEdit.OnKeyPress:=@FileTypeKeyPress;
 end;
 
 end.

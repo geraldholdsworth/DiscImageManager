@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.25
+TDiscImage class V1.26
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -198,6 +198,9 @@ type
   procedure FixADFSDirectory(dir,entry: Integer);
   function ADFSGetHardDriveParams(Ldiscsize:Cardinal;bigmap:Boolean;
               var Lidlen,Lzone_spare,Lnzones,Llog2bpmb,Lroot: Cardinal):Boolean;
+  function UpdateADFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+  function UpdateADFSFileType(filename:String;newtype:String):Boolean;
+  function UpdateADFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
@@ -213,6 +216,7 @@ type
   function UpdateDFSDiscTitle(title: String;side: Byte): Boolean;
   function UpdateDFSBootOption(option,side: Byte): Boolean;
   function ExtractDFSFile(filename: String;var buffer: TDIByteArray): Boolean;
+  function UpdateDFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
@@ -268,6 +272,7 @@ type
   function MoveCFSFile(entry: Cardinal;dest: Integer): Integer;
   function WriteCFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   function RenameCFSFile(entry: Cardinal;newfilename: String): Integer;
+  function UpdateCFSFileAddr(entry,newaddr:Cardinal;load:Boolean):Boolean;
   //MMFS Routines
   function ID_MMB: Boolean;
   function ReadMMBDisc: TDisc;
@@ -313,6 +318,12 @@ type
   function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function FixDirectories: Boolean;
   function SaveFilter(var FilterIndex: Integer):String;
+  function UpdateLoadAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
+  function UpdateExecAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
+  function TimeStampFile(filename: String;newtimedate: TDateTime): Boolean;
+  function ChangeFileType(filename,newtype: String): Boolean;
+  function GetFileTypeFromNumber(filetype: Integer): String;
+  function GetFileTypeFromName(filetype: String): Integer;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -1917,6 +1928,116 @@ begin
   4: exit;//Update AmigaDOS Boot ++++++++++++++++++++++++++++++++++++++++++++++
   5: exit;//Can't update CFS boot option
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Change the load address
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateLoadAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
+var
+ m: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0: Result:=UpdateDFSFileAddr(filename,newaddr,True); //Update DFS Load Address
+  1: Result:=UpdateADFSFileAddr(filename,newaddr,True);//Update ADFS Load Address
+  2: exit;//Update Commodore 64/128 Load Address
+  3: exit;//Update Sinclair/Amstrad Load Address
+  4: exit;//Update AmigaDOS Load Address
+  5: Result:=UpdateCFSFileAddr(entry,newaddr,True);    //Update update CFS Load Address
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Change the execution address
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateExecAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
+var
+ m: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0: Result:=UpdateDFSFileAddr(filename,newaddr,False); //Update DFS Execution Address
+  1: Result:=UpdateADFSFileAddr(filename,newaddr,False);//Update ADFS Execution Address
+  2: exit;//Update Commodore 64/128 Execution Address
+  3: exit;//Update Sinclair/Amstrad Execution Address
+  4: exit;//Update AmigaDOS Execution Address
+  5: Result:=UpdateCFSFileAddr(entry,newaddr,False);    //Update update CFS Execution Address
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Timestamp the file
+-------------------------------------------------------------------------------}
+function TDiscImage.TimeStampFile(filename:String;newtimedate:TDateTime):Boolean;
+var
+ m: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0: exit;//Update DFS Timestamp
+  1: Result:=UpdateADFSTimeStamp(filename,newtimedate);//Update ADFS Timestamp
+  2: exit;//Update Commodore 64/128 Timestamp
+  3: exit;//Update Sinclair/Amstrad Timestamp
+  4: exit;//Update AmigaDOS Timestamp
+  5: exit;//Update update CFS Timestamp
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Change the file's filetype
+-------------------------------------------------------------------------------}
+function TDiscImage.ChangeFileType(filename,newtype: String): Boolean;
+var
+ m: Byte;
+begin
+ Result:=False;
+ m:=FFormat DIV $10; //Major format
+ case m of
+  0: exit;//Update DFS Filetype
+  1: Result:=UpdateADFSFileType(filename,newtype);//Update ADFS Filetype
+  2: exit;//Update Commodore 64/128 Filetype
+  3: exit;//Update Sinclair/Amstrad Filetype
+  4: exit;//Update AmigaDOS Filetype
+  5: exit;//Update update CFS Filetype
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Convert a filetype number to a string
+-------------------------------------------------------------------------------}
+function TDiscImage.GetFileTypeFromNumber(filetype: Integer): String;
+var
+ i: Integer;
+begin
+ filetype:=filetype AND$FFF;
+ Result:='';
+ i:=1;
+ repeat
+  if StrToInt('$'+LeftStr(ROFileTypes[i],3))=filetype then
+   Result:=Copy(ROFileTypes[i],4);
+  inc(i);
+ until(i>Length(ROFileTypes))or(Result<>'');
+ if Result='' then Result:=IntToHex(filetype,3);
+end;
+
+{-------------------------------------------------------------------------------
+Convert a filetype name into a number
+-------------------------------------------------------------------------------}
+function TDiscImage.GetFileTypeFromName(filetype: String): Integer;
+var
+ i: Integer;
+begin
+ Result:=-1;
+ i:=1;
+ repeat
+  if UpperCase(filetype)=UpperCase(Copy(ROFileTypes[i],4))then
+   Result:=StrToInt('$'+LeftStr(ROFileTypes[i],3));
+  inc(i);
+ until(i>Length(ROFileTypes))or(Result<>-1);
 end;
 
 {$INCLUDE 'DiscImage_ADFS.pas'}

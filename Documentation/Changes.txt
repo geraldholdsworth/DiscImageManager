@@ -438,8 +438,8 @@ Bug fixes
 * A bug was introduced in 1.23 where, when saving a UEF, the data block was not made big enough before trying to write some data, resulting in some parameters not being written correctly.
 * On Windows, when a file was double clicked to open in the File Viewer, it also triggered the drag and drop copy operation in the directory tree.
 
-1.25 - 
-----------------------
+1.25 - 9th May 2021
+-------------------
 New or improved features
 * Tidied up some code dealing with saving UEF files.
 * Can now create new, blank, ADFS hard drive images. Min size 20MB; max size 1000MB.
@@ -461,6 +461,23 @@ New or improved features
 Bug fixes
 * UEF files were getting saved uncompressed by default. This has been changed to saving compressed by default.
 * When checking multizone ADFS discs for free space, zone 0 was missed.
+
+1.26 - 20th May 2021
+--------------------
+New or improved features
+* Can now edit the load and execution addresses for ADFS,DFS and CFS files (click on the appropriate field).
+* Improved the lookup for the filetype names, and added a method to lookup a filetype from a name.
+* Added another 11 RISC OS filetypes to the list, bringing the total to 1218.
+* Can now edit the filetype for a RISC OS ADFS file (click on the filetype or the graphic).
+* Can now edit the timestamp for a RISC OS ADFS file (click on the time/date).
+* Viewing a text file in the file viewer now uses a different container to viewing BASIC files.
+* Clicking on the CRC32 number will copy it to the clipboard, briefly turning it blue to indicate this.
+* The button to copy the CRC32 to clipboard has been removed.
+* Hints have been added, indicating that a field is editable or copyable, to the various fields.
+* Filename, Parent, Length, and Location can now be clicked on to copy to clipboard.
+
+Bug fixes
+* Corrected a few minor mistakes in the RISC OS filetype list.
 
 Platform History
 ----------------
