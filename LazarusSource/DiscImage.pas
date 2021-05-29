@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.26
+TDiscImage class V1.27
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -146,6 +146,7 @@ type
   function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
   procedure UpdateProgress(Fupdate: String);
   function GetRootAddress: Cardinal;
+  function Inflate(filename: String): TDIByteArray;
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
@@ -1021,6 +1022,115 @@ begin
   if FMap then Result:=rootfrag;
 end;
 
+{-------------------------------------------------------------------------------
+Inflate a GZip file, or just read the file into a buffer
+-------------------------------------------------------------------------------}
+function TDiscImage.Inflate(filename: String): TDIByteArray;
+ function L_Inflate(Source: String): TDIByteArray;
+ var
+  GZ     : TGZFileStream;
+  chunk  : TDIByteArray;
+  cnt,
+  i,
+  buflen : Integer;
+ const
+   ChunkSize=4096; //4K chunks
+ begin
+  //Initialise the variables
+  Result:=nil;
+  chunk:=nil;
+  //Open the stream
+  try
+   GZ:=TGZFileStream.Create(Source,gzOpenRead);
+   //This is our length counter
+   buflen:=0;
+   //We'll be reading it in chunks
+   SetLength(chunk,ChunkSize);
+   repeat
+    //Read in the next chunk
+    cnt:=GZ.Read(chunk[0],ChunkSize);
+    //Extend the buffer accordingly
+    SetLength(Result,buflen+cnt);
+    //Copy the chunk into the buffer
+    for i:=0 to cnt-1 do Result[buflen+i]:=chunk[i];
+    //Increase the buffer length counter
+    inc(buflen,cnt);
+    //Until we are done
+   until cnt<ChunkSize;
+   //Free up the stream
+  except
+  end;
+  GZ.Free;
+ end;
+var
+ F        : TFileStream;
+ buffer,
+ inflated : TDIByteArray;
+ ptr,i,old: Cardinal;
+ blockptrs: array of Cardinal;
+ fn       : String;
+begin
+ buffer   :=nil;
+ blockptrs:=nil;
+ inflated :=nil;
+ Result   :=nil;
+ //Read in the entire file
+ try
+  F:=TFileStream.Create(filename,fmOpenRead or fmShareDenyNone);
+  SetLength(buffer,F.Size);
+  F.Read(buffer[0],F.Size);
+ except
+ end;
+ F.Free;
+ //First, is it actually a GZip file?
+ if(buffer[$00]=$1F)and(buffer[$01]=$8B)and(buffer[$02]=$08)then
+ begin
+  //Count how many blocks and make note of their positions
+  for ptr:=0 to Length(buffer)-10 do
+   if(buffer[ptr]=$1F)and(buffer[ptr+1]=$8B)and(buffer[ptr+2]=$08)then
+   begin
+    //Make a note of the position
+    SetLength(blockptrs,Length(blockptrs)+1);
+    blockptrs[Length(blockptrs)-1]:=ptr;
+   end;
+ end;
+ //Separate each block, if more than one
+ if Length(blockptrs)>1 then
+ begin
+  //Add the file end to the end of the block pointers
+  SetLength(blockptrs,Length(blockptrs)+1);
+  blockptrs[Length(blockptrs)-1]:=Length(buffer);
+  //Set up the container for the inflated file
+  SetLength(Result,0);
+  //Get a temporary filename
+  fn:=GetTempDir+ExtractFileName(filename);
+  //Iterate through the pointers
+  for i:=0 to Length(blockptrs)-2 do
+  begin
+   //Create the temporary file and write the block to it
+   try
+    F:=TFileStream.Create(fn,fmCreate);
+    F.Write(buffer[blockptrs[i]],blockptrs[i+1]-blockptrs[i]);
+   except
+   end;
+   F.Free;
+   //Inflate the block
+   inflated:=L_Inflate(fn);
+   old:=Length(Result); //Previous length of the inflated file
+   //Increase the inflated file buffer to accomodate
+   SetLength(Result,Length(Result)+Length(inflated));
+   //Move the inflated data across
+   for ptr:=0 to Length(inflated)-1 do Result[old+ptr]:=inflated[ptr];
+  end;
+  //Delete the temporary file
+  if SysUtils.FileExists(fn) then DeleteFile(fn);
+ end;
+ //If just the one block, then don't bother splitting
+ if Length(blockptrs)=1 then Result:=L_Inflate(filename);
+ //If there are no blocks, then just return the entire file
+ if Length(blockptrs)=0 then Result:=buffer;
+end;
+
 //++++++++++++++++++ Published Methods +++++++++++++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------
@@ -1105,17 +1215,6 @@ end;
 Load an image from a file, unGZIPping it, if necessary
 -------------------------------------------------------------------------------}
 function TDiscImage.LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
-var
- FGZDiscDrive: TGZFileStream;
- FDiscDrive  : TFileStream;
- chunk       : TDIByteArray;
- cnt,
- i,
- buflen      : Integer;
- compressed,
- readOK      : Boolean;
-const
-  ChunkSize=4096; //4K chunks
 begin
  Result:=False;
  //Only read the file in if it actually exists (or rather, Windows can find it)
@@ -1123,61 +1222,8 @@ begin
  begin
   //Blank off the variables
   ResetVariables;
-  //First we'll read the first two bytes using conventional TFileStream
-  try
-   FDiscDrive:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
-   SetLength(chunk,2);
-   readOK:=False;
-   compressed:=False;
-   //Have we read 2 bytes?
-   if FDiscDrive.Read(chunk[0],2)=2 then
-   begin
-    //Are they the GZ magic numbers?
-    if(chunk[0]=$1F)and(chunk[1]=$8B)then compressed:=True;
-    readOK:=True;
-   end;
-   //Read a compressed stream
-   if(readOK)and(compressed)then
-   begin
-    //Close the uncompressed stream first
-    FDiscDrive.Free;
-    try
-     FGZDiscDrive:=TGZFileStream.Create(filename,gzOpenRead);
-     //Counter
-     buflen:=0;
-     //Set up the chunk buffer
-     SetLength(chunk,ChunkSize);
-     repeat
-      //Read in the next chunk
-      cnt:=FGZDiscDrive.Read(chunk[0],ChunkSize);
-      //Extend the buffer accordingly
-      SetDataLength(buflen+cnt);
-      //Copy the chunk into the buffer
-      for i:=0 to cnt-1 do Fdata[buflen+i]:=chunk[i];
-      //Increase the buffer length counter
-      inc(buflen,cnt);
-      //Until we are done
-     until cnt<ChunkSize;
-     //Close the stream
-     FGZDiscDrive.Free;
-    except
-     FGZDiscDrive:=nil;
-    end;
-   end;
-   //Read the uncompressed file
-   if(not compressed)and(readOK)then
-   begin
-    try
-     FDiscDrive.Position:=0;
-     SetLength(Fdata,FDiscDrive.Size);
-     FDiscDrive.Read(Fdata[0],FDiscDrive.Size);
-     FDiscDrive.Free;
-    except
-     FDiscDrive:=nil;
-    end;
-   end;
-  except
-  end;
+  //Read the file in, uncompressing if need be
+  FData:=Inflate(filename);
   //ID the image
   if(IDImage)and(readdisc)then ReadImage;
   //Return a true or false, depending on if FFormat is set.
@@ -1556,28 +1602,23 @@ var
  i   : Cardinal;
  temp: TDIByteArray;
 begin
- SetLength(temp,0);
- //Simply copy from source to destination
- //ReadByte will compensate if offset is out of range
- //All but DFS
- if FFormat>>4<>diAcornDFS then
+ Result:=False;
+ temp:=nil;
+ if count>0 then //Make sure there is something to read
  begin
+  //Simply copy from source to destination
   SetLength(temp,count);
-  if count>0 then
-   for i:=0 to count-1 do
+  for i:=0 to count-1 do
+  begin
+   if FFormat>>4<>diAcornDFS then //All but DFS
     temp[i]:=ReadByte(addr+i);
- end;
- //DFS
- if FFormat>>4=diAcornDFS then
- begin
-  SetLength(temp,count);
-  if count>0 then
-   for i:=0 to count-1 do
+   if FFormat>>4=diAcornDFS then  //DFS only
     temp[i]:=ReadByte(ConvertDFSSector(addr+i,side));
- end;
- if count>0 then
+  end;
+  //Do the move
   Move(temp[0],buffer,count);
- Result:=True;
+  Result:=True;
+ end;
 end;
 
 {-------------------------------------------------------------------------------

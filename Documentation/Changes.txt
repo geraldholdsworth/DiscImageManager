@@ -479,6 +479,20 @@ New or improved features
 Bug fixes
 * Corrected a few minor mistakes in the RISC OS filetype list.
 
+1.27 - 29th May 2021
+--------------------
+New or improved features
+* Improved the file opening/reading procedure.
+* Made the progress window slightly bigger to completely cover the main window.
+* Slightly re-jigged the procedure to download files from images.
+* Application now captures CTRL+C and CTRL+V keystrokes (or CMD+C and CMD+V on macOS) for copying and pasting of files. However, there is no code behind this as yet.
+
+Bug fixes
+* There were still some DFS images that were failing checks.
+* The Text Viewer tab, in the File Viewer window, was still visible even when not used.
+* Some UEF files were not getting inflated properly and, hence, unreadable.
+* Zero length files were not getting handled correctly from DFS images.
+
 Platform History
 ----------------
 

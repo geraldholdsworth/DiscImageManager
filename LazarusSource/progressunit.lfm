@@ -44,7 +44,7 @@ object ProgressForm: TProgressForm
       Left = 1
       Height = 38
       Top = 1
-      Width = 322
+      Width = 331
       Alignment = taCenter
       Caption = 'Please wait, working...'
       ParentColor = False

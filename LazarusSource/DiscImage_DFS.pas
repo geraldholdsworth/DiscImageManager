@@ -70,7 +70,15 @@ begin
      t1:=ReadByte($0B07)+((ReadByte($0B06)AND$3)shl 8)
     else
      t1:=t0;
-    if t1=0 then dbl:=False;
+    //Not a double sided
+    if t1=0 then
+    begin
+     //So mark as so
+     dbl:=False;
+     //This needs to be set to something other that 0, otherwise it'll fail to
+     //ID as a DFS
+     t1:=t0;
+    end;
     //Number of tracks needs to be a multiple of 10
 {    if (t0 mod 10<>0) and (t1 mod 10<>0) then
      chk:=False
@@ -84,7 +92,7 @@ begin
      else
       FFormat:=$00;
     //Number of sectors should be >0
-    if (t0=0) or (t1=0) then
+    if(t0=0)or(t1=0)then
     begin
      FFormat:=$FF;
      chk:=False;
@@ -294,11 +302,12 @@ begin
     //Add it to the free space map
     c:=LDisc[s].Entries[e].Length div $100;
     if LDisc[s].Entries[e].Length mod $100>0 then inc(c);
-    for fs:=0 to c-1 do
-     if(LDisc[s].Entries[e].Sector+fs)div 10<Length(free_space_map[s])then
-      if(LDisc[s].Entries[e].Sector+fs) mod 10<Length(free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10]) then
-       free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10,
-                        (LDisc[s].Entries[e].Sector+fs) mod 10]:=$FF;
+    if c>0 then //Take care of zero length files
+     for fs:=0 to c-1 do
+      if(LDisc[s].Entries[e].Sector+fs)div 10<Length(free_space_map[s])then
+       if(LDisc[s].Entries[e].Sector+fs) mod 10<Length(free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10]) then
+        free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10,
+                         (LDisc[s].Entries[e].Sector+fs) mod 10]:=$FF;
    end;
  end;
  free_space:=disc_size-free_space;
@@ -728,7 +737,8 @@ begin
   source:=FDisc[dir].Entries[entry].Sector*$100;
   side:=FDisc[dir].Entries[entry].Side;
   //Read the data into the buffer
-  ReadDiscData(source,filelen,side,buffer[0]);
+  if filelen>0 then
+   ReadDiscData(source,filelen,side,buffer[0]);
   //Return positive
   Result:=True;
  end;

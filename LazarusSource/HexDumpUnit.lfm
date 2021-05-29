@@ -321,6 +321,7 @@ object HexDumpForm: THexDumpForm
       Caption = 'Text File'
       ClientHeight = 606
       ClientWidth = 629
+      TabVisible = False
       object TextOutput: TMemo
         Left = 0
         Height = 606

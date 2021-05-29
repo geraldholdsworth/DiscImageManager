@@ -10,7 +10,6 @@ General
 * Copy entire files onto clipboard? And then paste from clipboard?
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
-* Overhaul of the free-space display. It currently takes too long (especially for big drives) to create a graphic. Looking at ditching the idea of separating system areas, files and directories and just have free space and used space. I can then utilise the fragment arrays to pass this information up to the GUI.
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
 
 Command Line

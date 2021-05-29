@@ -55,11 +55,14 @@ uses MainUnit;
 
 procedure TProgressForm.FormShow(Sender: TObject);
 begin
- Top:=MainForm.Top;
- Left:=MainForm.Left;
- Width:=MainForm.Width;
- Height:=MainForm.Height+MainForm.ImageDetails.Height;
+ //Arrange the window so it covers the main form
+ Top:=MainForm.Top-8;
+ Left:=MainForm.Left-8;
+ Width:=MainForm.Width+16;
+ Height:=MainForm.Height+MainForm.ImageDetails.Height+16;
+ //Don't need a title
  UpdateProgress.Caption:='';
+ //Re-position the 'Waiting' label
  WaitLabel.Left:=(Width-WaitLabel.Width)div 2;
  WaitLabel.Top:=(Height-WaitLabel.Height)div 2;
 end;
