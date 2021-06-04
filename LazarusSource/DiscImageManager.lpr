@@ -1,5 +1,9 @@
 program DiscImageManager;
 
+{
+This has grown beyond all my imagination.
+}
+
 {$MODE objFPC}{$H+}
 
 uses
@@ -14,13 +18,14 @@ uses
   SplitDFSUnit in 'SplitDFSUnit.pas',
   SearchUnit in 'SearchUnit.pas',
   CustomDialogueUnit in 'CustomDialogueUnit.pas',
-  HardDriveUnit in 'HardDriveUnit.pas';
+  HardDriveUnit in 'HardDriveUnit.pas',
+  ErrorLogUnit in 'ErrorLogUnit.pas';
 
 {$R *.res}
 
 begin
  Application.Scaled:=True;
- Application.Title:='Disc Image Manager';
+  Application.Title:='Disc Image Manager';
  Application.Initialize;
  Application.CreateForm(TMainForm, MainForm);
  Application.CreateForm(TAboutForm, AboutForm);
@@ -31,5 +36,6 @@ begin
  Application.CreateForm(TSearchForm, SearchForm);
  Application.CreateForm(TCustomDialogue, CustomDialogue);
  Application.CreateForm(THardDriveForm, HardDriveForm);
+ Application.CreateForm(TErrorLogForm, ErrorLogForm);
  Application.Run;
 end.

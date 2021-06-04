@@ -493,6 +493,20 @@ Bug fixes
 * Some UEF files were not getting inflated properly and, hence, unreadable.
 * Zero length files were not getting handled correctly from DFS images.
 
+1.28 - 4th June 2021
+--------------------
+New or improved features
+* Slight speed increase for reading in Spark files by not using the GUI. This means that the application will need to re-read in the image once done. This will depend on the number of files in the archive.
+* When importing a Spark archive, all errors are skipped, but logged. Any errors will then be displayed after the import.
+* Will try and detect a text file from the contents, and display as a text file in the File Viewer.
+* Whether an ADFS L shape image is interleaved or not is now attempted to be detected based on the number of broken directories.
+* Improved the Spark module. It now ignores the OS flag and looks for the ARC0 signature, as per David Pilling's !SparkFS. This means that previous archives that where the application did not preserve the load and execution address now does.
+* Because of improvements to the Spark module, the application is now able to tell if the open image shape is suitable for the incoming archive contents and asks the user if they wish to proceed if not.
+* When an image is opened (or new one created) the root node is automatically selected.
+
+Bug fixes
+* An ADFS Big Directory hard drive image created by Disc Image Manager would not be recognised by RISC OS.
+
 Platform History
 ----------------
 

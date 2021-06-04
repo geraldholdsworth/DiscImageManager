@@ -191,6 +191,8 @@ begin
     end;
    end;
   end;
+  //Interleaved?
+  if FFormat=$12 then Finterleave:=True else Finterleave:=False;
   //Return a true or false
   Result:=FFormat>>4=diAcornADFS;
  end;
@@ -401,21 +403,25 @@ begin
        if FDirType=diADFSOldDir then
        begin
         endofentry:=False;
-        for amt:=0 to Length(Entry.Filename)-1 do
+        if Length(Entry.Filename)>0 then
         begin
-         if ord(Entry.Filename[amt+1])>>7=1 then
-          temp:=temp+OldAtts[amt];
-         if ord(Entry.Filename[amt+1])AND$7F=$0D then endofentry:=True;
-         //Clear the top bit
-         if not endofentry then
-          Entry.Filename[amt+1]:=chr(ord(Entry.Filename[amt+1])AND$7F)
-         else
-          Entry.Filename[amt+1]:=' ';
+         for amt:=0 to Length(Entry.Filename)-1 do
+         begin
+          if ord(Entry.Filename[amt+1])>>7=1 then
+           temp:=temp+OldAtts[amt];
+          if ord(Entry.Filename[amt+1])AND$7F=$0D then endofentry:=True;
+          //Clear the top bit
+          if not endofentry then
+           Entry.Filename[amt+1]:=chr(ord(Entry.Filename[amt+1])AND$7F)
+          else
+           Entry.Filename[amt+1]:=' ';
+         end;
+         RemoveSpaces(Entry.Filename);
         end;
-        RemoveSpaces(Entry.Filename);
         //Reverse the attribute order to match actual ADFS
-        for amt:=Length(temp) downto 1 do
-         Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
+        if Length(temp)>0 then
+         for amt:=Length(temp) downto 1 do
+          Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
        end;
        //New directories - attributes are separate, so filenames can have top bit set
        if FDirType=diADFSNewDir then
@@ -442,8 +448,9 @@ begin
      for amt:=0 to 7 do
       if IsBitSet(NewDirAtts,amt) then temp:=temp+NewAtts[amt];
      //Reverse the attribute order to match actual ADFS
-     for amt:=Length(temp) downto 1 do
-      Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
+     if Length(temp)>0 then
+      for amt:=Length(temp) downto 1 do
+       Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
     end;
     //If we have a valid entry then we can see if it is filetyped/datestamped
     //and add it to the list
@@ -476,6 +483,7 @@ begin
    end;
   end;
  end;
+ if Result.Broken then inc(brokendircount);
 end;
 
 {-------------------------------------------------------------------------------
@@ -737,7 +745,7 @@ var
 begin
  Result:=disc_addr;
  //ADFS L
- if FFormat=$12 then
+ if(FFormat=$12)and(Finterleave)then
  begin
   //Number of tracks and heads
   tracks:=80;
@@ -827,6 +835,7 @@ begin
  root   :=$00; //Root address (set to zero so we can id the disc)
  Result:=nil;
  SetLength(Result,0);
+ brokendircount:=0;
  //Read in the header information (that hasn't already been read in during
  //the initial checks
  if FFormat<>$FF then //But only if the format is valid
@@ -976,112 +985,115 @@ var
  freeend          : Byte;
  fsfragments      : TFragmentArray;
 begin
- //Update progress
- UpdateProgress('Reading ADFS Free Space Map.');
- //Reset the free space counter
- free_space:=0;
- //Reset the array
- if (secspertrack>0) and (secsize>0) then //As long as these have been set
+ if not Fupdating then //Only if we are not updating
  begin
-  //Number of sides
-  SetLength(free_space_map,1);
-  //Number of tracks
-  SetLength(free_space_map[0],disc_size div (secspertrack*secsize));
-  for c:=0 to Length(free_space_map[0])-1 do
-  begin
-   //Number of sectors per track
-   if FMap then
-    SetLength(free_space_map[0,c],(secspertrack*secsize)DIV bpmb)
-   else
-    SetLength(free_space_map[0,c],secspertrack{*(secsize div $100)});
-   //Set them all to be uesd, for now.
-   for d:=0 to Length(free_space_map[0,c])-1 do
-    free_space_map[0,c,d]:=$FF;
-  end;
   //Update progress
-  UpdateProgress('Reading ADFS Free Space Map..');
- end;
- //Old Map (ADFS S,M,L, and D)
- if not FMap then
- begin
-  //We'll add in the directories
-  if Length(FDisc)>0 then
-   for d:=0 to Length(FDisc)-1 do
-    if Length(FDisc[d].Entries)>0 then
-     for p:=0 to Length(FDisc[d].Entries)-1 do
-      if FDisc[d].Entries[p].DirRef<>-1 then
-       for f:=0 to FDisc[d].Entries[p].Length-1 do
-        ADFSFillFreeSpaceMap(FDisc[d].Entries[p].Sector*$100+f,$FD);
-  ptr:=(root*$100)+root_size; //Pointer to the first free space area
-  //Set the system area on the FSM
-  for address:=0 to ptr-1 do
-   ADFSFillFreeSpaceMap(address,$FE);
-  //Now the free space
-  d:=0;//Counter into the map
-  freeend:=ReadByte($1FE);//Number of entries
-  //Continue for as many entries as there is
-  while d<freeend do
+  UpdateProgress('Reading ADFS Free Space Map.');
+  //Reset the free space counter
+  free_space:=0;
+  //Reset the array
+  if (secspertrack>0) and (secsize>0) then //As long as these have been set
   begin
-   p:=Read24b(d)*$100;      //Pointer
-   f:=Read24b($100+d)*$100; //Size
-   //If the read pointer is between the last area, discard
-   //Update the array
-   if (secspertrack>0) and (secsize>0) then
-    for address:=p to (p+f)-1 do
-     ADFSFillFreeSpaceMap(address,$00);
-   //Update the pointer to the end of the current area
-   ptr:=p+f;
-   //Add it to the total
-   inc(free_space,f);
-   //Move to the next entry
-   inc(d,3);
-   //Update progress
-   UpdateProgress('Reading ADFS Free Space Map..'+AddChar('.','',d div 3));
-  end;
- end;
- //New Map (ADFS E,E+,F,F+)
- if FMap then
- begin
-  //Get the free fragments
-  fsfragments:=ADFSGetFreeFragments;
-  //If there are any
-  if Length(fsfragments)>0 then
-  begin
-   for c:=0 to Length(fsfragments)-1 do
+   //Number of sides
+   SetLength(free_space_map,1);
+   //Number of tracks
+   SetLength(free_space_map[0],disc_size div (secspertrack*secsize));
+   for c:=0 to Length(free_space_map[0])-1 do
    begin
-    address:=fsfragments[c].Offset;
-    finish:=fsfragments[c].Offset+fsfragments[c].Length;
-    //Now just go through and fill it with zeros
-    while address<finish do
-    begin
-     //Mark it as empty
-     ADFSFillFreeSpaceMap(address,$00);
-     //Add to the free space counter
-     if address<disc_size then inc(free_space,bpmb);
-     //Advance the address
-     inc(address,bpmb);
-    end;
+    //Number of sectors per track
+    if FMap then
+     SetLength(free_space_map[0,c],(secspertrack*secsize)DIV bpmb)
+    else
+     SetLength(free_space_map[0,c],secspertrack{*(secsize div $100)});
+    //Set them all to be uesd, for now.
+    for d:=0 to Length(free_space_map[0,c])-1 do
+     free_space_map[0,c,d]:=$FF;
+   end;
+   //Update progress
+   UpdateProgress('Reading ADFS Free Space Map..');
+  end;
+  //Old Map (ADFS S,M,L, and D)
+  if not FMap then
+  begin
+   //We'll add in the directories
+   if Length(FDisc)>0 then
+    for d:=0 to Length(FDisc)-1 do
+     if Length(FDisc[d].Entries)>0 then
+      for p:=0 to Length(FDisc[d].Entries)-1 do
+       if FDisc[d].Entries[p].DirRef<>-1 then
+        for f:=0 to FDisc[d].Entries[p].Length-1 do
+         ADFSFillFreeSpaceMap(FDisc[d].Entries[p].Sector*$100+f,$FD);
+   ptr:=(root*$100)+root_size; //Pointer to the first free space area
+   //Set the system area on the FSM
+   for address:=0 to ptr-1 do
+    ADFSFillFreeSpaceMap(address,$FE);
+   //Now the free space
+   d:=0;//Counter into the map
+   freeend:=ReadByte($1FE);//Number of entries
+   //Continue for as many entries as there is
+   while d<freeend do
+   begin
+    p:=Read24b(d)*$100;      //Pointer
+    f:=Read24b($100+d)*$100; //Size
+    //If the read pointer is between the last area, discard
+    //Update the array
+    if (secspertrack>0) and (secsize>0) then
+     for address:=p to (p+f)-1 do
+      ADFSFillFreeSpaceMap(address,$00);
+    //Update the pointer to the end of the current area
+    ptr:=p+f;
+    //Add it to the total
+    inc(free_space,f);
+    //Move to the next entry
+    inc(d,3);
+    //Update progress
+    UpdateProgress('Reading ADFS Free Space Map..'+AddChar('.','',d div 3));
    end;
   end;
-  //We'll add in the directories
-  if Length(FDisc)>0 then
-   for d:=0 to Length(FDisc)-1 do
-    if Length(FDisc[d].Entries)>0 then
-     for p:=0 to Length(FDisc[d].Entries)-1 do
-      if FDisc[d].Entries[p].DirRef<>-1 then
-      begin
-       fsfragments:=NewDiscAddrToOffset(FDisc[d].Entries[p].Sector);
-       if Length(fsfragments)>0 then
-        for f:=0 to Length(fsfragments)-1 do
-         for address:=0 to fsfragments[f].Length-1 do
-          ADFSFillFreeSpaceMap(fsfragments[0].Offset+address,$FD);
-      end;
-  //Mark the system area
-  for address:=bootmap to bootmap+(nzones*secsize*2) do //Two copies of the map
-   ADFSFillFreeSpaceMap(address,$FE);
-  //And the partial disc record/disc defect list
-  if nzones>1 then
-   for address:=$C00 to $DFF do ADFSFillFreeSpaceMap(address,$FE);
+  //New Map (ADFS E,E+,F,F+)
+  if FMap then
+  begin
+   //Get the free fragments
+   fsfragments:=ADFSGetFreeFragments;
+   //If there are any
+   if Length(fsfragments)>0 then
+   begin
+    for c:=0 to Length(fsfragments)-1 do
+    begin
+     address:=fsfragments[c].Offset;
+     finish:=fsfragments[c].Offset+fsfragments[c].Length;
+     //Now just go through and fill it with zeros
+     while address<finish do
+     begin
+      //Mark it as empty
+      ADFSFillFreeSpaceMap(address,$00);
+      //Add to the free space counter
+      if address<disc_size then inc(free_space,bpmb);
+      //Advance the address
+      inc(address,bpmb);
+     end;
+    end;
+   end;
+   //We'll add in the directories
+   if Length(FDisc)>0 then
+    for d:=0 to Length(FDisc)-1 do
+     if Length(FDisc[d].Entries)>0 then
+      for p:=0 to Length(FDisc[d].Entries)-1 do
+       if FDisc[d].Entries[p].DirRef<>-1 then
+       begin
+        fsfragments:=NewDiscAddrToOffset(FDisc[d].Entries[p].Sector);
+        if Length(fsfragments)>0 then
+         for f:=0 to Length(fsfragments)-1 do
+          for address:=0 to fsfragments[f].Length-1 do
+           ADFSFillFreeSpaceMap(fsfragments[0].Offset+address,$FD);
+       end;
+   //Mark the system area
+   for address:=bootmap to bootmap+(nzones*secsize*2) do //Two copies of the map
+    ADFSFillFreeSpaceMap(address,$FE);
+   //And the partial disc record/disc defect list
+   if nzones>1 then
+    for address:=$C00 to $DFF do ADFSFillFreeSpaceMap(address,$FE);
+  end;
  end;
 end;
 
@@ -1309,7 +1321,11 @@ begin
   Write16b(zone_spare,$DCA);//zone_spare
   Write32b(rootfrag,$DCC);
   Write32b(disc_size,$DD0);
-  if FDirType=diADFSBigDir then Write32b($00000001,$DEC); //format version (+)
+  if FDirType=diADFSBigDir then
+  begin
+   Write32b($00000001,$DEC); //format version (+)
+   Write32b(root_size,$DF0); //Root size (+)
+  end;
   WriteByte(ByteCheckSum($C00,$200),$DFF);  //Checksum
   bootmap:=((nzones div 2)*(8*secsize-zone_spare)-480)*bpmb; //Middle of the disc
  end;
@@ -1337,32 +1353,32 @@ begin
   WriteBits(1,bootmap+(eodoffset div 8),eodoffset mod 8,idlen);
  end;
  //Part of the full disc record
- WriteByte(log2secsize,bootmap+4+$00); //log2secsize
- WriteByte(secspertrack,bootmap+4+$01);
- WriteByte(heads,bootmap+4+$02); //heads
- WriteByte(density,bootmap+4+$03); //Density
- WriteByte(idlen,bootmap+4+$04); //idlen
- WriteByte(log2bpmb,bootmap+4+$05); //log2bpmb
- WriteByte(skew,bootmap+4+$06); //skew
- WriteByte(lowsector,bootmap+4+$08); //lowsector
- WriteByte(nzones mod $100,bootmap+4+$09); //nzones lsb
- Write16b(zone_spare,bootmap+4+$0A);//zone_spare
- Write32b(rootfrag,bootmap+4+$0C);//root
- Write32b(disc_size,bootmap+4+$10);//disc_size
- Write16b($8DC5,bootmap+4+$14);//disc_id
+ WriteByte(log2secsize,bootmap+4+$00);    //log2secsize
+ WriteByte(secspertrack,bootmap+4+$01);   //secspertrack
+ WriteByte(heads,bootmap+4+$02);          //heads
+ WriteByte(density,bootmap+4+$03);        //Density
+ WriteByte(idlen,bootmap+4+$04);          //idlen
+ WriteByte(log2bpmb,bootmap+4+$05);       //log2bpmb
+ WriteByte(skew,bootmap+4+$06);           //skew
+ WriteByte(lowsector,bootmap+4+$08);      //lowsector
+ WriteByte(nzones mod $100,bootmap+4+$09);//nzones lsb
+ Write16b(zone_spare,bootmap+4+$0A);      //zone_spare
+ Write32b(rootfrag,bootmap+4+$0C);        //root
+ Write32b(disc_size,bootmap+4+$10);       //disc_size
+ Write16b($8DC5,bootmap+4+$14);           //disc_id
  for t:=0 to 9 do WriteByte(Ord(disctitle[t+1]),bootmap+4+$16+t); //Disc title
  if FDirType=diADFSBigDir then // '+' only attributes
  begin
-  Write32b($20158318,bootmap+4+$20);//disctype
-  Write32b(disc_size>>32,bootmap+4+$24);//High word of disc size
-  WriteByte(1,bootmap+4+$28);//log2sharesize
-  WriteByte(big_flag,bootmap+4+$29);//big flag
-  WriteByte(nzones>>8,bootmap+4+$2A);//nzones msb
-  Write32b(format_vers,bootmap+4+$2C);//format version
-  Write32b(root_size,bootmap+4+$30);//root size
+  Write32b($20158318,bootmap+4+$20);      //disctype
+  Write32b(disc_size>>32,bootmap+4+$24);  //High word of disc size
+  WriteByte(0,bootmap+4+$28);             //log2sharesize
+  WriteByte(big_flag,bootmap+4+$29);      //big flag
+  WriteByte(nzones>>8,bootmap+4+$2A);     //nzones msb
+  Write32b(format_vers,bootmap+4+$2C);    //format version
+  Write32b(root_size,bootmap+4+$30);      //root size
  end
  else // non '+' only attributes
-  Write32b($20158C78,bootmap+4+$20); //disctype
+  Write32b($20158C78,bootmap+4+$20);      //disctype
  //Create the fragments for the system areas
  if nzones>1 then
  begin
@@ -3672,7 +3688,7 @@ var
  r0,r1,r2,r3,r4,r6,r7,r8,r9,r10,r11,
  lr,minidlen: Integer;
 label //Don't like using labels and GOTO, but it was easier to adapt from the ARM code
- FT01,FT02,FT10,FT20,FT30,FT35,FT40,FT45,FT50,FT60,FT70,FT80,FT90;
+ {FT01,FT02,}FT10,FT20,FT30,FT35,FT40,FT45,FT50,FT60,FT70,FT80,FT90;
 const
  maxidlen=21;			//Maximum possible
  minlog2bpmb=8;                 //RamFS starts at 7. I've found better results with 8
@@ -3747,17 +3763,17 @@ begin
   Lnzones:=r2;
   Llog2bpmb:=r0;
   Result:=True; //Mark as result found
-  IF not bigmap THEN GOTO FT01; //Do we have long filenames?
+{  IF not bigmap THEN GOTO FT01; //Do we have long filenames?
 			        //The root dir's ID is the first available ID in the middle
 				//zone of the map
   r2:=r2>>1;			//zones/2
   IF r2<>0 THEN lr:=r2*r8	// * ids per zone
            ELSE lr:=3;		//If zones/2=0 then only one zone so ID is 3
   lr:=(lr<<8)OR 1;		//Construct full indirect disc address with sharing offset of 1
-  GOTO FT02;
- FT01:				//not long filenames. root dir is &2nn where nn is ((zones<<1)+1)
+  GOTO FT02;}
+ //FT01:				//not long filenames. root dir is &2nn where nn is ((zones<<1)+1)
   lr:=(r2<<1)+$201;
- FT02:
+ //FT02:
   Lroot:=lr;
   GOTO FT90;
  FT60:                           //Increase idlen

@@ -91,6 +91,7 @@ type
   procedure HexDumpDisplayValidateEntry(sender: TObject; aCol, aRow: Integer;
    const OldValue: String; var NewValue: String);
   function IsBasicFile: Boolean;
+  function IsTextFile: Boolean;
   procedure DecodeBasicFile;
   procedure DisplayImage;
   procedure DisplaySpriteFile;
@@ -632,6 +633,21 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+{ Analysis a file to see if it is a Text file or not                           }
+{------------------------------------------------------------------------------}
+function THexDumpForm.IsTextFile: Boolean;
+var
+ ptr: Integer;
+begin
+ //We will just see if all the characters are between 32 and 126. Can also
+ //permit 10 (LF), 13 (CR) and 9 (HT).
+ Result:=True;
+ for ptr:=0 to Length(buffer)-1 do
+  if((buffer[ptr]<32)and(buffer[ptr]<>10)and(buffer[ptr]<>13)and(buffer[ptr]<>9))
+  or(buffer[ptr]>126)then Result:=False;
+end;
+
+{------------------------------------------------------------------------------}
 { Decodes a BBC BASIC file, or displays as text                                }
 {------------------------------------------------------------------------------}
 procedure THexDumpForm.DecodeBasicFile;
@@ -812,9 +828,10 @@ begin
   //And switch to it
   PageControl.ActivePage:=BasicViewer;
  end
- else
+ else //Display as text file, if it is a text file
+ if IsTextFile then
  begin
-  //It is not a BASIC file, so just display as text
+  //Clear the container
   TextOutput.Clear;
   linetxt:='';
   while ptr<Length(buffer) do

@@ -67,7 +67,9 @@ type
   Fdata         : TDIByteArray; //Container for the image to be loaded into
   FDSD,                         //Double sided flag (Acorn DFS)
   FMap,                         //Old/New Map flag (Acorn ADFS) OFS/FFS (Amiga)
-  FBootBlock    : Boolean;      //Is disc an AmigaDOS Kickstart?
+  FBootBlock,                   //Is disc an AmigaDOS Kickstart?
+  Fupdating,                    //Has BeginUpdate been called?
+  Finterleave   : Boolean;      //Is the disc interleaved (ADFS L)
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   nzones,                       //Number of zones (Acorn ADFS New)
@@ -79,7 +81,8 @@ type
   root_size,                    //Size of the root directory (Acorn ADFS New)
   disc_id,                      //Disc ID (Acorn ADFS)
   emuheader,                    //Allow for any headers added by emulators
-  namesize      : Cardinal;     //Size of the name area (Acorn ADFS Big Dir)
+  namesize,                     //Size of the name area (Acorn ADFS Big Dir)
+  brokendircount: Cardinal;     //Number of broken directories (ADFS)
   disc_size,                    //Size of disc in bytes
   free_space    : Int64;        //Free space remaining
   FFormat,                      //Format of the image
@@ -325,6 +328,8 @@ type
   function ChangeFileType(filename,newtype: String): Boolean;
   function GetFileTypeFromNumber(filetype: Integer): String;
   function GetFileTypeFromName(filetype: String): Integer;
+  procedure BeginUpdate;
+  procedure EndUpdate;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -395,6 +400,7 @@ begin
  root_name     :='$';
  imagefilename :='';
  SetLength(free_space_map,0);
+ Fupdating     :=False;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1275,6 +1281,19 @@ begin
   diAcornUEF : FDisc:=ReadUEFFile;     //Acorn CFS
   diMMFS     : FDisc:=ReadMMBDisc;     //MMFS
  end;
+ //Is this an ADFS L, with broken directories and is interleaved?
+ if(FFormat=$12)and(brokendircount>0)and(Finterleave)then
+ begin
+  //Try with it non-interleaved
+  Finterleave:=False;
+  FDisc:=ReadADFSDisc;
+  //Did that fail, then revert to the original
+  if brokendircount>0 then
+  begin
+   Finterleave:=True;
+   FDisc:=ReadADFSDisc;
+  end;
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1385,13 +1404,10 @@ Extracts a file, filename contains complete path (CFS, entry is entry number)
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtractFile(filename:String;var buffer:TDIByteArray;
                                 entry:Cardinal=0): Boolean;
-var
- m: Byte;
 begin
  //Start with a false result
  Result:=False;
- m:=FFormat>>4; //Major format
- case m of
+ case FFormat>>4 of
   diAcornDFS :Result:=ExtractDFSFile(filename,buffer);     //Extract DFS
   diAcornADFS:Result:=ExtractADFSFile(filename,buffer);    //Extract ADFS
   diCommodore:Result:=ExtractCDRFile(filename,buffer);     //Extract Commodore 64/128
@@ -1406,7 +1422,6 @@ Save a file into the disc image, from buffer
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
 var
- m     : Byte;
  count : Integer;
 begin
  //Start with a false result
@@ -1418,10 +1433,9 @@ begin
  //Only write a file if there is actually any data to be written
  if count>0 then
  begin
-  m:=FFormat>>4; //Major format
   //Can only write a file that will fit on the disc, or CFS
-  if(count<=free_space)or(m=diAcornUEF) then
-   case m of
+  if(count<=free_space)or(FFormat>>4=diAcornUEF) then
+   case FFormat>>4 of
     diAcornDFS :Result:=WriteDFSFile(file_details,buffer);     //Write DFS
     diAcornADFS:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
     diCommodore:Result:=WriteCDRFile(file_details,buffer);     //Write Commodore 64/128
@@ -1429,20 +1443,18 @@ begin
     diAmiga    :Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
     diAcornUEF :Result:=WriteCFSFile(file_details,buffer);     //Write CFS
    end;
- end;
+ end
+ else Result:=-8; //Error - zero length file
 end;
 
 {-------------------------------------------------------------------------------
 Create a directory
 -------------------------------------------------------------------------------}
 function TDiscImage.CreateDirectory(var filename,parent,attributes: String): Integer;
-var
- m     : Byte;
 begin
  //Start with a false result
  Result:=-1;
- m:=FFormat>>4; //Major format
- case m of
+ case FFormat>>4 of
   diAcornDFS : exit;//Can't create directories on DFS
   diAcornADFS:      //Create directory on ADFS
     Result:=CreateADFSDirectory(filename,parent,attributes);
@@ -1458,13 +1470,10 @@ end;
 Retitle a directory
 -------------------------------------------------------------------------------}
 function TDiscImage.RetitleDirectory(var filename,newtitle: String): Boolean;
-var
- m     : Byte;
 begin
  //Start with a false result
  Result:=False;
- m:=FFormat>>4; //Major format
- case m of
+ case FFormat>>4 of
   diAcornDFS : exit;//DFS doesn't have directories
   diAcornADFS:      //Retitle ADFS directory
     Result:=RetitleADFSDirectory(filename,newtitle);
@@ -1787,18 +1796,15 @@ Rename a file - oldfilename is full path, newfilename has no path
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameFile(oldfilename: String;var newfilename: String;
                                     entry:Cardinal=0): Integer;
-var
- m: Byte;
 begin
  Result:=-1;//Failed to rename
- m:=FFormat DIV $10; //Major format
- case m of
-  0:Result:=RenameDFSFile(oldfilename,newfilename);     //Rename DFS
-  1:Result:=RenameADFSFile(oldfilename,newfilename);    //Rename ADFS
-  2:Result:=RenameCDRFile(oldfilename,newfilename);     //Rename Commodore 64/128
-  3:Result:=RenameSpectrumFile(oldfilename,newfilename);//Rename Sinclair/Amstrad
-  4:Result:=RenameAmigaFile(oldfilename,newfilename);   //Rename AmigaDOS
-  5:Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
+ case FFormat>>4 of
+  diAcornDFS : Result:=RenameDFSFile(oldfilename,newfilename);     //Rename DFS
+  diAcornADFS: Result:=RenameADFSFile(oldfilename,newfilename);    //Rename ADFS
+  diCommodore: Result:=RenameCDRFile(oldfilename,newfilename);     //Rename Commodore 64/128
+  diSinclair : Result:=RenameSpectrumFile(oldfilename,newfilename);//Rename Sinclair/Amstrad
+  diAmiga    : Result:=RenameAmigaFile(oldfilename,newfilename);   //Rename AmigaDOS
+  diAcornUEF : Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
  end;
 end;
 
@@ -1806,18 +1812,15 @@ end;
 Deletes a file (given full pathname)
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteFile(filename: String;entry: Cardinal=0): Boolean;
-var
- m: Byte;
 begin
  Result:=False;
- m:=FFormat DIV $10; //Major format
- case m of
-  0:Result:=DeleteDFSFile(filename);     //Delete DFS
-  1:Result:=DeleteADFSFile(filename);    //Delete ADFS
-  2:Result:=DeleteCDRFile(filename);     //Delete Commodore 64/128
-  3:Result:=DeleteSinclairFile(filename);//Delete Sinclair/Amstrad
-  4:Result:=DeleteAmigaFile(filename);   //Delete AmigaDOS
-  5:Result:=DeleteCFSFile(entry);        //Delete CFS
+ case FFormat>>4 of
+  diAcornDFS : Result:=DeleteDFSFile(filename);     //Delete DFS
+  diAcornADFS: Result:=DeleteADFSFile(filename);    //Delete ADFS
+  diCommodore: Result:=DeleteCDRFile(filename);     //Delete Commodore 64/128
+  diSinclair : Result:=DeleteSinclairFile(filename);//Delete Sinclair/Amstrad
+  diAmiga    : Result:=DeleteAmigaFile(filename);   //Delete AmigaDOS
+  diAcornUEF : Result:=DeleteCFSFile(entry);        //Delete CFS
  end;
 end;
 
@@ -1918,18 +1921,15 @@ end;
 Set the attributes for a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateAttributes(filename,attributes: String;entry:Cardinal=0):Boolean;
-var
- m: Byte;
 begin
  Result:=False;
- m:=FFormat DIV $10; //Major format
- case m of
-  0:Result:=UpdateDFSFileAttributes(filename,attributes);     //Update DFS attributes
-  1:Result:=UpdateADFSFileAttributes(filename,attributes);    //Update ADFS attributes
-  2:Result:=UpdateCDRFileAttributes(filename,attributes);     //Update Commodore 64/128 attributes
-  3:Result:=UpdateSinclairFileAttributes(filename,attributes);//Update Sinclair/Amstrad attributes
-  4:Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
-  5:Result:=UpdateCFSAttributes(entry,attributes);            //Update CFS attributes
+ case FFormat>>4 of
+  diAcornDFS : Result:=UpdateDFSFileAttributes(filename,attributes);     //Update DFS attributes
+  diAcornADFS: Result:=UpdateADFSFileAttributes(filename,attributes);    //Update ADFS attributes
+  diCommodore: Result:=UpdateCDRFileAttributes(filename,attributes);     //Update Commodore 64/128 attributes
+  diSinclair : Result:=UpdateSinclairFileAttributes(filename,attributes);//Update Sinclair/Amstrad attributes
+  diAmiga    : Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
+  diAcornUEF : Result:=UpdateCFSAttributes(entry,attributes);            //Update CFS attributes
  end;
 end;
 
@@ -1937,18 +1937,15 @@ end;
 Set the disc title
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDiscTitle(title: String;side: Byte): Boolean;
-var
- m: Byte;
 begin
  Result:=False;
- m:=FFormat DIV $10; //Major format
- case m of
-  0:Result:=UpdateDFSDiscTitle(title,side);//Title DFS Disc
-  1:Result:=UpdateADFSDiscTitle(title);    //Title ADFS Disc
-  2:Result:=UpdateCDRDiscTitle(title);     //Title Commodore 64/128 Disc
-  3:Result:=UpdateSinclairDiscTitle(title);//Title Sinclair/Amstrad Disc
-  4:Result:=UpdateAmigaDiscTitle(title);   //Title AmigaDOS Disc
-  5:Result:=False;                         //Can't retitle CFS
+ case FFormat>>4 of
+  diAcornDFS : Result:=UpdateDFSDiscTitle(title,side);//Title DFS Disc
+  diAcornADFS: Result:=UpdateADFSDiscTitle(title);    //Title ADFS Disc
+  diCommodore: Result:=UpdateCDRDiscTitle(title);     //Title Commodore 64/128 Disc
+  diSinclair : Result:=UpdateSinclairDiscTitle(title);//Title Sinclair/Amstrad Disc
+  diAmiga    : Result:=UpdateAmigaDiscTitle(title);   //Title AmigaDOS Disc
+  diAcornUEF : Result:=False;                         //Can't retitle CFS
  end;
 end;
 
@@ -1956,18 +1953,15 @@ end;
 Set the boot option
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateBootOption(option,side: Byte): Boolean;
-var
- m: Byte;
 begin
  Result:=False;
- m:=FFormat DIV $10; //Major format
- case m of
-  0:Result:=UpdateDFSBootOption(option,side);//Update DFS Boot
-  1:Result:=UpdateADFSBootOption(option);    //Update ADFS Boot
-  2: exit;//Update Commodore 64/128 Boot ++++++++++++++++++++++++++++++++++++++
-  3: exit;//Update Sinclair/Amstrad Boot ++++++++++++++++++++++++++++++++++++++
-  4: exit;//Update AmigaDOS Boot ++++++++++++++++++++++++++++++++++++++++++++++
-  5: exit;//Can't update CFS boot option
+ case FFormat>>4 of
+  diAcornDFS : Result:=UpdateDFSBootOption(option,side);//Update DFS Boot
+  diAcornADFS: Result:=UpdateADFSBootOption(option);    //Update ADFS Boot
+  diCommodore: exit;//Update Commodore 64/128 Boot ++++++++++++++++++++++++++++++++++++++
+  diSinclair : exit;//Update Sinclair/Amstrad Boot ++++++++++++++++++++++++++++++++++++++
+  diAmiga    : exit;//Update AmigaDOS Boot ++++++++++++++++++++++++++++++++++++++++++++++
+  diAcornUEF : exit;//Can't update CFS boot option
  end;
 end;
 
@@ -1975,18 +1969,15 @@ end;
 Change the load address
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateLoadAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
-var
- m: Byte;
 begin
  Result:=False;
- m:=FFormat DIV $10; //Major format
- case m of
-  0: Result:=UpdateDFSFileAddr(filename,newaddr,True); //Update DFS Load Address
-  1: Result:=UpdateADFSFileAddr(filename,newaddr,True);//Update ADFS Load Address
-  2: exit;//Update Commodore 64/128 Load Address
-  3: exit;//Update Sinclair/Amstrad Load Address
-  4: exit;//Update AmigaDOS Load Address
-  5: Result:=UpdateCFSFileAddr(entry,newaddr,True);    //Update update CFS Load Address
+ case FFormat>>4 of
+  diAcornDFS : Result:=UpdateDFSFileAddr(filename,newaddr,True); //Update DFS Load Address
+  diAcornADFS: Result:=UpdateADFSFileAddr(filename,newaddr,True);//Update ADFS Load Address
+  diCommodore: exit;//Update Commodore 64/128 Load Address
+  diSinclair : exit;//Update Sinclair/Amstrad Load Address
+  diAmiga    : exit;//Update AmigaDOS Load Address
+  diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,True);    //Update update CFS Load Address
  end;
 end;
 
@@ -1994,18 +1985,15 @@ end;
 Change the execution address
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateExecAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
-var
- m: Byte;
 begin
  Result:=False;
- m:=FFormat DIV $10; //Major format
- case m of
-  0: Result:=UpdateDFSFileAddr(filename,newaddr,False); //Update DFS Execution Address
-  1: Result:=UpdateADFSFileAddr(filename,newaddr,False);//Update ADFS Execution Address
-  2: exit;//Update Commodore 64/128 Execution Address
-  3: exit;//Update Sinclair/Amstrad Execution Address
-  4: exit;//Update AmigaDOS Execution Address
-  5: Result:=UpdateCFSFileAddr(entry,newaddr,False);    //Update update CFS Execution Address
+ case FFormat>>4 of
+  diAcornDFS : Result:=UpdateDFSFileAddr(filename,newaddr,False); //Update DFS Execution Address
+  diAcornADFS: Result:=UpdateADFSFileAddr(filename,newaddr,False);//Update ADFS Execution Address
+  diCommodore: exit;//Update Commodore 64/128 Execution Address
+  diSinclair : exit;//Update Sinclair/Amstrad Execution Address
+  diAmiga    : exit;//Update AmigaDOS Execution Address
+  diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,False);    //Update update CFS Execution Address
  end;
 end;
 
@@ -2013,18 +2001,15 @@ end;
 Timestamp the file
 -------------------------------------------------------------------------------}
 function TDiscImage.TimeStampFile(filename:String;newtimedate:TDateTime):Boolean;
-var
- m: Byte;
 begin
  Result:=False;
- m:=FFormat DIV $10; //Major format
- case m of
-  0: exit;//Update DFS Timestamp
-  1: Result:=UpdateADFSTimeStamp(filename,newtimedate);//Update ADFS Timestamp
-  2: exit;//Update Commodore 64/128 Timestamp
-  3: exit;//Update Sinclair/Amstrad Timestamp
-  4: exit;//Update AmigaDOS Timestamp
-  5: exit;//Update update CFS Timestamp
+ case FFormat>>4 of
+  diAcornDFS : exit;//Update DFS Timestamp
+  diAcornADFS: Result:=UpdateADFSTimeStamp(filename,newtimedate);//Update ADFS Timestamp
+  diCommodore: exit;//Update Commodore 64/128 Timestamp
+  diSinclair : exit;//Update Sinclair/Amstrad Timestamp
+  diAmiga    : exit;//Update AmigaDOS Timestamp
+  diAcornUEF : exit;//Update update CFS Timestamp
  end;
 end;
 
@@ -2032,18 +2017,15 @@ end;
 Change the file's filetype
 -------------------------------------------------------------------------------}
 function TDiscImage.ChangeFileType(filename,newtype: String): Boolean;
-var
- m: Byte;
 begin
  Result:=False;
- m:=FFormat DIV $10; //Major format
- case m of
-  0: exit;//Update DFS Filetype
-  1: Result:=UpdateADFSFileType(filename,newtype);//Update ADFS Filetype
-  2: exit;//Update Commodore 64/128 Filetype
-  3: exit;//Update Sinclair/Amstrad Filetype
-  4: exit;//Update AmigaDOS Filetype
-  5: exit;//Update update CFS Filetype
+ case FFormat>>4 of
+  diAcornDFS : exit;//Update DFS Filetype
+  diAcornADFS: Result:=UpdateADFSFileType(filename,newtype);//Update ADFS Filetype
+  diCommodore: exit;//Update Commodore 64/128 Filetype
+  diSinclair : exit;//Update Sinclair/Amstrad Filetype
+  diAmiga    : exit;//Update AmigaDOS Filetype
+  diAcornUEF : exit;//Update update CFS Filetype
  end;
 end;
 
@@ -2079,6 +2061,30 @@ begin
    Result:=StrToInt('$'+LeftStr(ROFileTypes[i],3));
   inc(i);
  until(i>Length(ROFileTypes))or(Result<>-1);
+end;
+
+{-------------------------------------------------------------------------------
+Updating is commencing
+-------------------------------------------------------------------------------}
+procedure TDiscImage.BeginUpdate;
+begin
+ Fupdating:=True;
+end;
+
+{-------------------------------------------------------------------------------
+Updating is ending
+-------------------------------------------------------------------------------}
+procedure TDiscImage.EndUpdate;
+begin
+ Fupdating:=False;
+ case FFormat>>4 of
+  diAcornDFS : exit;//Update DFS
+  diAcornADFS: ADFSFreeSpaceMap;//Update ADFS
+  diCommodore: exit;//Update Commodore 64/128
+  diSinclair : exit;//Update Sinclair/Amstrad
+  diAmiga    : exit;//Update AmigaDOS
+  diAcornUEF : exit;//Update CFS
+ end;
 end;
 
 {$INCLUDE 'DiscImage_ADFS.pas'}

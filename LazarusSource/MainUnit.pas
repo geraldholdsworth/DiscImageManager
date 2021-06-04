@@ -271,9 +271,10 @@ type
                                   index: Integer;dir: Boolean): TTreeNode;
    procedure AddDirectoryToImage(dirname: String);
    procedure AddSparkToImage(filename: String);
-   function AddFileToImage(filename: String):Boolean;
+   function AddFileToImage(filename: String):Integer;
    function AddFileToImage(filename: String;filedetails: TDirEntry;
-                               buffer:TDIByteArray=nil):Boolean; overload;
+           buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer; overload;
+   function AddFileErrorToText(error: Integer):String;
    procedure UpdateImageInfo;
    procedure ArrangeFileDetails;
    procedure ReportError(error: String);
@@ -402,7 +403,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.27';
+    ApplicationVersion = '1.28';
    procedure AfterConstruction; override;
   end;
 
@@ -415,7 +416,7 @@ implementation
 
 uses
   AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SplitDFSUnit,SearchUnit,
-  CustomDialogueUnit;
+  CustomDialogueUnit,ErrorLogUnit;
 
 {------------------------------------------------------------------------------}
 //Rescale the form
@@ -548,11 +549,18 @@ end;
 procedure TMainForm.AddSparkToImage(filename: String);
 var
  SparkFile  : TSpark;
- Index      : Integer;
+ Index,
+ error      : Integer;
  filedetails: TDirEntry;
- ParentDir  : String;
+ ParentDir,
+ temp       : String;
  buffer     : TDIByteArray;
+ ok,
+ bypassGUI  : Boolean;
 begin
+ bypassGUI:=False; //Bypass the GUI part, to speed it up
+ //Reset the error list
+ ErrorLogForm.ErrorLog.Clear;
  //Make sure the file exists
  if FileExists(filename) then
  begin
@@ -562,7 +570,7 @@ begin
   if SparkFile.IsSpark then
   begin
    //Get, or set, the selected node
-   if (DirList.SelectionCount=0) OR (DirList.SelectionCount>1) then
+   if(DirList.SelectionCount=0)OR(DirList.SelectionCount>1)then
    begin
     DirList.ClearSelection;
     DirList.Items[0].Selected:=True;
@@ -571,45 +579,130 @@ begin
                                            DirList.Selected.Index);
    //And make sure that there are some entries
    if Length(SparkFile.FileList)>0 then
-    for Index:=0 to Length(SparkFile.FileList)-1 do
+   begin
+    //Is the current open image suitable
+    ok:=True;
+    if((SparkFile.MaxDirEnt>47)and(Image.DirectoryType=0))//Old dir
+    or((SparkFile.MaxDirEnt>77)and(Image.DirectoryType=1))//New dir
+    or(Image.FormatNumber>>4<>diAcornADFS)                //Acorn ADFS
+    or(SparkFile.UncompressedSize>Image.FreeSpace)then    //Not enough space
+     ok:=AskConfirm('The current open image is not suitable for this archive. '
+                   +'Would you like to continue?','Yes','No','')=mrOK;
+    if ok then
     begin
-     //Select the parent node
-     if SparkFile.FileList[Index].Parent<>'' then
-      SelectNode(ParentDir+Image.DirSep+SparkFile.FileList[Index].Parent)
-     else
-      SelectNode(ParentDir);
-     filedetails.Attributes:=GetAttributes(
-                               IntToHex(SparkFile.FileList[Index].Attributes,2),
-                               Image.FormatNumber>>4);
-     //Add a directory
-     if SparkFile.FileList[Index].Directory then
-      CreateDirectory(SparkFile.FileList[Index].Filename,'D'+filedetails.Attributes);
-     //Add a file
-     if not SparkFile.FileList[Index].Directory then
+     //Show the progress form
+     ProgressForm.Show;
+     //Bypass the GUI if over a certain number of files
+     if Length(SparkFile.FileList)>100 then bypassGUI:=True;
+     //Indicate we will be doing some updating
+     Image.BeginUpdate;
+     //Counter into the file list
+     index:=0;
+     //OK flag - so we can stop on an error
+     ok:=True;
+     //Iterate through them all
+     while(index<Length(SparkFile.FileList))and(ok)do
      begin
-      //Get the data
-      buffer:=SparkFile.ExtractFileData(Index);
-      //Set up the Dir Entry
-      if SparkFile.FileList[Index].Filename<>'' then //We need a filename
+      //Update the progress
+      if SparkFile.FileList[index].Parent<>'' then
+       temp:=SparkFile.FileList[index].Parent+Image.DirSep
+      else
+       temp:='';
+      UpdateProgress('Adding '+ParentDir+Image.DirSep+temp
+                    +SparkFile.FileList[index].Filename
+                    +' ('
+                    +IntToStr(Round((index/Length(SparkFile.FileList))*100))
+                    +'%)');
+      //Select the parent node (if not bypassing the GUI)
+      if not bypassGUI then
+       if SparkFile.FileList[Index].Parent<>'' then
+        SelectNode(ParentDir+Image.DirSep+SparkFile.FileList[Index].Parent)
+       else
+        SelectNode(ParentDir);
+      //Update the attributes
+      filedetails.Attributes:=GetAttributes(
+                                IntToHex(SparkFile.FileList[Index].Attributes,2),
+                                Image.FormatNumber>>4);
+      //Assign the parent directory (if bypassing the GUI)
+      if bypassGUI then
       begin
-       filedetails.Filename  :=SparkFile.FileList[Index].Filename;
-       filedetails.LoadAddr  :=SparkFile.FileList[Index].LoadAddr;
-       filedetails.ExecAddr  :=SparkFile.FileList[Index].ExecAddr;
-       filedetails.Length    :=SparkFile.FileList[Index].Length;
-       //Add the file
-       if not AddFileToImage('',filedetails,buffer) then exit;
+       if SparkFile.FileList[index].Parent<>'' then
+        temp:=Image.DirSep+SparkFile.FileList[index].Parent
+       else
+        temp:='';
+       temp:=ParentDir+temp;
+       filedetails.Parent:=temp;
       end;
+      //Error number
+      error:=0;
+      //Add a directory
+      if SparkFile.FileList[Index].Directory then
+      begin
+       filedetails.Attributes:='D'+filedetails.Attributes;
+       if bypassGUI then
+        error:=Image.CreateDirectory(SparkFile.FileList[index].Filename,
+                                     temp,
+                                     filedetails.Attributes)
+       else
+        CreateDirectory(SparkFile.FileList[Index].Filename,
+                        filedetails.Attributes); //Does not return any errors
+      end;
+      //Add a file
+      if not SparkFile.FileList[Index].Directory then
+      begin
+       //Get the data
+       buffer:=SparkFile.ExtractFileData(Index);
+       //Set up the Dir Entry
+       if SparkFile.FileList[Index].Filename<>'' then //We need a filename
+       begin
+        filedetails.Filename  :=SparkFile.FileList[Index].Filename;
+        filedetails.LoadAddr  :=SparkFile.FileList[Index].LoadAddr;
+        filedetails.ExecAddr  :=SparkFile.FileList[Index].ExecAddr;
+        filedetails.Length    :=SparkFile.FileList[Index].Length;
+        //Add the file - we'll skip any errors, but record them later
+        if bypassGUI then
+         error:=Image.WriteFile(filedetails,buffer)
+        else
+         error:=AddFileToImage('',filedetails,buffer,True);
+       end;
+      end;
+      //Has an error occured? Then record it
+      if error<0 then
+       ErrorLogForm.ErrorLog.Lines.Add('Error while adding file "'
+                                      +filedetails.Parent+Image.DirSep
+                                      +SparkFile.FileList[Index].Filename
+                                      +'": '
+                                      +AddFileErrorToText(-error));
+      if ok then inc(index);
      end;
+     //End the updating
+     Image.EndUpdate;
     end;
+   end;
   end;
+  //Free the Spark instance
   SparkFile.Free;
+  //Hide the progress form
+  ProgressForm.Hide;
+  //And read in the entire disc again, if bypassing the GUI
+  if bypassGUI then ShowNewImage(Image.Filename);
+ end
+ else ErrorLogForm.ErrorLog.Lines.Add('Could not find file "'+filename+'"');
+ //Show the error log
+ if ErrorLogForm.ErrorLog.Lines.Count>0 then
+ begin
+  ErrorLogForm.Show;
+  ErrorLogForm.Top:=Top+Height;
+  ErrorLogForm.Left:=Left;
+  ErrorLogForm.Width:=Width;
+  ErrorLogForm.Height:=Round(64*Screen.PixelsPerInch/ErrorLogForm.DesignTimePPI);
  end;
 end;
 
 {------------------------------------------------------------------------------}
 //Add a file to an image
 {------------------------------------------------------------------------------}
-function TMainForm.AddFileToImage(filename: String):Boolean;
+function TMainForm.AddFileToImage(filename: String):Integer;
 var
  filedetails: TDirEntry;
 begin
@@ -620,7 +713,7 @@ begin
  Result:=AddFileToImage(filename,filedetails);
 end;
 function TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry;
-                               buffer:TDIByteArray=nil):Boolean;
+                     buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer;
 var
   NewFile        : TDirEntry;
   index          : Integer;
@@ -632,17 +725,17 @@ var
   loadaddr,
   attr1,
   attributes,
-  filetype       : String;
+  filetype,p     : String;
   fields         : array of String;
   chr            : Char;
   F              : TFileStream;
 begin
- Result:=False;
+ Result:=-5;
  //If there is nothing in the buffer
- if Length(buffer)=0 then
+ if(Length(buffer)=0)and(FileExists(filename))then
  begin
   //Then load the file, if it exists
-  if not FileExists(filename) then exit;
+//  if not FileExists(filename) then exit;
   //Load the file from the host
   try
    F:=TFileStream.Create(filename,fmOpenRead OR fmShareDenyNone);
@@ -655,173 +748,193 @@ begin
   except
   end;
  end;
- //First, if there is no selection, make one, or if multiple, select the root
- if(DirList.SelectionCount=0)OR(DirList.SelectionCount>1)then
+ if Length(buffer)>0 then //Only try and add if there is some data
  begin
-  DirList.ClearSelection;
-  DirList.Items[0].Selected:=True;
- end;
- //Make sure that there is a destination selected - should be after last command
- if DirList.SelectionCount=1 then
-  //And it is a directory
-  if TMyTreeNode(DirList.Selected).IsDir then
+  //First, if there is no selection, make one, or if multiple, select the root
+  if(DirList.SelectionCount=0)OR(DirList.SelectionCount>1)then
   begin
-   //Find out which side of a DFS disc it is
-   if (Image.FormatNumber mod 2=1)
-   and(Image.FormatNumber>>4=diAcornDFS)then //Only for DFS double sided
-   //As with DFS we can only Add with the root selected, the index will be the side
-    side:=DirList.Selected.Index
-   else
-   //Not double sided or DFS, so assume side 0
-    side:=0;
-   //Extract the filename
-   if filedetails.Filename='' then
-    importfilename:=ExtractFileName(filename)
-   else
-    importfilename:=ExtractFileName(filedetails.Filename);
-   //If we still have no filename, make one up
-   if importfilename='' then importfilename:='NewFile';
-   //Reject any *.inf files
-   if LowerCase(RightStr(importfilename,4))<>'.inf' then
+   DirList.ClearSelection;
+   DirList.Items[0].Selected:=True;
+  end;
+  //Make sure that there is a destination selected - should be after last command
+  if DirList.SelectionCount=1 then
+   //And it is a directory
+   if TMyTreeNode(DirList.Selected).IsDir then
    begin
-    //Initialise the strings
-    execaddr:='00000000';
-    loadaddr:='00000000';
-    attr1   :='';
-    filetype:='';
-    //Does the filename contain the filetype?
-    if ((Pos(',',importfilename)>0)
-    or  (Pos('.',importfilename)>0))
-    and((Image.FormatNumber>>4=diAcornADFS)      //ADFS
-    or  (Image.FormatNumber>>4=diCommodore))then //Commodore
+    //Find out which side of a DFS disc it is
+    if (Image.FormatNumber mod 2=1)
+    and(Image.FormatNumber>>4=diAcornDFS)then //Only for DFS double sided
+    //As with DFS we can only Add with the root selected, the index will be the side
+     side:=DirList.Selected.Index
+    else
+    //Not double sided or DFS, so assume side 0
+     side:=0;
+    //Extract the filename
+    if filedetails.Filename='' then
+     importfilename:=ExtractFileName(filename)
+    else
+     importfilename:=ExtractFileName(filedetails.Filename);
+    //If we still have no filename, make one up
+    if importfilename='' then importfilename:='NewFile';
+    //Reject any *.inf files
+    if LowerCase(RightStr(importfilename,4))<>'.inf' then
     begin
-     i:=Length(importfilename);
-     while (importfilename[i]<>'.')and(importfilename[i]<>',')do dec(i);
-     //Get the filetype
-     filetype:=LowerCase(Copy(importfilename,i+1));
-     //And remove it from the filename
-     importfilename:=LeftStr(importfilename,i-1);
-     //Decode the filetype - convert it to hex
-     for index:=1 to Length(Extensions) do
-      if Copy(Extensions[index],4)=LowerCase(filetype) then
-       filetype:=LeftStr(Extensions[index],3);
-     //ADFS
-     if Image.FormatNumber>>4=diAcornADFS then
+     //Initialise the strings
+     execaddr:='00000000';
+     loadaddr:='00000000';
+     attr1   :='';
+     filetype:='';
+     //Does the filename contain the filetype?
+     if ((Pos(',',importfilename)>0)
+     or  (Pos('.',importfilename)>0))
+     and((Image.FormatNumber>>4=diAcornADFS)      //ADFS
+     or  (Image.FormatNumber>>4=diCommodore))then //Commodore
      begin
-      filetype:=IntToHex(StrToIntDef('$'+filetype,0),3);
-      if filetype='000' then filetype:='';//None, so reset
-     end;
-    end;
-    //ADFS, DFS & CFS only stuff
-    if((Image.FormatNumber>>4=diAcornDFS)
-     or(Image.FormatNumber>>4=diAcornADFS)
-     or(Image.FormatNumber>>4=diAcornUEF))
-    and(filename<>'')then
-    begin
-     //Is there an inf file?
-     if FileExists(filename+'.inf') then
-     begin
-      inffile:='';
-      //Read in the first line
-      try
-       F:=TFileStream.Create(filename+'.inf',fmOpenRead OR fmShareDenyNone);
-       F.Position:=0;
-       while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
-        inffile:=inffile+chr;
-       F.Free;
-       fields:=BreakDownInf(inffile);
-       //Then extract the fields
-       if Length(fields)>0 then importfilename:=fields[0];
-       if Length(fields)>1 then loadaddr      :=fields[1];
-       if length(fields)>2 then execaddr      :=fields[2];
-       if Length(fields)>4 then attr1         :=fields[4];
-      except
-       //Could not load
+      i:=Length(importfilename);
+      while (importfilename[i]<>'.')and(importfilename[i]<>',')do dec(i);
+      //Get the filetype
+      filetype:=LowerCase(Copy(importfilename,i+1));
+      //And remove it from the filename
+      importfilename:=LeftStr(importfilename,i-1);
+      //Decode the filetype - convert it to hex
+      for index:=1 to Length(Extensions) do
+       if Copy(Extensions[index],4)=LowerCase(filetype) then
+        filetype:=LeftStr(Extensions[index],3);
+      //ADFS
+      if Image.FormatNumber>>4=diAcornADFS then
+      begin
+       filetype:=IntToHex(StrToIntDef('$'+filetype,0),3);
+       if filetype='000' then filetype:='';//None, so reset
       end;
      end;
-    end;
-    //Initialise the TDirArray
-    ResetDirEntry(NewFile);
-    //Supplied attributes override anything else
-    if filedetails.Filename<>'' then importfilename:=filedetails.Filename;
-    if filedetails.Attributes<>'' then attr1:=filedetails.Attributes;
-    if filedetails.LoadAddr  <>0  then loadaddr:=IntToHex(filedetails.LoadAddr,8);
-    if filedetails.ExecAddr  <>0  then execaddr:=IntToHex(filedetails.ExecAddr,8);
-    //Decode the attributes
-    attributes:=''; //Default
-    if attr1='' then
-    begin
-     if Image.FormatNumber>>4=diAcornADFS then attributes:='WR';//Default for ADFS
-     if Image.FormatNumber>>4=diCommodore then attributes:='C' ;//Default for Commodore
-    end;
-    attributes:=attributes+GetAttributes(attr1,Image.FormatNumber>>4);
-    //Validate the filename (ADFS, DFS & CFS only)
-    if(Image.FormatNumber>>4=diAcornDFS)
-     or(Image.FormatNumber>>4=diAcornADFS)
-     or(Image.FormatNumber>>4=diAcornUEF)then
-    begin
-     //Remove any extraenous specifiers
-     while (importfilename[4]=Image.DirSep) do
-      importfilename:=RightStr(importfilename,Length(importfilename)-2);
-     //If root, remove the directory specifier
-     if (importfilename[2]=Image.DirSep) and (importfilename[1]='$') then
-      importfilename:=RightStr(importfilename,Length(importfilename)-2);
-     //Convert a Windows filename to a BBC filename
-     WinToBBC(importfilename);
-     //Check to make sure that a DFS directory hasn't been changed
+     //ADFS, DFS & CFS only stuff
      if((Image.FormatNumber>>4=diAcornDFS)
-      or(Image.FormatNumber>>4=diAcornADFS))
-     and(importfilename[2]='/')then
-      importfilename[2]:=Image.DirSep;
-     //Remove any spaces, unless it is a big directory
-     if Image.DirectoryType<>2 then
-      importfilename:=ReplaceStr(importfilename,' ','_');
-    end;
-    //Setup the record
-    NewFile.Filename     :=importfilename;
-    NewFile.ExecAddr     :=StrToInt('$'+execaddr);
-    NewFile.LoadAddr     :=StrToInt('$'+loadaddr);
-    NewFile.Side         :=side;
-    NewFile.Attributes   :=attributes;
-    NewFile.DirRef       :=-1; //Not a directory
-    NewFile.ShortFileType:=filetype;
-    if Image.FormatNumber>>4=diAcornADFS then //Need the selected directory for ADFS
-     if DirList.Selected.Text='$' then NewFile.Parent:='$'
+      or(Image.FormatNumber>>4=diAcornADFS)
+      or(Image.FormatNumber>>4=diAcornUEF))
+     and(filename<>'')then
+     begin
+      //Is there an inf file?
+      if FileExists(filename+'.inf') then
+      begin
+       inffile:='';
+       //Read in the first line
+       try
+        F:=TFileStream.Create(filename+'.inf',fmOpenRead OR fmShareDenyNone);
+        F.Position:=0;
+        while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
+         inffile:=inffile+chr;
+        F.Free;
+        fields:=BreakDownInf(inffile);
+        //Then extract the fields
+        if Length(fields)>0 then importfilename:=fields[0];
+        if Length(fields)>1 then loadaddr      :=fields[1];
+        if length(fields)>2 then execaddr      :=fields[2];
+        if Length(fields)>4 then attr1         :=fields[4];
+       except
+        //Could not load
+       end;
+      end;
+     end;
+     //Initialise the TDirArray
+     ResetDirEntry(NewFile);
+     //Supplied attributes override anything else
+     if filedetails.Filename<>''   then importfilename:=filedetails.Filename;
+     if filedetails.Attributes<>'' then attr1:=filedetails.Attributes;
+     if filedetails.LoadAddr  <>0  then loadaddr:=IntToHex(filedetails.LoadAddr,8);
+     if filedetails.ExecAddr  <>0  then execaddr:=IntToHex(filedetails.ExecAddr,8);
+     //Decode the attributes
+     attributes:=''; //Default
+     if attr1='' then
+     begin
+      if Image.FormatNumber>>4=diAcornADFS then attributes:='WR';//Default for ADFS
+      if Image.FormatNumber>>4=diCommodore then attributes:='C' ;//Default for Commodore
+     end;
+     attributes:=attributes+GetAttributes(attr1,Image.FormatNumber>>4);
+     if importfilename='' then importfilename:='NewFile';
+     //Validate the filename (ADFS, DFS & CFS only)
+     if(Image.FormatNumber>>4=diAcornDFS)
+      or(Image.FormatNumber>>4=diAcornADFS)
+      or(Image.FormatNumber>>4=diAcornUEF)then
+     begin
+      //Remove any extraenous specifiers
+      while (importfilename[4]=Image.DirSep) do
+       importfilename:=RightStr(importfilename,Length(importfilename)-2);
+      //If root, remove the directory specifier
+      if (importfilename[2]=Image.DirSep) and (importfilename[1]='$') then
+       importfilename:=RightStr(importfilename,Length(importfilename)-2);
+      //Convert a Windows filename to a BBC filename
+      WinToBBC(importfilename);
+      //Check to make sure that a DFS directory hasn't been changed
+      if((Image.FormatNumber>>4=diAcornDFS)
+       or(Image.FormatNumber>>4=diAcornADFS))
+      and(importfilename[2]='/')then
+       importfilename[2]:=Image.DirSep;
+      //Remove any spaces, unless it is a big directory
+      if Image.DirectoryType<>2 then
+       importfilename:=ReplaceStr(importfilename,' ','_');
+     end;
+     //Setup the record
+     NewFile.Filename     :=importfilename;
+     NewFile.ExecAddr     :=StrToInt('$'+execaddr);
+     NewFile.LoadAddr     :=StrToInt('$'+loadaddr);
+     NewFile.Side         :=side;
+     NewFile.Attributes   :=attributes;
+     NewFile.DirRef       :=-1; //Not a directory
+     NewFile.ShortFileType:=filetype;
+     if Image.FormatNumber>>4=diAcornADFS then //Need the selected directory for ADFS
+      if DirList.Selected.Text='$' then NewFile.Parent:='$'
+      else
+       NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
+                                            DirList.Selected.Index);
+     //Set the length - the actual length overrides everything else
+     NewFile.Length:=Length(buffer);
+     //Write the File
+     Result:=Image.WriteFile(NewFile,buffer);
+     //Function returns pointer to next item (or parent if no children)
+     if Result>-1 then //File added OK
+     begin
+      HasChanged:=True;
+      AddFileToTree(DirList.Selected,NewFile.Filename,Result,False);
+     end
      else
-      NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
-                                           DirList.Selected.Index);
-    //Set the length - the actual length overrides everything else
-    NewFile.Length:=Length(buffer);
-    //Write the File
-    index:=Image.WriteFile(NewFile,buffer);
-    //Function returns pointer to next item (or parent if no children)
-    if index>-1 then //File added OK
-    begin
-     HasChanged:=True;
-     AddFileToTree(DirList.Selected,NewFile.Filename,index,False);
-     Result:=True;
-    end
-    else
-    begin
-     //For some reason the operation failed to write the data
-     if index=-1 then ReportError('Could not load "'+NewFile.Filename+'"');
-     if index=-2 then ReportError('Could not add "'+NewFile.Filename+'" - image full');
-     if index=-3 then ReportError('File "'+NewFile.Filename+'" already exists in image');
-     if index=-4 then ReportError('Catalogue full');
-     if index=-5 then ReportError('Could not write file "'+NewFile.Filename+'" - error unknown');
-     if index=-6 then ReportError('Destination directory does not exist');
-     If index=-7 then ReportError('Could not write file "'+NewFile.Filename+'" - map full');
-     if index=-8 then ReportError('Could not write file "'+NewFile.Filename+'" - nothing to write');
-     if index=-9 then ReportError('Could not extend directory');
+     if not ignoreerror then //For some reason the operation failed to write the data
+     begin
+      //Prepare the filename, including the parent
+      p:=NewFile.Parent;
+      if p<>'' then p:=p+Image.DirSep;
+      //Report the error
+      ReportError('Error when adding file "'+p+NewFile.Filename
+                 +'": '+AddFileErrorToText(-Result));
+     end;
     end;
-   end;
-  end
-  else ReportError('"'+DirList.Selected.Text+'" is not a directory')
- else
-  if DirList.SelectionCount=0 then
-   ReportError('No destination directory selected')
+   end
+   else ReportError('"'+DirList.Selected.Text+'" is not a directory')
   else
-   ReportError('Cannot add to multiple selection');
+   if DirList.SelectionCount=0 then
+    ReportError('No destination directory selected')
+   else
+    ReportError('Cannot add to multiple selection');
+ end else Result:=-8;
+end;
+
+{------------------------------------------------------------------------------}
+//Convert an error number (from adding a file) to error text
+{------------------------------------------------------------------------------}
+function TMainForm.AddFileErrorToText(error: Integer):String;
+begin
+ Result:='';
+ if error<0 then error:=-error;
+ case error of
+  1: Result:='Could not load file';
+  2: Result:='Image full';
+  3: Result:='File already exists in image';
+  4: Result:='Catalogue full';
+  5: Result:='Error unknown';
+  6: Result:='Destination directory does not exist';
+  7: Result:='Map full';
+  8: Result:='Nothing to write';
+  9: Result:='Could not extend directory';
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1263,70 +1376,76 @@ var
  //Some double sided discs have each side as separate discs
  highdir    : Integer;
 begin
-  //Clear all the labels, and enable/disable the buttons
-  ResetFileFields;
-  //Clear the search fields
-  SearchForm.ResetSearchFields;
-  //Change the application title (what appears on SHIFT+TAB, etc.)
-  Caption:=ApplicationTitle;
-  if title<>'' then Caption:=Caption+' - '+ExtractFileName(title);
-  //Clear the tree view, prior to populating it
-  DirList.Items.Clear;
-  //Set the highdir to zero - which will be root to start with
-  highdir:=0;
-  //Then add the directories, if there is at least one
-  if Length(Image.Disc)>0 then
+ //Clear all the labels, and enable/disable the buttons
+ ResetFileFields;
+ //Clear the search fields
+ SearchForm.ResetSearchFields;
+ //Change the application title (what appears on SHIFT+TAB, etc.)
+ Caption:=ApplicationTitle;
+ if title<>'' then Caption:=Caption+' - '+ExtractFileName(title);
+ //Clear the tree view, prior to populating it
+ DirList.Items.Clear;
+ //Set the highdir to zero - which will be root to start with
+ highdir:=0;
+ //Then add the directories, if there is at least one
+ if Length(Image.Disc)>0 then
+ begin
+  //Start by adding the root (could be more than one root, particularly on
+  //double sided discs)
+  repeat
+   //This will initiate the recursion through the directory structure, per side
+   AddDirectoryToTree(DirList.Items.Add(nil,Image.Disc[highdir].Directory),highdir,highdir);
+   //Finished on this directory structure, so increase the highdir
+   inc(highdir);
+   //and continue until we have everything on the disc. This will, in effect,
+   //add the second root for double sided discs.
+  until highdir=Length(Image.Disc);
+  //Expand the top level of the tree (but not MMB)
+  if Image.FormatNumber>>4<>6 then DirList.TopItem.Expand(False);
+  //And the root for the other side of the disc
+  if Image.DoubleSided then
   begin
-   //Start by adding the root (could be more than one root, particularly on
-   //double sided discs)
+   //First, we need to find it
    repeat
-    //This will initiate the recursion through the directory structure, per side
-    AddDirectoryToTree(DirList.Items.Add(nil,Image.Disc[highdir].Directory),highdir,highdir);
-    //Finished on this directory structure, so increase the highdir
-    inc(highdir);
-    //and continue until we have everything on the disc. This will, in effect,
-    //add the second root for double sided discs.
-   until highdir=Length(Image.Disc);
-   //Expand the top level of the tree (but not MMB)
-   if Image.FormatNumber>>4<>6 then DirList.TopItem.Expand(False);
-   //And the root for the other side of the disc
-   if Image.DoubleSided then
-   begin
-    //First, we need to find it
-    repeat
-     inc(highdir)
-     //If there is one, of course - but it must be a directory
-    until (highdir>=DirList.Items.Count) or (TMyTreeNode(DirList.Items[highdir-1]).IsDir);
-    if highdir>DirList.Items.Count then
-     highdir:=DirList.Items.Count;
-    //Found? then expand it
-    if TMyTreeNode(DirList.Items[highdir-1]).IsDir then
-     DirList.Items[highdir-1].Expand(False);
-   end;
+    inc(highdir)
+    //If there is one, of course - but it must be a directory
+   until (highdir>=DirList.Items.Count) or (TMyTreeNode(DirList.Items[highdir-1]).IsDir);
+   if highdir>DirList.Items.Count then
+    highdir:=DirList.Items.Count;
+   //Found? then expand it
+   if TMyTreeNode(DirList.Items[highdir-1]).IsDir then
+    DirList.Items[highdir-1].Expand(False);
   end;
-  //Populate the info box
-  UpdateImageInfo;
-  //Enable the controls
-  btn_SaveImage.Enabled :=True;
-  menuSaveImage.Enabled :=True;
-  btn_SaveAsCSV.Enabled :=True;
-  menuSaveAsCSV.Enabled :=True;
-  btn_CloseImage.Enabled:=True;
-  menuCloseImage.Enabled:=True;
-  btn_FileSearch.Enabled:=True;
-  menuFileSearch.Enabled:=True;
-  if Length(Image.FreeSpaceMap)>0 then
-  begin
-   btn_ImageDetails.Enabled:=True;
-   menuImageDetails.Enabled:=True;
-  end;
-  if Image.FormatNumber>>4=diAcornADFS then
-  begin
-   btn_FixADFS.Enabled:=True;
-   menuFixADFS.Enabled:=True;
-  end;
-  //Enable the directory view
-  DirList.Enabled:=True;
+ end;
+ //Populate the info box
+ UpdateImageInfo;
+ //Enable the controls
+ btn_SaveImage.Enabled :=True;
+ menuSaveImage.Enabled :=True;
+ btn_SaveAsCSV.Enabled :=True;
+ menuSaveAsCSV.Enabled :=True;
+ btn_CloseImage.Enabled:=True;
+ menuCloseImage.Enabled:=True;
+ btn_FileSearch.Enabled:=True;
+ menuFileSearch.Enabled:=True;
+ if Length(Image.FreeSpaceMap)>0 then
+ begin
+  btn_ImageDetails.Enabled:=True;
+  menuImageDetails.Enabled:=True;
+ end;
+ if Image.FormatNumber>>4=diAcornADFS then
+ begin
+  btn_FixADFS.Enabled:=True;
+  menuFixADFS.Enabled:=True;
+ end;
+ //Enable the directory view
+ DirList.Enabled:=True;
+ //And select the first item
+ if DirList.Items.Count>0 then
+ begin
+  DirList.Items[0].Selected:=True;
+  DirList.SetFocus;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -4047,8 +4166,8 @@ begin
      if(Image.Disc[dir].Entries[entry].ShortFileType='FFB')
      or(Image.Disc[dir].Entries[entry].ShortFileType='FFF')
      or(Image.Disc[dir].Entries[entry].ShortFileType='FEB')
-     or(HexDump[index].IsBasicFile)then
-      HexDump[index].DecodeBasicFile;
+     or(HexDump[index].IsBasicFile)
+     or(HexDump[index].IsTextFile)then HexDump[index].DecodeBasicFile;
      //Is in an image we can show?
      HexDump[index].DisplayImage; //If not, it won't show it
      //Is it a sprite file?

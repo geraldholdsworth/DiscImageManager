@@ -1,23 +1,23 @@
 unit Spark;
 
 {
-TSpark class V1.01
-Decompress a Zip archive, preserving the extra RISC OS information, as per David
-Pilling's !Spark on RISC OS.
+TSpark class V1.02
+Decompress a Zip archive, preserving the extra RISC OS information. Thank you to
+David Pilling for his assistance.
 
 Copyright (C) 2021 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public Licence as published by the Free
-Software Foundation; either version 3 of the Licence, or (at your option)
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 3 of the License, or (at your option)
 any later version.
 
 This code is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 details.
 
-A copy of the GNU General Public Licence is available on the World Wide Web
+A copy of the GNU General Public License is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
@@ -38,15 +38,16 @@ type
   private
   type
    TFileEntry = record
-     LoadAddr,                 //Load Address
-     ExecAddr,                 //Execution Address
-     Length,                   //Uncompressed size
-     Size       : Cardinal;    //Compressed size
-     Attributes : Byte;        //File attributes (hex)
-     Filename,                 //RISC OS filename
-     Parent,                   //RISC OS parent
-     ArchiveName: String;      //Name (and path) in archive
-     Directory  : Boolean;     //Is it a directory?
+    LoadAddr,                 //Load Address
+    ExecAddr,                 //Execution Address
+    Length,                   //Uncompressed size
+    Size,                     //Compressed size
+    NumEntries,               //Number of directory entries
+    Attributes : Cardinal;    //File attributes (hex)
+    Filename,                 //RISC OS filename
+    Parent,                   //RISC OS parent
+    ArchiveName: String;      //Name (and path) in archive
+    Directory  : Boolean;     //Is it a directory?
    end;
    TFileList = array of TFileEntry;
    TProgressProc = procedure(Sender: TObject;const Fupdate: Double) of Object;
@@ -57,6 +58,9 @@ type
    FIsSpark    : Boolean;      //Is it a valid archive?
    FFileList   : TFileList;    //List of files in archive
    FProgress   : TProgressProc;//Progress feedback
+   Fversion    : String;       //Version of this class
+   FTimeOut    : Cardinal;     //Length of time out, in seconds
+   FMaxDirEnt  : Integer;      //Maximum size of directory
    function ExtractFiles: TFileList;
    procedure DoCreateOutZipStream(Sender: TObject; var AStream: TStream;
                                                       AItem: TFullZipFileEntry);
@@ -66,10 +70,13 @@ type
   published
    constructor Create(filename: String);
    function ExtractFileData(Index: Integer):TDynByteArray;
-   property IsSpark: Boolean read FIsSpark;
-   property FileList: TFileList read FFileList;
-   property UncompressedSize: Cardinal read GetUncompressedSize;
-   property ProgressIndicator:   TProgressProc write FProgress;
+   property IsSpark:           Boolean       read FIsSpark;
+   property FileList:          TFileList     read FFileList;
+   property UncompressedSize:  Cardinal      read GetUncompressedSize;
+   property ProgressIndicator: TProgressProc write FProgress;
+   property Version:           String        read Fversion;
+   property TimeOut:           Cardinal      read FTimeOut write FTimeOut;
+   property MaxDirEnt:         Integer       read FMaxDirEnt;
   public
    destructor Destroy; override;
   end;
@@ -85,8 +92,10 @@ var
 begin
  inherited Create;
  //Initialise the variables
- Fbuffer:=nil;
+ Fbuffer    :=nil;
  ZipFilename:=filename;
+ Fversion   :='1.02';
+ FTimeOut   :=30;
  //Read the zip file into memory
  F:=TFileStream.Create(ZipFilename,fmOpenRead or fmShareDenyNone);
  SetLength(Fbuffer,F.Size);
@@ -131,7 +140,6 @@ var
  fileoffset,
  ctr,
  fnc        : Cardinal;
- OS         : Byte;
  c          : Char;
  fnL,
  exL,
@@ -142,7 +150,7 @@ begin
  Result:=nil;
  if not FIsSpark then exit;
  //Find the 'End of central library'
- ptr:=Length(Fbuffer)-4; //Start at the end
+ ptr :=Length(Fbuffer)-4; //Start at the end
  EoCL:=0;
  //And decrease the pointer until we find the signature, or get to the start of file
  repeat
@@ -156,8 +164,7 @@ begin
  if (Fbuffer[ptr]=$50)
  and(Fbuffer[ptr+1]=$4B)
  and(Fbuffer[ptr+2]=$05)
- and(Fbuffer[ptr+3]=$06)then
-  EoCL:=ptr;
+ and(Fbuffer[ptr+3]=$06)then EoCL:=ptr;
  //Only continue of we have a marker
  if EoCL<>0 then
  begin
@@ -173,22 +180,21 @@ begin
   ctr:=0; //File count
   while ptr+CL<EoCL do
   begin
-   OS :=Fbuffer[CL+ptr+$05];    //OS (13=RISC OS)
-   fnL:=Fbuffer[CL+ptr+$1C]
-       +Fbuffer[CL+ptr+$1D]<<8; //Length of filename
-   exL:=Fbuffer[CL+ptr+$1E]
-       +Fbuffer[CL+ptr+$1F]<<8; //Length of extra field
-   cmL:=Fbuffer[CL+ptr+$20]
-       +Fbuffer[CL+ptr+$21]<<8; //Length of comment field
-   fileoffset:=Fbuffer[CL+ptr+$2A]               //Offset to file header
-              +Fbuffer[CL+ptr+$2B]<< 8
-              +Fbuffer[CL+ptr+$2C]<<16
-              +Fbuffer[CL+ptr+$2D]<<24;
-   Result[ctr].Size:=Fbuffer[fileoffset+$12]            //Compressed size
-                    +Fbuffer[fileoffset+$13]<< 8
-                    +Fbuffer[fileoffset+$14]<<16
-                    +Fbuffer[fileoffset+$15]<<24;
-   Result[ctr].Length:=Fbuffer[fileoffset+$16]          //Uncompressed size
+   fnL               :=Fbuffer[CL+ptr+$1C]          //Length of filename
+                      +Fbuffer[CL+ptr+$1D]<<8;
+   exL               :=Fbuffer[CL+ptr+$1E]          //Length of extra field
+                      +Fbuffer[CL+ptr+$1F]<<8;
+   cmL               :=Fbuffer[CL+ptr+$20]          //Length of comment field
+                      +Fbuffer[CL+ptr+$21]<<8;
+   fileoffset        :=Fbuffer[CL+ptr+$2A]          //Offset to file header
+                      +Fbuffer[CL+ptr+$2B]<< 8
+                      +Fbuffer[CL+ptr+$2C]<<16
+                      +Fbuffer[CL+ptr+$2D]<<24;
+   Result[ctr].Size  :=Fbuffer[fileoffset+$12]      //Compressed size
+                      +Fbuffer[fileoffset+$13]<< 8
+                      +Fbuffer[fileoffset+$14]<<16
+                      +Fbuffer[fileoffset+$15]<<24;
+   Result[ctr].Length:=Fbuffer[fileoffset+$16]      //Uncompressed size
                       +Fbuffer[fileoffset+$17]<< 8
                       +Fbuffer[fileoffset+$18]<<16
                       +Fbuffer[fileoffset+$19]<<24;
@@ -222,24 +228,65 @@ begin
    Result[ctr].Filename:=fn;
    //And remember the zip filename, for later extraction
    Result[ctr].ArchiveName:=zipfn;
-   //RISC OS stuff
-   if OS=13 then
-   begin
-    //Extra fields - starts with 'AC'$14$00'ARC0'
-    Result[ctr].LoadAddr  :=Fbuffer[CL+ptr+$2E+fnL+$08]     //Load Address
-                           +Fbuffer[CL+ptr+$2E+fnL+$09]<< 8
-                           +Fbuffer[CL+ptr+$2E+fnL+$0A]<<16
-                           +Fbuffer[CL+ptr+$2E+fnL+$0B]<<24;
-    Result[ctr].ExecAddr  :=Fbuffer[CL+ptr+$2E+fnL+$0C]     //Execution Address
-                           +Fbuffer[CL+ptr+$2E+fnL+$0D]<<8
-                           +Fbuffer[CL+ptr+$2E+fnL+$0E]<<16
-                           +Fbuffer[CL+ptr+$2E+fnL+$0F]<<24;
-    Result[ctr].Attributes:=Fbuffer[CL+ptr+$2E+fnL+$10];    //Attributes
+   //Defaults if not RISC OS
+   Result[ctr].LoadAddr  :=0;
+   Result[ctr].ExecAddr  :=0;
+   Result[ctr].Attributes:=0;
+   //Look for the 'AR' and 'ARC0' signature in the extra field
+   if exL>=20 then
+   begin //RISC OS stuff
+    if (Fbuffer[CL+ptr+$2E+fnL+$00]=$41)
+    and(Fbuffer[CL+ptr+$2E+fnL+$01]=$43) //'AC'
+    and(Fbuffer[CL+ptr+$2E+fnL+$04]=$41)
+    and(Fbuffer[CL+ptr+$2E+fnL+$05]=$52)
+    and(Fbuffer[CL+ptr+$2E+fnL+$06]=$43) //ARC0
+    and(Fbuffer[CL+ptr+$2E+fnL+$07]=$30)then
+    begin
+     //The two bytes inbetween the AC and ARC0 should be exL-4
+     Result[ctr].LoadAddr  :=Fbuffer[CL+ptr+$2E+fnL+$08]     //Load Address
+                            +Fbuffer[CL+ptr+$2E+fnL+$09]<< 8
+                            +Fbuffer[CL+ptr+$2E+fnL+$0A]<<16
+                            +Fbuffer[CL+ptr+$2E+fnL+$0B]<<24;
+     Result[ctr].ExecAddr  :=Fbuffer[CL+ptr+$2E+fnL+$0C]     //Execution Address
+                            +Fbuffer[CL+ptr+$2E+fnL+$0D]<<8
+                            +Fbuffer[CL+ptr+$2E+fnL+$0E]<<16
+                            +Fbuffer[CL+ptr+$2E+fnL+$0F]<<24;
+     Result[ctr].Attributes:=Fbuffer[CL+ptr+$2E+fnL+$10]     //Attributes
+                            +Fbuffer[CL+ptr+$2E+fnL+$11]<<8
+                            +Fbuffer[CL+ptr+$2E+fnL+$12]<<16
+                            +Fbuffer[CL+ptr+$2E+fnL+$13]<<24;
+    end;
    end;
    //Move the pointer onto the next file
    inc(ptr,fnL+exL+cmL+$2E);
    //And next entry
    inc(ctr);
+  end;
+ end;
+ //Analyse the results to count the number of directory entries, per directory
+ if Length(Result)>0 then
+ begin
+  FMaxDirEnt:=0;
+  //We will need to go through each entry
+  for ctr:=0 to Length(Result)-1 do
+  begin
+   //Reset the counter to zero, directory or no directory
+   Result[ctr].NumEntries:=0;
+   //If it is a directory, then look into it further
+   if Result[ctr].Directory then
+   begin
+    //Prepare the parent name
+    fn:=Result[ctr].Filename;
+    if Result[ctr].Parent<>'' then
+     fn:=Result[ctr].Parent+'.'+fn;
+    //Now go through all entries and count the number of files that have this
+    //as a parent
+    for ptr:=0 to Length(Result)-1 do
+     if Result[ptr].Parent=fn then inc(Result[ctr].NumEntries);
+    //Update the maximum directory size
+    if Result[ctr].NumEntries>FMaxDirEnt then
+     FMaxDirEnt:=Result[ctr].NumEntries;
+   end;
   end;
  end;
 end;
@@ -268,7 +315,7 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Extract, and uncompress, the actual data
+Extract, and decompress, the actual data
 -------------------------------------------------------------------------------}
 function TSpark.ExtractFileData(Index: Integer):TDynByteArray;
 var
@@ -309,7 +356,7 @@ begin
     repeat
      //Wait until the cache gets filled up, or the timer expires
      nowtime:=Round(Time*100000);
-    until(Length(Fcache)>0)or(nowtime-starttime>=30);
+    until(Length(Fcache)>0)or(nowtime-starttime>=FTimeOut);
     //Copy the cache to the result
     Result:=Fcache;
     //And empty the cache
