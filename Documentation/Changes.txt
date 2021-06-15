@@ -507,8 +507,8 @@ New or improved features
 Bug fixes
 * An ADFS Big Directory hard drive image created by Disc Image Manager would not be recognised by RISC OS.
 
-1.29
---------------------
+1.29 - 15th June 2021
+---------------------
 New or improved features
 * The Spark module will now import PackDir archives.
 * The import of one image into another now uses the Error Log to report errors.
