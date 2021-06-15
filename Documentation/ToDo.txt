@@ -6,31 +6,13 @@ General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
 * Extend drag and drop copy/move to multiple selection.
 * Application to application communications.
-* Duplicate files (i.e. like copy and rename into same directory) - just do this via file context menu, Image main menu and toolbar button.
 * Copy entire files onto clipboard? And then paste from clipboard?
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
-* Add Settings window:
-  + Threshold for switching to bypassing the GUI upon Spark import.
-  + Force an ADFS L to be either interleaved, non-interleaved or auto-detect.
-  + Change the tile for the windows' background.
-* When importing the contents of a Spark archive, or another image, open another dialogue to allow the user to 'pick and choose' which file(s) they wish to import.
-
-Command Line
-none
-
-Coding Issues
-none
-
-DFS
-none
-
-ADFS
-none
-
-Commodore
-none
+* Add option to specify the creating of inf files.
+* Add more tiling options, including 'none'.
+* Ask to force overwrite if many files are getting written.
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
@@ -40,9 +22,6 @@ Amiga
 
 Spectrum/Amstrad
 * Write entire module.
-
-CFS
-* Enable the code to move files - this requires the Drop and Drag to be enabled for CFS.
 
 MMFS
 * Write entire module.

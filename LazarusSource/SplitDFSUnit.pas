@@ -32,8 +32,14 @@ type
  { TSplitDFSForm }
 
  TSplitDFSForm = class(TForm)
+  CancelButton: TBitBtn;
+  CancelButton1: TBitBtn;
   DFSPages: TPageControl;
   CombinePanel: TPanel;
+  OKBtnBack: TPanel;
+  OKBtnBack1: TPanel;
+  sbConfirmSplit: TBitBtn;
+  sbConfirmCombine: TBitBtn;
   SplitPanel: TPanel;
   SplitSourceGroupBox: TGroupBox;
   SplitDestGroupBox0: TGroupBox;
@@ -50,10 +56,6 @@ type
   lbDestDSD: TLabel;
   OpenDialog: TOpenDialog;
   SaveDialog: TSaveDialog;
-  sbCancel2: TSpeedButton;
-  sbConfirmSplit: TSpeedButton;
-  sbCancel: TSpeedButton;
-  sbConfirmCombine: TSpeedButton;
   sbLoadSourceDSD: TSpeedButton;
   sbSaveDestDSD: TSpeedButton;
   sbSaveDestSSD0: TSpeedButton;

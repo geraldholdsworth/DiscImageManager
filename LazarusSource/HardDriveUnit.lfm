@@ -40,9 +40,9 @@ object HardDriveForm: THardDriveForm
     end
   end
   object CancelButton: TBitBtn
-    Left = 8
+    Left = 276
     Height = 30
-    Top = 82
+    Top = 80
     Width = 100
     Cancel = True
     Caption = 'Cancel'

@@ -376,7 +376,8 @@ Create a new Amiga image
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatAmiga(minor: Byte): TDisc;
 begin
- //
+ Result:=nil;
+ SetLength(Result,0);
 end;
 
 {-------------------------------------------------------------------------------

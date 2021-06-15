@@ -507,6 +507,43 @@ New or improved features
 Bug fixes
 * An ADFS Big Directory hard drive image created by Disc Image Manager would not be recognised by RISC OS.
 
+1.29
+--------------------
+New or improved features
+* The Spark module will now import PackDir archives.
+* The import of one image into another now uses the Error Log to report errors.
+* New Preferences button and menu item to open a preferences dialogue box to set up some options - window texture; ADFS L interleaving.
+* Changed the main menu item 'Tools' to 'Utilities' and 'Help' to 'Tools'.
+* The ADFS/Amiga map type and directory details on the status bar are now blank if it is not an ADFS or Amiga image.
+* Changed the hint for Open Image to "Open Existing Image".
+* Changed the way that files were copied within the same image. It will now, by default, delete any file with the same name in the destination when copying a file, but fail if copying a directory. This is overridden by the GUI by renaming the file prior to executing the copy method in the class.
+* Moving a file or directory will now fail if one of the same exists at the new destination.
+* Opened up the copy method to copy a file to the same destination as the source.
+* Pressing Escape will cancel a drag drop operation.
+* Files can now be moved or copied in UEF files.
+* Files can now be duplicated (copied) on the same side of a DFS image and on a Commodore image.
+* Slight re-alignment when picking up a file to initiate a drag/drop copy/move operation.
+* New toolbar button, main menu item, and context menu item: Duplicate File. Works just as dragging and dropping a file onto the same parent.
+* When importing an image into another image, a dialogue box is opened to pick which files or directories to import.
+* Moved the buttons on the Hard Drive selector dialogue.
+* Changed the buttons on the Split/Combine DFS tool to be RISC OS orientated.
+* Spark archives are now treated as a filing system (read only).
+* The facility to check if the current open image would be suitable for the incoming import has now been extended to importing from all disc images.
+* When adding a file to an image, if one of the same name exists already it will get overwritten (after confirmation from the user).
+* When downloading files, the original selection would be restored.
+
+Bug fixes
+* Importing from one image to another would crash if the parent directory could not be found.
+* Moving a file, while it is open in File Viewer, would result in the window title bar being updated to the parent of the file's new location, and not including the filename.
+* It was possible to pick up the root directory and drag it into another folder to initiate a copy/move operation, which would then crash the application.
+* Some file system format strings were being returned with an extraneous space at the end.
+* The error reporting an invalid image when the user tries to load something not recognised stopped being reported a few versions ago. This has now returned.
+* Selecting and then deleting multiple files ended up with only deleting half the selection, or crashing the application (if there were an odd number of files selected).
+* When renaming a file to just change the case, an error was raised that the file already exists.
+* Could not download the entire of the second side of a DFS image if the side 2 root is selected.
+* Selecting addition objects would sometimes trigger off the drag/drop operation.
+* On the Mac pressing CTRL with left mouse click to select an additional file would also bring up the context menu.
+
 Platform History
 ----------------
 

@@ -1,13 +1,13 @@
 object AboutForm: TAboutForm
   Left = 432
-  Height = 275
+  Height = 307
   Top = 179
   Width = 520
   AutoSize = True
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About'
-  ClientHeight = 275
+  ClientHeight = 307
   ClientWidth = 520
   Color = 15527148
   Font.Color = clWindowText
@@ -16,12 +16,12 @@ object AboutForm: TAboutForm
   LCLVersion = '2.0.12.0'
   object CreditsPanel: TPanel
     Left = 0
-    Height = 275
+    Height = 307
     Top = 0
     Width = 520
     Align = alClient
     AutoSize = True
-    ClientHeight = 275
+    ClientHeight = 307
     ClientWidth = 520
     TabOrder = 0
     OnPaint = CreditsPanelPaint
@@ -120,12 +120,12 @@ object AboutForm: TAboutForm
     end
     object AckLabel: TLabel
       Left = 1
-      Height = 128
+      Height = 160
       Top = 144
       Width = 518
       Align = alTop
       Alignment = taCenter
-      Caption = 'Many thanks to the users and contributors of the Stardot forum whose feedback and advice has been greatly appreciated. Also a big thank you to Jasper Renow-Clark who helped me with the ADFS formats in the beginning, before this project started.'#10'This project was concieved as a module to the Repton Map Display application, with this application just being a demo (and for me to try the code out with). In December 2020, it became the Disc Image Manager.'#10'Additional thanks go to Robert Sprowson for his help with working out the parameters for ADFS Hard Drive images, and to David Pilling for his help with the Spark module.'
+      Caption = 'Many thanks to the users and contributors of the Stardot forum whose feedback and advice has been greatly appreciated. Also a big thank you to Jasper Renow-Clark who helped me with the ADFS formats in the beginning, before this project started.'#10'This project was concieved as a module to the Repton Map Display application, with this application just being a demo (and for me to try the code out with). In December 2020, it became the Disc Image Manager.'#10'Additional thanks go to Robert Sprowson for his help with working out the parameters for ADFS Hard Drive images, and to David Pilling for his help with the Spark module.'#10'Suggestions, bug reports, or whatever please do not hesitate to email me on gerald@hollypops.co.uk, or contact via Stardot forum.'
       Font.Color = clWindowText
       Font.Name = 'Tahoma'
       ParentColor = False

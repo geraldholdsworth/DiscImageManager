@@ -76,7 +76,13 @@ type
   diAmiga      = $04;
   diAcornUEF   = $05;
   diMMFS       = $06;
+  diAcornFS    = $07;
+  diSpark      = $08;
   diInvalidImg = $FF;
+  diADFSOldMap = $00;
+  diADFSNewMap = $01;
+  diAmigaOFS   = $02;
+  diAmigaFFS   = $03;
   diADFSOldDir = $00;
   diADFSNewDir = $01;
   diADFSBigDir = $02;

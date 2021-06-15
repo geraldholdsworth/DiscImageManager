@@ -19,9 +19,9 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
-      <MinorVersionNr Value="28"/>
+      <MinorVersionNr Value="29"/>
       <Language Value="0809"/>
-      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.28"/>
+      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.29"/>
     </VersionInfo>
     <BuildModes Count="6">
       <Item1 Name="Default" Default="True"/>
@@ -208,7 +208,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="17">
+    <Units Count="19">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -310,6 +310,20 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit16>
+      <Unit17>
+        <Filename Value="SettingsUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="SettingsForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="ImportSelectorUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="ImportSelectorForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit18>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -331,7 +345,7 @@
     </Linking>
     <Other>
       <CompilerMessages>
-        <IgnoredMessages idx5094="True" idx5091="True" idx5060="True" idx5057="True" idx4081="True" idx4080="True" idx4079="True" idx4035="True"/>
+        <IgnoredMessages idx5094="True" idx5091="True" idx5060="True" idx5057="True" idx5024="True" idx4081="True" idx4080="True" idx4079="True" idx4035="True"/>
       </CompilerMessages>
     </Other>
   </CompilerOptions>

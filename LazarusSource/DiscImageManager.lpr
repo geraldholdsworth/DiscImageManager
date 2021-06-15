@@ -19,13 +19,15 @@ uses
   SearchUnit in 'SearchUnit.pas',
   CustomDialogueUnit in 'CustomDialogueUnit.pas',
   HardDriveUnit in 'HardDriveUnit.pas',
-  ErrorLogUnit in 'ErrorLogUnit.pas';
+  ErrorLogUnit in 'ErrorLogUnit.pas',
+  SettingsUnit in 'SettinsUnit.pas',
+  ImportSelectorUnit in 'ImportSelectorUnit.pas';
 
 {$R *.res}
 
 begin
  Application.Scaled:=True;
-  Application.Title:='Disc Image Manager';
+ Application.Title:='Disc Image Manager';
  Application.Initialize;
  Application.CreateForm(TMainForm, MainForm);
  Application.CreateForm(TAboutForm, AboutForm);
@@ -37,5 +39,7 @@ begin
  Application.CreateForm(TCustomDialogue, CustomDialogue);
  Application.CreateForm(THardDriveForm, HardDriveForm);
  Application.CreateForm(TErrorLogForm, ErrorLogForm);
+ Application.CreateForm(TSettingsForm, SettingsForm);
+ Application.CreateForm(TImportSelectorForm, ImportSelectorForm);
  Application.Run;
 end.

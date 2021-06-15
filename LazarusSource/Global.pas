@@ -24,10 +24,26 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils;
+ Classes,SysUtils,Registry;
 
 function ReadLine(var Stream: TFileStream;var Line: string): boolean;
 function WriteLine(var Stream: TFileStream;Line: string): boolean;
+procedure OpenReg(key: String);
+function DeleteKey(key: String): Boolean;
+function GetRegValS(V: String;D: String): String;
+procedure GetRegValA(V: String;var D: array of Byte);
+function GetRegValI(V: String;D: Cardinal): Cardinal;
+function GetRegValB(V: String;D: Boolean): Boolean;
+procedure SetRegValS(V: String;D: String);
+procedure SetRegValA(V: String;var D: array of Byte);
+procedure SetRegValI(V: String;D: Cardinal);
+procedure SetRegValB(V: String;D: Boolean);
+function ExtractKey(var V: String):String;
+var
+ DIMReg              : TRegistry;
+const
+ //Registry Key to use
+ RegKey = '\Software\GJH Software\Disc Image Manager';
 
 implementation
 
@@ -74,6 +90,145 @@ begin
  l:=Length(S);
  x:=Stream.Write(S[1],l);
  Result:=x=l;
+end;
+
+{-------------------------------------------------------------------------------
+Open the registry key
+-------------------------------------------------------------------------------}
+procedure OpenReg(key: String);
+begin
+ DIMReg:=TRegistry.Create;
+ if key<>'' then key:='\'+key;
+ DIMReg.OpenKey(RegKey+key,true);
+end;
+
+{-------------------------------------------------------------------------------
+Function to delete a key from the registry
+-------------------------------------------------------------------------------}
+function DeleteKey(key: String): Boolean;
+var
+ x: Boolean;
+begin
+ x:=True;
+ OpenReg(ExtractKey(key));
+ if DIMReg.ValueExists(key) then x:=DIMReg.DeleteValue(key);
+ DIMReg.Free;
+ Result:=x;
+end;
+
+{-------------------------------------------------------------------------------
+Function to read a string from the registry, or create it if it doesn't exist
+-------------------------------------------------------------------------------}
+function GetRegValS(V: String;D: String): String;
+var
+ X: String;
+begin
+ OpenReg(ExtractKey(V));
+ If DIMReg.ValueExists(V)then X:=DIMReg.ReadString(V)
+ else begin X:=D;DIMReg.WriteString(V,X);end;
+ DIMReg.Free;
+ Result:=X;
+end;
+
+{-------------------------------------------------------------------------------
+Function to read an array from the registry, or create it if it doesn't exist
+-------------------------------------------------------------------------------}
+procedure GetRegValA(V: String;var D: array of Byte);
+var
+ s: Integer;
+begin
+ OpenReg(ExtractKey(V));
+ If DIMReg.ValueExists(V)then
+ begin
+  s:=DIMReg.GetDataSize(V);
+  DIMReg.ReadBinaryData(V,D,s);
+ end
+ else
+ begin
+  DIMReg.WriteBinaryData(V,D,SizeOf(D));
+ end;
+ DIMReg.Free;
+end;
+
+{-------------------------------------------------------------------------------
+Function to read an integer from the registry, or create it if it doesn't exist
+-------------------------------------------------------------------------------}
+function GetRegValI(V: String;D: Cardinal): Cardinal;
+var
+ X: Cardinal;
+begin
+ OpenReg(ExtractKey(V));
+ If DIMReg.ValueExists(V)then X:=DIMReg.ReadInteger(V)
+ else begin X:=D;DIMReg.WriteInteger(V,X);end;
+ DIMReg.Free;
+ Result:=X;
+end;
+
+{-------------------------------------------------------------------------------
+Function to read a boolean from the registry, or create it if it doesn't exist
+-------------------------------------------------------------------------------}
+function GetRegValB(V: String;D: Boolean): Boolean;
+var
+ X: Boolean;
+begin
+ OpenReg(ExtractKey(V));
+ If DIMReg.ValueExists(V)then X:=DIMReg.ReadBool(V)
+ else begin X:=D;DIMReg.WriteBool(V,X);end;
+ DIMReg.Free;
+ Result:=X;
+end;
+
+{-------------------------------------------------------------------------------
+Function to save a string to the registry
+-------------------------------------------------------------------------------}
+procedure SetRegValS(V: String;D: String);
+begin
+ OpenReg(ExtractKey(V));
+ DIMReg.WriteString(V,D);
+ DIMReg.Free;
+end;
+
+{-------------------------------------------------------------------------------
+Function to save an array to the registry
+-------------------------------------------------------------------------------}
+procedure SetRegValA(V: String;var D: array of Byte);
+begin
+ OpenReg(ExtractKey(V));
+ DIMReg.WriteBinaryData(V,D,SizeOf(D));
+ DIMReg.Free;
+end;
+
+{-------------------------------------------------------------------------------
+Function to save an integer to the registry
+-------------------------------------------------------------------------------}
+procedure SetRegValI(V: String;D: Cardinal);
+begin
+ OpenReg(ExtractKey(V));
+ DIMReg.WriteInteger(V,D);
+ DIMReg.Free;
+end;
+
+{-------------------------------------------------------------------------------
+Function to save a boolean to the registry
+-------------------------------------------------------------------------------}
+procedure SetRegValB(V: String;D: Boolean);
+begin
+ OpenReg(ExtractKey(V));
+ DIMReg.WriteBool(V,D);
+ DIMReg.Free;
+end;
+
+{-------------------------------------------------------------------------------
+Function to extract key part of string
+-------------------------------------------------------------------------------}
+function ExtractKey(var V: String):String;
+begin
+ Result:='';
+ if Pos('\',V)>0 then
+ begin
+  Result:=Copy(V,1,Pos('\',V)-1);
+  V:=Copy(V,Pos('\',V)+1);
+ end;
 end;
 
 end.

@@ -9,6 +9,7 @@ object ProgressForm: TProgressForm
   ClientHeight = 200
   ClientWidth = 597
   Color = 15527148
+  FormStyle = fsStayOnTop
   OnShow = FormShow
   Position = poMainFormCenter
   LCLVersion = '2.0.12.0'

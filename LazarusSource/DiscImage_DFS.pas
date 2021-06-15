@@ -537,7 +537,9 @@ begin
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Make sure the new filename does not already exist
-  if not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr) then
+  if(not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr))
+  // or the user is just changing case
+  or(LowerCase(FDisc[dir].Entries[entry].Parent+dirsep+newfilename)=LowerCase(oldfilename))then
   begin
    //Change the entry
    FDisc[dir].Entries[entry].Filename:=newfilename;

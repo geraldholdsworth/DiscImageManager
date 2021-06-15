@@ -449,16 +449,18 @@ var
  buffer      : TDIByteArray;
  i           : Integer;
 begin
- Result:=-5;
- if dest<-1 then dest:=-1;
+ Result:=-5; //Unknown error
+ if dest<-1 then dest:=-1; //A destination of -1 is at the top
  if Length(FDisc)=1 then
   if (entry<Length(FDisc[0].Entries))
   and(dest <Length(FDisc[0].Entries))
   and(entry<>dest)then
   begin
+   Result:=-1; //Could not load file
    //Extract the data for the file being moved
    if ExtractCFSFile(entry,buffer) then
    begin
+    Result:=-5; //Unknown error
     //And the file details
     file_details:=FDisc[0].Entries[entry];
     if dest>=0 then
@@ -495,6 +497,46 @@ begin
     FDisc[0].Entries[dest]:=file_details;
     CFSFiles[dest]:=buffer;
     Result:=dest;
+   end;
+  end;
+end;
+
+{-------------------------------------------------------------------------------
+Copies a CFS file to after dest
+-------------------------------------------------------------------------------}
+function TDiscImage.CopyCFSFile(entry: Cardinal;dest: Integer): Integer;
+var
+ file_details: TDirEntry;
+ buffer      : TDIByteArray;
+ i           : Integer;
+begin
+ Result:=-5; //Unknown
+ if dest<-1 then dest:=-1; //A destination of -1 is at the top
+ if Length(FDisc)=1 then
+  if (entry<Length(FDisc[0].Entries))
+  and(dest <Length(FDisc[0].Entries))then
+  begin
+   Result:=-1; //Could not load file
+   //Extract the data for the file being copied
+   if ExtractCFSFile(entry,buffer) then
+   begin
+    Result:=-5; //Unknown error
+    //And the file details
+    file_details:=FDisc[0].Entries[entry];
+    //Increase the list length
+    SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)+1);
+    SetLength(CFSFiles,Length(CFSFiles)+1);
+    if dest+1<Length(FDisc[0].Entries)-1 then
+     for i:=Length(FDisc[0].Entries)-2 downto dest+1 do
+     begin
+      //Move them all up by one
+      FDisc[0].Entries[i+1]:=FDisc[0].Entries[i];
+      CFSFiles[i+1]:=CFSFiles[i];
+     end;
+    //Then insert it after the one specified
+    FDisc[0].Entries[dest+1]:=file_details;
+    CFSFiles[dest+1]:=buffer;
+    Result:=dest+1;
    end;
   end;
 end;

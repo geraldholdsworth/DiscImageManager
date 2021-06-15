@@ -192,7 +192,12 @@ begin
    end;
   end;
   //Interleaved?
-  if FFormat=$12 then Finterleave:=True else Finterleave:=False;
+  if FFormat=$12 then
+  begin
+   //Depending on the option
+   if FForceInter<=1 then Finterleave:=True; //Auto or force on
+   if FForceInter=2  then Finterleave:=False;//Force off
+  end;
   //Return a true or false
   Result:=FFormat>>4=diAcornADFS;
  end;
@@ -2184,9 +2189,7 @@ begin
   parentaddr:=rootfrag
  else
  begin
-  FileExists(parent,ref);
-  dir  :=ref DIV $10000;
-  entry:=ref MOD $10000;
+  FileExists(parent,dir,entry);
   parentaddr:=FDisc[dir].Entries[entry].Sector;
  end;
  if dirname<>'$' then
@@ -2338,7 +2341,7 @@ const
  oldattr = 'RWLDErweP'+#00;
  newattr = 'RWLDrw';
 begin
- if (FileExists(directory,ref)) or (directory='$') then
+ if(FileExists(directory,ref))or(directory='$')then
  begin
   //Get the directory reference and sector address
   if directory='$' then
@@ -2512,17 +2515,14 @@ Update attributes on a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateADFSFileAttributes(filename,attributes: String): Boolean;
 var
- ptr,
+// ptr,
  dir,
  entry : Cardinal;
 begin
  Result:=False;
  //Make sure that the file exists, but also to get the pointer
- if FileExists(filename,ptr) then
+ if FileExists(filename,dir,entry) then
  begin
-  //FileExists returns a pointer to the file
-  entry:=ptr mod$10000;  //Bottom 16 bits - entry reference
-  dir  :=ptr div$10000;  //Top 16 bits - directory reference
   //Change the attributes on the local copy
   FDisc[dir].Entries[entry].Attributes:=attributes;
   //Then update the catalogue
@@ -2566,7 +2566,7 @@ Retitle an ADFS directory
 -------------------------------------------------------------------------------}
 function TDiscImage.RetitleADFSDirectory(filename,newtitle: String): Boolean;
 var
- ptr,
+// ptr,
  entry,
  dir    : Cardinal;
 begin
@@ -2574,7 +2574,7 @@ begin
  //ADFS Big Directories do not have titles
  if FDirType=diADFSBigDir then exit;
  //Check that the file exists, or is the root
- if(FileExists(filename,ptr))OR(filename='$')then
+ if(FileExists(filename,dir,entry))OR(filename='$')then
  begin
   if filename='$' then
   begin
@@ -2585,9 +2585,6 @@ begin
   end
   else
   begin
-   //FileExists returns a pointer to the file
-   entry:=ptr mod$10000;  //Bottom 16 bits - entry reference
-   dir  :=ptr div$10000;  //Top 16 bits - directory reference
    //Re-title the directory, limiting it to 19 characters
    FDisc[FDisc[dir].Entries[entry].DirRef].Title:=LeftStr(newtitle,19);
    //Update the catalogue, which will update the title
@@ -2614,14 +2611,13 @@ begin
  //Check that the new name meets the required ADFS filename specs
  newfilename:=ValidateADFSFilename(newfilename);
  //Check that the file exists
- if FileExists(oldfilename,ptr) then
+ if FileExists(oldfilename,dir,entry) then
  begin
   Result:=-3; //New name already exists
-  //FileExists returns a pointer to the file
-  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Make sure the new filename does not already exist
-  if not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr) then
+  if(not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr))
+  // or the user is just changing case
+  or(LowerCase(FDisc[dir].Entries[entry].Parent+dirsep+newfilename)=LowerCase(oldfilename))then
   begin
    Result:=-1;//Unknown error
    //Get the difference in lengths
@@ -2901,7 +2897,7 @@ Delete an ADFS file/directory
 function TDiscImage.DeleteADFSFile(filename: String;
                     TreatAsFile:Boolean=False;extend:Boolean=True):Boolean;
 var
- ptr,
+// ptr,
  entry,
  dir,
  addr,
@@ -2911,20 +2907,20 @@ var
 begin
  Result:=False;
  //Check that the file exists
- if(FileExists(filename,ptr))or((filename='$')and(FDirType=diADFSBigDir))then
+ if(FileExists(filename,dir,entry))or((filename='$')and(FDirType=diADFSBigDir))then
  begin
   //If we are deleting the root (usually only when extending/contracting)
   if(filename='$')and(FDirType=diADFSBigDir)then
   begin
    entry:=$FFFF;
    dir  :=$FFFF;
-  end
+  end{
   else
   begin
    //FileExists returns a pointer to the file
    entry:=ptr mod$10000;  //Bottom 16 bits - entry reference
    dir  :=ptr div$10000;  //Top 16 bits - directory reference
-  end;
+  end};
   success:=True;
   if filename<>'$' then
    //If directory, delete contents first
@@ -3164,20 +3160,15 @@ function TDiscImage.ExtractADFSFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
  entry,dir,
- fragptr,
  filelen       : Cardinal;
  fragments     : TFragmentArray;
 begin
  Result   :=False;
- fragptr  :=0;
  fragments:=nil;
- if FileExists(filename,fragptr) then //Does the file actually exist?
+ if FileExists(filename,dir,entry) then //Does the file actually exist?
  //Yes, so load it - there is nothing to stop a directory header being extracted
  //if passed in the filename parameter.
  begin
-  //FileExists returns a pointer to the file
-  entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=fragptr div $10000;  //Top 16 bits - directory reference
   filelen:=FDisc[dir].Entries[entry].Length;
   //Get the starting position
   if not FMap then //Old Map
@@ -3249,47 +3240,47 @@ var
 begin
  Result:=-11;//Source file not found
  ptr:=0;
- if FileExists(filename,ptr) then
+ if FileExists(filename,sdir,sentry) then
  begin
   Result:=-6;//Destination directory not found
-  //FileExists returns a pointer to the file
-  sentry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-  sdir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Take a copy
   direntry:=FDisc[sdir].Entries[sentry];
   //Remember the original parent
   sparent:=direntry.Parent;
-  if(FileExists(directory,ptr))or(directory='$')then
+  if(FileExists(directory,ddir,dentry))or(directory='$')then
   begin
-   Result:=-5;//Unknown error
-   //Alter for the new parent
-   direntry.Parent:=directory;
+   Result:=-10;//Can't move to the same directory
    //Destination directory reference
    ddir:=0;//Root
-   if directory<>'$' then
+   if directory<>'$' then ddir:=FDisc[ddir].Entries[dentry].DirRef;
+   if ddir<>sdir then //Can't move into the same directory
    begin
-    //FileExists returns a pointer to the file
-    dentry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-    ddir  :=ptr div $10000;  //Top 16 bits - directory reference
-    ddir:=FDisc[ddir].Entries[dentry].DirRef;
-   end;
-   //Extend the destination directory (Big Dir)
-   if FDirType=diADFSBigDir then
-    if not ExtendADFSBigDir(ddir,Length(direntry.Filename),True) then
+    Result:=-3; //File already exists in destination directory
+    //Alter for the new parent
+    direntry.Parent:=directory;
+    //Does the filename already exist in the new location?
+    if not FileExists(directory+DirSep+direntry.Filename,ptr) then
     begin
-     Result:=-9; //Cannot extend
-     exit;
+     Result:=-5;//Unknown error
+     //Extend the destination directory (Big Dir)
+     if FDirType=diADFSBigDir then
+      if not ExtendADFSBigDir(ddir,Length(direntry.Filename),True) then
+      begin
+       Result:=-9; //Cannot extend
+       exit;
+      end;
+     //Insert into the new directory
+     Result:=ExtendADFSCat(ddir,direntry);
+     //And update
+     UpdateADFSCat(directory);
+     //Now remove from the original directory
+     ReduceADFSCat(sdir,sentry);
+     //And update the original parent
+     UpdateADFSCat(sparent);
+     //Contract the source directory (Big Dir)
+     if FDirType=diADFSBigDir then ExtendADFSBigDir(sdir,0,False);
     end;
-   //Insert into the new directory
-   Result:=ExtendADFSCat(ddir,direntry);
-   //And update
-   UpdateADFSCat(directory);
-   //Now remove from the original directory
-   ReduceADFSCat(sdir,sentry);
-   //And update the original parent
-   UpdateADFSCat(sparent);
-   //Contract the source directory (Big Dir)
-   if FDirType=diADFSBigDir then ExtendADFSBigDir(sdir,0,False);
+   end;
   end;
  end;
 end;
@@ -3794,18 +3785,13 @@ Update a file's load or execution address
 function TDiscImage.UpdateADFSFileAddr(filename:String;newaddr:Cardinal;
                                                            load:Boolean):Boolean;
 var
- ptr,
  dir,
  entry: Cardinal;
 begin
  Result:=False;
- ptr:=0;
  //Ensure the file actually exists
- if FileExists(filename,ptr) then
+ if FileExists(filename,dir,entry) then
  begin
-  //Extract the references
-  dir  :=ptr DIV $10000;
-  entry:=ptr MOD $10000;
   //Are they valid?
   if dir<Length(FDisc)then
    if entry<Length(FDisc[dir].Entries)then
@@ -3834,11 +3820,8 @@ begin
  Result:=False;
  ptr:=0;
  //Ensure the file actually exists
- if FileExists(filename,ptr) then
+ if FileExists(filename,dir,entry) then
  begin
-  //Extract the references
-  dir  :=ptr DIV $10000;
-  entry:=ptr MOD $10000;
   //Are they valid?
   if dir<Length(FDisc)then
    if entry<Length(FDisc[dir].Entries)then
@@ -3886,11 +3869,8 @@ begin
  Result:=False;
  ptr:=0;
  //Ensure the file actually exists
- if FileExists(filename,ptr) then
+ if FileExists(filename,dir,entry) then
  begin
-  //Extract the references
-  dir  :=ptr DIV $10000;
-  entry:=ptr MOD $10000;
   //Are they valid?
   if dir<Length(FDisc)then
    if entry<Length(FDisc[dir].Entries)then

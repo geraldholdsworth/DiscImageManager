@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.27
+TDiscImage class V1.29
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -29,7 +29,7 @@ Boston, MA 02110-1335, USA.
 
 interface
 
-uses Classes,DiscImageUtils,Math,crc,ZStream,StrUtils;
+uses Classes,DiscImageUtils,Math,crc,ZStream,StrUtils,Spark;
 
 {$M+}
 
@@ -69,7 +69,8 @@ type
   FMap,                         //Old/New Map flag (Acorn ADFS) OFS/FFS (Amiga)
   FBootBlock,                   //Is disc an AmigaDOS Kickstart?
   Fupdating,                    //Has BeginUpdate been called?
-  Finterleave   : Boolean;      //Is the disc interleaved (ADFS L)
+  Finterleave,                  //Is the disc interleaved (ADFS L)
+  FSparkAsFS    : Boolean;      //Deal with Spark archives as a filing system
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   nzones,                       //Number of zones (Acorn ADFS New)
@@ -82,9 +83,11 @@ type
   disc_id,                      //Disc ID (Acorn ADFS)
   emuheader,                    //Allow for any headers added by emulators
   namesize,                     //Size of the name area (Acorn ADFS Big Dir)
-  brokendircount: Cardinal;     //Number of broken directories (ADFS)
+  brokendircount,               //Number of broken directories (ADFS)
+  FMaxDirEnt    : Cardinal;     //Maximum number of directory entries in image
   disc_size,                    //Size of disc in bytes
   free_space    : Int64;        //Free space remaining
+  FForceInter,                  //What to do about ADFS L Interleaving
   FFormat,                      //Format of the image
   secspertrack,                 //Number of sectors per track
   heads,                        //Number of heads (Acorn ADFS New)
@@ -98,12 +101,14 @@ type
   big_flag      : Byte;         //Big flag (Acorn ADFS New)
   disc_name,                    //Disc title(s)
   root_name,                    //Root title
-  imagefilename : String;       //Filename of the disc image
+  imagefilename,                //Filename of the disc image
+  FFilename     : String;       //Copy of above, but doesn't get wiped
   dir_sep       : Char;         //Directory Separator
   free_space_map: TSide;        //Free Space Map
   bootoption    : TDIByteArray; //Boot Option(s)
   CFSFiles      : array of TDIByteArray;//All the data for the CFS files
   FProgress     : TProgressProc;//Used for feedback
+  SparkFile     : TSpark;       //For reading in Spark archives
   procedure ResetVariables;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function ReadString(ptr,term: Integer;var buffer: TDIByteArray;
@@ -274,12 +279,17 @@ type
   function DeleteCFSFile(entry: Cardinal): Boolean;
   function UpdateCFSAttributes(entry: Cardinal;attributes:String): Boolean;
   function MoveCFSFile(entry: Cardinal;dest: Integer): Integer;
+  function CopyCFSFile(entry: Cardinal;dest: Integer): Integer;
   function WriteCFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   function RenameCFSFile(entry: Cardinal;newfilename: String): Integer;
   function UpdateCFSFileAddr(entry,newaddr:Cardinal;load:Boolean):Boolean;
   //MMFS Routines
   function ID_MMB: Boolean;
   function ReadMMBDisc: TDisc;
+  //Spark Routines
+  function ID_Spark: Boolean;
+  function ReadSparkArchive: TDisc;
+  function ExtractSparkFile(filename: String;var buffer: TDIByteArray): Boolean;
   const
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
    CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
@@ -304,16 +314,19 @@ type
   function FormatHDD(major:Byte;harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):Boolean;
   function ExtractFile(filename:String;var buffer:TDIByteArray;entry:Cardinal=0): Boolean;
   function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
-  function FileExists(filename: String; var Ref: Cardinal): Boolean;
+  function FileExists(filename: String;var Ref: Cardinal): Boolean;
+  function FileExists(filename: String;var dir,entry: Cardinal): Boolean; overload;
   function ReadDiscData(addr,count,side: Cardinal;var buffer): Boolean;
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
   function RenameFile(oldfilename: String;var newfilename: String;entry: Cardinal=0): Integer;
   function DeleteFile(filename: String;entry: Cardinal=0): Boolean;
-  function MoveFile(filename, directory: String): Integer;
+  function MoveFile(filename,directory: String): Integer;
   function MoveFile(source: Cardinal;dest: Integer): Integer; overload;
-  function CopyFile(filename, directory: String): Integer;
+  function CopyFile(filename,directory: String): Integer;
+  function CopyFile(filename,directory,newfilename: String): Integer; overload;
+  function CopyFile(source: Cardinal;dest: Integer): Integer; overload;
   function UpdateAttributes(filename,attributes: String;entry:Cardinal=0): Boolean;
   function UpdateDiscTitle(title: String;side: Byte): Boolean;
   function UpdateBootOption(option,side: Byte): Boolean;
@@ -330,6 +343,7 @@ type
   function GetFileTypeFromName(filetype: String): Integer;
   procedure BeginUpdate;
   procedure EndUpdate;
+  function ValidateFilename(parent:String;var filename:String): Boolean;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -350,6 +364,9 @@ type
   property RootAddress:         Cardinal      read GetRootAddress;
   property CRC32:               String        read GetImageCrc;
   property ProgressIndicator:   TProgressProc write FProgress;
+  property ADFSInterleaved:     Byte          read FForceInter write FForceInter;
+  property MaxDirectoryEntries: Cardinal      read FMaxDirEnt;
+  property SparkAsFS:           Boolean       read FSparkAsFS write FSparkAsFS;
  public
   destructor Destroy; override;
  End;
@@ -443,27 +460,32 @@ Convert a format byte to a string
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToString: String;
 const
- FS  : array[0..6] of String = ('DFS',
+ FS  : array[0..8] of String = ('DFS',
                                 'Acorn ADFS',
                                 'Commodore',
                                 'Sinclair Spectrum +3/Amstrad',
                                 'Commodore Amiga',
                                 'Acorn CFS',
-                                'MMFS');
- SUB : array[0..6] of array[0..15] of String =
+                                'MMFS',
+                                'Acorn File Store',
+                                'Spark Archive');
+ SUB : array[0..8] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','','','','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','','Hard Disc'),
   ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
   ('','Extended','','','','','','','','','','','','','',''),
   ('DD','HD','','','','','','','','','','','','','','Hard Disc'),
   ('','','','','','','','','','','','','','','',''),
+  ('','','','','','','','','','','','','','','',''),
+  ('','','','','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''));
 begin
  Result:='';
  if(FFormat>>4<=High(FS))and(FFormat mod $10<=High(SUB[FFormat>>4]))then
  begin
-  Result:= FS[FFormat>>4]+' '
-         +SUB[FFormat>>4,FFormat MOD $10];
+  Result:= FS[FFormat>>4];
+  if SUB[FFormat>>4,FFormat MOD $10]<>'' then
+   Result:=Result+' '+SUB[FFormat>>4,FFormat MOD $10];
  end;
 end;
 
@@ -472,14 +494,16 @@ Convert a format byte to an extension
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToExt: String;
 const
- EXT : array[0..6] of array[0..15] of String =
+ EXT : array[0..8] of array[0..15] of String =
  (('ssd','dsd','ssd','dsd','','','','','','','','','','','',''),
   ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','','hdf'),
   ('d64','d71','d81','d64','d71','','','','','','','','','','',''),
   ('','dsk','','','','','','','','','','','','','',''),
   ('adf','adf','','','','','','','','','','','','','','hdf'),
   ('uef','','','','','','','','','','','','','','',''),
-  ('mmb','','','','','','','','','','','','','','',''));
+  ('mmb','','','','','','','','','','','','','','',''),
+  ('afs','','','','','','','','','','','','','','',''),
+  ('zip','','','','','','','','','','','','','','',''));
 begin
  Result:='';
  if FFormat>>4<=High(EXT) then
@@ -870,6 +894,7 @@ begin
   SetLength(Entries,0);
   Broken   :=False;
   ErrorCode:=$00;
+  Locked   :=False;
  end;
 end;
 
@@ -878,16 +903,16 @@ Convert the Map flag to Map Type
 -------------------------------------------------------------------------------}
 function TDiscImage.MapFlagToByte: Byte;
 begin
- Result:=$FF;               //Default value for non-ADFS
+ Result:=$FF;                   //Default value for non-ADFS
  if FFormat>>4=diAcornADFS then //Is it ADFS?
  begin
-  Result:=$00;              // ADFS Old Map
-  if FMap then Result:=$01; // ADFS New Map
+  Result:=diADFSOldMap;              // ADFS Old Map
+  if FMap then Result:=diADFSNewMap; // ADFS New Map
  end;
- if FFormat>>4=diAmiga then //Is it Amiga?
+ if FFormat>>4=diAmiga then     //Is it Amiga?
  begin
-  Result:=$02;              // AmigaDOS OFS
-  if FMap then Result:=$03; // AmigaDOS FFS
+  Result:=diAmigaOFS;                // AmigaDOS OFS
+  if FMap then Result:=diAmigaFFS;   // AmigaDOS FFS
  end;
 end;
 
@@ -896,12 +921,12 @@ Convert the Map flag to String
 -------------------------------------------------------------------------------}
 function TDiscImage.MapTypeToString: String;
 begin
- Result:='Not ADFS/AmigaDOS';
+ Result:='';
  case MapFlagToByte of
-  $00: Result:='ADFS Old Map';
-  $01: Result:='ADFS New Map';
-  $02: Result:='AmigaDOS OFS';
-  $03: Result:='AmigaDOS FFS';
+  diADFSOldMap: Result:='ADFS Old Map';
+  diADFSNewMap: Result:='ADFS New Map';
+  diAmigaOFS  : Result:='AmigaDOS OFS';
+  diAmigaFFS  : Result:='AmigaDOS FFS';
  end;
 end;
 
@@ -910,7 +935,7 @@ Convert the Directory Type to String
 -------------------------------------------------------------------------------}
 function TDiscImage.DirTypeToString: String;
 begin
- Result:='Not ADFS/AmigaDOS';
+ Result:='';
  case FDirType of
   diADFSOldDir: Result:='ADFS Old Directory';
   diADFSNewDir: Result:='ADFS New Directory';
@@ -1148,6 +1173,10 @@ begin
  //This just sets all the global and public variables to zero, or blank.
  ResetVariables;
  SetDataLength(0);
+ //ADFS Interleaving option
+ FForceInter:=0;
+ //Deal with Spark archives as a filing system (i.e. in this class)
+ FSparkAsFS:=True;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1226,6 +1255,10 @@ begin
  //Only read the file in if it actually exists (or rather, Windows can find it)
  if SysUtils.FileExists(filename) then
  begin
+  //Make a note of the file being read in
+  FFilename:=filename;
+  //Free up the Spark instance, if used
+  if FFormat>>4=diSpark then SparkFile.Free;
   //Blank off the variables
   ResetVariables;
   //Read the file in, uncompressing if need be
@@ -1234,7 +1267,7 @@ begin
   if(IDImage)and(readdisc)then ReadImage;
   //Return a true or false, depending on if FFormat is set.
   Result:=FFormat<>$FF;
-  //Set the image filename
+  //Set the image filename, if a valid image
   If Result then imagefilename:=filename;
  end;
 end;
@@ -1258,6 +1291,7 @@ begin
   if not ID_Sinclair then //Sinclair/Amstrad
   if not ID_CFS      then //Acorn CFS
   if not ID_MMB      then //MMFS
+  if not ID_Spark    then //Spark archive
    ResetVariables;        //Reset everything
   //Just by the ID process:
   //ADFS 'F' can get mistaken for Commodore
@@ -1271,6 +1305,8 @@ end;
 Read the disc in, depending on the format
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReadImage;
+var
+ d: Cardinal;
 begin
  case FFormat>>4 of
   diAcornDFS : FDisc:=ReadDFSDisc;     //Acorn DFS
@@ -1280,20 +1316,34 @@ begin
   diAmiga    : FDisc:=ReadAmigaDisc;   //Amiga
   diAcornUEF : FDisc:=ReadUEFFile;     //Acorn CFS
   diMMFS     : FDisc:=ReadMMBDisc;     //MMFS
+  diSpark    : FDisc:=ReadSparkArchive;//Spark archive
  end;
  //Is this an ADFS L, with broken directories and is interleaved?
- if(FFormat=$12)and(brokendircount>0)and(Finterleave)then
+ if FForceInter=0 then //Automatic detection
  begin
-  //Try with it non-interleaved
-  Finterleave:=False;
-  FDisc:=ReadADFSDisc;
-  //Did that fail, then revert to the original
-  if brokendircount>0 then
+  if(FFormat=$12)and(brokendircount>0)and(Finterleave)then
   begin
-   Finterleave:=True;
+   //Try with it non-interleaved
+   Finterleave:=False;
    FDisc:=ReadADFSDisc;
+   //Did that fail, then revert to the original
+   if brokendircount>0 then
+   begin
+    Finterleave:=True;
+    FDisc:=ReadADFSDisc;
+   end;
   end;
  end;
+ //Find the maximum directory entries
+ if FFormat>>4<>diSpark then //Not Spark, as this already provides this info
+ begin
+  FMaxDirEnt:=0;
+  if Length(FDisc)>0 then
+   for d:=0 to Length(FDisc)-1 do
+    if Length(FDisc[d].Entries)>FMaxDirEnt then
+     FMaxDirEnt:=Length(FDisc[d].Entries);
+ end
+ else FMaxDirEnt:=SparkFile.MaxDirEnt;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1414,6 +1464,7 @@ begin
   diSinclair :Result:=ExtractSpectrumFile(filename,buffer);//Extract Sinclair/Amstrad
   diAmiga    :Result:=ExtractAmigaFile(filename,buffer);   //Extract AmigaDOS
   diAcornUEF :Result:=ExtractCFSFile(entry,buffer);        //Extract CFS
+  diSpark    :Result:=ExtractSparkFile(filename,buffer);   //Extract Spark
  end;
 end;
 
@@ -1434,7 +1485,7 @@ begin
  if count>0 then
  begin
   //Can only write a file that will fit on the disc, or CFS
-  if(count<=free_space)or(FFormat>>4=diAcornUEF) then
+  if(count<=free_space)or(FFormat>>4=diAcornUEF)then
    case FFormat>>4 of
     diAcornDFS :Result:=WriteDFSFile(file_details,buffer);     //Write DFS
     diAcornADFS:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
@@ -1488,7 +1539,16 @@ end;
 {-------------------------------------------------------------------------------
 Does a file exist?
 -------------------------------------------------------------------------------}
-function TDiscImage.FileExists(filename: String; var Ref: Cardinal): Boolean;
+function TDiscImage.FileExists(filename: String;var Ref: Cardinal): Boolean;
+var
+ dir,entry: Cardinal;
+begin
+ dir:=$FFFF;
+ entry:=$FFFF;
+ Result:=FileExists(filename,dir,entry);
+ Ref:=dir*$10000+entry;
+end;
+function TDiscImage.FileExists(filename: String;var dir,entry: Cardinal): Boolean;
 var
  Path   : array of String;
  i,j,l,
@@ -1497,10 +1557,13 @@ var
  test,
  test2  : String;
 begin
+ //This will not work with CFS as you can have multiple files with the same name
+ //in the same 'directory'. It will just find the first occurance.
  Result:=False;
  if filename=root_name then
  begin
-  Ref:=$FFFFFFFF;
+  dir:=$FFFF;
+  entry:=$FFFF;
   Result:=True;
   exit;
  end;
@@ -1508,12 +1571,11 @@ begin
  if Length(FDisc)>0 then
  begin
   SetLength(Path,0);
-//  filename:=filename;
   j:=-1;
   ptr:=0;
   //Explode the pathname into an array, without the '.'
   if FFormat>>4<>diAcornDFS then //Not DFS
-   while (Pos(dir_sep,filename)<>0) do
+   while(Pos(dir_sep,filename)<>0)do
    begin
     SetLength(Path,Length(Path)+1);
     Path[Length(Path)-1]:=Copy(filename,0,Pos(dir_sep,filename)-1);
@@ -1598,7 +1660,8 @@ begin
   if j<>-1 then
   begin
    Result:=True;
-   Ref:=ptr*$10000+j;
+   dir:=ptr;
+   entry:=j;
   end;
  end;
 end;
@@ -1827,19 +1890,25 @@ end;
 {-------------------------------------------------------------------------------
 Moves a file from one directory to another
 -------------------------------------------------------------------------------}
-function TDiscImage.MoveFile(filename, directory: String): Integer;
+function TDiscImage.MoveFile(filename,directory: String): Integer;
+var
+ oldfn: String;
 begin
  Result:=-12;
  //Can only move files on DFS (between drives), ADFS, Amiga and CFS
  if FFormat>>4=diAcornDFS then //Move on DFS
  begin
+  oldfn:=filename;
   //Moving and copying are the same, essentially
   Result:=CopyFile(filename,directory);
   //We just need to delete the original once copied
-  if Result>-1 then DeleteFile(filename);
+  if Result>-1 then DeleteFile(oldfn);
+ end
+ else
+ begin
+  if FFormat>>4=diAcornADFS then Result:=MoveADFSFile(filename,directory);
+  if FFormat>>4=diAmiga     then Result:=MoveAmigaFile(filename,directory);
  end;
- if FFormat>>4=diAcornADFS then Result:=MoveADFSFile(filename,directory);
- if FFormat>>4=diAmiga     then Result:=MoveAmigaFile(filename,directory);
 end;
 function TDiscImage.MoveFile(source: Cardinal;dest: Integer): Integer;
 begin
@@ -1852,69 +1921,86 @@ end;
 {-------------------------------------------------------------------------------
 Copies a file from one directory to another
 -------------------------------------------------------------------------------}
-function TDiscImage.CopyFile(filename, directory: String): Integer;
+function TDiscImage.CopyFile(filename,directory: String): Integer;
+begin
+ Result:=CopyFile(filename,directory,filename);
+end;
+function TDiscImage.CopyFile(filename,directory,newfilename: String): Integer;
 var
  buffer      : TDIByteArray;
  ptr,
  entry,
  dir,
  d,e         : Cardinal;
+ tempfn,
  newparent   : String;
  file_details: TDirEntry;
 begin
  ptr:=0;
  SetLength(buffer,0);
  //Need to extract the filename from the full path...and ensure the file exists
- Result:=-1; //Could not load file
- if FileExists(filename,ptr) then
+ Result:=-11; //Could not find file
+ if FileExists(filename,dir,entry) then
  begin
-  Result:=-10;//Can't copy/move to same directory
-  //FileExists returns a pointer to the file
-  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=ptr div $10000;  //Top 16 bits - directory reference
-  //Make sure that we are not copying onto ourselves
-  if Fdisc[dir].Entries[entry].Parent<>directory then
+  Result:=1; //Could not load file
+  //Ensure the new location does not already have such a file
+  file_details:=FDisc[dir].Entries[entry]; //Take a copy first
+  file_details.Filename:=newfilename;      //The new filename
+  //Are we copying a directory?
+  if Fdisc[dir].Entries[entry].DirRef=-1 then //No, then continue
   begin
-   Result:=-5;//Unknown error
-   //Are we copying a directory?
-   if Fdisc[dir].Entries[entry].DirRef=-1 then //No, then continue
+   //First, get the file into memory
+   if ExtractFile(filename,buffer) then
    begin
-    //First, get the file into memory
-    if ExtractFile(filename,buffer) then
-    begin
-     //Set up the filedetails
-     file_details:=FDisc[dir].Entries[entry];
-     file_details.Parent:=directory;
-     if FFormat>>4=diAcornDFS then //DFS
-      if(directory[1]=':')and(directory[2]='2') then
-       file_details.Side:=1
-      else
-       file_details.Side:=0;
-     //Then write it back to the image
-     Result:=WriteFile(file_details,buffer);
-    end;
+    Result:=-5;//Unknown error
+    //Is there a file of the same name at the new location?
+    if FileExists(directory+DirSep+file_details.Filename,ptr) then
+     //Delete the old one
+     DeleteFile(directory+DirSep+file_details.Filename);
+    //Set up the filedetails
+    file_details.Parent:=directory;
+    if FFormat>>4=diAcornDFS then //DFS
+     if(directory[1]=':')and(directory[2]='2') then
+      file_details.Side:=1
+     else
+      file_details.Side:=0;
+    //Then write it back to the image
+    Result:=WriteFile(file_details,buffer);
    end;
-   if FDisc[dir].Entries[entry].DirRef>=0 then //Copying directory
+  end;
+  if FDisc[dir].Entries[entry].DirRef>=0 then //Copying directory
+  begin
+   Result:=-10; //Can't move or copy to the same directory
+   //Is there already a file/directory of that name at the destination?
+   if not FileExists(directory+dirsep+newfilename,ptr) then
    begin
     //First, create a new directory at the destination
-    Result:=CreateDirectory(FDisc[dir].Entries[entry].Filename,
-                            directory,
-                            FDisc[dir].Entries[entry].Attributes);
+    Result:=CreateDirectory(newfilename,directory,FDisc[dir].Entries[entry].Attributes);
     //if successful, then copy all the files
     if Result>=0 then
     begin
      //Then iterate through each entry and copy them using recursion
      d:=FDisc[dir].Entries[entry].DirRef; //Get the directory reference
-     //Work out the new parent path
-     newparent:=directory+dir_sep+FDisc[dir].Entries[entry].Filename;
+     //Work out the new parent path for the files
+     newparent:=directory+dir_sep+newfilename;
+     //Copy the files
      if Length(FDisc[d].Entries)>0 then
       for e:=0 to Length(FDisc[d].Entries)-1 do
-       CopyFile(FDisc[d].Entries[e].Parent+dir_sep+
-                FDisc[d].Entries[e].Filename,newparent);
+      begin
+       tempfn:=FDisc[d].Entries[e].Parent+dir_sep+FDisc[d].Entries[e].Filename;
+       CopyFile(tempfn,newparent);
+      end;
     end;
    end;
   end;
  end;
+end;
+function TDiscImage.CopyFile(source: Cardinal;dest: Integer): Integer;
+begin
+ Result:=-12;
+ //Can only copy files on DFS (between drives), ADFS, Amiga and CFS
+ if FFormat>>4=diAcornUEF then //Copy on CFS
+  Result:=CopyCFSFile(source,dest);
 end;
 
 {-------------------------------------------------------------------------------
@@ -2087,6 +2173,60 @@ begin
  end;
 end;
 
+{-------------------------------------------------------------------------------
+Makes sure that a copied/moved filename does not clash with one already there
+-------------------------------------------------------------------------------}
+function TDiscImage.ValidateFilename(parent:String;var filename:String): Boolean;
+var
+ ptr  : Cardinal;
+ len,
+ ctr  : Byte;
+ newfn: String;
+begin
+ //Default return result
+ Result:=False;
+ len:=0; //Maximum file length
+ //Work out the max file length for the system
+ case FFormat>>4 of
+  diAcornDFS : len:=7;
+  diAcornADFS:
+   case FDirType of
+    0,1: len:=10;
+    2  : len:=255;
+   end;
+  diCommodore: len:=16;
+  diSinclair : exit;
+  diAmiga    : len:=30;
+  diAcornUEF : len:=10;
+  diMMFS     : len:=7;
+ end;
+ if len=0 then exit; //Unsupported
+ //Extract the filename
+ while Pos('.',filename)>0 do filename:=Copy(filename,Pos('.',filename)+1);
+ //CFS files can have multiple files with the same name
+ if FFormat>>4=diAcornUEF then
+ begin
+  Result:=True;
+  exit;
+ end;
+ //Validate it
+ if FileExists(parent+DirSep+filename,ptr) then
+ begin
+  newfn:=filename;
+  ctr:=0;
+  repeat
+   inc(ctr);
+   while Length(newfn+IntToStr(ctr))>len do
+    newfn:=LeftStr(newfn,Length(newfn)-1);
+  until(not FileExists(parent+DirSep+newfn+IntToStr(ctr),ptr))or(ctr=0);
+  if ctr>0 then
+  begin
+   filename:=newfn+IntToStr(ctr);
+   Result:=True;
+  end;
+ end else Result:=True;
+end;
+
 {$INCLUDE 'DiscImage_ADFS.pas'}
 {$INCLUDE 'DiscImage_DFS.pas'}
 {$INCLUDE 'DiscImage_C64.pas'}
@@ -2094,5 +2234,6 @@ end;
 {$INCLUDE 'DiscImage_Amiga.pas'}
 {$INCLUDE 'DiscImage_CFS.pas'}
 {$INCLUDE 'DiscImage_MMB.pas'}
+{$INCLUDE 'DiscImage_Spark.pas'}
 
 end.
