@@ -7,6 +7,9 @@ Disc Image Manager is an application used to load a retro disc image, read the c
 • Commodore 1581 - Read and Write<br>
 • Commodore AmigaDOS floppy and hard discs - Read Only<br>
 • Acorn Cassette Filing System (CFS) - Read and Write<br>
+• !SparkFS and !PackDir - Read only<br>
+<br>
+Full instructions, in PDF format, are provided within the documentation folder (https://github.com/geraldholdsworth/DiscImageManager/blob/main/Documentation/Disc%20Image%20Manager%20User%20Guide.pdf).
 <br>
 For images in HFE format, I recommend you use HxC Floppy Emulator (https://sourceforge.net/projects/hxcfloppyemu/) to export the file in a format that Disc Image Manager understands.<br>
 <br>
