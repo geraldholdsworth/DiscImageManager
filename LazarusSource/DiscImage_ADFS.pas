@@ -9,15 +9,18 @@ var
  Check1,
  Check0a,
  Check1a  : Byte;
- ctr,
+ ctr,ds,
  dr_size,
  dr_ptr,
  zone     : Cardinal;
 begin
  Result:=False;
- if FFormat=$FF then
+ if FFormat=diInvalidImg then
  begin
   ResetVariables;
+  //Interleaving, depending on the option
+  if FForceInter<=1 then Finterleave:=True; //Auto or force on
+  if FForceInter=2  then Finterleave:=False;//Force off
   //Is there actually any data?
   if GetDataLength>0 then
   begin
@@ -35,7 +38,6 @@ begin
     //FFormat:=$1F; //Default to ADFS Hard drive
     FMap:=False;  //Set to old map
     FDirType:=diADFSOldDir;  //Set to old directory
-    ctr:=0;
     //Check where the root is.
     if (Read24b($6D6)=$000002) //Address of the root ($200 for old dir)
     and(ReadByte($200)=ReadByte($6FA)) then //Directory check bytes
@@ -44,7 +46,7 @@ begin
     and(ReadByte($400)=ReadByte($BFA)) then //Directory check bytes
     begin
      FDirType:=diADFSNewDir; //So, old map, new directory must be ADFS D
-     FFormat:=$13;
+     FFormat:=diAcornADFS<<4+$03;
     end;
     disc_size:=Read24b($0FC)*$100;
     //The above checks will pass through if the first 512 bytes are all zeros,
@@ -55,18 +57,38 @@ begin
      Result:=False;
      ResetVariables;
     end;
-    if (disc_size>0) and (FFormat=$FF) then
+    if(disc_size>0)and(FFormat=diInvalidImg)then
     begin
      //Not a reliable way of determining disc shape. However, there are three
      //different sizes of the same format.
-     case disc_size of
-      163840: FFormat:=$10; // ADFS S
-      327680: FFormat:=$11; // ADFS M
-      655360: FFormat:=$12; // ADFS L
+     ctr:=0;
+     while(FFormat=diInvalidImg)and(ctr<2)do
+     begin
+      //First check the size as recorded
+      ds:=disc_size;
+      //If that fails, we'll check the total data length
+      if ctr=1 then ds:=GetDataLength;
+      case ds of
+       163840: FFormat:=diAcornADFS<<4+$00; // ADFS S
+       327680: FFormat:=diAcornADFS<<4+$01; // ADFS M
+       655360: FFormat:=diAcornADFS<<4+$02; // ADFS L
+      end;
+      //800K size was IDed earlier, but anything above will be HDD
+      if(ds>819200)and(FFormat=diInvalidImg)then
+       FFormat:=diAcornADFS<<4+$0F; //Hard drive
+      //Next step
+      inc(ctr);
+      //Unless we have found a format
+      if FFormat<>diInvalidImg then ctr:=2;
      end;
-     if disc_size>819200 then FFormat:=$1F; //Hard drive
+     //Do we still have a mystery size? We'll ignore 800K as this was set earlier
+     if(FFormat=diInvalidImg)and(disc_size<819200)and(GetDataLength<819200)then
+      FFormat:=diAcornADFS<<4+$0E; //Mark it as an unknown shape
+     //Check for AFS Level 3 partition
+     //Value at $0F6 must be zero for normal ADFS, so if non zero will be AFS
+     FAFSPresent:=ReadByte($0F6)<>0;
     end;
-    if FFormat mod $10<3 then //ADFS S,M,L
+    if(FFormat mod $10<3)or(FFormat=diAcornADFS<<4+$0E)then //ADFS S,M,L or unknown
     begin
      //Set the number of sectors per track - this is not held in the disc
      secspertrack:= 16;
@@ -155,26 +177,26 @@ begin
     if Result then
     begin
      case ctr of
-      1: FFormat:=$14; //ADFS E/E+
-      2: FFormat:=$16; //ADFS F/F+
-      3: FFormat:=$1F; //ADFS Hard Drive
+      1: FFormat:=diAcornADFS<<4+$04; //ADFS E/E+
+      2: FFormat:=diAcornADFS<<4+$06; //ADFS F/F+
+      3: FFormat:=diAcornADFS<<4+$0F; //ADFS Hard Drive
      end;
      //Boot block checksum, if there is a partial disc record at $0DC0
      if dr_ptr=$DC0 then
      begin
       Check0 :=ByteChecksum($C00,$200);
       Check0a:=ReadByte($DFF);
-      if Check0<>Check0a then FFormat:=$FF; //Checksums do not match
+      if Check0<>Check0a then FFormat:=diInvalidImg; //Checksums do not match
      end;
     end;
     //Check for type of directory, and change the format if necessary
-    if FFormat<>$FF then
+    if FFormat<>diInvalidImg then
     begin
      FDirType:=diADFSNewDir; //New Directory
      //Determine if it is a '+' format by reading the version flag
      if ReadByte(dr_ptr+$2C)>0 then
      begin
-      if FFormat<>$1F then inc(FFormat);
+      if FFormat<>diAcornADFS<<4+$0F then inc(FFormat);
       FDirType:=diADFSBigDir;
      end;
      //Root address for old map
@@ -190,13 +212,6 @@ begin
      end;
     end;
    end;
-  end;
-  //Interleaved?
-  if FFormat=$12 then
-  begin
-   //Depending on the option
-   if FForceInter<=1 then Finterleave:=True; //Auto or force on
-   if FForceInter=2  then Finterleave:=False;//Force off
   end;
   //Return a true or false
   Result:=FFormat>>4=diAcornADFS;
@@ -248,6 +263,7 @@ begin
  end
  else
   Result.Directory:=dirname;
+ Result.AFSPartition:=False;
  //Initialise some of the variables
  StartSeq        :=$00;
  EndSeq          :=$FF;
@@ -499,7 +515,7 @@ var
  temp: String;
  rotd: Int64;
 begin
- if(Entry.LoadAddr>>20=$FFF)and(FFormat>$12)then
+ if(Entry.LoadAddr>>20=$FFF)and(FFormat>diAcornADFS<<4+$02)then
  begin
   //Get the 12 bit filetype
   temp:=IntToHex((Entry.LoadAddr AND$000FFF00)>>8,3);
@@ -750,8 +766,9 @@ var
 begin
  Result:=disc_addr;
  //ADFS L
- if(FFormat=$12)and(Finterleave)then
+ if(FFormat=diAcornADFS<<4+$02)and(Finterleave)then
  begin
+  if(secspertrack=0)or(secsize=0)then exit;
   //Number of tracks and heads
   tracks:=80;
   oldheads:=2;
@@ -782,7 +799,7 @@ var
 begin
  Result:=offset;
  //ADFS L
- if FFormat=$12 then
+ if(FFormat=diAcornADFS<<4+$02)and(FInterleave)then
  begin
   //Number of tracks and heads
   tracks:=80;
@@ -843,7 +860,7 @@ begin
  brokendircount:=0;
  //Read in the header information (that hasn't already been read in during
  //the initial checks
- if FFormat<>$FF then //But only if the format is valid
+ if FFormat<>diInvalidImg then //But only if the format is valid
  begin
   //ADFS Old Map
   if not FMap then
@@ -862,8 +879,12 @@ begin
      root:=d;
     inc(d);
    until (d=(disc_size div $100)-1) or (root>0);
-   if root=0 then
-    ResetVariables //Failed to find root, so reset the format
+   if root=0 then //Failed to find root, so reset the format
+   begin
+    ResetVariables;
+    //Now, let's see if it is an AFS
+    if ID_AFS then exit else ResetVariables;
+   end
    else
    begin
     //Set the root size for old map new directory
@@ -873,16 +894,20 @@ begin
     OldName1 :=ReadString($1F6,-5);
     //Start with a blank title
     disc_name:='          ';
-    //Re-assemble the disc title
-    if Length(OldName0)>0 then
-     for d:=1 to Length(OldName0) do
-      disc_name[(d*2)-1]  :=chr(ord(OldName0[d])AND$7F);
-    //Both parts are interleaved
-    if Length(OldName1)>0 then
-     for d:=1 to Length(OldName1) do
-      disc_name[ d*2   ]  :=chr(ord(OldName1[d])AND$7F);
-    //Then remove all extraenous spaces
-    RemoveSpaces(disc_name);
+    //Disc title
+    if not FAFSPresent then //AFS partition present, so skip this
+    begin
+     //Re-assemble the disc title
+     if Length(OldName0)>0 then
+      for d:=1 to Length(OldName0) do
+       disc_name[(d*2)-1]  :=chr(ord(OldName0[d])AND$7F);
+     //Both parts are interleaved
+     if Length(OldName1)>0 then
+      for d:=1 to Length(OldName1) do
+       disc_name[ d*2   ]  :=chr(ord(OldName1[d])AND$7F);
+     //Then remove all extraenous spaces
+     RemoveSpaces(disc_name);
+    end else disc_name:='AFS L3';
    end;
   end;
   //ADFS New Map
@@ -930,7 +955,7 @@ begin
    //Failed to find, so resort to where we expect to find it
    if root=0 then root:=bootmap+(nzones*secsize*2);
    //Update the Format, now we know the disc size
-   if disc_size>1638400 then FFormat:=$1F;
+   if disc_size>1638400 then FFormat:=diAcornADFS<<4+$0F;
    //Make the disc title easier to work with
    RemoveSpaces(disc_name); //Remove spaces
    RemoveTopBit(disc_name); //Remove top-bit set characters
@@ -1153,7 +1178,7 @@ begin
  ResetVariables;
  SetDataLength(0);
  //Set the format
- FFormat:=$10+minor;
+ FFormat:=diAcornADFS<<4+minor;
  //Set the filename
  imagefilename:='Untitled.'+FormatExt;
  //Setup the data area
@@ -1255,7 +1280,7 @@ begin
   secsize:=256;              //Sector size
   root:=$200;                //Where the root is
   heads:=1;                  //Number of heads
-  if FFormat=$12 then heads:=2;
+  if FFormat=diAcornADFS<<4+$02 then heads:=2;
   root_size:=$500;           //Size of the root
  end;
  if FDirType=diADFSNewDir then
@@ -1470,7 +1495,7 @@ begin
   ResetVariables;
   SetDataLength(0);
   //Set the format
-  FFormat:=$1F;
+  FFormat:=diAcornADFS<<4+$0F;
   //Set the map and directory
   FMap:=newmap;
   FDirType:=dirtype;
@@ -3165,6 +3190,9 @@ var
 begin
  Result   :=False;
  fragments:=nil;
+ //Is this on an AFS partition?
+ if LeftStr(filename,4)=':AFS' then Result:=ExtractAFSFile(filename,buffer)
+ else //No, so look on ADFS
  if FileExists(filename,dir,entry) then //Does the file actually exist?
  //Yes, so load it - there is nothing to stop a directory header being extracted
  //if passed in the filename parameter.

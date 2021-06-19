@@ -544,6 +544,23 @@ Bug fixes
 * Selecting addition objects would sometimes trigger off the drag/drop operation.
 * On the Mac pressing CTRL with left mouse click to select an additional file would also bring up the context menu.
 
+1.30 - 19th June 2021
+---------------------
+New or improved features
+* Added more texture tiling options: RISC OS 3 style, Iyonix style and RISC OS Pi style.
+* Increased the size of the preferences dialogue to accomodate the extra tiles.
+* Can now read in Acorn FileStore Level 3 images, either on their own or as an ADFS partition.
+* More tweaking of the ADFS ID functions to allow the detection of Acorn FileStore partitioned images, and to get the proper interleaving method for the image.
+* ADFS image sizes below 800K, which are not 160K, 320K or 640K, are now marked as 'unknown' and given the extension 'dat' when saving.
+* Added extra option in preferences to turn the logging of debug information on or off.
+* Added extra command line option to turn the logging of debug information on or off.
+* Clicking on the application icon in the About Box will report the debug log file's location.
+
+Bug fixes
+* When 'no tile' is selected, the filetype icon background would appear the wrong colour.
+* ADFS ID process now recognises an Acorn FileStore Level 3 partition and no longer rejects the image as invalid despite having a valid ADFS partition.
+* The application's icon in the About Box has always been hidden, since the porting to Lazarus.
+
 Platform History
 ----------------
 

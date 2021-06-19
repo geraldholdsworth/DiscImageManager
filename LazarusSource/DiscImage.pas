@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.29
+TDiscImage class V1.30
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -49,6 +49,7 @@ type
    Broken      : Boolean;           //Flag if directory is broken (ADFS)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
    Locked      : Boolean;           //Flag if disc is locked (MMFS)
+   AFSPartition: Boolean;           //Is this in the AFS partition? (ADFS/AFS)
   end;
   //Collection of directories
   TDisc         = array of TDir;
@@ -70,16 +71,20 @@ type
   FBootBlock,                   //Is disc an AmigaDOS Kickstart?
   Fupdating,                    //Has BeginUpdate been called?
   Finterleave,                  //Is the disc interleaved (ADFS L)
+  FAFSPresent,                  //Is there an AFS partition present? (ADFS)
   FSparkAsFS    : Boolean;      //Deal with Spark archives as a filing system
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   nzones,                       //Number of zones (Acorn ADFS New)
   root,                         //Root address (not fragment)
   rootfrag,                     //Root indirect address (Acorn ADFS New)
+  Fafsroot,                     //Root address of the AFS root partition
+  afshead,                      //Address of the AFS header
   bootmap,                      //Offset of the map (Acorn ADFS)
   zone_spare,                   //Spare bits between zones (Acorn ADFS New)
   format_vers,                  //Format version (Acorn ADFS New)
   root_size,                    //Size of the root directory (Acorn ADFS New)
+  afsroot_size,                 //Size of the AFS Root directory
   disc_id,                      //Disc ID (Acorn ADFS)
   emuheader,                    //Allow for any headers added by emulators
   namesize,                     //Size of the name area (Acorn ADFS Big Dir)
@@ -109,6 +114,7 @@ type
   CFSFiles      : array of TDIByteArray;//All the data for the CFS files
   FProgress     : TProgressProc;//Used for feedback
   SparkFile     : TSpark;       //For reading in Spark archives
+  Fpartitions   : array of TDiscImage;//Used for extra partitions
   procedure ResetVariables;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function ReadString(ptr,term: Integer;var buffer: TDIByteArray;
@@ -210,6 +216,13 @@ type
   function UpdateADFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
   function UpdateADFSFileType(filename:String;newtype:String):Boolean;
   function UpdateADFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
+  //Acorn FileStore Routines
+  function ID_AFS: Boolean;
+  procedure ReadAFSPartition;
+  function ReadAFSDirectory(dirname:String;addr: Cardinal):TDir;
+  function ExtractAFSFile(filename: String;var buffer: TDIByteArray): Boolean;
+  function AFSDiscAddrToOffset(disc_addr: Cardinal): Cardinal;
+  function OffsetToAFSDiscAddr(offset: Cardinal): Cardinal;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
@@ -290,6 +303,7 @@ type
   function ID_Spark: Boolean;
   function ReadSparkArchive: TDisc;
   function ExtractSparkFile(filename: String;var buffer: TDIByteArray): Boolean;
+  function ReadAFSObject(offset: Cardinal): TDIByteArray;
   const
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
    CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
@@ -344,6 +358,7 @@ type
   procedure BeginUpdate;
   procedure EndUpdate;
   function ValidateFilename(parent:String;var filename:String): Boolean;
+  function Partition(part: Cardinal):TDiscImage;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -362,11 +377,13 @@ type
   property FreeSpaceMap:        TSide         read free_space_map;
   property BootOpt:             TDIByteArray  read bootoption;
   property RootAddress:         Cardinal      read GetRootAddress;
+  property AFSRoot:             Cardinal      read Fafsroot;
   property CRC32:               String        read GetImageCrc;
   property ProgressIndicator:   TProgressProc write FProgress;
   property ADFSInterleaved:     Byte          read FForceInter write FForceInter;
   property MaxDirectoryEntries: Cardinal      read FMaxDirEnt;
   property SparkAsFS:           Boolean       read FSparkAsFS write FSparkAsFS;
+  property AFSPresent:          Boolean       read FAFSPresent;
  public
   destructor Destroy; override;
  End;
@@ -388,19 +405,22 @@ begin
  FDSD          :=False;
  FMap          :=False;
  FBootBlock    :=True;
- secsize       :=$0000;
+ FAFSPresent   :=False;
+ secsize       :=$0100;
  bpmb          :=$0000;
  nzones        :=$0000;
  root          :=$0000;
+ Fafsroot      :=$0000;
  bootmap       :=$0000;
  zone_spare    :=$0000;
  format_vers   :=$0000;
  root_size     :=$0000;
+ afsroot_size  :=$0000;
  disc_id       :=$0000;
  disc_size     :=$0000;
  free_space    :=$0000;
- FFormat       :=$FF;
- secspertrack  :=$00;
+ FFormat       :=diInvalidImg;
+ secspertrack  :=$10;
  heads         :=$00;
  density       :=$00;
  idlen         :=$00;
@@ -408,7 +428,7 @@ begin
  SetLength(bootoption,0);
  lowsector     :=$00;
  disctype      :=$00;
- FDirType      :=$FF;
+ FDirType      :=diUnknownDir;
  share_size    :=$00;
  big_flag      :=$00;
  disc_name     :='';
@@ -477,16 +497,17 @@ const
   ('DD','HD','','','','','','','','','','','','','','Hard Disc'),
   ('','','','','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''),
-  ('','','','','','','','','','','','','','','',''),
+  ('Level 1','Level 2','Level 3','Level 4','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''));
 begin
  Result:='';
- if(FFormat>>4<=High(FS))and(FFormat mod $10<=High(SUB[FFormat>>4]))then
- begin
-  Result:= FS[FFormat>>4];
-  if SUB[FFormat>>4,FFormat MOD $10]<>'' then
-   Result:=Result+' '+SUB[FFormat>>4,FFormat MOD $10];
- end;
+ if FFormat>>4<=High(FS) then
+  if FFormat mod $10<=High(SUB[FFormat>>4]) then
+  begin
+   Result:= FS[FFormat>>4];
+   if SUB[FFormat>>4,FFormat MOD $10]<>'' then
+    Result:=Result+' '+SUB[FFormat>>4,FFormat MOD $10];
+  end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -496,21 +517,19 @@ function TDiscImage.FormatToExt: String;
 const
  EXT : array[0..8] of array[0..15] of String =
  (('ssd','dsd','ssd','dsd','','','','','','','','','','','',''),
-  ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','','hdf'),
+  ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','dat','hdf'),
   ('d64','d71','d81','d64','d71','','','','','','','','','','',''),
   ('','dsk','','','','','','','','','','','','','',''),
   ('adf','adf','','','','','','','','','','','','','','hdf'),
   ('uef','','','','','','','','','','','','','','',''),
   ('mmb','','','','','','','','','','','','','','',''),
-  ('afs','','','','','','','','','','','','','','',''),
+  ('afs','afs','afs','afs','','','','','','','','','','','','afs'),
   ('zip','','','','','','','','','','','','','','',''));
 begin
- Result:='';
+ Result:='img';
  if FFormat>>4<=High(EXT) then
   if FFormat mod $10<=High(EXT[FFormat>>4]) then
-  begin
    Result:=EXT[FFormat>>4,FFormat MOD $10];
-  end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -740,10 +759,12 @@ begin
  if buffer<>nil then
   if offset<Length(buffer) then Result:=buffer[offset];
  //If no buffer has been passed, resort to the standard function
- if buffer=nil then {Result:=ReadByte(offset);}
+ if buffer=nil then
  begin
   //Compensate for interleaving (ADFS L)
-  if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
+  if FFormat=diAcornADFS<<4+$02 then offset:=OldDiscAddrToOffset(offset);
+  //Compensate for interleaving (AFS Floppy)
+  if FFormat=diAcornFS<<4+$02   then offset:=AFSDiscAddrToOffset(offset);
   //Compensate for emulator header
   inc(offset,emuheader);
   //If we are inside the data, read the byte
@@ -844,7 +865,9 @@ begin
  if buffer=nil then
  begin
   //Compensate for interleaving (ADFS L)
-  if FFormat=$12 then offset:=OldDiscAddrToOffset(offset);
+  if FFormat=diAcornADFS<<4+$02 then offset:=OldDiscAddrToOffset(offset);
+  //Compensate for interleaving (AFS Floppy)
+  if FFormat=diAcornFS<<4+$02   then offset:=AFSDiscAddrToOffset(offset);
   //Compensate for emulator header
   inc(offset,emuheader);
   //Will it go beyond the size of the array?
@@ -889,12 +912,13 @@ procedure TDiscImage.ResetDir(var Entry: TDir);
 begin
  with Entry do
  begin
-  Directory:='';
-  Title    :='';
+  Directory   :='';
+  Title       :='';
   SetLength(Entries,0);
-  Broken   :=False;
-  ErrorCode:=$00;
-  Locked   :=False;
+  Broken      :=False;
+  ErrorCode   :=$00;
+  Locked      :=False;
+  AFSPartition:=False;
  end;
 end;
 
@@ -1173,6 +1197,7 @@ begin
  //This just sets all the global and public variables to zero, or blank.
  ResetVariables;
  SetDataLength(0);
+ SetLength(Fpartitions,0);
  //ADFS Interleaving option
  FForceInter:=0;
  //Deal with Spark archives as a filing system (i.e. in this class)
@@ -1223,7 +1248,7 @@ begin
  //Save the current format
  currentformat:=FFormat;
  index:=0;
- for queryformat:=$00 to $6F do
+ for queryformat:=$00 to $8F do
  begin
   //Set the format
   FFormat:=queryformat;
@@ -1266,7 +1291,7 @@ begin
   //ID the image
   if(IDImage)and(readdisc)then ReadImage;
   //Return a true or false, depending on if FFormat is set.
-  Result:=FFormat<>$FF;
+  Result:=FFormat<>diInvalidImg;
   //Set the image filename, if a valid image
   If Result then imagefilename:=filename;
  end;
@@ -1285,6 +1310,7 @@ begin
   //ID the type of image, from the data contents
   //These need to be ID-ed in a certain order as one type can look like another
   if not ID_ADFS     then //Acorn ADFS
+  if not ID_AFS      then //AFS
   if not ID_CDR      then //Commodore
   if not ID_Amiga    then //Amiga
   if not ID_DFS      then //Acorn DFS
@@ -1298,7 +1324,7 @@ begin
   //Commodore and Amiga can be mistaken for DFS
  end;
  //Return a true or false result
- Result:=FFormat<>$FF;
+ Result:=FFormat<>diInvalidImg;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1321,19 +1347,27 @@ begin
  //Is this an ADFS L, with broken directories and is interleaved?
  if FForceInter=0 then //Automatic detection
  begin
-  if(FFormat=$12)and(brokendircount>0)and(Finterleave)then
+  if(FFormat>>4=diAcornADFS)and(brokendircount>0)then
   begin
-   //Try with it non-interleaved
-   Finterleave:=False;
+   //Try with it the opposite setting
+   Finterleave:=not Finterleave;
    FDisc:=ReadADFSDisc;
-   //Did that fail, then revert to the original
+   //Did that fail, then try as AFS
    if brokendircount>0 then
    begin
-    Finterleave:=True;
-    FDisc:=ReadADFSDisc;
+    Finterleave:=not Finterleave;
+    //ResetVariables;
+    //If not AFS, just revert
+    {if not ID_AFS then
+    begin
+     ResetVariables;
+     ID_ADFS;}
+     FDisc:=ReadADFSDisc;
+    //end;
    end;
   end;
  end;
+ ReadAFSPartition; //Read in the AFS partition, if ADFS and one is present
  //Find the maximum directory entries
  if FFormat>>4<>diSpark then //Not Spark, as this already provides this info
  begin
@@ -1465,6 +1499,7 @@ begin
   diAmiga    :Result:=ExtractAmigaFile(filename,buffer);   //Extract AmigaDOS
   diAcornUEF :Result:=ExtractCFSFile(entry,buffer);        //Extract CFS
   diSpark    :Result:=ExtractSparkFile(filename,buffer);   //Extract Spark
+  diAcornFS  :Result:=ExtractAFSFile(filename,buffer);     //Extract Acorn FileStore
  end;
 end;
 
@@ -1606,12 +1641,14 @@ begin
    ptr:=-1;
    test:=UpperCase(AddTopBit(Path[level]));
    test2:=UpperCase(AddTopBit(FDisc[i].Directory));
-   //DFS - if the test is on the other side
-   if(FFormat=$01)and(test<>test2)then
-   begin
-    inc(i);
-    test2:=UpperCase(AddTopBit(FDisc[i].Directory));
-   end;
+   //Haven't matched the root, so need to look for it
+   if test<>test2 then
+    //So we'll continue until we find it
+    while(i<Length(FDisc))and(test2<>test)do
+    begin
+     inc(i);
+     test2:=UpperCase(AddTopBit(FDisc[i].Directory));
+    end;
    //Using UpperCase makes it a case insensitive search
    if test=test2 then
     //Have we found the initial directory (usually '$')
@@ -1708,7 +1745,7 @@ begin
  begin
   //Sometimes the image file is smaller than the actual disc size
   if GetDataLength<disc_size then SetDataLength(disc_size);
-  if FFormat DIV $10>0 then //not DFS
+  if FFormat>>4<>diAcornDFS then //not DFS
   begin
    //Ensure that the entire block will fit into the available space
    Result:=(addr+count)<=GetDataLength;
@@ -2227,7 +2264,17 @@ begin
  end else Result:=True;
 end;
 
+{-------------------------------------------------------------------------------
+Returns a partition 'part'
+-------------------------------------------------------------------------------}
+function TDiscImage.Partition(part: Cardinal):TDiscImage;
+begin
+ Result:=nil;
+ if part<Length(FPartitions) then Result:=FPartitions[part];
+end;
+
 {$INCLUDE 'DiscImage_ADFS.pas'}
+{$INCLUDE 'DiscImage_AFS.pas'}
 {$INCLUDE 'DiscImage_DFS.pas'}
 {$INCLUDE 'DiscImage_C64.pas'}
 {$INCLUDE 'DiscImage_Spectrum.pas'}

@@ -33,6 +33,7 @@ type
 
  TSettingsForm = class(TForm)
   CancelButton: TBitBtn;
+  WriteDebug: TCheckBox;
   CreateINF: TCheckBox;
   MiscGroup: TGroupBox;
   InterleaveGroup: TRadioGroup;
@@ -40,14 +41,20 @@ type
   TextureGroup: TGroupBox;
   OKBtnBack: TPanel;
   OKButton: TBitBtn;
-  TilePicture1: TImage;
-  TilePicture2: TImage;
-  Tile1: TRadioButton;
-  Tile2: TRadioButton;
+  TileROPi: TRadioButton;
+  TilePictureIyonix: TImage;
+  TilePictureROPi: TImage;
+  TileRO3: TRadioButton;
+  TilePictureRO5: TImage;
+  TilePictureRO4: TImage;
+  TileRO5: TRadioButton;
+  TileRO4: TRadioButton;
+  TilePictureRO3: TImage;
+  TileIyonix: TRadioButton;
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
-  procedure TilePicture1Click(Sender: TObject);
-  procedure TilePicture2Click(Sender: TObject);
+  procedure TilePictureRO5Click(Sender: TObject);
+  procedure TilePictureRO4Click(Sender: TObject);
  private
 
  public
@@ -70,8 +77,11 @@ uses MainUnit;
 {------------------------------------------------------------------------------}
 procedure TSettingsForm.FormShow(Sender: TObject);
 begin
- TilePicture1.Picture:=MainForm.RO5TextureTile.Picture;
- TilePicture2.Picture:=MainForm.RO4TextureTile.Picture;
+ TilePictureRO5.Picture.Bitmap   :=MainForm.GetTextureTile(1);
+ TilePictureRO4.Picture.Bitmap   :=MainForm.GetTextureTile(2);
+ TilePictureRO3.Picture.Bitmap   :=MainForm.GetTextureTile(3);
+ TilePictureIyonix.Picture.Bitmap:=MainForm.GetTextureTile(4);
+ TilePictureROPi.Picture.Bitmap  :=MainForm.GetTextureTile(5);
 end;
 
 {------------------------------------------------------------------------------}
@@ -85,17 +95,17 @@ end;
 {------------------------------------------------------------------------------}
 //User has clicked on a picture rather than the radio button
 {------------------------------------------------------------------------------}
-procedure TSettingsForm.TilePicture1Click(Sender: TObject);
+procedure TSettingsForm.TilePictureRO5Click(Sender: TObject);
 begin
- Tile1.Checked:=True;
+ TileRO5.Checked:=True;
 end;
 
 {------------------------------------------------------------------------------}
 //User has clicked on a picture rather than the radio button
 {------------------------------------------------------------------------------}
-procedure TSettingsForm.TilePicture2Click(Sender: TObject);
+procedure TSettingsForm.TilePictureRO4Click(Sender: TObject);
 begin
- Tile2.Checked:=True;
+ TileRO4.Checked:=True;
 end;
 
 end.

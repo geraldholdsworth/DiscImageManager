@@ -42,11 +42,13 @@ type
  //Will need to set the OnCreateNodeClass event in the TTreeView
  TMyTreeNode = class(TTreeNode)
   private
+   FDirRef,
    FParentDir : Integer;
    FIsDir     : Boolean;
   public
    property ParentDir: Integer read FParentDir write FParentDir;//Parent directory reference
    property IsDir    : Boolean read FIsDir write FIsDir;        //Is it a directory
+   property DirRef   : Integer read FDirRef write FDirRef;      //Reference into TDiscImage.Disc
  end;
 
  //Form definition
@@ -56,6 +58,9 @@ type
   TMainForm = class(TForm)
    CancelDragDrop: TAction;
    DuplicateFile1: TMenuItem;
+   IyonixTextureTile: TImage;
+   ROPiTextureTile: TImage;
+   RO3TextureTile: TImage;
    menuDuplicateFile: TMenuItem;
    menuOptions: TMenuItem;
    PasteFromClipboard: TAction;
@@ -80,6 +85,7 @@ type
    FilenameLabel: TLabel;
    icons: TImageList;
    FileImages: TImageList;
+   NoTile: TImage;
    RO4TextureTile: TImage;
    StateIcons: TImageList;
    lb_FileName: TLabel;
@@ -232,6 +238,7 @@ type
    procedure FormCreate(Sender: TObject);
    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
    procedure FormKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+   procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
    //Events - Other
    procedure ed_execaddrEditingDone(Sender: TObject);
    procedure ed_titleEditingDone(Sender: TObject);
@@ -304,9 +311,10 @@ type
    procedure UpdateProgress(Fupdate: String);
    procedure TileCanvas(c: TCanvas);
    procedure TileCanvas(c: TCanvas;rc: TRect); overload;
-   function GetTextureTile: TBitmap;
+   function GetTextureTile(Ltile:Integer=-1): TBitmap;
    procedure CreateFileTypeDialogue;
    procedure DoCopyMove(copymode: Boolean);
+   procedure WriteToDebug(line: String);
   private
    var
     //To keep track of renames
@@ -356,6 +364,8 @@ type
     FTEdit        :TEdit;
     //Keep a track of which buttons are pressed on the form
     FormShiftState:TShiftState;
+    //Produce a log file for debugging
+    Fdebug        :Boolean;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..140] of String =
@@ -435,10 +445,44 @@ type
   public
    //The image
    Image: TDiscImage;
+   //Debug log filename
+   debuglogfile  :String;
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.29';
+    ApplicationVersion = '1.30';
+    //Current platform and architecture (compile time directive)
+    {$IFDEF Darwin}
+    platform = 'macOS';            //Apple Mac OS X
+    {$ENDIF}
+    {$IFDEF Windows}
+    platform = 'Windows';          //Microsoft Windows
+    {$ENDIF}
+    {$IFDEF Linux}
+    platform = 'Linux';            //Linux
+    {$ENDIF}
+    {$IFNDEF Darwin}{$IFNDEF Windows}{$IFNDEF Linux}
+    platform = 'OS?';              //Unknown OS
+    {$ENDIF}{$ENDIF}{$ENDIF}
+    {$IFNDEF CPUARM}
+     {$IFDEF CPU32}
+     arch = '32 bit';               //32 bit CPU
+     {$ENDIF}
+     {$IFDEF CPU64}
+     arch = '64 bit';               //64 bit CPU
+     {$ENDIF}
+    {$ENDIF}
+    {$IFDEF CPUARM}
+     {$IFDEF CPU32}
+     arch = '32 bit ARM';          //32 bit ARM CPU
+     {$ENDIF}
+     {$IFDEF CPU64}
+     arch = '64 bit ARM';          //64 bit ARM CPU
+     {$ENDIF}
+    {$ENDIF}
+    {$IFNDEF CPU32}{$IFNDEF CPU64}
+     arch = 'CPU?';                //Unknown CPU
+    {$ENDIF}{$ENDIF}
    procedure AfterConstruction; override;
   end;
 
@@ -1035,15 +1079,13 @@ begin
   Result:=Tree.Items.AddChildFirst(ParentNode,importfilename);
  if Result<>nil then
  begin
-  if ParentNode.Parent<>nil then //No parent, so will be the root
-   TMyTreeNode(Result).ParentDir:=ImageToUse.Disc[TMyTreeNode(ParentNode).ParentDir].
-                                      Entries[ParentNode.Index].DirRef
-  else
-   TMyTreeNode(Result).ParentDir:=ParentNode.Index; //But may not be the only root
+  //Set the reference to the node's parent
+  TMyTreeNode(Result).ParentDir:=TMyTreeNode(ParentNode).DirRef;
+  //Set/reset the directory flag
   TMyTreeNode(Result).IsDir:=dir;
+  //If this is not a directory, it will have no reference
+  if not dir then TMyTreeNode(Result).DirRef:=-1;
   Tree.Repaint;
-  //And update the free space display
-//  if ImageToUse=Image then UpdateImageInfo;
  end;
 end;
 
@@ -1051,33 +1093,13 @@ end;
 //About box
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_AboutClick(Sender: TObject);
-var
- platform: String;
 begin
  //Update the Application Title
  AboutForm.lb_Title.Caption:=ApplicationTitle;
- //Determine the current platform (compile time directive)
- platform:='';
- {$IFDEF Darwin}
- platform:=' macOS';            //Apple Mac OS X
- {$ENDIF}
- {$IFDEF Windows}
- platform:=' Windows';          //Microsoft Windows
- {$ENDIF}
- {$IFDEF Linux}
- platform:=' Linux';            //Linux
- {$ENDIF}
- {$IFDEF CPU32}
- platform:=platform+' 32 bit';  //32 bit CPU
- {$ENDIF}
- {$IFDEF CPU64}
- platform:=platform+' 64 bit';  //64 bit CPU
- {$ENDIF}
- {$IFDEF CPUARM}
- platform:=platform+' ARM';     //ARM CPU
- {$ENDIF}
  //Update the Application Version
- AboutForm.lb_Version.Caption:='Version '+ApplicationVersion+platform;
+ AboutForm.lb_Version.Caption:='Version '
+                              +ApplicationVersion+' '
+                              +platform+' ('+arch+')';
  //Show the Form, as a modal
  AboutForm.ShowModal;
 end;
@@ -1407,6 +1429,9 @@ end;
 //Open a disc image from file
 {------------------------------------------------------------------------------}
 procedure TMainForm.OpenImage(filename: String);
+var
+ dir,
+ entry:Cardinal;
 begin
  //Show a progress message
  ProgressForm.Show;
@@ -1422,6 +1447,20 @@ begin
  if Image.LoadFromFile(filename) then
  begin
   HasChanged:=False;
+  //Write debugging information
+  if Length(Image.Disc)>0 then
+  begin
+   WriteToDebug('Image '+filename+' opened');
+   for dir:=0 to Length(Image.Disc)-1 do
+   begin
+    WriteToDebug(IntToStr(dir)+': '+Image.Disc[dir].Directory);
+    if Length(Image.Disc[dir].Entries)>0 then
+     for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
+      WriteToDebug(IntToStr(dir)+','+IntToStr(entry)+': '
+          +Image.Disc[dir].Entries[entry].Filename+' ('
+          +IntToStr(Image.Disc[dir].Entries[entry].DirRef)+')');
+   end;
+  end;
   //Update the display
   ShowNewImage(Image.Filename);
  end
@@ -1479,6 +1518,7 @@ begin
  if dir>highdir then highdir:=dir;
  //Set the 'IsDir' flag to true, as this is a directory
  TMyTreeNode(CurrDir).IsDir:=True;
+ TMyTreeNode(CurrDir).DirRef:=dir;
  //Iterate though all the entries
  for entry:=0 to Length(ImageToUse.Disc[dir].Entries)-1 do
  begin
@@ -1487,7 +1527,7 @@ begin
                       entry,false,Tree,ImageToUse);
   //If it is, indeed, a direcotry, the dir ref will point to the sub-dir
   if ImageToUse.Disc[dir].Entries[entry].DirRef>=0 then
-  //and we'll recursively call ourself to add these entries
+   //and we'll recursively call ourself to add these entries
    AddDirectoryToTree(Node,ImageToUse.Disc[dir].Entries[entry].DirRef,
                       ImageToUse,highdir);
  end;
@@ -1679,7 +1719,8 @@ begin
  end;
  //ADFS
  if(Image.FormatNumber>>4=diAcornADFS)
- or(Image.FormatNumber>>4=diSpark)then
+ or(Image.FormatNumber>>4=diSpark)
+ or(Image.FormatNumber>>4=diAcornFS)then
  begin
   //Make it visible
   if cbpos>0 then ADFSAttrPanel.Visible:=True;
@@ -1744,6 +1785,7 @@ procedure TMainForm.DirListChange(Sender: TObject; Node: TTreeNode);
 var
  entry,
  dir,
+ dr,
  ft       : Integer;
  filename,
  filetype,
@@ -1752,6 +1794,7 @@ var
  temp     : String;
  multiple : Char;
  R        : TRect;
+ afspart  : Boolean;
 begin
  filetype:='';
  //Reset the fields to blank
@@ -1815,12 +1858,15 @@ begin
   //Get the entry and dir references
   entry:=Node.Index;
   dir:=-1;
+  dr:=TMyTreeNode(Node).DirRef;
+  afspart:=False;//AFS Partition?
+  if dr>=0 then afspart:=Image.Disc[dr].AFSPartition;
   //Clear the filename variable
   filename:='';
   //If the node does not have a parent, then the dir ref is the one contained
   //in the extra info. Otherwise is -1
   if Node.Parent<>nil then
-   dir  :=TMyTreeNode(Node).ParentDir;
+   dir  :=TMyTreeNode(Node.Parent).DirRef;//ParentDir;
   //Then, get the filename and filetype of the file...not root directory
   if dir>=0 then
   begin
@@ -1834,7 +1880,8 @@ begin
     cb_DFS_l.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
    //ADFS
    if(Image.FormatNumber>>4=diAcornADFS)
-   or(Image.FormatNumber>>4=diSpark)then
+   or(Image.FormatNumber>>4=diSpark)
+   or(Image.FormatNumber>>4=diAcornFS)then
    begin
     //Tick/untick them
     cb_ADFS_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
@@ -1912,22 +1959,22 @@ begin
    end
    else
    begin //Root directory
-    filename:=Image.Disc[entry].Directory;
+    filename:=Image.Disc[dr].Directory;
     filetype:='Root Directory';
-    title:=Image.Disc[entry].Title;
+    title:=Image.Disc[dr].Title;
     RemoveTopBit(title);
     lb_title.Caption:=title; //Title
     ed_title.Enabled:=True; //Can be edited
     //Report if directory is broken and include the error code
-    if Image.Disc[entry].Broken then
+    if Image.Disc[dr].Broken then
      filetype:=filetype+' (BROKEN - 0x'
-                       +IntToHex(Image.Disc[0].ErrorCode,2)+')';
+                       +IntToHex(Image.Disc[dr].ErrorCode,2)+')';
    end;
    //Can't edit a directory's filetype
    img_Filetype.Hint:='';
    lb_FileType.Hint :='';
-  end
-  else //Can only add files to a directory
+  end;
+  if(not TMyTreeNode(Node).IsDir)or(afspart)then //Can only add files to a directory
   begin
    AddFile1.Enabled        :=False;
    btn_AddFiles.Enabled    :=False;
@@ -1941,6 +1988,7 @@ begin
   end;
   //Filename
   RemoveTopBit(filename);
+  if filename='' then filename:='unnamed';
   lb_FileName.Caption:=filename;
   //Filetype Image
   ft:=Node.ImageIndex;
@@ -1957,20 +2005,15 @@ begin
   R.Width:=img_FileType.Width;
   R.Height:=img_FileType.Height;
   //Draw the texture over it (probably don't need this)
-  if TextureType>0 then
-   img_FileType.Canvas.Draw(0,0,GetTextureTile)
-  else
-  begin
-   img_FileType.Canvas.Brush.Color:=FiletypePanel.Color;
-   img_FileType.Canvas.FillRect(R);
-  end;
+  img_FileType.Canvas.Draw(0,0,GetTextureTile);
   FileImages.StretchDraw(img_FileType.Canvas,ft,R);
   img_FileType.Tag:=ft; //To keep track of which image it is
   //Filetype text - only show for certain systems
   if(Image.FormatNumber>>4=diAcornADFS) //ADFS
   or(Image.FormatNumber>>4=diCommodore) //C64
   or(Image.FormatNumber>>4=diAmiga)     //AmigaDOS
-  or(Image.FormatNumber>>4=diSpark)then
+  or(Image.FormatNumber>>4=diSpark)     //Spark
+  or(Image.FormatNumber>>4=diAcornFS)then //Acorn FS
    lb_FileType.Caption:=filetype;
   location:=''; //Default location string
   if dir>=0 then
@@ -1982,10 +2025,11 @@ begin
    temp:=Image.Disc[dir].Entries[entry].Parent;
    RemoveTopBit(temp);
    lb_parent.Caption:=temp;
-   //Timestamp - ADFS only
+   //Timestamp - ADFS, Spark and FileStore only
    if  (Image.Disc[dir].Entries[entry].TimeStamp>0)
    and((Image.FormatNumber>>4=diAcornADFS)
-   or  (Image.FormatNumber>>4=diSpark))then
+   or  (Image.FormatNumber>>4=diSpark)
+   or  (Image.FormatNumber>>4=diAcornFS))then
     lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
                                        Image.Disc[dir].Entries[entry].TimeStamp)
    else
@@ -2002,9 +2046,11 @@ begin
    lb_length.Caption:=ConvertToKMG(Image.Disc[dir].Entries[entry].Length)+
                    ' (0x'+IntToHex(Image.Disc[dir].Entries[entry].Length,8)+')';
    //Location of object - varies between formats
-   //ADFS Old map - Sector is an offset
-   if Image.MapType=diADFSOldMap then
-    location:='Offset: 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
+   //ADFS Old map and Acorn FS - Sector is an offset
+   if(Image.MapType=diADFSOldMap)
+   or(Image.FormatNumber>>4=diAcornFS)then
+    location:='Sector offset: 0x'
+             +IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
    //ADFS New map - Sector is an indirect address (fragment and sector)
    if Image.MapType=diADFSNewMap then
     location:='Indirect address: 0x'
@@ -2032,10 +2078,14 @@ begin
    location:='';
    //ADFS Old map - Sector is an offset
    if Image.MapType=diADFSOldMap then
-    location:='Offset: 0x'+IntToHex(Image.RootAddress,8);
+    location:='Sector Offset: 0x'+IntToHex(Image.RootAddress,8);
    //ADFS New map - Sector is an indirect address (fragment and sector)
    if Image.MapType=diADFSNewMap then
     location:='Indirect address: 0x'+IntToHex(Image.RootAddress,8);
+   //Acorn FileStore
+   if(Image.FormatNumber>>4=diAcornFS)
+   or(Image.Disc[dr].AFSPartition)then
+    location:='Sector Offset: 0x'+IntToHex(Image.AFSRoot,8);
   end;
   //Update the location label
   lb_location.Caption:=location;
@@ -2065,7 +2115,8 @@ begin
  entry:=Node.Index;
  //Are we ADFS?
  if((ImageToUse.FormatNumber>>4=diAcornADFS)
-  or(ImageToUse.FormatNumber>>4=diSpark))
+  or(ImageToUse.FormatNumber>>4=diSpark)
+  or(ImageToUse.FormatNumber>>4=diAcornFS))
  and(Length(ImageToUse.Disc)>0)then
  begin
   //Default is a file with load and exec address
@@ -2322,6 +2373,12 @@ begin
     // Runs after the above, even if an error occurs
    end;
   end;
+  //Turn debugging on or off +++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (option='--debug') or (option='-db') then
+  begin
+   if UpperCase(param)='ON' then Fdebug:=True;
+   if UpperCase(param)='OFF' then Fdebug:=False;
+  end;
   //Open command +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (option='--insert') or (option='-i') then
    OpenImage(param);
@@ -2566,6 +2623,13 @@ begin
  DoCreateINF:=GetRegValB('CreateINF',True);
  //Hide Commodore DEL files
  DoHideDEL:=GetRegValB('Hide_CDR_DEL',False);
+ //Produce log files for debugging
+ Fdebug:=GetRegValB('Debug_Mode',False);
+ debuglogfile:=GetTempDir+'DIM_LogFile.txt';
+ //Write some debugging info
+ WriteToDebug('Application Started.');
+ WriteToDebug('Version '+ApplicationVersion+' '+platform+' ('+arch+')');
+ WriteToDebug('Screen DPI: '+IntToStr(Screen.PixelsPerInch));
 end;
 
 {------------------------------------------------------------------------------}
@@ -3144,6 +3208,14 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Application is closing
+{------------------------------------------------------------------------------}
+procedure TMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+begin
+ WriteToDebug('Application Closed');
+end;
+
+{------------------------------------------------------------------------------}
 //Make a note of the shift state of the form
 {------------------------------------------------------------------------------}
 procedure TMainForm.FormKeyDown(Sender: TObject; var Key: Word;
@@ -3407,7 +3479,7 @@ begin
    RemoveTopBit(title);
    //Set the edit box
    titles[side].Text:=title;
-   titles[0].Enabled:=True;
+   titles[0].Enabled:=not Image.AFSPresent;
    //Limit the length
    if Image.FormatNumber>>4=diAcornDFS then titles[0].MaxLength:=12; //DFS
    if Image.FormatNumber>>4=diAcornADFS then titles[0].MaxLength:=10; //ADFS
@@ -3431,8 +3503,9 @@ begin
    for side:=0 to numsides-1 do
    begin
     //Update Disc Title
-    if Image.UpdateDiscTitle(titles[side].Text,side) then
-     HasChanged:=True;
+    if not Image.AFSPresent then //Can't update if FileStore partition present
+     if Image.UpdateDiscTitle(titles[side].Text,side) then
+      HasChanged:=True;
     //Update Boot Option
     if Image.UpdateBootOption(boots[side].ItemIndex,side) then
      HasChanged:=True;
@@ -3584,32 +3657,44 @@ end;
 procedure TMainForm.btn_SettingsClick(Sender: TObject);
 begin
  //Set the preferences - Texture
- SettingsForm.NoTile.Checked:=False;
- SettingsForm.Tile1.Checked :=False;
- SettingsForm.Tile2.Checked :=False;
+ SettingsForm.NoTile.Checked    :=False;
+ SettingsForm.TileRO5.Checked   :=False;
+ SettingsForm.TileRO4.Checked   :=False;
+ SettingsForm.TileRO3.Checked   :=False;
+ SettingsForm.TileIyonix.Checked:=False;
+ SettingsForm.TileROPi.Checked  :=False;
  case TextureType of
-  0: SettingsForm.NoTile.Checked:=True;
-  1: SettingsForm.Tile1.Checked :=True;
-  2: SettingsForm.Tile2.Checked :=True;
+  0: SettingsForm.NoTile.Checked    :=True;
+  1: SettingsForm.TileRO5.Checked   :=True;
+  2: SettingsForm.TileRO4.Checked   :=True;
+  3: SettingsForm.TileRO3.Checked   :=True;
+  4: SettingsForm.TileIyonix.Checked:=True;
+  5: SettingsForm.TileROPi.Checked  :=True;
  end;
  //ADFS Interleaving
  SettingsForm.InterleaveGroup.ItemIndex:=ADFSInterleave;
  //Miscellaneous
  SettingsForm.CreateINF.Checked:=DoCreateInf;
+ SettingsForm.WriteDebug.Checked:=Fdebug;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
  begin
   //Get the preferences
-  if SettingsForm.NoTile.Checked then TextureType:=0;
-  if SettingsForm.Tile1.Checked  then TextureType:=1;
-  if SettingsForm.Tile2.Checked  then TextureType:=2;
+  if SettingsForm.NoTile.Checked     then TextureType:=0;
+  if SettingsForm.TileRO5.Checked    then TextureType:=1;
+  if SettingsForm.TileRO4.Checked    then TextureType:=2;
+  if SettingsForm.TileRO3.Checked    then TextureType:=3;
+  if SettingsForm.TileIyonix.Checked then TextureType:=4;
+  if SettingsForm.TileROPi.Checked   then TextureType:=5;
   ADFSInterleave:=SettingsForm.InterleaveGroup.ItemIndex;
   DoCreateInf   :=SettingsForm.CreateINF.Checked;
+  Fdebug        :=SettingsForm.WriteDebug.Checked;
   //Save the settings
   SetRegValI('Texture',TextureType);
   SetRegValI('ADFS_L_Interleave',ADFSInterleave);
   SetRegValB('CreateINF',DoCreateINF);
+  SetRegValB('Debug_Mode',Fdebug);
  end;
 end;
 
@@ -4904,6 +4989,7 @@ begin
    diAcornUEF : png:=acornlogo;     //Acorn logo for CFS
    diMMFS     : png:=bbclogo;       //BBC Micro logo for MMFS
    diSpark    : png:=sparklogo;     //!SparkFS logo for Spark
+   diAcornFS  : png:=bbclogo;       //BBC Micro logo for Acorn FS
   end;
   Rect.Height:=Rect.Height-2;
   //Draw the icon
@@ -4989,6 +5075,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.UpdateProgress(Fupdate: String);
 begin
+ WriteToDebug(Fupdate);
  ProgressForm.UpdateProgress.Caption:=Fupdate;
  Application.ProcessMessages;
 end;
@@ -5017,12 +5104,17 @@ end;
 {------------------------------------------------------------------------------}
 //Return the current texture tile as a bitmap
 {------------------------------------------------------------------------------}
-function TMainForm.GetTextureTile: TBitmap;
+function TMainForm.GetTextureTile(Ltile:Integer=-1): TBitmap;
 begin
  Result:=nil; //None
- case TextureType of
-  1: Result:=RO5TextureTile.Picture.Bitmap; //RISC OS 5 style
-  2: Result:=RO4TextureTile.Picture.Bitmap; //RISC OS 4 style
+ if Ltile<0 then Ltile:=TextureType;
+ case Ltile of
+  0: Result:=NoTile.Picture.Bitmap;           //No tile
+  1: Result:=RO5TextureTile.Picture.Bitmap;   //RISC OS 5 style
+  2: Result:=RO4TextureTile.Picture.Bitmap;   //RISC OS 4 style
+  3: Result:=RO3TextureTile.Picture.Bitmap;   //RISC OS 3 style
+  4: Result:=IyonixTextureTile.Picture.Bitmap;//Iyonix style
+  5: Result:=ROPiTextureTile.Picture.Bitmap;  //RISC OS Pi style
  end;
 end;
 
@@ -5087,6 +5179,22 @@ begin
  FTEdit.Top:=(((riscoshigh-2)div 5)*i)+Round((i-FTEdit.Height)/2);
  FTEdit.Left:=((riscoshigh-2)mod 5)*FTEdit.Width;
  FTEdit.OnKeyPress:=@FileTypeKeyPress;
+end;
+
+{------------------------------------------------------------------------------}
+//Write to the debug file
+{------------------------------------------------------------------------------}
+procedure TMainForm.WriteToDebug(line: String);
+var
+ F : TFileStream;
+begin
+ if FileExists(debuglogfile) then
+  F:=TFileStream.Create(debuglogfile,fmOpenWrite)
+ else
+  F:=TFileStream.Create(debuglogfile,fmCreate);
+ F.Position:=F.Size;
+ WriteLine(F,FormatDateTime(TimeDateFormat,Now)+': '+line);
+ F.Free;
 end;
 
 end.

@@ -42,6 +42,7 @@ type
     GHWebsiteLabel: TLabel;
     GraphicsLabel: TLabel;
     procedure CreditsPanelPaint(Sender: TObject);
+    procedure IconImageClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -63,6 +64,11 @@ uses
 procedure TAboutForm.CreditsPanelPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
+end;
+
+procedure TAboutForm.IconImageClick(Sender: TObject);
+begin
+ ShowMessage(MainForm.debuglogfile);
 end;
 
 end.

@@ -2,12 +2,13 @@
 Disc Image Manager is an application used to load a retro disc image, read the catalogue and output any required files. In addition, it will also add files to the image, delete, and rename files and directories. So far, the following formats are supported:<br>
 • Acorn DFS (Acorn and Watford formats) - Read and Write<br>
 • Acorn ADFS, floppy formats S, M, L, D, E, E+, F, F+ and Hard Discs - Read and Write<br>
+• Acorn Cassette Filing System (CFS) - Read and Write<br>
+• !SparkFS and !PackDir - Read only<br>
+• Acorn FileStore Level 3 - Read only<br>
 • Commodore 1541 (not 40 track) - Read and Write<br>
 • Commodore 1571 - Read and Write<br>
 • Commodore 1581 - Read and Write<br>
 • Commodore AmigaDOS floppy and hard discs - Read Only<br>
-• Acorn Cassette Filing System (CFS) - Read and Write<br>
-• !SparkFS and !PackDir - Read only<br>
 <br>
 Full instructions, in PDF format, are provided within the documentation folder (https://github.com/geraldholdsworth/DiscImageManager/blob/main/Documentation/Disc%20Image%20Manager%20User%20Guide.pdf).
 <br>

@@ -1,13 +1,13 @@
 object SettingsForm: TSettingsForm
   Left = 485
-  Height = 384
+  Height = 316
   Top = 256
-  Width = 225
+  Width = 448
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Preferences'
-  ClientHeight = 384
-  ClientWidth = 225
+  ClientHeight = 316
+  ClientWidth = 448
   Color = 15527148
   OnPaint = FormPaint
   OnShow = FormShow
@@ -15,39 +15,41 @@ object SettingsForm: TSettingsForm
   LCLVersion = '2.0.12.0'
   object TextureGroup: TGroupBox
     Left = 0
-    Height = 176
+    Height = 166
     Top = 0
-    Width = 224
+    Width = 448
     Caption = 'Window Texture'
-    ClientHeight = 157
-    ClientWidth = 214
+    ClientHeight = 147
+    ClientWidth = 438
     TabOrder = 0
-    object TilePicture1: TImage
-      Left = 8
-      Height = 90
+    object TilePictureRO5: TImage
+      Left = 176
+      Height = 84
       Top = 32
-      Width = 90
-      OnClick = TilePicture1Click
+      Width = 84
+      OnClick = TilePictureRO5Click
+      Stretch = True
     end
-    object TilePicture2: TImage
-      Left = 112
-      Height = 90
+    object TilePictureRO4: TImage
+      Left = 92
+      Height = 84
       Top = 32
-      Width = 90
-      OnClick = TilePicture2Click
+      Width = 84
+      OnClick = TilePictureRO4Click
+      Stretch = True
     end
-    object Tile1: TRadioButton
-      Left = 12
+    object TileRO5: TRadioButton
+      Left = 176
       Height = 18
-      Top = 128
+      Top = 120
       Width = 81
       Caption = 'RISC OS 5'
       TabOrder = 0
     end
-    object Tile2: TRadioButton
-      Left = 115
+    object TileRO4: TRadioButton
+      Left = 92
       Height = 18
-      Top = 128
+      Top = 120
       Width = 81
       Caption = 'RISC OS 4'
       TabOrder = 1
@@ -60,11 +62,59 @@ object SettingsForm: TSettingsForm
       Caption = 'None'
       TabOrder = 2
     end
+    object TilePictureRO3: TImage
+      Left = 8
+      Height = 84
+      Top = 32
+      Width = 84
+      OnClick = TilePictureRO5Click
+      Stretch = True
+    end
+    object TileRO3: TRadioButton
+      Left = 8
+      Height = 18
+      Top = 120
+      Width = 81
+      Caption = 'RISC OS 3'
+      TabOrder = 3
+    end
+    object TilePictureIyonix: TImage
+      Left = 260
+      Height = 84
+      Top = 32
+      Width = 84
+      OnClick = TilePictureRO5Click
+      Stretch = True
+    end
+    object TileIyonix: TRadioButton
+      Left = 260
+      Height = 18
+      Top = 120
+      Width = 55
+      Caption = 'Iyonix'
+      TabOrder = 4
+    end
+    object TilePictureROPi: TImage
+      Left = 344
+      Height = 84
+      Top = 32
+      Width = 84
+      OnClick = TilePictureRO5Click
+      Stretch = True
+    end
+    object TileROPi: TRadioButton
+      Left = 344
+      Height = 18
+      Top = 120
+      Width = 84
+      Caption = 'RISC OS Pi'
+      TabOrder = 5
+    end
   end
   object CancelButton: TBitBtn
-    Left = 4
+    Left = 224
     Height = 30
-    Top = 344
+    Top = 280
     Width = 100
     Cancel = True
     Caption = 'Cancel'
@@ -73,9 +123,9 @@ object SettingsForm: TSettingsForm
     TabOrder = 1
   end
   object OKBtnBack: TPanel
-    Left = 120
+    Left = 340
     Height = 30
-    Top = 344
+    Top = 280
     Width = 100
     BevelColor = clYellow
     BevelInner = bvLowered
@@ -102,7 +152,7 @@ object SettingsForm: TSettingsForm
     Left = 0
     Height = 104
     Top = 176
-    Width = 220
+    Width = 224
     AutoFill = True
     Caption = 'ADFS ''L'' Interleaved Images'
     ChildSizing.LeftRightSpacing = 6
@@ -113,7 +163,7 @@ object SettingsForm: TSettingsForm
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
     ClientHeight = 85
-    ClientWidth = 210
+    ClientWidth = 214
     ItemIndex = 0
     Items.Strings = (
       'Automatic (recommended)'
@@ -123,13 +173,13 @@ object SettingsForm: TSettingsForm
     TabOrder = 3
   end
   object MiscGroup: TGroupBox
-    Left = 4
-    Height = 56
-    Top = 280
-    Width = 216
+    Left = 224
+    Height = 80
+    Top = 176
+    Width = 224
     Caption = 'Miscellaneous'
-    ClientHeight = 37
-    ClientWidth = 206
+    ClientHeight = 61
+    ClientWidth = 214
     TabOrder = 4
     object CreateINF: TCheckBox
       Left = 4
@@ -140,6 +190,14 @@ object SettingsForm: TSettingsForm
       Checked = True
       State = cbChecked
       TabOrder = 0
+    end
+    object WriteDebug: TCheckBox
+      Left = 4
+      Height = 18
+      Top = 32
+      Width = 186
+      Caption = 'Write Debugging Information'
+      TabOrder = 1
     end
   end
 end

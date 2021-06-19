@@ -10,9 +10,8 @@ General
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
-* Add option to specify the creating of inf files.
-* Add more tiling options, including 'none'.
 * Ask to force overwrite if many files are getting written.
+* Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
@@ -21,10 +20,12 @@ Amiga
 * Show file attributes in the File Details panel.
 
 Spectrum/Amstrad
-* Write entire module.
+* Write entire module - required?.
 
 MMFS
 * Write entire module.
 
 Acorn File Store (AFS)
-* Write entire module.
+* Make writable
+* Read free space bitmaps
+* Support Level 2 and 4 FileStore

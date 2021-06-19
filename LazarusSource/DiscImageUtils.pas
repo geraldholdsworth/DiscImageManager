@@ -88,6 +88,7 @@ type
   diADFSBigDir = $02;
   diAmigaDir   = $10;
   diAmigaCache = $11;
+  diUnknownDir = $FF;
 implementation
 
 {------------------------------------------------------------------------------}
