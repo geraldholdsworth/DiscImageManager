@@ -12,6 +12,10 @@ General
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
 * Ask to force overwrite if many files are getting written.
 * Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
+* Change the disc size/free space & disc name display depending on which drive is selected (drill up until the root is found to work out which drive/partition is selected) for Acorn DFS and Acorn ADFS/FS Hybrid.
+* Duplicate the facility to prevent infinite loops when reading images from Acorn FS to ADFS, Amiga and Spark.
+* Change variables disc_size/afs_disc_size, free_space/afs_free_space and disc_name to arrays.
+* Utilise the above arrays for double sided DFS discs.
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
@@ -20,12 +24,10 @@ Amiga
 * Show file attributes in the File Details panel.
 
 Spectrum/Amstrad
-* Write entire module - required?.
+* Write entire module.
 
 MMFS
 * Write entire module.
 
 Acorn File Store (AFS)
-* Make writable
-* Read free space bitmaps
-* Support Level 2 and 4 FileStore
+* Make writable.

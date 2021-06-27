@@ -11,7 +11,7 @@ var
  ctr : Byte;
 begin
  Result:=False;
- if FFormat=$FF then
+ if FFormat=diInvalidImg then
  begin
   ResetVariables;
   //Is there actually any data?
@@ -39,11 +39,11 @@ begin
     inc(ctr,2);
    //Succesful checks
    //BAM offset 0x03 will be 0x00 for 1541 and 0x80 for 1571
-   if (ctr=10) and (ReadByte(BAM+$03)=$00) then FFormat:=$20; //Single sided : 1541
-   if (ctr=10) and (ReadByte(BAM+$03)=$80) then FFormat:=$21; //Double sided : 1571
+   if (ctr=10) and (ReadByte(BAM+$03)=$00) then FFormat:=diCommodore<<4;   //Single sided : 1541
+   if (ctr=10) and (ReadByte(BAM+$03)=$80) then FFormat:=diCommodore<<4+1; //Double sided : 1571
    //BAM is also at track 53 sector 0, for a double sided disc
    //IDing a 1581
-   if FFormat=$FF then //Don't need to ID a 1581 if we already have a 1541/1571
+   if FFormat=diInvalidImg then //Don't need to ID a 1581 if we already have a 1541/1571
    begin
     ctr:=0;
     //header is at track 40 sector 0
@@ -78,9 +78,9 @@ begin
     if Read16b(BAM+$00)=$FF00 then
      inc(ctr,2);
     //Successful checks
-    if ctr=16 then FFormat:=$22; //1581
+    if ctr=16 then FFormat:=diCommodore<<4+2; //1581
    end;
-   FDSD  :=(FFormat>$20)and(FFormat<$2F); //Set/reset the DoubleSided flag
+   FDSD  :=(FFormat mod$10>0)and(FFormat mod$10<$F); //Set/reset the DoubleSided flag
    Result:=FFormat>>4=diCommodore;        //Return TRUE if succesful ID
    If Result then FMap:=False;            //and reset the NewMap flag
   end;
@@ -243,7 +243,7 @@ begin
  //Blank everything
  ResetVariables;
  //Set the format
- FFormat:=$20+minor;
+ FFormat:=diCommodore<<4+minor;
  //Set the filename
  imagefilename:='Untitled.'+FormatExt;
  //Setup the data area

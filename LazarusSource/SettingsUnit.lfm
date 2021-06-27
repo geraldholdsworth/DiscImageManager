@@ -35,7 +35,7 @@ object SettingsForm: TSettingsForm
       Height = 84
       Top = 32
       Width = 84
-      OnClick = TilePictureRO4Click
+      OnClick = TilePictureRO5Click
       Stretch = True
     end
     object TileRO5: TRadioButton
@@ -154,7 +154,7 @@ object SettingsForm: TSettingsForm
     Top = 176
     Width = 224
     AutoFill = True
-    Caption = 'ADFS ''L'' Interleaved Images'
+    Caption = 'Track Order (ADFS L and Acorn FS)'
     ChildSizing.LeftRightSpacing = 6
     ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
     ChildSizing.EnlargeVertical = crsHomogenousChildResize
@@ -167,8 +167,9 @@ object SettingsForm: TSettingsForm
     ItemIndex = 0
     Items.Strings = (
       'Automatic (recommended)'
-      'Force Always Interleaved'
-      'Force Never Interleaved'
+      'Sequential (0,1,2,...80,81,82,...)'
+      'Interleaved (0,80,1,81,2,82,...)'
+      'Multiplexed (0,2,4,...1,3,5,...)'
     )
     TabOrder = 3
   end

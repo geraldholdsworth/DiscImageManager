@@ -24,7 +24,7 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  SysUtils,Variants,Classes,Controls,Forms,Dialogs,ExtCtrls,StdCtrls;
+  SysUtils,Variants,Classes,Controls,Forms,Dialogs,ExtCtrls,StdCtrls,Clipbrd;
 
 type
 
@@ -68,7 +68,10 @@ end;
 
 procedure TAboutForm.IconImageClick(Sender: TObject);
 begin
- ShowMessage(MainForm.debuglogfile);
+ Clipboard.AsText:=MainForm.debuglogfile;
+ ShowMessage('Log file path and filename: '
+            +#10#13+MainForm.debuglogfile+'.'
+            +#10#13+'This has been copied to your clipboard.');
 end;
 
 end.

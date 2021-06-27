@@ -19,8 +19,8 @@ begin
  begin
   ResetVariables;
   //Interleaving, depending on the option
-  if FForceInter<=1 then Finterleave:=True; //Auto or force on
-  if FForceInter=2  then Finterleave:=False;//Force off
+  Finterleave:=FForceInter;
+  if Finterleave=0 then Finterleave:=2; //Auto, so pick INT for ADFS
   //Is there actually any data?
   if GetDataLength>0 then
   begin
@@ -753,40 +753,7 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Calculate offset into image given the disc address (L only)
--------------------------------------------------------------------------------}
-function TDiscImage.OldDiscAddrToOffset(disc_addr: Cardinal): Cardinal;
-var
- tracks,
- track_size,
- track,
- side,
- oldheads,
- data_offset : Cardinal;
-begin
- Result:=disc_addr;
- //ADFS L
- if(FFormat=diAcornADFS<<4+$02)and(Finterleave)then
- begin
-  if(secspertrack=0)or(secsize=0)then exit;
-  //Number of tracks and heads
-  tracks:=80;
-  oldheads:=2;
-  //Track Size;
-  track_size:=secspertrack*secsize;
-  //Track number
-  track:=(disc_addr DIV track_size) MOD tracks;
-  //Which side
-  side:=disc_addr DIV (tracks*track_size);
-  //Offset into the sector for the data
-  data_offset:=disc_addr MOD track_size;
-  //Final result
-  Result:= (track_size*side)+(track*track_size*oldheads)+data_offset;
- end;
-end;
-
-{-------------------------------------------------------------------------------
-Calculate disc address given the offset into image (L only)
+Calculate disc address given the offset into image (Interleave)
 -------------------------------------------------------------------------------}
 function TDiscImage.OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
 var
@@ -798,8 +765,9 @@ var
  data_offset : Cardinal;
 begin
  Result:=offset;
- //ADFS L
- if(FFormat=diAcornADFS<<4+$02)and(FInterleave)then
+ //ADFS L or AFS with 'INT' option
+ if((FFormat=diAcornADFS<<4+$02)or(FFormat>>4=diAcornFS))
+ and(Finterleave=2)then
  begin
   //Number of tracks and heads
   tracks:=80;
@@ -847,21 +815,20 @@ end;
 Read ADFS Disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadADFSDisc: TDisc;
-var
- d,ptr    : Cardinal;
- OldName0,
- OldName1 : String;
- addr: TFragmentArray;
-begin
- //Initialise some variables
- root   :=$00; //Root address (set to zero so we can id the disc)
- Result:=nil;
- SetLength(Result,0);
- brokendircount:=0;
- //Read in the header information (that hasn't already been read in during
- //the initial checks
- if FFormat<>diInvalidImg then //But only if the format is valid
+ function ReadTheADFSDisc: TDisc;
+ var
+  d,ptr    : Cardinal;
+  OldName0,
+  OldName1 : String;
+  addr     : TFragmentArray;
  begin
+  //Initialise some variables
+  root   :=$00; //Root address (set to zero so we can id the disc)
+  Result:=nil;
+  SetLength(Result,0);
+  brokendircount:=0;
+  //Read in the header information (that hasn't already been read in during
+  //the initial checks
   //ADFS Old Map
   if not FMap then
   begin
@@ -999,6 +966,25 @@ begin
     inc(d);
    //The length of disc will increase as more directories are found
    until d=Cardinal(Length(Result));
+  end;
+ end;
+begin
+ if FFormat>>4=diAcornADFS then //But only if the format is ADFS
+ begin
+  //Read in the disc
+  Result:=ReadTheADFSDisc;
+  //Is this an ADFS L with automatic interleave detection?
+  if(FForceInter=0)and(FFormat=diAcornADFS<<4+2)then
+  begin
+   //Any broken directories?
+   if brokendircount>0 then
+   repeat
+    //Try next setting
+    inc(Finterleave);
+    if Finterleave=4 then Finterleave:=1; //Wrap around
+    //Read in the disc, this time with the new interleave setting
+    Result:=ReadTheADFSDisc;
+   until(brokendircount=0)or(Finterleave=2);//Until we get back to the start
   end;
  end;
 end;

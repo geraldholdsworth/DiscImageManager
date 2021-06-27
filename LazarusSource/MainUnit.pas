@@ -249,6 +249,7 @@ type
    procedure DirListChange(Sender: TObject; Node: TTreeNode);
    procedure DirListEditing(Sender: TObject; Node: TTreeNode;
      var AllowEdit: Boolean);
+   procedure DirListExit(Sender: TObject);
    procedure DirListCustomDraw(Sender: TCustomTreeView; const ARect: TRect;
     var DefaultDraw: Boolean);
    procedure DirListCustomDrawArrow(Sender: TCustomTreeView;
@@ -279,8 +280,8 @@ type
    procedure ExtractFiles(ShowDialogue: Boolean);
    function GetImageFilename(dir,entry: Integer): String;
    function GetWindowsFilename(dir,entry: Integer): String;
-   procedure DownLoadFile(dir,entry: Integer; path: String);
-   procedure CreateINFFile(dir,entry: Integer; path: String);
+   procedure DownLoadFile(dir,entry: Integer; path: String;filename: String='');
+   procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
    procedure DownLoadDirectory(dir,entry: Integer; path: String);
    procedure OpenImage(filename: String);
    procedure AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer;
@@ -450,7 +451,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.30';
+    ApplicationVersion = '1.31';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -1227,7 +1228,11 @@ begin
      if saver then
       //Do not download if the parent is selected, as this will get downloaded anyway
       if not DirList.Selections[s].Parent.Selected then
-       DownLoadFile(dir,entry,ExtractFilePath(SaveImage.FileName));
+       if DirList.SelectionCount>1 then //If multi-selection, just use the path
+        DownLoadFile(dir,entry,ExtractFilePath(SaveImage.FileName))
+       else //otherwise we'll use the filename specified
+        DownLoadFile(dir,entry,ExtractFilePath(SaveImage.FileName)
+                              ,ExtractFileName(SaveImage.FileName));
     end;
    end;
   end;
@@ -1285,7 +1290,7 @@ end;
 {------------------------------------------------------------------------------}
 //Download a file
 {------------------------------------------------------------------------------}
-procedure TMainForm.DownLoadFile(dir,entry: Integer;path: String);
+procedure TMainForm.DownLoadFile(dir,entry: Integer;path: String;filename: String='');
 var
  F              : TFileStream;
  buffer         : TDIByteArray;
@@ -1299,7 +1304,10 @@ begin
  begin
   //Get the full path and filename
   imagefilename  :=GetImageFilename(dir,entry);
-  windowsfilename:=GetWindowsFilename(dir,entry);
+  if filename='' then //If a filename has not been supplied, generate one
+   windowsfilename:=GetWindowsFilename(dir,entry)
+  else                //Otherwise use the supplied filename
+   windowsfilename:=filename;
   if Image.ExtractFile(imagefilename,buffer,entry) then
   begin
    //Save the buffer to the file
@@ -1308,7 +1316,7 @@ begin
     F.Position:=0;
     F.Write(buffer[0],Length(buffer));
     F.Free;
-    CreateINFFile(dir,entry,path);
+    CreateINFFile(dir,entry,path,filename);
    except
     //Could not create file
    end;
@@ -1322,7 +1330,7 @@ end;
 {------------------------------------------------------------------------------}
 //Create an inf file
 {------------------------------------------------------------------------------}
-procedure TMainForm.CreateINFFile(dir,entry: Integer; path: String);
+procedure TMainForm.CreateINFFile(dir,entry: Integer; path: String;filename: String='');
 var
  F              : TFileStream;
  inffile,
@@ -1341,7 +1349,10 @@ begin
  if DoCreateInf then
  begin
   imagefilename:=Image.Disc[dir].Entries[entry].Filename;
-  windowsfilename:=GetWindowsFilename(dir,entry);
+  if filename='' then //If no filename has been supplied, generate one
+   windowsfilename:=GetWindowsFilename(dir,entry)
+  else                //Otherwise just use the supplied name
+   windowsfilename:=filename;
   //Add the root, if DFS and no directory specifier
   if(Image.FormatNumber>>4=diAcornDFS)and(imagefilename[2]<>'.')then
    imagefilename:=RightStr(Image.Disc[dir].Entries[entry].Parent,1)+'.'+imagefilename;
@@ -1441,7 +1452,7 @@ begin
  CloseAllHexDumps;
  Image.ProgressIndicator:=@UpdateProgress;
  //Update the interleave when loading
- Image.ADFSInterleaved:=ADFSInterleave;
+ Image.InterleaveMethod:=ADFSInterleave;
  Image.SparkAsFS:=SparkIsFS;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
@@ -2685,11 +2696,13 @@ end;
 procedure TMainForm.btn_SaveImageClick(Sender: TObject);
 var
  ext,
- filename: String;
- index: Integer;
+ filename,
+ pathname : String;
+ index    : Integer;
 begin
  //Remove the existing part of the original filename
  filename:=ExtractFileName(Image.Filename);
+ pathname:=ExtractFilePath(Image.Filename);
  ext:=ExtractFileExt(filename);
  filename:=LeftStr(filename,Length(filename)-Length(ext));
  SaveImage.Title:='Save Image As';
@@ -2701,6 +2714,8 @@ begin
  //Populate the filename part of the dialogue
  SaveImage.FileName:=filename+'.'+Image.FormatExt;
  SaveImage.DefaultExt:='.'+Image.FormatExt;
+ //Point it at the same directory from whence it was opened
+ SaveImage.InitialDir:=pathname;
  //Show the dialogue
  If SaveImage.Execute then
  begin
@@ -2751,7 +2766,7 @@ var
 begin
  //Create a new DiscImage instance
  NewImage:=TDiscImage.Create;
- NewImage.ADFSInterleaved:=ADFSInterleave;
+ NewImage.InterleaveMethod:=ADFSInterleave;
  NewImage.SparkAsFS:=SparkIsFS;
  for FileName in FileNames do
  begin
@@ -3389,7 +3404,8 @@ begin
  case Image.FormatNumber>>4 of
   diAcornDFS,
   diAcornADFS,
-  diAcornUEF  : ImageDetailForm.AcornLogo.Visible    :=True;
+  diAcornUEF,
+  diAcornFS   : ImageDetailForm.AcornLogo.Visible    :=True;
   diCommodore : ImageDetailForm.CommodoreLogo.Visible:=True;
   diAmiga     : ImageDetailForm.AmigaLogo.Visible    :=True;
   diSinclair  : ImageDetailForm.SinclairLogo.Visible :=True;
@@ -3427,8 +3443,8 @@ begin
    //Work out what tracks to skip (images over 100000 pixels high will crash)
    skip:=(Length(Image.FreeSpaceMap[0])div 100000)+1;
    //Set the graphic size
-   t:=Length(Image.FreeSpaceMap[0]);
-   s:=Length(Image.FreeSpaceMap[0,0]);
+   t:=Length(Image.FreeSpaceMap[side]);
+   s:=Length(Image.FreeSpaceMap[side,0]);
    FSM[side].Height:=t div skip;
    FSM[side].Width:=s;
    //Initiate the canvas 
@@ -3490,6 +3506,12 @@ begin
    else
     boots[side].Visible:=False;
    bootlbs[side].Visible:=boots[side].Visible;
+  end;
+  //Is this an ADFS/AFS Hybrid?
+  if(Image.FormatNumber>>4=diAcornADFS)and(Image.AFSPresent)then
+  begin
+   FSMlabel[0].Caption:=FSMlabel[0].Caption+' ADFS Partition';
+   FSMlabel[1].Caption:=FSMlabel[1].Caption+' Acorn FS Partition';
   end;
   //Change the dialogue box width
   ImageDetailForm.ClientWidth:=(Length(Image.FreeSpaceMap)*204)
@@ -3695,6 +3717,8 @@ begin
   SetRegValI('ADFS_L_Interleave',ADFSInterleave);
   SetRegValB('CreateINF',DoCreateINF);
   SetRegValB('Debug_Mode',Fdebug);
+  //Repaint the main form
+  Repaint;
  end;
 end;
 
@@ -4744,6 +4768,23 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Editing control has lost focus
+{------------------------------------------------------------------------------}
+procedure TMainForm.DirListExit(Sender: TObject);
+begin
+ //Make sure there is something selected
+ if DirList.SelectionCount=1 then
+  //Is it being edited?
+  if DirList.Selected.EditText then
+  begin
+   //Change the name back to what it was
+   DirList.Selected.Text:=NameBeforeEdit;
+   //And cancel the editing
+   DirList.Selected.EndEdit(True);
+  end;
+end;
+
+{------------------------------------------------------------------------------}
 //Can we rename this node or not?
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListEditing(Sender: TObject; Node: TTreeNode;
@@ -5188,13 +5229,16 @@ procedure TMainForm.WriteToDebug(line: String);
 var
  F : TFileStream;
 begin
- if FileExists(debuglogfile) then
-  F:=TFileStream.Create(debuglogfile,fmOpenWrite)
- else
-  F:=TFileStream.Create(debuglogfile,fmCreate);
- F.Position:=F.Size;
- WriteLine(F,FormatDateTime(TimeDateFormat,Now)+': '+line);
- F.Free;
+ if Fdebug then
+ begin
+  if FileExists(debuglogfile) then
+   F:=TFileStream.Create(debuglogfile,fmOpenWrite)
+  else
+   F:=TFileStream.Create(debuglogfile,fmCreate);
+  F.Position:=F.Size;
+  WriteLine(F,FormatDateTime(TimeDateFormat,Now)+': '+line);
+  F.Free;
+ end;
 end;
 
 end.

@@ -54,7 +54,6 @@ type
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
   procedure TilePictureRO5Click(Sender: TObject);
-  procedure TilePictureRO4Click(Sender: TObject);
  private
 
  public
@@ -97,15 +96,14 @@ end;
 {------------------------------------------------------------------------------}
 procedure TSettingsForm.TilePictureRO5Click(Sender: TObject);
 begin
- TileRO5.Checked:=True;
-end;
-
-{------------------------------------------------------------------------------}
-//User has clicked on a picture rather than the radio button
-{------------------------------------------------------------------------------}
-procedure TSettingsForm.TilePictureRO4Click(Sender: TObject);
-begin
- TileRO4.Checked:=True;
+ if Sender is TImage then
+ begin
+  if TImage(Sender)=TilePictureRO3 then TileRO3.Checked:=True;
+  if TImage(Sender)=TilePictureRO4 then TileRO4.Checked:=True;
+  if TImage(Sender)=TilePictureRO5 then TileRO5.Checked:=True;
+  if TImage(Sender)=TilePictureIyonix then TileIyonix.Checked:=True;
+  if TImage(Sender)=TilePictureROPi then TileROPi.Checked:=True;
+ end;
 end;
 
 end.

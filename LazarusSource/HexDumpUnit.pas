@@ -70,7 +70,9 @@ type
   procedure btnMoveUpClick(Sender: TObject);
   procedure btnMoveUpLineClick(Sender: TObject);
   procedure edXORKeyPress(Sender: TObject; var Key: char);
+  procedure FormCreate(Sender: TObject);
   procedure ImagePanelPaint(Sender: TObject);
+  procedure PageControlChange(Sender: TObject);
   procedure ScrollBarScroll(Sender: TObject; ScrollCode: TScrollCode;
    var ScrollPos: Integer);
   procedure btnSaveTextClick(Sender: TObject);
@@ -100,7 +102,9 @@ type
   basiclength     : Cardinal;
   numsprites,
   spritew,
-  spriteh         : Integer;
+  spriteh,
+  formwidth,
+  formheight      : Integer;
  public
   buffer          : TDIByteArray;
  end;
@@ -123,7 +127,8 @@ procedure THexDumpForm.FormShow(Sender: TObject);
 var
  c: Integer;
 begin
- PageControl.ActivePage:=HexDump;
+// PageControl.ActivePage:=HexDump;
+ PageControlChange(Sender);
  //Set up the String Grid
  HexDumpDisplay.FixedCols:=1;
  HexDumpDisplay.FixedRows:=1;
@@ -194,10 +199,47 @@ end;
 {------------------------------------------------------------------------------}
 { Tile the various components                                                  }
 {------------------------------------------------------------------------------}
+procedure THexDumpForm.FormCreate(Sender: TObject);
+begin
+ formwidth:=Width;
+ formheight:=Height;
+end;
+
+{------------------------------------------------------------------------------}
+{ Tile the various components                                                  }
+{------------------------------------------------------------------------------}
 procedure THexDumpForm.ImagePanelPaint(Sender: TObject);
 begin
  if Sender is TPanel then
   MainForm.TileCanvas(TPanel(Sender).Canvas); //for a TPanel
+end;
+
+{------------------------------------------------------------------------------}
+{ The active page is changing, so allow a resize                               }
+{------------------------------------------------------------------------------}
+procedure THexDumpForm.PageControlChange(Sender: TObject);
+begin
+ //If swtiching to Hex Dump or Sprite Viewer, restrict the size
+ if(PageControl.ActivePage=HexDump)
+ or(PageControl.ActivePage=SpriteViewer)then
+ begin
+  Constraints.MaxWidth:=635;
+  Constraints.MinWidth:=635;
+  Constraints.MinHeight:=290;
+  //Change the size, if not already changed
+  Width:=635;
+  if Height<290 then Height:=290;
+ end
+ else
+ begin
+  //Unrestrict the size
+  Constraints.MaxWidth:=0;
+  Constraints.MinWidth:=0;
+  Constraints.MinHeight:=0;
+  //And restore the former size
+  Width:=formwidth;
+  Height:=formheight;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -488,6 +530,11 @@ begin
    DisplayHex(s);
   end;
  end;
+ //Remember the size
+ if (PageControl.ActivePage<>HexDump)
+ and(PageControl.ActivePage<>SpriteViewer)then
+  formwidth:=Width;
+ formheight:=Height;
 end;
 
 {------------------------------------------------------------------------------}
@@ -656,7 +703,7 @@ var
  linenum : Integer;
  linelen,
  lineptr,
- c,t,
+ c,cn,t,
  basicver: Byte;
  linetxt : String;
  detok,
@@ -827,6 +874,7 @@ begin
   BasicViewer.TabVisible:=True;
   //And switch to it
   PageControl.ActivePage:=BasicViewer;
+  PageControlChange(nil);
  end
  else //Display as text file, if it is a text file
  if IsTextFile then
@@ -836,12 +884,17 @@ begin
   linetxt:='';
   while ptr<Length(buffer) do
   begin
+   //Read the character in
    c:=buffer[ptr];
+   //Move on
    inc(ptr);
+   //Read the next character, if not at the end
+   if ptr<Length(buffer) then cn:=buffer[ptr+1] else cn:=0;
    //Can't deal with control characters on macOS
    if(c>31)and(c<127)then linetxt:=linetxt+chr(c);
    //New line
-   if c=$0A then
+   if((c=$0A)and(cn<>$0D))
+   or((c=$0D)and(cn<>$0A))then
    begin
     TextOutput.Lines.Add(linetxt);
     linetxt:='';
@@ -856,6 +909,7 @@ begin
   TextViewer.TabVisible:=True;
   //And switch to it
   PageControl.ActivePage:=TextViewer;
+  PageControlChange(nil);
  end;
 end;
 
@@ -914,6 +968,7 @@ begin
   ImageViewer.TabVisible:=True;
   //And switch to it
   PageControl.ActivePage:=ImageViewer;
+  PageControlChange(nil);
  end;
 end;
 
@@ -1000,6 +1055,7 @@ begin
   SpriteViewer.TabVisible:=True;
   //And switch to it
   PageControl.ActivePage:=SpriteViewer;
+  PageControlChange(nil);
  end;
  //Free up the memory stream and sprite file
  ms.Free;

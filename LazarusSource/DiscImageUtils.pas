@@ -69,16 +69,17 @@ type
  function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
  //Some constants
  const
-  diAcornDFS   = $00;
-  diAcornADFS  = $01;
-  diCommodore  = $02;
-  diSinclair   = $03;
-  diAmiga      = $04;
-  diAcornUEF   = $05;
-  diMMFS       = $06;
-  diAcornFS    = $07;
-  diSpark      = $08;
-  diInvalidImg = $FF;
+  diAcornDFS   = $000;
+  diAcornADFS  = $001;
+  diCommodore  = $002;
+  diSinclair   = $003;
+  diAmiga      = $004;
+  diAcornUEF   = $005;
+  diMMFS       = $006;
+  diAcornFS    = $007;
+  diSpark      = $008;
+  diSJMDFS     = $009;
+  diInvalidImg = $00FF; //Needs to be changed to $FFFF
   diADFSOldMap = $00;
   diADFSNewMap = $01;
   diAmigaOFS   = $02;

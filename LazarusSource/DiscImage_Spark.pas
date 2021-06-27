@@ -6,7 +6,7 @@ Identifies a Spark archive
 function TDiscImage.ID_Spark: Boolean;
 begin
  Result:=False;
- if(FFormat=$FF)or(FSparkAsFS)then
+ if(FFormat=diInvalidImg)or(FSparkAsFS)then
  begin
   if GetDataLength>0 then //Any data?
   begin
@@ -20,7 +20,7 @@ begin
     FDirType:=diADFSNewDir; //Just to fool some of the methods
    end
    else SparkFile.Free; //Otherwise free the instance
-   Result:=FFormat<>$FF; //Return a result
+   Result:=FFormat<>diInvalidImg; //Return a result
   end;
  end;
 end;

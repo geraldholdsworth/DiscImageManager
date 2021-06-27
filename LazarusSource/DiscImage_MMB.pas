@@ -7,13 +7,13 @@ function TDiscImage.ID_MMB: Boolean;
 var
  c,i,ptr : Integer;
 begin
- if FFormat=$FF then
+ if FFormat=diInvalidImg then
  begin
   ResetVariables;
   //Check it is of the correct length (511 images * 200K + 0x2000 bytes)
   if GetDataLength=$63D0000 then
   begin
-   FFormat:=$60;
+   FFormat:=diMMFS<<4;
    //Check the status bytes (last byte of each 16 byte entry)
    c:=0;
    for i:=1 to 512 do
@@ -21,10 +21,10 @@ begin
     ptr:=ReadByte((16*i)-1);
     if(ptr=$00)or(ptr=$0F)or(ptr=$F0)or(ptr=$FF)then inc(c);
    end;
-   if c<511 then FFormat:=$FF;
+   if c<511 then FFormat:=diInvalidImg;
   end;
  end;
- Result:=FFormat>>4=6;
+ Result:=FFormat>>4=diMMFS;
 end;
 
 {-------------------------------------------------------------------------------

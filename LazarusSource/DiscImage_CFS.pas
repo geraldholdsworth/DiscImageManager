@@ -10,21 +10,22 @@ const
  uefstring = 'UEF File!';
 begin
  Result:=False;
- //Is there actually any data?
- if GetDataLength>0 then
- begin
-  //Test to make sure it is a UEF file
-  Result:=True;
-  for i:=1 to Length(uefstring) do
-   if ReadByte(i-1)<>Ord(uefstring[i])then Result:=False;
-  //Set the internal format
-  If Result then
+ if FFormat<>diInvalidImg then
+  //Is there actually any data?
+  if GetDataLength>0 then
   begin
-   FFormat:=$50;
-   //Set the disc size to the length of the uncompressed data
-   disc_size:=GetDataLength;
+   //Test to make sure it is a UEF file
+   Result:=True;
+   for i:=1 to Length(uefstring) do
+    if ReadByte(i-1)<>Ord(uefstring[i])then Result:=False;
+   //Set the internal format
+   If Result then
+   begin
+    FFormat:=diAcornUEF<<4;
+    //Set the disc size to the length of the uncompressed data
+    disc_size:=GetDataLength;
+   end;
   end;
- end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -386,7 +387,7 @@ begin
  root_name:='tape';
  Result[0].Directory:=root_name;
  //Set the format
- FFormat:=$50;
+ FFormat:=diAcornUEF<<4;
  //Set the filename
  imagefilename:='Untitled.'+FormatExt;
 end;

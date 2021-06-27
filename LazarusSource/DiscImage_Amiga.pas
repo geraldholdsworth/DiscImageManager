@@ -13,7 +13,7 @@ const
  DiscIDs   : array[0..3] of String = ('DOS','PFS','KICK','KICKSUP');
 begin
  Result:=False;
- if FFormat=$FF then
+ if FFormat=diInvalidImg then
  begin
   ResetVariables;
   //Only continue if there is data
@@ -54,7 +54,7 @@ begin
      end;
      inc(FDirType,$10);
      secsize  :=$200;                        //Sector size
-     FFormat  :=$4F;                         //Amiga format (hard disc)
+     FFormat  :=diAmiga<<4+$F;               //Amiga format (hard disc)
      density  :=0;                           //Hard disc
      //Find the root
      root:=$002; //Start search at sector 2
@@ -79,12 +79,12 @@ begin
      //Update the format. Anything else is a hard drive (already set)
      if (Checksum1=Checksum2) and (root=$370) then
      begin
-      FFormat  :=$40;                         //Amiga format (DD)
+      FFormat  :=diAmiga<<4;                  //Amiga format (DD)
       density  :=2;                           //Double Density
      end;
      if (Checksum1=Checksum2) and (root=$6E0) then
      begin
-      FFormat  :=$41;                         //Amiga format (HD)
+      FFormat  :=diAmiga<<4+1;                //Amiga format (HD)
       density  :=4;                           //High Density
      end;
      //Set the disc size
@@ -121,7 +121,7 @@ begin
  Result:=nil;
  //Initialise some variables
  SetLength(Result,0);
- if FFormat<>$FF then
+ if FFormat<>diInvalidImg then
  begin
   //Total number of sectors will be double where the root is
   sectors   :=root*2;

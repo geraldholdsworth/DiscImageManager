@@ -9,7 +9,7 @@ var
  t0,t1  : Integer;
  chk,dbl: Boolean;
 begin
- if FFormat=$FF then
+ if FFormat=diInvalidImg then
  begin
   ResetVariables;
   //Is there actually any data?
@@ -88,13 +88,13 @@ begin
     and ((t1 div 10=40) or (t1 div 10=80)) then}
      FDSD:=dbl;
      if FDSD then
-      FFormat:=$01
+      FFormat:=diAcornDFS<<4+1
      else
-      FFormat:=$00;
+      FFormat:=diAcornDFS<<4;
     //Number of sectors should be >0
     if(t0=0)or(t1=0)then
     begin
-     FFormat:=$FF;
+     FFormat:=diInvalidImg;
      chk:=False;
     end;
    end;
@@ -109,13 +109,13 @@ begin
     for i:=0 to 3 do
      if ReadByte($0300+i)=$00 then inc(c);
     // Disc size should match also
-    if  (c=12) and (Read16b($306)=Read16b($106)) then
-     if FFormat shr 4=0 then
+    if(c=12)and(Read16b($306)=Read16b($106))then
+     if FFormat>>4=diAcornDFS then
       inc(FFormat,2);
    end;
   end;
  end;
- Result:=FFormat shr 4=0;
+ Result:=FFormat>>4=diAcornDFS;
 end;
 
 {-------------------------------------------------------------------------------
@@ -139,7 +139,7 @@ begin
   Result:=(((sector MOD 10)+(20*(sector DIV 10))+(10*side))*$100)+offset;
  end;
  //MMB
- if FFormat>>4=6 then
+ if FFormat>>4=diMMFS then
  begin
   if(side<0)or(side>511)then side:=0;
   Result:=Result+side*$32000+$2000;
@@ -186,10 +186,10 @@ begin
                   +ReadString(ConvertDFSSector($100,s),-4);
   RemoveSpaces(Result[s-mmbdisc].Title);
   RemoveControl(Result[s-mmbdisc].Title);
-  if(s>0)and(FFormat>>4=0)then disc_name:=disc_name+' and ';
+  if(s>0)and(FFormat>>4=diAcornDFS)then disc_name:=disc_name+' and ';
   disc_name:=disc_name+Result[s-mmbdisc].Title;
   //Boot Option
-  if FFormat>>4=0 then
+  if FFormat>>4=diAcornDFS then
    bootoption[s]:=(ReadByte(ConvertDFSSector($106,s))AND$30)>>4;
   //Disc Size
   inc(disc_size, (ReadByte(ConvertDFSSector($107,s))
@@ -256,7 +256,7 @@ begin
   if(FFormat AND $1=1)then inc(s) else s:=2+mmbdisc;
  until s=2+mmbdisc;
  //Free Space Map (not MMB)
- if FFormat>>4=0 then DFSFreeSpaceMap(Result);
+ if FFormat>>4=diAcornDFS then DFSFreeSpaceMap(Result);
 end;
 
 {-------------------------------------------------------------------------------
@@ -616,7 +616,7 @@ begin
  //Blank everything
  ResetVariables;
  //Set the format
- FFormat:=$00+minor;
+ FFormat:=diAcornDFS<<4+minor;
  //Set the filename
  imagefilename:='Untitled.'+FormatExt;
  //How many sides?

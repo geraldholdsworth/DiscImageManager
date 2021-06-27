@@ -561,6 +561,31 @@ Bug fixes
 * ADFS ID process now recognises an Acorn FileStore Level 3 partition and no longer rejects the image as invalid despite having a valid ADFS partition.
 * The application's icon in the About Box has always been hidden, since the porting to Lazarus.
 
+1.31 - 27th June 2021
+---------------------
+New or improved features
+* Added file extensions *.afs and *.zip to the Open Image dialogue box as options for Acorn FileStore and !Spark archives, as they were missing.
+* The File Viewer window can now be resized on the BASIC viewer, Text viewer or Image viewer. It is still restricted on the Hex Dump viewer and Sprite viewer.
+* The File Viewer window's size is now remembered, during the same session (but forgotten if the disc image is ejected).
+* When viewing a text file, CR (0x0D) is now used as an end of line.
+* When downloading a file from an image, the supplied filename is used if it is just the one file being downloaded.
+* Change of format name from Acorn FileStore to Acorn FS (for Acorn File Server).
+* Improved the ID-ing of Acorn ADFS and FS images to take account of the three types of interleaving.
+* Changed the options for interleaving and added an extra one. There is now 'Automatic', 'Sequential', 'Interleaved', and 'Multiplexed'.
+* Can now read in Acorn FS Level 2 images.
+* Clicking on the disc icon in the About box will now copy the path and filename of the log file to the clipboard. The message is also now clearer.
+* Now deals with Acorn FS Level 3 references to the parent directory better.
+* Free Space Map for Acorn FS Level 3 images is now read in with disc size and free space displayed.
+* Image details window now shows split free space maps with ADFS/Acorn FS Hybrid images.
+* When saving an image, the directory from where it was loaded is offered as a saving location. If this was created in application, then the last directory used is offered.
+* Added facility to attempt to prevent the application going into an infinite loop when reading an Acorn FS image.
+
+Bug fixes
+* When changing the texture for the background, the main window was not being updated in Windows.
+* The log file was produced whether the option in the preferences was set or not.
+* When editing a filename and the mouse was moved away to do other operations, the edit box remained.
+
+
 Platform History
 ----------------
 
