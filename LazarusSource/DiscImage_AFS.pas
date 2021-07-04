@@ -123,16 +123,23 @@ begin
   begin
    //Update the progress indicator
    UpdateProgress('Reading Acorn FS partition');
-   //Disc title
-   disc_name:=ReadString(afshead+4,-16);
-   RemoveSpaces(disc_name); //Minus trailing spaces
    //Size of the disc
    if FFormat=diAcornFS<<4+1 then //Level 2
-    disc_size:=Read16b(afshead+$14)*2*secsize; //Only gives number of sectors for 1 side
+    disc_size[0]:=Read16b(afshead+$14)*2*secsize; //Only gives number of sectors for 1 side
    if FFormat=diAcornFS<<4+2 then //Level 3
-    disc_size:=Read16b(afshead+$16)*secsize;
+    disc_size[0]:=Read16b(afshead+$16)*secsize;
+   i:=0;
    if FFormat>>4=diAcornADFS then //Level 3/ADFS Hybrid
-    afs_disc_size:=(Read16b(afshead+$16)*secsize)-disc_size;
+   begin
+    SetLength(disc_size,2);
+    SetLength(free_space,2);
+    SetLength(disc_name,2);
+    disc_size[1]:=(Read16b(afshead+$16)*secsize)-disc_size[0];
+    i:=1;
+   end;
+   //Disc title
+   disc_name[i]:=ReadString(afshead+4,-16);
+   RemoveSpaces(disc_name[i]); //Minus trailing spaces
    //Where is the AFS root?
    if FFormat=diAcornFS<<4+1 then
     allocmap:=Read24b(afshead+$16)*secsize //Level 2
@@ -236,6 +243,7 @@ var
  day,
  month,
  year       : Integer;
+ side,
  entry,
  objaddr,
  segaddr    : Cardinal;
@@ -256,8 +264,11 @@ begin
  begin
   //And set the partition flag to true
   Result.AFSPartition:=True;
+  //ADFS hybrid?
+  if FFormat>>4=diAcornADFS then side:=1 else side:=0;
+  Result.Partition:=side;
   //Directory title
-  Result.Directory   :=ReadString($03,-10,buffer);
+  Result.Directory:=ReadString($03,-10,buffer);
   RemoveSpaces(Result.Directory);
   if Result.Directory='$' then
   begin
@@ -278,6 +289,7 @@ begin
     Result.Entries[index].FileType:='';
     Result.Entries[index].ShortFileType:='';
     Result.Entries[index].Parent:=dirname;
+    Result.Entries[index].Side:=side;
     //Filename
     Result.Entries[index].Filename:=ReadString(entry+$02,-10,buffer);
     RemoveSpaces(Result.Entries[index].Filename);
@@ -510,7 +522,7 @@ begin
  if FFormat>>4=diAcornFS then
  begin
   //Initialise the variables
-  free_space:=0;
+  free_space[0]:=0;
   SetLength(free_space_map,0);
  end;
  //Level 2
@@ -519,10 +531,10 @@ begin
   //Get the allocation map address
   allocmap:=GetAllocationMap;
   //From this, the number of entries
-  nument:=disc_size div secsize;//Read16b(allocmap+1);
+  nument:=disc_size[0]div secsize;//Read16b(allocmap+1);
   //Set up the FSM array
   SetLength(free_space_map,1); //1 side
-  SetLength(free_space_map[0],(disc_size div secsize)div secspertrack); //Tracks
+  SetLength(free_space_map[0],(disc_size[0]div secsize)div secspertrack); //Tracks
   for entry:=0 to Length(free_space_map[0])-1 do //Sectors per track
   begin
    SetLength(free_space_map[0,entry],secspertrack);
@@ -536,11 +548,11 @@ begin
    if (status AND $80)=$80 then //If it has been written then mark as used
    begin
     free_space_map[0,entry div secspertrack,entry mod secspertrack]:=$FF;
-    inc(free_space,secsize);
+    inc(free_space[0],secsize);
    end;
   end;
   //Calculate the free space
-  free_space:=disc_size-free_space;
+  free_space[0]:=disc_size[0]-free_space[0];
  end;
  //Level 3 and ADFS/AFS Hybrid
  if FFormat<>diAcornFS<<4+1 then
@@ -551,17 +563,17 @@ begin
   begin
    SetLength(free_space_map,1); //One partition, so one FSM
    part:=0;                     //Point to this FSM
-   Ldiscsize:=disc_size-$200;        //Look at the entire image
+   Ldiscsize:=disc_size[0]-$200;//Look at the entire image
    afsstart:=$200;              //But not below here, which is ADFS header
-   afs_free_space:=0;           //Free Space
+   free_space[0]:=0;            //Free Space
   end
   else
   begin //Hybrids - AFS will take up the second 'side'
    SetLength(free_space_map,2); //Two partitions, so two FSMs
    part:=1;                     //Point to this FSM
-   Ldiscsize:=afs_disc_size;    //Only look at the AFS part of the image
-   afsstart:=disc_size;         //And not below here, which is the ADFS partition
-   afs_free_space:=0;           //Free space
+   Ldiscsize:=disc_size[1];     //Only look at the AFS part of the image
+   afsstart:=disc_size[1];      //And not below here, which is the ADFS partition
+   free_space[1]:=0;            //Free space
   end;
   //Set up the array
   SetLength(free_space_map[part],
@@ -592,7 +604,7 @@ begin
      else //Or data?
       free_space_map[part,index div Lsecspertrack,index mod Lsecspertrack]:=$FF;
      //Add to the free space count
-     inc(afs_free_space,secsize);
+     inc(free_space[part],secsize);
     end;
   end
   else //Not big enough for entire disc, so will be on every track
@@ -618,15 +630,263 @@ begin
       else //or just data?
        free_space_map[part,(bmploc-afsstart)div trackstrt,index]:=$FF;
       //Add to the free space count
-      inc(afs_free_space,secsize);
+      inc(free_space[part],secsize);
      end;
     //Move on to the next track
     inc(bmploc,trackstrt);
    end;
   end;
   //Invert the free space from 'used' to 'free'
-  afs_free_space:=Ldiscsize-afs_free_space;
-  //Only partition? Then make the main free space this one
-  if FFormat>>4=diAcornFS then free_space:=afs_free_space;
+  free_space[part]:=Ldiscsize-free_space[part];
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Create a blank AFS image
+-------------------------------------------------------------------------------}
+function TDiscImage.FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
+var
+ index     : Integer;
+ c,y,m,d   : Byte;
+ cdate     : Word;
+ mapsize,
+ mapsizeal,
+ allocmap1,
+ allocmap2 : Cardinal;
+const
+ deftitle = 'DiscImageManager';
+ afsID    = 'AFS0';
+ objID    = 'JesMap';
+ cycle    = 42; //Random...42 - the answer to life, the universe and everything
+begin
+ Result:=False;
+ if(afslevel=2)or(afslevel=3)then
+ begin
+  //Blank everything
+  ResetVariables;
+  SetDataLength(0);
+  //Set the format
+  FFormat:=diAcornFS<<4+(afslevel-1);
+  //Set the filename
+  imagefilename:='Untitled.'+FormatExt;
+  //Setup the data area
+  disc_size[0]:=harddrivesize;
+  SetDataLength(disc_size[0]);
+  //Fill with zeros
+  for index:=0 to disc_size[0]-1 do WriteByte(0,index);
+  //Set the boot option
+  SetLength(bootoption,1);
+  bootoption[0]:=0;
+  SetLength(free_space_map,1); //Free Space Map
+  //Default sizes
+  secsize:=256;
+  secspertrack:=16;
+  //Interleave option
+  if FForceInter=0 then Finterleave:=3 //Default for AFS
+  else Finterleave:=FForceInter;
+  //Level 2
+  if afslevel=2 then
+  begin
+   //Where the header is located
+   afshead:=$000;
+   afshead2:=afshead+$A00;
+   //Write the AFS headers
+   //ID at $00
+   for index:=0 to 3 do WriteByte(Ord(afsID[index+1]),afshead+index);
+   //Title at $04
+   for index:=0 to 15 do
+   begin
+    c:=$20;//Padded with spaces
+    if index<Length(deftitle) then c:=Ord(deftitle[index+1]);
+    WriteByte(c,afshead+$04+index);
+   end;
+   //Sectors for one side at $14
+   Write16b((harddrivesize>>8)div 2,afshead+$14);
+   //Root SIN at $16
+   Fafsroot:=afshead+$100;
+   afsroot_size:=$200;//Root is 2 sectors long
+   Write24b(Fafsroot>>8,afshead+$16);
+   //Creation Date at $19
+   y:=StrToIntDef(FormatDateTime('yyyy',Now),1981)-1981;//Year
+   m:=StrToIntDef(FormatDateTime('m',Now),1);           //Month
+   d:=StrToIntDef(FormatDateTime('d',Now),1);           //Date
+   cdate:=((y AND$F)<<12)OR((y AND$F0)<<1)OR(d AND$1F)OR((m AND$F)<<8);
+   Write16b(cdate,afshead+$19);
+   //Map A location at $1B
+   allocmap1:=afshead2+$100;
+   Write24b(allocmap1>>8,afshead+$1B);
+   //Map B location at $1E
+   mapsize:=5+((harddrivesize>>8)*2);
+   //Round up to the next sector boundary
+   mapsizeal:=(mapsize>>8)<<8+Ceil((mapsize mod $100)/$100)<<8;
+   allocmap2:=allocmap1+mapsizeal;
+   Write24b(allocmap2>>8,afshead+$1E);
+   //Size of map at $21
+   Write24b(mapsize,afshead+$21);
+   //Rest of the sector filled with $00000080
+   index:=$24;
+   while index<$FF do
+   begin
+    Write32b($00000080,afshead+index);
+    inc(index,4);
+   end;
+   //Copy the primary header to the copy
+   for index:=0 to $FF do WriteByte(ReadByte(afshead+index),afshead2+index);
+   //Write the directory object for $
+   //Pointer to first entry at $00
+   Write16b($0000,Fafsroot+$00);
+   //Cycle number at $02
+   WriteByte(cycle,Fafsroot+$02);
+   //Directory name at $03
+   WriteByte(Ord('$'),Fafsroot+$03);
+   for index:=1 to 9 do WriteByte($20,Fafsroot+$03+index);
+   //Pointer to first free entry at $0D
+   Write16b($11,Fafsroot+$0D);
+   //Number of entries in directory at $0F
+   WriteByte(0,Fafsroot+$0F);
+   //Copy of cycle number at end of root
+   WriteByte(cycle,Fafsroot+afsroot_size-1);
+   //Write the image allocation map
+   for index:=0 to (harddrivesize>>8)-1 do   //Blank entries just reference the
+    Write16b(index+1,allocmap1+5+(index*2)); //next sector
+   //AFS Headers
+   WriteBits(1,allocmap1+6,7,1); //sector 0
+   WriteBits(1,allocmap1+26,7,1);//sector 10
+   WriteBits(1,allocmap1+6,6,1); //sector 0
+   WriteBits(1,allocmap1+26,6,1);//sector 10
+   WriteBits(1,allocmap1+6,5,1); //sector 0
+   WriteBits(1,allocmap1+26,5,1);//sector 10
+   WriteByte(0,allocmap1+5);
+   WriteByte(0,allocmap1+25);
+   //Root
+   WriteBits(1,allocmap1+6+Fafsroot>>7,5,1);//Start
+   WriteBits(1,allocmap1+6+Fafsroot>>7,7,1);
+   WriteBits(1,allocmap1+6+(Fafsroot+afsroot_size)>>7-2,6,1);//End
+   WriteBits(1,allocmap1+6+(Fafsroot+afsroot_size)>>7-2,7,1);
+   WriteByte(0,allocmap1+5+(Fafsroot+afsroot_size)>>7-2);//Zero length LSB
+   if afsroot_size>>8>2 then
+    for index:=1 to (afsroot_size>>8)-1 do
+     WriteBits(1,allocmap1+6+((Fafsroot>>8)+index)*2,7,1);
+   //Allocation Maps
+   for index:=0 to mapsize>>8 do
+   begin
+    WriteBits(1,allocmap1+6+((allocmap1>>8)+index)*2,7,1);
+    WriteBits(1,allocmap1+6+((allocmap2>>8)+index)*2,7,1);
+   end;
+   dec(mapsizeal,$100);//Otherwise we will encroach onto the second map
+   WriteBits(1,allocmap1+6+allocmap1>>7,5,1); //Start
+   WriteBits(1,allocmap1+6+(allocmap1+mapsizeal)>>7,6,1); //End
+   WriteByte(0,allocmap1+5+(allocmap1+mapsizeal)>>7);
+   WriteBits(1,allocmap1+6+allocmap2>>7,5,1); //Start
+   WriteBits(1,allocmap1+6+(allocmap2+mapsizeal)>>7,6,1); //End
+   WriteByte(0,allocmap1+5+(allocmap2+mapsizeal)>>7);
+   //Copy the primary allocation map to the copy
+   for index:=0 to mapsize-1 do
+    WriteByte(ReadByte(allocmap1+index),allocmap2+index);
+   //Update the current map indicators
+   WriteByte($01,allocmap1);
+   WriteByte($02,allocmap2);
+   //Mark as a success
+   Result:=True;
+  end;
+  //Level 3
+  if afslevel=3 then
+  begin
+   //Where the header is located
+   afshead:=$200;
+   afshead2:=afshead+$100;
+   //Install a basic ADFS map
+   Write24b($20,$000);//FreeStart
+   Write24b(afshead>>8,$0F6);//AFS Header copy 1
+   Write24b($20,$0FC);//Disc size
+   WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
+   Write24b($00,$100);//FreeEnd
+   Write24b(afshead2>>8,$1F6);//AFS Header copy 2
+   WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
+   //Write the AFS headers
+   //ID at $00
+   for index:=0 to 3 do WriteByte(Ord(afsID[index+1]),afshead+index);
+   //Title at $04
+   for index:=0 to 15 do
+   begin
+    c:=$20;//Padded with spaces
+    if index<Length(deftitle) then c:=Ord(deftitle[index+1]);
+    WriteByte(c,afshead+$04+index);
+   end;
+   //Tracks at $14
+   Write16b((harddrivesize>>8)div secspertrack,afshead+$14);
+   //Disc size (number of sectors) at $16
+   Write24b(harddrivesize>>8,afshead+$16);
+   //Partitions at $19
+   WriteByte(1,afshead+$19);
+   //Sectors per track at $1A
+   Write16b(secspertrack,afshead+$1A);
+   //Size of bitmap at $1C
+   mapsize:=Ceil(((harddrivesize>>8)/8)/secsize);
+   WriteByte(mapsize,afshead+$1C);
+   mapsize:=mapsize<<8;
+   //Next drive at $1D
+   WriteByte($01,afshead+$1D);
+   // $00 at $1E
+   WriteByte($00,afshead+$1E);
+   //Root SIN at $1F
+   Fafsroot:=afshead2+$100+mapsize;
+   Write24b(Fafsroot>>8,afshead+$1F);
+   //Creation Date at $22
+   y:=StrToIntDef(FormatDateTime('yyyy',Now),1981)-1981;//Year
+   m:=StrToIntDef(FormatDateTime('m',Now),1);           //Month
+   d:=StrToIntDef(FormatDateTime('d',Now),1);           //Date
+   cdate:=((y AND$F)<<12)OR((y AND$F0)<<1)OR(d AND$1F)OR((m AND$F)<<8);
+   Write16b(cdate,afshead+$22);
+   //First free cylinder at $24
+   Write16b(1,afshead+$24); //Not sure why it is always 1
+   // $04 at $26
+   WriteByte($04,afshead+$26);
+   //Copy the primary header to the copy
+   for index:=0 to $FF do WriteByte(ReadByte(afshead+index),afshead2+index);
+   //Now to write the root
+   //ID at $00
+   for index:=0 to 5 do WriteByte(Ord(objID[index+1]),Fafsroot+index);
+   //Map chain sequence number at $06
+   WriteByte(cycle,Fafsroot+$06);
+   // $00 at $07
+   WriteByte($00,Fafsroot+$07);
+   //LSB of object length at $08
+   WriteByte($00,Fafsroot+$08);
+   // $00 at $09
+   WriteByte($00,Fafsroot+$09);
+   //First group of allocated sectors at $0A
+   //Sector at $0A (3 bytes)
+   Write24b((Fafsroot>>8)+1,Fafsroot+$0A);
+   //Length at $0D (2 bytes)
+   afsroot_size:=$200;//Root is 2 sectors long
+   Write16b(afsroot_size>>8,Fafsroot+$0D);
+   //Copy of map chain sequence number at $FF
+   WriteByte(cycle,Fafsroot+$FF);
+   //Write the directory object for $
+   //Pointer to first entry at $100
+   Write16b($0000,Fafsroot+$100);
+   //Cycle number at $102
+   WriteByte(cycle,Fafsroot+$102);
+   //Directory name at $103
+   WriteByte(Ord('$'),Fafsroot+$103);
+   for index:=1 to 9 do WriteByte($20,Fafsroot+$103+index);
+   //Pointer to first free entry at $10D
+   Write16b($2B,Fafsroot+$10D);
+   //Number of entries in directory at $10F
+   WriteByte(0,Fafsroot+$10F);
+   //First entry at $111 (pointer is $FFFF to indicate parent)
+   Write16b($FFFF,Fafsroot+$111);
+   //Copy of cycle number at end of root
+   WriteByte(cycle,Fafsroot+afsroot_size-1);
+   //Write the image bitmap
+   for index:=0 to mapsize-1 do WriteByte($FF,afshead2+$100+index);
+   for index:=0 to (Fafsroot>>8)+2 do
+    WriteBits(0,afshead2+$100+(index div 8),index mod 8,1);
+   //Mark as a success
+   Result:=True;
+  end;
+  //Finalise the the variables by reading in the partition
+  if Result then ReadAFSPartition;
  end;
 end;

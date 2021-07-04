@@ -24,13 +24,17 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ExtCtrls,Buttons,DiscImageUtils;
+ Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, Buttons,
+ StdCtrls, ComCtrls, DiscImageUtils,Math;
 
 type
  { TNewImageForm }
 
  TNewImageForm = class(TForm)
   btn_Cancel: TBitBtn;
+  AFS: TRadioGroup;
+  AFSSize: TGroupBox;
+  AFSImageSizeLabel: TLabel;
   MainFormat: TRadioGroup;
   DFS: TRadioGroup;
   ADFS: TRadioGroup;
@@ -40,6 +44,9 @@ type
   OKBtnBack: TPanel;
   btn_OK: TBitBtn;
   Spectrum: TRadioGroup;
+  AFSImageSize: TTrackBar;
+  procedure AFSClick(Sender: TObject);
+  procedure AFSImageSizeChange(Sender: TObject);
   procedure btn_OKClick(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
@@ -74,6 +81,7 @@ begin
  C64.Visible          :=False;
  Spectrum.Visible     :=False;
  Amiga.Visible        :=False;
+ AFS.Visible          :=False;
  //Now enable the appropriate one, based on the main option
  case MainFormat.ItemIndex of
   0: DFS.Visible      :=True;
@@ -81,13 +89,16 @@ begin
   2: C64.Visible      :=True;
   3: Spectrum.Visible :=True;
   4: Amiga.Visible    :=True;
+  7: AFS.Visible      :=True;
  end;
  DFSTracks.Visible:=DFS.Visible;
+ AFSSize.Visible  :=AFS.Visible;
  //Currently, only certain types of format can be created
  btn_OK.Enabled:=(MainFormat.ItemIndex=0) //DFS
                OR(MainFormat.ItemIndex=1) //ADFS
                OR(MainFormat.ItemIndex=2) //C64
-               OR(MainFormat.ItemIndex=5);//CFS
+               OR(MainFormat.ItemIndex=5) //CFS
+               OR(MainFormat.ItemIndex=7);//AFS
 end;
 
 {-------------------------------------------------------------------------------
@@ -103,6 +114,7 @@ begin
  C64.ItemIndex       :=0;
  Spectrum.ItemIndex  :=0;
  Amiga.ItemIndex     :=0;
+ AFS.ItemIndex       :=0;
  //Hide all the sub options, except for the first one
  DFS.Visible         :=True;
  DFSTracks.Visible   :=True;
@@ -110,8 +122,13 @@ begin
  C64.Visible         :=False;
  Spectrum.Visible    :=False;
  Amiga.Visible       :=False;
+ AFS.Visible         :=False;
+ AFSSize.Visible     :=False;
  //Enable the create button
  btn_OK.Enabled      :=True;
+ AFSImageSize.Position:=AFSImageSize.Min;
+ AFSClick(Sender);
+ AFSImageSizeChange(Sender);
 end;
 
 {-------------------------------------------------------------------------------
@@ -142,6 +159,27 @@ begin
  end;
  //Return to the calling form
  if ok then ModalResult:=mrOK;
+end;
+
+{-------------------------------------------------------------------------------
+The AFS capacity slider is changing
+-------------------------------------------------------------------------------}
+procedure TNewImageForm.AFSImageSizeChange(Sender: TObject);
+begin
+ if AFSImageSize.Position<=409 then
+  AFSImageSizeLabel.Caption:=IntToStr(AFSImageSize.Position*10)+'KB'
+ else
+  AFSImageSizeLabel.Caption:=IntToStr(Ceil((AFSImageSize.Position*10)/1024))+'MB';
+end;
+
+{-------------------------------------------------------------------------------
+The AFS Level has changed, change the minimum size
+-------------------------------------------------------------------------------}
+procedure TNewImageForm.AFSClick(Sender: TObject);
+begin
+ if AFS.ItemIndex=0 then AFSImageSize.Min:=40; //Level 2 minimum size 400K
+ if AFS.ItemIndex=1 then AFSImageSize.Min:=64; //Level 3 minimum size 640K
+ AFSImageSizeChange(Sender);
 end;
 
 {-------------------------------------------------------------------------------

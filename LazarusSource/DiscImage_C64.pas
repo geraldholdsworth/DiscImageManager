@@ -161,14 +161,14 @@ begin
   if (p>32) and (p<>$A0) then temp:=temp+chr(p AND $7F);
  end;
  RemoveControl(temp);
- disc_name:=temp;
+ disc_name[0]:=temp;
  //Size of the disc
  if f=2 then
-  disc_size:=ConvertDxxTS(f,80,40)
+  disc_size[0]:=ConvertDxxTS(f,80,40)
  else
  begin
-  disc_size:=ConvertDxxTS(f,35,17);
-  if FDSD then disc_size:=disc_size*2;
+  disc_size[0]:=ConvertDxxTS(f,35,17);
+  if FDSD then disc_size[0]:=disc_size[0]*2;
  end;
  //Get the location of the directory
  t:=ReadByte(ptr+0);
@@ -397,7 +397,7 @@ begin
  ptr :=ConvertDxxTS(f,dirTr ,0); //Get the offset address of the header
  ptr1:=ConvertDxxTS(f,dirTr1,0); //and the BAM for side 1 (D71)
  //Set up the variables
- free_space:=0;
+ free_space[0]:=0;
  SetLength(free_space_map,1);
  if f=0 then SetLength(free_space_map[0],35); //35 tracks for D64
  if f=1 then SetLength(free_space_map[0],70); //70 tracks for D71
@@ -429,7 +429,7 @@ begin
   begin
    //First byte is number of free sectors
    if c<>dirTr then //But we'll assume that the directory track is used
-    inc(free_space,ReadByte(ptr+c*4)*$100);
+    inc(free_space[0],ReadByte(ptr+c*4)*$100);
    for ch:=0 to 23 do
    begin
     //Next 4 are the free sectors - 1 bit per sector
@@ -445,7 +445,7 @@ begin
    begin 
     //First byte is number of free sectors
     if c+36<>dirTr1 then //But we'll assume that the directory track is used
-     inc(free_space,ReadByte(ptr+$DD+c)*$100);
+     inc(free_space[0],ReadByte(ptr+$DD+c)*$100);
     for ch:=0 to 23 do
     begin
      //Next 4 are the free sectors - 1 bit per sector
@@ -466,7 +466,7 @@ begin
    begin
     //First byte is number of free sectors
     if c<>dirTr then //But we'll assume that the directory track is used
-     inc(free_space,ReadByte(ptr+$10+c*6)*$100);
+     inc(free_space[0],ReadByte(ptr+$10+c*6)*$100);
     for sec:=0 to 39 do //40 sectors per track
     begin
      //Next 5 are the free sectors - 1 bit per sector
@@ -539,7 +539,7 @@ var
  ptr: Cardinal;
  i: Byte;
 begin
- disc_name:=title;
+ disc_name[0]:=title;
  //Get the location of the disc title, less one
  if FFormat mod $10<2 then ptr:=ConvertDxxTS(FFormat mod $10,18,0)+$8F;
  if FFormat mod $10=2 then ptr:=ConvertDxxTS(FFormat mod $10,40,0)+$03;
@@ -650,7 +650,7 @@ begin
     if count mod 254>0 then fragments[frag-1].Length:=count mod 254;
     //Where to put them - fragments are tended to be put around the root(s).
     //So we search backwards, then forwards, then backwards, etc.
-    if count<free_space then //Will it actually fit?
+    if count<free_space[0] then //Will it actually fit?
     begin
      track:=18; //Value of this is unimportant, but needs to be set to something
      sector:=0; //Sector to start looking

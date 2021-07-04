@@ -175,11 +175,11 @@ object SettingsForm: TSettingsForm
   end
   object MiscGroup: TGroupBox
     Left = 224
-    Height = 80
+    Height = 104
     Top = 176
     Width = 224
     Caption = 'Miscellaneous'
-    ClientHeight = 61
+    ClientHeight = 85
     ClientWidth = 214
     TabOrder = 4
     object CreateINF: TCheckBox
@@ -199,6 +199,14 @@ object SettingsForm: TSettingsForm
       Width = 186
       Caption = 'Write Debugging Information'
       TabOrder = 1
+    end
+    object AllowDFSZeroSecs: TCheckBox
+      Left = 4
+      Height = 18
+      Top = 56
+      Width = 166
+      Caption = 'Allow zero sectors in DFS'
+      TabOrder = 2
     end
   end
 end

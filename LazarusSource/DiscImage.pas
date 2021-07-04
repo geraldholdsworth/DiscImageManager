@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.31
+TDiscImage class V1.32
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -50,6 +50,7 @@ type
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
    Locked      : Boolean;           //Flag if disc is locked (MMFS)
    AFSPartition: Boolean;           //Is this in the AFS partition? (ADFS/AFS)
+   Partition   : Cardinal;          //Which partition (side) is this on?
   end;
   //Collection of directories
   TDisc         = array of TDir;
@@ -71,7 +72,8 @@ type
   FBootBlock,                   //Is disc an AmigaDOS Kickstart?
   Fupdating,                    //Has BeginUpdate been called?
   FAFSPresent,                  //Is there an AFS partition present? (ADFS)
-  FSparkAsFS    : Boolean;      //Deal with Spark archives as a filing system
+  FSparkAsFS,                   //Deal with Spark archives as a filing system
+  FDFSzerosecs  : Boolean;      //Allow zero length disc images for DFS?
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   nzones,                       //Number of zones (Acorn ADFS New)
@@ -90,10 +92,6 @@ type
   namesize,                     //Size of the name area (Acorn ADFS Big Dir)
   brokendircount,               //Number of broken directories (ADFS)
   FMaxDirEnt    : Cardinal;     //Maximum number of directory entries in image
-  disc_size,                    //Size of disc in bytes
-  afs_disc_size,                //Size of the AFS partition, on hybrid images
-  free_space,                   //Free space remaining
-  afs_free_space: Int64;        //Free space remaining (AFS partition)
   FFormat       : Word;         //Format of the image
   FForceInter,                  //What to do about ADFS L/AFS Interleaving
   Finterleave,                  //Interleave method (1=seq,2=int,3=mux)
@@ -107,17 +105,19 @@ type
   FDirType,                     //Directory Type (Acorn ADFS)
   share_size,                   //Share size (Acorn ADFS New)
   big_flag      : Byte;         //Big flag (Acorn ADFS New)
-  disc_name,                    //Disc title(s)
   root_name,                    //Root title
   imagefilename,                //Filename of the disc image
   FFilename     : String;       //Copy of above, but doesn't get wiped
   dir_sep       : Char;         //Directory Separator
   free_space_map: TSide;        //Free Space Map
+  disc_size,                    //Disc size per partition
+  free_space    : array of Int64;//Free space per partition
+  disc_name     : array of String;//Disc title(s)
   bootoption    : TDIByteArray; //Boot Option(s)
   CFSFiles      : array of TDIByteArray;//All the data for the CFS files
   FProgress     : TProgressProc;//Used for feedback
   SparkFile     : TSpark;       //For reading in Spark archives
-  Fpartitions   : array of TDiscImage;//Used for extra partitions
+//  Fpartitions   : array of TDiscImage;//Used for extra partitions
   procedure ResetVariables;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function ReadString(ptr,term: Integer;var buffer: TDIByteArray;
@@ -213,7 +213,7 @@ type
   function ExtendADFSCat(dir: Cardinal;direntry: TDirEntry): Cardinal;
   procedure ReduceADFSCat(dir,entry: Cardinal);
   function FixBrokenADFSDirectories: Boolean;
-  procedure FixADFSDirectory(dir,entry: Integer);
+  function FixADFSDirectory(dir,entry: Integer):Boolean;
   function ADFSGetHardDriveParams(Ldiscsize:Cardinal;bigmap:Boolean;
               var Lidlen,Lzone_spare,Lnzones,Llog2bpmb,Lroot: Cardinal):Boolean;
   function UpdateADFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
@@ -228,6 +228,7 @@ type
   function GetAFSObjLength(offset: Cardinal): Cardinal;
   function GetAllocationMap: Cardinal;
   procedure ReadAFSFSM;
+  function FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
@@ -362,15 +363,15 @@ type
   procedure BeginUpdate;
   procedure EndUpdate;
   function ValidateFilename(parent:String;var filename:String): Boolean;
-  function Partition(part: Cardinal):TDiscImage;
+//  function Partition(part: Cardinal):TDiscImage;
+  function DiscSize(partition: Cardinal):Int64;
+  function FreeSpace(partition: Cardinal):Int64;
+  function Title(partition: Cardinal):String;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
   property FormatNumber:        Word          read FFormat;
   property FormatExt:           String        read FormatToExt;
-  property Title:               String        read disc_name;
-  property DiscSize:            Int64         read disc_size;
-  property FreeSpace:           Int64         read free_space;
   property DoubleSided:         Boolean       read FDSD;
   property MapType:             Byte          read MapFlagToByte;
   property DirectoryType:       Byte          read FDirType;
@@ -389,6 +390,7 @@ type
   property MaxDirectoryEntries: Cardinal      read FMaxDirEnt;
   property SparkAsFS:           Boolean       read FSparkAsFS write FSparkAsFS;
   property AFSPresent:          Boolean       read FAFSPresent;
+  property AllowDFSZeroSectors: Boolean       read FDFSzerosecs write FDFSzerosecs;
  public
   destructor Destroy; override;
  End;
@@ -422,9 +424,10 @@ begin
  root_size     :=$0000;
  afsroot_size  :=$0000;
  disc_id       :=$0000;
- disc_size     :=$0000;
- afs_disc_size :=$0000;
- free_space    :=$0000;
+ SetLength(disc_size,1);
+ disc_size[0]  :=$0000;
+ SetLength(free_space,1);
+ free_space[0] :=$0000;
  FFormat       :=diInvalidImg;
  secspertrack  :=$10;
  heads         :=$00;
@@ -437,7 +440,8 @@ begin
  FDirType      :=diUnknownDir;
  share_size    :=$00;
  big_flag      :=$00;
- disc_name     :='';
+ SetLength(disc_name,1);
+ disc_name[0]  :='';
  emuheader     :=$0000;
  dir_sep       :='.';
  root_name     :='$';
@@ -471,9 +475,9 @@ begin
  if control then c:=32 else c:=0;
  //Start with the first byte (we pre-read it to save multiple reads)
  r:=ReadByte(ptr+x,buffer);
- while (r>=c) and //Test for control character
-       (((r<>term) and (term>=0)) or //Test for terminator character
-        ((x<abs(term)) and (term<0))) do //Test for string length
+ while(r>=c)and //Test for control character
+    (((r<>term)and(term>=0))or //Test for terminator character
+     ((x<abs(term))and(term<0)))do //Test for string length
  begin
   Result:=Result+chr(r); //Add it to the string
   inc(x);                //Increase the counter
@@ -974,6 +978,7 @@ begin
   ErrorCode   :=$00;
   Locked      :=False;
   AFSPartition:=False;
+  Partition   :=0;
  end;
 end;
 
@@ -1252,11 +1257,13 @@ begin
  //This just sets all the global and public variables to zero, or blank.
  ResetVariables;
  SetDataLength(0);
- SetLength(Fpartitions,0);
+// SetLength(Fpartitions,0);
  //ADFS Interleaving option
  FForceInter:=0;
  //Deal with Spark archives as a filing system (i.e. in this class)
  FSparkAsFS:=True;
+ //Allow DFS images which report number of sectors as zero
+ FDFSzerosecs:=True;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1516,6 +1523,7 @@ begin
     FDisc:=FormatADFSHDD(harddrivesize,newmap,dirtype);
     Result:=Length(FDisc)>0;
    end;
+  diAcornFS: Result:=FormatAFS(harddrivesize,dirtype);//Create Acorn FS
  end;
 end;
 
@@ -1550,13 +1558,12 @@ begin
  Result:=-2; //Error - disc full
  //Get the length of data to be written
  count:=file_details.Length;
- //There are only two sides (max)
- file_details.Side:=file_details.Side mod 2;
  //Only write a file if there is actually any data to be written
- if count>0 then
+ if(count>0)and(Length(free_space)>0)then
  begin
+  file_details.Side:=file_details.Side mod Length(free_space);
   //Can only write a file that will fit on the disc, or CFS
-  if(count<=free_space)or(FFormat>>4=diAcornUEF)then
+  if(count<=free_space[file_details.Side])or(FFormat>>4=diAcornUEF)then
    case FFormat>>4 of
     diAcornDFS :Result:=WriteDFSFile(file_details,buffer);     //Write DFS
     diAcornADFS:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
@@ -1631,6 +1638,7 @@ begin
  //This will not work with CFS as you can have multiple files with the same name
  //in the same 'directory'. It will just find the first occurance.
  Result:=False;
+ //For the root, we'll just return a default value
  if filename=root_name then
  begin
   dir:=$FFFF;
@@ -1639,25 +1647,35 @@ begin
   exit;
  end;
  //Not going to search if there is no tree to search in
- if Length(FDisc)>0 then
+ if(Length(FDisc)>0)and(filename<>'')then//or if there is nothing being searched for
  begin
   SetLength(Path,0);
-  j:=-1;
-  ptr:=0;
   //Explode the pathname into an array, without the '.'
   if FFormat>>4<>diAcornDFS then //Not DFS
-   while(Pos(dir_sep,filename)<>0)do
-   begin
-    SetLength(Path,Length(Path)+1);
-    Path[Length(Path)-1]:=Copy(filename,0,Pos(dir_sep,filename)-1);
-    filename:=Copy(filename,Pos(dir_sep,filename)+1,Length(filename));
-   end;
-  if FFormat>>4=diAcornDFS then //DFS
+   Path:=filename.Split(dir_sep)
+  else //With DFS, we need the initial root name, including the '.'
   begin
+   //So should only be 2 entries
    SetLength(Path,2);
-   Path[0]:=Copy(filename,0,Pos(root_name+dir_sep,filename));
-   Path[1]:=Copy(filename,Pos(root_name+dir_sep,filename)
-                         +Length(root_name)+Length(dir_sep),Length(filename));
+   //But supplied filename may not contain the root
+   if Pos(root_name+dir_sep,filename)>0 then
+   begin
+    //Root name
+    Path[0]:=Copy(filename,0,Pos(root_name+dir_sep,filename));
+    //And filename
+    Path[1]:=Copy(filename,Pos(root_name+dir_sep,filename)
+                          +Length(root_name)+Length(dir_sep),Length(filename));
+   end
+   else
+   begin
+    //If it doesn't, we will assume the root of side 0
+    Path[0]:=FDisc[0].Directory;
+    //And make the second entry the filename, after the '.', if it has one
+    if Pos(dir_sep,filename)>0 then
+     Path[1]:=Copy(filename,Pos(dir_sep,filename)+Length(dir_sep))
+    else
+     Path[1]:=filename;
+   end;
   end;
   //If there is a path, then follow it
   if Length(Path)>0 then
@@ -1775,12 +1793,12 @@ var
  i   : Cardinal;
 begin
  Result:=False;
- if count=0 then exit;
+ if(count=0)or(Length(disc_size)=0)then exit;
  //Make sure the numbers fit
  if start+count<=Length(buffer) then
  begin
   //Sometimes the image file is smaller than the actual disc size
-  if GetDataLength<disc_size then SetDataLength(disc_size);
+  if GetDataLength<disc_size[side]then SetDataLength(disc_size[side]);
   if FFormat>>4<>diAcornDFS then //not DFS
   begin
    //Ensure that the entire block will fit into the available space
@@ -2303,10 +2321,37 @@ end;
 {-------------------------------------------------------------------------------
 Returns a partition 'part'
 -------------------------------------------------------------------------------}
-function TDiscImage.Partition(part: Cardinal):TDiscImage;
+{function TDiscImage.Partition(part: Cardinal):TDiscImage;
 begin
  Result:=nil;
  if part<Length(FPartitions) then Result:=FPartitions[part];
+end;}
+
+{-------------------------------------------------------------------------------
+Returns the disc size for a partition
+-------------------------------------------------------------------------------}
+function TDiscImage.DiscSize(partition: Cardinal):Int64;
+begin
+ Result:=0;
+ if partition<Length(disc_size) then Result:=disc_size[partition];
+end;
+
+{-------------------------------------------------------------------------------
+Returns the free space for a partition
+-------------------------------------------------------------------------------}
+function TDiscImage.FreeSpace(partition: Cardinal):Int64;
+begin
+ Result:=0;
+ if partition<Length(free_space) then Result:=free_space[partition];
+end;
+
+{-------------------------------------------------------------------------------
+Returns the disc name for a partition
+-------------------------------------------------------------------------------}
+function TDiscImage.Title(partition: Cardinal):String;
+begin
+ Result:='';
+ if partition<Length(disc_name) then Result:=disc_name[partition];
 end;
 
 {$INCLUDE 'DiscImage_ADFS.pas'}

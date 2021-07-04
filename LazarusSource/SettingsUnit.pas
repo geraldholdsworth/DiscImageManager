@@ -33,6 +33,7 @@ type
 
  TSettingsForm = class(TForm)
   CancelButton: TBitBtn;
+  AllowDFSZeroSecs: TCheckBox;
   WriteDebug: TCheckBox;
   CreateINF: TCheckBox;
   MiscGroup: TGroupBox;

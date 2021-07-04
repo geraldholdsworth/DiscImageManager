@@ -102,7 +102,7 @@ begin
   end;
  end;
  //Disc size (total uncompressed size)
- disc_size:=SparkFile.UncompressedSize;
+ disc_size[0]:=SparkFile.UncompressedSize;
  //Return a result
  Result:=FDisc;
  //And restore FDisc to what it was

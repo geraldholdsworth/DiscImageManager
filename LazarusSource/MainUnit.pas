@@ -302,7 +302,7 @@ type
    function AddFileToImage(filename: String;filedetails: TDirEntry;
            buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer; overload;
    function AddFileErrorToText(error: Integer):String;
-   procedure UpdateImageInfo;
+   procedure UpdateImageInfo(partition: Cardinal=0);
    procedure ArrangeFileDetails;
    procedure ReportError(error: String);
    function AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
@@ -367,6 +367,8 @@ type
     FormShiftState:TShiftState;
     //Produce a log file for debugging
     Fdebug        :Boolean;
+    //Allow DFS images with zero number of sectors
+    FDFSZeroSecs  :Boolean;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..140] of String =
@@ -451,7 +453,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.31';
+    ApplicationVersion = '1.32';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -666,7 +668,7 @@ begin
     if((SparkFile.MaxDirEnt>47)and(Image.DirectoryType=diADFSOldDir))//Old dir
     or((SparkFile.MaxDirEnt>77)and(Image.DirectoryType=diADFSNewDir))//New dir
     or(Image.FormatNumber>>4<>diAcornADFS)                //Acorn ADFS
-    or(SparkFile.UncompressedSize>Image.FreeSpace)then    //Not enough space
+    or(SparkFile.UncompressedSize>Image.FreeSpace(0))then //Not enough space
      ok:=AskConfirm('The current open image is not suitable for this archive. '
                    +'Would you like to continue?','Yes','No','')=mrOK;
     if ok then
@@ -1015,7 +1017,7 @@ begin
       begin
        HasChanged:=True;
        AddFileToTree(DirList.Selected,NewFile.Filename,Result,False,DirList,Image);
-       UpdateImageInfo;
+       UpdateImageInfo(side);
       end
       else
       if not ignoreerror then //For some reason the operation failed to write the data
@@ -1206,10 +1208,10 @@ begin
       if selectroot then //Root was selected
       begin
        //Set the default filename as either the disc title or '$'
-       if Image.Title='' then
+       if Image.Title(Image.Disc[dir].Partition)='' then
         SaveImage.FileName:=DirList.Items[0].Text
        else
-        SaveImage.FileName:=Image.Title;
+        SaveImage.FileName:=Image.Title(Image.Disc[dir].Partition);
       end
       else
        SaveImage.FileName:=GetWindowsFilename(dir,entry);
@@ -1453,7 +1455,10 @@ begin
  Image.ProgressIndicator:=@UpdateProgress;
  //Update the interleave when loading
  Image.InterleaveMethod:=ADFSInterleave;
+ //Treat Sparks as a filing system
  Image.SparkAsFS:=SparkIsFS;
+ //Allow DFS to have zero number of sectors
+ Image.AllowDFSZeroSectors:=FDFSZeroSecs;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -1542,7 +1547,7 @@ begin
    AddDirectoryToTree(Node,ImageToUse.Disc[dir].Entries[entry].DirRef,
                       ImageToUse,highdir);
  end;
- if ImageToUse=Image then UpdateImageInfo;
+ if ImageToUse=Image then UpdateImageInfo(ImageToUse.Disc[dir].Partition);
 end;
 
 {------------------------------------------------------------------------------}
@@ -1560,7 +1565,7 @@ begin
  //Populate the directory view
  AddImageToTree(DirList,Image);
  //Populate the info box
- UpdateImageInfo;
+ UpdateImageInfo(0);
  //Enable the controls
  btn_SaveImage.Enabled :=True;
  menuSaveImage.Enabled :=True;
@@ -1640,7 +1645,7 @@ end;
 {------------------------------------------------------------------------------}
 //Update the Image information display
 {------------------------------------------------------------------------------}
-procedure TMainForm.UpdateImageInfo;
+procedure TMainForm.UpdateImageInfo(partition: Cardinal=0);
 var
  i: Integer;
  title: String;
@@ -1651,15 +1656,15 @@ begin
   //Image Format
   ImageDetails.Panels[1].Text:=Image.FormatString;
   //Disc name
-  title:=Image.Title;
+  title:=Image.Title(partition);
   RemoveTopBit(title);//Ensure top bit not set
   ImageDetails.Panels[2].Text:=title;
   //Disc size
-  ImageDetails.Panels[3].Text:=ConvertToKMG(Image.DiscSize)
-                           +' ('+IntToStrComma(Image.DiscSize)+' Bytes)';
+  ImageDetails.Panels[3].Text:=ConvertToKMG(Image.DiscSize(partition))
+                           +' ('+IntToStrComma(Image.DiscSize(partition))+' Bytes)';
   //Free space
-  ImageDetails.Panels[4].Text:=ConvertToKMG(Image.FreeSpace)
-                           +' ('+IntToStrComma(Image.FreeSpace)+' Bytes)';
+  ImageDetails.Panels[4].Text:=ConvertToKMG(Image.FreeSpace(partition))
+                           +' ('+IntToStrComma(Image.FreeSpace(partition))+' Bytes)';
   //Double sided or not (DFS only)
   if Image.FormatNumber>>4=diAcornDFS then
    if Image.DoubleSided then
@@ -2029,6 +2034,8 @@ begin
   location:=''; //Default location string
   if dir>=0 then
   begin
+   //Status bar
+   UpdateImageInfo(Image.Disc[dir].Entries[entry].Side);
    //CRC32
    lb_CRC32.Caption:=Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent+
                                       Image.DirSep+filename,entry);
@@ -2085,6 +2092,8 @@ begin
   end;
   if dir=-1 then
   begin
+   //Status bar
+   UpdateImageInfo(Image.Disc[dr].Partition);
    //Location of root - varies between formats
    location:='';
    //ADFS Old map - Sector is an offset
@@ -2600,7 +2609,7 @@ begin
    Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
    HasChanged:=False;
    //Update the status bar
-   UpdateImageInfo
+   UpdateImageInfo;
   end;
  //Keep Application Open +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  if (option='--keepopen') or (option='-k') then
@@ -2634,6 +2643,8 @@ begin
  DoCreateINF:=GetRegValB('CreateINF',True);
  //Hide Commodore DEL files
  DoHideDEL:=GetRegValB('Hide_CDR_DEL',False);
+ //Allow DFS images with zero sectors
+ FDFSZeroSecs:=GetRegValB('DFS_Zero_Sectors',True);
  //Produce log files for debugging
  Fdebug:=GetRegValB('Debug_Mode',False);
  debuglogfile:=GetTempDir+'DIM_LogFile.txt';
@@ -2724,7 +2735,7 @@ begin
   Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
   HasChanged:=False;
   //Update the status bar
-  UpdateImageInfo
+  UpdateImageInfo;
  end;
 end;
 
@@ -2768,6 +2779,7 @@ begin
  NewImage:=TDiscImage.Create;
  NewImage.InterleaveMethod:=ADFSInterleave;
  NewImage.SparkAsFS:=SparkIsFS;
+ NewImage.AllowDFSZeroSectors:=FDFSZeroSecs;
  for FileName in FileNames do
  begin
   //If it is not a directory
@@ -2816,7 +2828,7 @@ begin
      isspark:=SparkFile.IsSpark;
      SparkFile.Free;
      //Is it a valid Spark Archive?
-     if(isspark)and(sparksize<Image.FreeSpace)then
+     if(isspark)and(sparksize<Image.FreeSpace(0))then
      begin //Ask user if they would like it uncompressed
       if AskConfirm('This has been detected as a Spark archive. '
                    +'Would you like to uncompress and add the contents?',
@@ -3487,18 +3499,17 @@ begin
    FSMlabel[side].Font.Style:=[fsBold];
    FSMlabel[side].Caption:='Free Space Map';
    if Image.DoubleSided then
-    FSMlabel[side].Caption:=FSMlabel[side].Caption+' Side '+IntToStr(side);
+    FSMlabel[side].Caption:=FSMlabel[side].Caption+' Side '+IntToStr(side*2);
    //Disc Title
-   if Image.FormatNumber>>4=diAcornDFS then title:=Image.Disc[side].Title
-   else title:=Image.Title;
+   title:=Image.Title(side);
    //Remove top bit - this can cause havoc with Mac OS
    RemoveTopBit(title);
    //Set the edit box
    titles[side].Text:=title;
    titles[0].Enabled:=not Image.AFSPresent;
    //Limit the length
-   if Image.FormatNumber>>4=diAcornDFS then titles[0].MaxLength:=12; //DFS
-   if Image.FormatNumber>>4=diAcornADFS then titles[0].MaxLength:=10; //ADFS
+   if Image.FormatNumber>>4=diAcornDFS then titles[side].MaxLength:=12; //DFS
+   if Image.FormatNumber>>4=diAcornADFS then titles[side].MaxLength:=10; //ADFS
    //Boot Option
    boots[side].Visible  :=True;
    if Length(Image.BootOpt)>0 then
@@ -3579,8 +3590,8 @@ begin
  Application.ProcessMessages;
  //Run the procedure
  c:=Image.FixDirectories;
- //If it changed, the refresh the display (as some directories might not have
- if c then ShowNewImage(Image.Filename); //got read first time round
+ //Refresh the display (as some directories might not have got read first time round)
+ ShowNewImage(Image.Filename);
  //Change the Has Changed flag
  HasChanged:=HasChanged OR c;
  //Hide the progress message
@@ -3698,6 +3709,7 @@ begin
  //Miscellaneous
  SettingsForm.CreateINF.Checked:=DoCreateInf;
  SettingsForm.WriteDebug.Checked:=Fdebug;
+ SettingsForm.AllowDFSZeroSecs.Checked:=FDFSZeroSecs;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
@@ -3712,11 +3724,15 @@ begin
   ADFSInterleave:=SettingsForm.InterleaveGroup.ItemIndex;
   DoCreateInf   :=SettingsForm.CreateINF.Checked;
   Fdebug        :=SettingsForm.WriteDebug.Checked;
+  FDFSZeroSecs  :=SettingsForm.AllowDFSZeroSecs.Checked;
   //Save the settings
   SetRegValI('Texture',TextureType);
   SetRegValI('ADFS_L_Interleave',ADFSInterleave);
   SetRegValB('CreateINF',DoCreateINF);
   SetRegValB('Debug_Mode',Fdebug);
+  SetRegValB('DFS_Zero_Sectors',FDFSZeroSecs);
+  //Change the tile under the filetype
+  if DirList.SelectionCount=1 then DirListChange(Sender,DirList.Selected);
   //Repaint the main form
   Repaint;
  end;
@@ -4028,19 +4044,20 @@ begin
   //Remember the node being dragged
   DraggedItem:=DirList.GetNodeAt(X,Y);
   //Does the file exist?
-  if Image.FileExists(GetFilePath(DraggedItem),dir,entry) then
-   if(dir<>$FFFF)and(entry<>$FFFF)then //Make sure it is not the root
-   begin
-    //If it is valid
-    if DraggedItem<>nil then
+  if DraggedItem<>nil then
+   if Image.FileExists(GetFilePath(DraggedItem),dir,entry) then
+    if(dir<>$FFFF)and(entry<>$FFFF)then //Make sure it is not the root
     begin
-     //Set the mouse down flag
-     MouseIsDown :=True;
-     //Remember the mouse position
-     CursorPos.X:=X;
-     CursorPos.Y:=Y;
+     //If it is valid
+     if DraggedItem<>nil then
+     begin
+      //Set the mouse down flag
+      MouseIsDown :=True;
+      //Remember the mouse position
+      CursorPos.X:=X;
+      CursorPos.Y:=Y;
+     end;
     end;
-   end;
  end;
 end;
 
@@ -4461,6 +4478,7 @@ begin
     3: minor:=NewImageForm.Spectrum.ItemIndex;
     4: minor:=NewImageForm.Amiga.ItemIndex;
     5: minor:=$0;
+    7: minor:=NewImageForm.AFS.ItemIndex;
    end;
    //Number of tracks (DFS only)
    tracks:=0; //Default
@@ -4470,12 +4488,18 @@ begin
    ok:=False;
    //ADFS Hard Drive
    if(NewImageForm.MainFormat.ItemIndex=1)and(minor=8)then
-    ok:=Image.FormatHDD(NewImageForm.MainFormat.ItemIndex,
+    ok:=Image.FormatHDD(diAcornADFS,
                         NewImageForm.harddrivesize,
                         NewImageForm.newmap,
                         NewImageForm.dirtype)
-   else //Floppy Drive
-    ok:=Image.FormatFDD(NewImageForm.MainFormat.ItemIndex,minor,tracks);
+   else //AFS
+    if NewImageForm.MainFormat.ItemIndex=7 then
+     ok:=Image.FormatHDD(diAcornFS,
+                         NewImageForm.AFSImageSize.Position*10*1024,
+                         False,
+                         NewImageForm.AFS.ItemIndex+2)
+    else //Floppy Drive
+     ok:=Image.FormatFDD(NewImageForm.MainFormat.ItemIndex,minor,tracks);
    if ok then
    begin
     CloseAllHexDumps;
@@ -4528,7 +4552,7 @@ begin
    begin
     HasChanged:=True;
     //Update the status bar
-    UpdateImageInfo
+    UpdateImageInfo;
    end
    else
    begin

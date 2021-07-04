@@ -23,7 +23,7 @@ begin
    begin
     FFormat:=diAcornUEF<<4;
     //Set the disc size to the length of the uncompressed data
-    disc_size:=GetDataLength;
+    disc_size[0]:=GetDataLength;
    end;
   end;
 end;
@@ -69,7 +69,7 @@ begin
  //CRC Checks
  crcok:=True;
  //Loop through until we run out of bytes
- while pos<disc_size do
+ while pos<disc_size[0] do
  begin
   //Read in the chunk ID
   chunkid :=Read16b(pos);
@@ -569,7 +569,7 @@ begin
   //Copy from the buffer into the data array
   SetLength(CFSFiles[Result],Length(buffer));
   for i:=0 to Length(buffer)-1 do CFSFiles[Result][i]:=buffer[i];
-  inc(disc_size,Length(buffer));
+  inc(disc_size[0],Length(buffer));
  end;
  if Length(buffer)=0 then Result:=-8; //Nothing to write
 end;

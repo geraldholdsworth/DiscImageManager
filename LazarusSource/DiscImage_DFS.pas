@@ -8,6 +8,7 @@ var
  c,i    : Byte;
  t0,t1  : Integer;
  chk,dbl: Boolean;
+ sec    :Cardinal;
 begin
  if FFormat=diInvalidImg then
  begin
@@ -16,58 +17,52 @@ begin
   if GetDataLength>0 then
   begin
    chk:=True;
-   // Offset 0x0001 should have 9 bytes without top bit set and >31
+   //Offset 0x0001 should have 9 bytes >31
    c:=0;
    for i:=0 to 8 do
-    if ((ReadByte($0001+i)>31) AND (ReadByte($0001+i)<127))
-    or (ReadByte($0001+i)=0) then inc(c);
+    if(ReadByte($0001+i)>31)or(ReadByte($0001+i)=0)then inc(c);
    if c<>9 then chk:=False;
-   // Offset 0x0100 should have 4 bytes without top bit set and >31
+   //Offset 0x0100 should have 4 bytes >31
    c:=0;
    for i:=0 to 3 do
-    if ((ReadByte($0100+i)>31) AND (ReadByte($0100+i)<127))
-    or (ReadByte($0100+i)=0) then inc(c);
+    if(ReadByte($0100+i)>31)or(ReadByte($0100+i)=0)then inc(c);
    if c<>4 then chk:=False;
-   // Offset 0x0105 should have bits 0,1 and 2 clear
-   if (ReadByte($0105) AND $7)<>0 then chk:=False;
-   // Offset 0x0106 should have bits 2,3,6 and 7 clear
-   if (ReadByte($0106) AND $CC)<>0 then chk:=False;
+   //Offset 0x0105 should have bits 0,1 and 2 clear (i.e. divisible by 8)
+   if(ReadByte($0105)AND$7)<>0 then chk:=False;
+   //Offset 0x0106 should have bits 2,3,6 and 7 clear
+   if(ReadByte($0106)AND$CC)<>0 then chk:=False;
    //Above checks have passed
    if chk then
    begin
     dbl:=True; //Double sided flag
     //Check the entire first two sectors - if they are all zero assume ssd
     c:=0;
-    for i:=0 to $FE do
-     if ReadByte($0A00+i)=0 then inc(c);
-    if(c=$FF)and(ReadByte($0AFF)=0) then dbl:=False;
+    for i:=0 to $FE do if ReadByte($0A00+i)=0 then inc(c);
+    if(c=$FF)and(ReadByte($0AFF)=0)then dbl:=False;
     if dbl then
     begin
-     for i:=0 to $FE do
-      if ReadByte($B00+i)=0 then inc(c);
+     for i:=0 to $FE do if ReadByte($B00+i)=0 then inc(c);
      if(c=$FF)and(ReadByte($0BFF)=0)then dbl:=False;
     end;
-    // Offset 0x0A01 should have 9 bytes without top bit set and >31
+    //Offset 0x0A01 should have 9 bytes >31
     c:=0;
     for i:=0 to 8 do
-     if ((ReadByte($0A01+i)>31) AND (ReadByte($0A01+i)<127))
-     or (ReadByte($0A01+i)=0)  then inc(c);
+     if(ReadByte($0A01+i)>31)or(ReadByte($0A01+i)=0)then inc(c);
     if c<>9 then dbl:=False;
-    // Offset 0x0B00 should have 4 bytes without top bit set and >31
+    //Offset 0x0B00 should have 4 bytes >31
     c:=0;
     for i:=0 to 3 do
-     if ((ReadByte($0B00+i)>31) AND (ReadByte($0B00+i)<127))
-     or (ReadByte($0B00+i)=0) then inc(c);
+     if(ReadByte($0B00+i)>31)or(ReadByte($0B00+i)=0)then inc(c);
     if c<>4 then dbl:=False;
-    // Offset 0x0105 should have bits 0,1 and 2 clear
-    if (ReadByte($0B05) AND $7)<>0 then dbl:=False;
-    // Offset 0x0106 should have bits 2,3,6 and 7 clear
-    if (ReadByte($0B06) AND $CC)<>0 then dbl:=False;
+    //Offset 0x0B05 should have bits 0,1 and 2 clear
+    if(ReadByte($0B05)AND$7)<>0 then dbl:=False;
+    //Offset 0x0B06 should have bits 2,3,6 and 7 clear
+    if(ReadByte($0B06)AND$CC)<>0 then dbl:=False;
     //Number of sectors, side 0
-    t0:=ReadByte($0107)+((ReadByte($0106)AND$3)shl 8);
+    t0:=ReadByte($0107)+((ReadByte($0106)AND$3)<<8);
     //DS tests passed, get the number of sectors, side 1
     if dbl then
-     t1:=ReadByte($0B07)+((ReadByte($0B06)AND$3)shl 8)
+     t1:=ReadByte($0B07)+((ReadByte($0B06)AND$3)<<8)
     else
      t1:=t0;
     //Not a double sided
@@ -76,39 +71,64 @@ begin
      //So mark as so
      dbl:=False;
      //This needs to be set to something other that 0, otherwise it'll fail to
-     //ID as a DFS
+     //ID as a DFS. Actually, DFS does accept zero length disc sizes, but
+     //everything we have checked so far is for zeros.
      t1:=t0;
     end;
-    //Number of tracks needs to be a multiple of 10
-{    if (t0 mod 10<>0) and (t1 mod 10<>0) then
-     chk:=False
+    FDSD:=dbl;
+    if FDSD then
+     FFormat:=diAcornDFS<<4+1
     else
-    //Valid numbers of tracks (40 or 80)
-    if  ((t0 div 10=40) or (t0 div 10=80))
-    and ((t1 div 10=40) or (t1 div 10=80)) then}
-     FDSD:=dbl;
-     if FDSD then
-      FFormat:=diAcornDFS<<4+1
-     else
-      FFormat:=diAcornDFS<<4;
+     FFormat:=diAcornDFS<<4;
     //Number of sectors should be >0
-    if(t0=0)or(t1=0)then
+    if((t0=0)or(t1=0))and(not FDFSzerosecs)then
     begin
      FFormat:=diInvalidImg;
      chk:=False;
+    end;
+    //Now we check the files. If the sector addresses are outside the disc, we fail
+    if(chk)and(ReadByte($105)>>3>0)then //If there are any entries
+    begin
+     //Side 0
+     if t0=0 then t0:=$320; //Assume 200K disc
+     for i:=0 to (ReadByte($105)>>3)-1 do
+     begin
+      //Get the start sector
+      sec:=(ReadByte($108+7+i*8)+((ReadByte($108+6+i*8)AND$3)<<8))<<8;
+      //And add the length to it
+      inc(sec,Read16b($108+4+i*8)+((ReadByte($108+6+i*8)AND$30)<<12));
+      //If the end of the file is over the end of the disc, fail it
+      if sec>t0<<8 then chk:=False;
+     end;
+     //Side 2
+     if dbl then
+     begin
+      if t1=0 then t1:=$320; //Assume 200K disc
+      for i:=0 to (ReadByte($B05)>>3)-1 do
+      begin
+       //Get the start sector
+       sec:=(ReadByte($B08+7+i*8)+((ReadByte($B08+6+i*8)AND$3)<<8))<<8;
+       //And add the length to it
+       inc(sec,Read16b($B08+4+i*8)+((ReadByte($B08+6+i*8)AND$30)<<12));
+       //If the end of the file is over the end of the disc, fail it
+       if sec>t1<<8 then chk:=False;
+      end;
+     end;
+     //If checks have failed, then reset the format
+     if not chk then FFormat:=diInvalidImg;
     end;
    end;
    //Test for Watford DFS - we'll only test one side.
    if chk then
    begin
-    // Offset 0x0200 should have 8 bytes of 0xAA
+    //Offset 0x0200 should have 8 bytes of 0xAA
     c:=0;
     for i:=0 to 7 do
      if ReadByte($0200+i)=$AA then inc(c);
-    // Offset 0x0300 should have 4 bytes of 0x00
+    //Offset 0x0300 should have 4 bytes of 0x00
     for i:=0 to 3 do
      if ReadByte($0300+i)=$00 then inc(c);
-    // Disc size should match also
+    //Disc size should match also
     if(c=12)and(Read16b($306)=Read16b($106))then
      if FFormat>>4=diAcornDFS then
       inc(FFormat,2);
@@ -163,11 +183,15 @@ begin
  begin
   SetLength(Result,2);
   SetLength(bootoption,2);
+  SetLength(disc_size,2);
+  SetLength(disc_name,2);
  end
  else                       //Single sided image
  begin
   SetLength(Result,1);
   SetLength(bootoption,1);
+  SetLength(free_space,1);
+  SetLength(disc_name,1);
  end;
  //Used by MMB. For DFS, this should be 0
  if(mmbdisc<0)or(mmbdisc>511)then mmbdisc:=0;
@@ -181,19 +205,21 @@ begin
   SetLength(Result[s-mmbdisc].Entries,t);
   //Directory name - as DFS only has $, this will be the drive number + '$'
   Result[s-mmbdisc].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
+  Result[s-mmbdisc].Partition:=s;
   //Get the disc title(s)
   Result[s-mmbdisc].Title:=ReadString(ConvertDFSSector($000,s),-8)
-                  +ReadString(ConvertDFSSector($100,s),-4);
+                          +ReadString(ConvertDFSSector($100,s),-4);
   RemoveSpaces(Result[s-mmbdisc].Title);
   RemoveControl(Result[s-mmbdisc].Title);
-  if(s>0)and(FFormat>>4=diAcornDFS)then disc_name:=disc_name+' and ';
-  disc_name:=disc_name+Result[s-mmbdisc].Title;
+  disc_name[s]:=Result[s-mmbdisc].Title;
   //Boot Option
   if FFormat>>4=diAcornDFS then
    bootoption[s]:=(ReadByte(ConvertDFSSector($106,s))AND$30)>>4;
   //Disc Size
-  inc(disc_size, (ReadByte(ConvertDFSSector($107,s))
-               +((ReadByte(ConvertDFSSector($106,s))AND$03)<<8))*$100);
+  disc_size[s]:=(ReadByte(ConvertDFSSector($107,s))
+              +((ReadByte(ConvertDFSSector($106,s))AND$03)<<8))*$100;
+  //Zero length disc size?
+  if disc_size[s]=0 then disc_size[s]:=$32000;//Default size of 200K
   //Read the catalogue
   for f:=1 to t do
   begin
@@ -268,18 +294,22 @@ var
 begin
  //Set up the arrays
  if (FFormat AND $1)=1 then //Double sided image
-  SetLength(free_space_map,2)
+ begin
+  SetLength(free_space_map,2);
+  SetLength(free_space,2);
+ end
  else                       //Single sided image
+ begin
   SetLength(free_space_map,1);
- //Reset the counter
- free_space:=0;
+  SetLength(free_space,1);
+ end;
  for s:=0 to Length(free_space_map)-1 do
  begin
   //Directory size
-  inc(free_space,$200);
-  if FFormat mod $10>1 then inc(free_space,$200); //Watford DFS
+  free_space[s]:=$200;
+  if FFormat mod $10>1 then inc(free_space[s],$200); //Watford DFS
   //Free Space Map
-  SetLength(free_space_map[s],disc_size DIV $A00); //Number of tracks
+  SetLength(free_space_map[s],disc_size[s]DIV$A00); //Number of tracks
   for f:=0 to Length(free_space_map[s])-1 do
   begin
    SetLength(free_space_map[s,f],10); //Number of sectors per track
@@ -297,8 +327,8 @@ begin
   if Length(LDisc[s].Entries)>0 then
    for e:=0 to Length(LDisc[s].Entries)-1 do
    begin
-    inc(free_space,(LDisc[s].Entries[e].Length div $100)*$100);
-    if LDisc[s].Entries[e].Length mod $100>0 then inc(free_space,$100);
+    inc(free_space[s],(LDisc[s].Entries[e].Length div $100)*$100);
+    if LDisc[s].Entries[e].Length mod $100>0 then inc(free_space[s],$100);
     //Add it to the free space map
     c:=LDisc[s].Entries[e].Length div $100;
     if LDisc[s].Entries[e].Length mod $100>0 then inc(c);
@@ -309,8 +339,8 @@ begin
         free_space_map[s,(LDisc[s].Entries[e].Sector+fs) div 10,
                          (LDisc[s].Entries[e].Sector+fs) mod 10]:=$FF;
    end;
+  free_space[s]:=disc_size[s]-free_space[s];
  end;
- free_space:=disc_size-free_space;
 end;
 
 {-------------------------------------------------------------------------------
@@ -625,12 +655,20 @@ begin
   SetLength(Result,2);
   FDSD:=True;
   SetLength(bootoption,2);
+  SetLength(disc_size,2);
+  disc_size[1]:=0;
+  SetLength(free_space,2);
+  free_space[1]:=0;
+  SetLength(disc_name,2);
  end
  else                       //Single sided image
  begin
   SetLength(Result,1);
   FDSD:=False;
   SetLength(bootoption,1);
+  SetLength(disc_size,1);
+  SetLength(free_space,1);
+  SetLength(disc_name,1);
  end;
  //Setup the data area
  SetDataLength($200*(minor+1)); // $200 for the header, per side. $400 for Watford
@@ -646,8 +684,7 @@ begin
   Result[s].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
   //Get the disc title(s)
   Result[s].Title:=disctitle;
-  if s>0 then disc_name:=disc_name+' and ';
-  disc_name:=disc_name+Result[s].Title;
+  disc_name[s]:=Result[s].Title;
   //Disc Size
   side_size:=0;
   if tracks=0 then side_size:=$190; //40T
@@ -655,11 +692,11 @@ begin
   //Initialise the disc
   WriteByte(side_size div $100,ConvertDFSSector($106,s));
   WriteByte(side_size mod $100,ConvertDFSSector($107,s));
-  inc(disc_size,side_size*$100);
+  inc(disc_size[s],side_size*$100);
   //Disc Title
   UpdateDFSDiscTitle(disctitle,tracks);
   //Directory size
-  inc(free_space,$200);
+  inc(free_space[s],$200);
   //Next side
   if (FFormat AND $1=1) then inc(s) else s:=2;
  until s=2;
@@ -682,9 +719,8 @@ begin
   FDisc[side].Title:=title;
   //Set the disc_name for both sides
   if Length(FDisc)>1 then
-   disc_name:=FDisc[0].Title+' and '+FDisc[1].Title
-  else
-   disc_name:=FDisc[0].Title;
+   disc_name[1]:=FDisc[1].Title;
+  disc_name[0]:=FDisc[0].Title;
  end;
  //Update the data
  for c:=0 to 11 do

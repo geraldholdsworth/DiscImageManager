@@ -585,6 +585,22 @@ Bug fixes
 * The log file was produced whether the option in the preferences was set or not.
 * When editing a filename and the mouse was moved away to do other operations, the edit box remained.
 
+1.32 - 4th July 2021
+--------------------
+New or improved features
+* With multi-partition (side) images, clicking on files or directories will change the total size, free space and disc title displays in the status bar to refer to that partition/side.
+* ADFS/AFS hybrid images now has separate titles for both partitions, albeit the ADFS one is a default 'AFS L3'.
+* Can now load DFS images that have MODE 7 control characters in the title (i.e. top bit set characters).
+* Added a preferences option to allow DFS images where it specifies a zero number of sectors. Such images are then given a default size of 200K.
+* Additional checks have been added to the ID process for DFS. Each file's location and length are checked against the reported disc length to make sure that they are on the disc. If no size is reported, 200K is assumed.
+* Fixing ADFS directories will no longer attempt a fix on ADFS L images where the directory header and footer do not contain 'Hugo', and there are zero entries. This is because this could be caused by incorrect interleave option.
+* Creating a blank ADFS L image now takes account of the interleave option in preferences.
+* Can now create a blank Acorn FS Level 2 and 3 image (untested on real, or emulated, system).
+
+Bug fixes
+* Sometimes just clicking on a DFS root directory, or just generally in the directory listing but not over an entry, would cause the application to crash.
+* When the texture is changed the old texture would still remain under the filetype graphic on the File Details pane.
+
 
 Platform History
 ----------------

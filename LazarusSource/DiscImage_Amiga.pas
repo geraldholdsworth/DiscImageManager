@@ -88,7 +88,7 @@ begin
       density  :=4;                           //High Density
      end;
      //Set the disc size
-     disc_size:=root*secsize*2;
+     disc_size[0]:=root*secsize*2;
      //Set the directory separator
      dir_sep:='/';
      //and the root name
@@ -126,11 +126,11 @@ begin
   //Total number of sectors will be double where the root is
   sectors   :=root*2;
   //Disc size
-  disc_size :=Cardinal(sectors)*secsize;
+  disc_size[0]:=Cardinal(sectors)*secsize;
   //Disc name
-  disc_name :=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
+  disc_name[0]:=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
   //Work out the free space
-  free_space:=secsize*2; //Allow for the boot block, even if there isn't one
+  free_space[0]:=secsize*2; //Allow for the boot block, even if there isn't one
   dec(sectors,2);        //The first two sectors will still be allocated for one
   //Free Space Map pointer - starts at the root block
   fsmptr    :=root*secsize+$13C;
@@ -154,7 +154,7 @@ begin
       begin
        //If a bit is set, that sector is free
        if (IsBitSet(b,c)) and (sectors>0) then
-        inc(free_space,secsize);
+        inc(free_space[0],secsize);
        //Take account of each sector
        dec(sectors);
       end;

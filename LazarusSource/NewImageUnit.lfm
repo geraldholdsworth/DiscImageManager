@@ -1,7 +1,7 @@
 object NewImageForm: TNewImageForm
-  Left = 380
+  Left = 431
   Height = 211
-  Top = 186
+  Top = 159
   Width = 532
   BorderIcons = []
   BorderStyle = bsDialog
@@ -15,7 +15,7 @@ object NewImageForm: TNewImageForm
   LCLVersion = '2.0.12.0'
   object MainFormat: TRadioGroup
     Left = 0
-    Height = 154
+    Height = 170
     Top = 0
     Width = 260
     AutoFill = True
@@ -27,8 +27,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 136
-    ClientWidth = 252
+    ClientHeight = 151
+    ClientWidth = 250
     ItemIndex = 0
     Items.Strings = (
       'Disc Filing System (DFS)'
@@ -37,6 +37,8 @@ object NewImageForm: TNewImageForm
       'Sinclair Spectrum +3/Amstrad'
       'Commodore Amiga'
       'Cassette Filing System (CFS)'
+      '!Spark archive'
+      'Acorn File Server (AFS0)'
     )
     OnClick = MainFormatClick
     TabOrder = 0
@@ -55,8 +57,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 87
-    ClientWidth = 252
+    ClientHeight = 86
+    ClientWidth = 250
     ItemIndex = 0
     Items.Strings = (
       'Acorn single sided'
@@ -80,8 +82,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 191
-    ClientWidth = 252
+    ClientHeight = 190
+    ClientWidth = 250
     ItemIndex = 0
     Items.Strings = (
       'S (160K, Old Map, Old Directory)'
@@ -111,8 +113,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 63
-    ClientWidth = 252
+    ClientHeight = 62
+    ClientWidth = 250
     ItemIndex = 0
     Items.Strings = (
       '1541'
@@ -136,8 +138,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 39
-    ClientWidth = 252
+    ClientHeight = 38
+    ClientWidth = 250
     ItemIndex = 0
     Items.Strings = (
       'DSK'
@@ -160,8 +162,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 70
-    ClientWidth = 252
+    ClientHeight = 69
+    ClientWidth = 250
     ItemIndex = 0
     Items.Strings = (
       'AmigaDOS DD'
@@ -185,8 +187,8 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 47
-    ClientWidth = 252
+    ClientHeight = 46
+    ClientWidth = 250
     ItemIndex = 1
     Items.Strings = (
       '40 Track'
@@ -225,10 +227,67 @@ object NewImageForm: TNewImageForm
     Height = 30
     Top = 174
     Width = 100
-    Cancel = True
     Caption = 'Cancel'
     Color = 15527148
     ModalResult = 2
     TabOrder = 8
+  end
+  object AFS: TRadioGroup
+    Left = 268
+    Height = 64
+    Top = 0
+    Width = 260
+    AutoFill = True
+    Caption = 'Acorn File Server'
+    ChildSizing.LeftRightSpacing = 6
+    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
+    ChildSizing.EnlargeVertical = crsHomogenousChildResize
+    ChildSizing.ShrinkHorizontal = crsScaleChilds
+    ChildSizing.ShrinkVertical = crsScaleChilds
+    ChildSizing.Layout = cclLeftToRightThenTopToBottom
+    ChildSizing.ControlsPerLine = 1
+    ClientHeight = 45
+    ClientWidth = 250
+    ItemIndex = 0
+    Items.Strings = (
+      'Level 2'
+      'Level 3'
+    )
+    OnClick = AFSClick
+    TabOrder = 9
+    Visible = False
+  end
+  object AFSSize: TGroupBox
+    Left = 268
+    Height = 81
+    Top = 64
+    Width = 260
+    Caption = 'Acorn FS Image Size'
+    ClientHeight = 62
+    ClientWidth = 250
+    TabOrder = 10
+    Visible = False
+    object AFSImageSize: TTrackBar
+      Left = 8
+      Height = 25
+      Top = 8
+      Width = 236
+      Max = 52428
+      Min = 40
+      OnChange = AFSImageSizeChange
+      Position = 40
+      TickStyle = tsNone
+      TabOrder = 0
+    end
+    object AFSImageSizeLabel: TLabel
+      Left = 8
+      Height = 16
+      Top = 40
+      Width = 232
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'AFSImageSizeLabel'
+      ParentColor = False
+    end
   end
 end
