@@ -66,7 +66,7 @@ begin
     else
      t1:=t0;
     //Not a double sided
-    if t1=0 then
+    if(t1=0)and(not FDFSzerosecs)then
     begin
      //So mark as so
      dbl:=False;
@@ -75,7 +75,12 @@ begin
      //everything we have checked so far is for zeros.
      t1:=t0;
     end;
+    //Zero number of sectors, and we're allowing these, so let's look at the extension
+    if(t1=0)and(FDFSzerosecs)then //If it is '.SSD' then it is single sided
+     if UpperCase(RightStr(FFilename,4))='.SSD' then dbl:=False;
+    //Set the flag
     FDSD:=dbl;
+    //Set the initial format
     if FDSD then
      FFormat:=diAcornDFS<<4+1
     else
@@ -101,7 +106,7 @@ begin
       if sec>t0<<8 then chk:=False;
      end;
      //Side 2
-     if dbl then
+     if(dbl)and(ReadByte($B05)>>3>0)then
      begin
       if t1=0 then t1:=$320; //Assume 200K disc
       for i:=0 to (ReadByte($B05)>>3)-1 do
@@ -110,9 +115,11 @@ begin
        sec:=(ReadByte($B08+7+i*8)+((ReadByte($B08+6+i*8)AND$3)<<8))<<8;
        //And add the length to it
        inc(sec,Read16b($B08+4+i*8)+((ReadByte($B08+6+i*8)AND$30)<<12));
-       //If the end of the file is over the end of the disc, fail it
-       if sec>t1<<8 then chk:=False;
+       //If the end of the file is over the end of the disc, fail it as a double
+       if sec>t1<<8 then dbl:=False;
       end;
+      //Refresh the double sided flag
+      FDSD:=dbl;
      end;
      //If checks have failed, then reset the format
      if not chk then FFormat:=diInvalidImg;

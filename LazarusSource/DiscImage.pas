@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.32
+TDiscImage class V1.33
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -367,6 +367,7 @@ type
   function DiscSize(partition: Cardinal):Int64;
   function FreeSpace(partition: Cardinal):Int64;
   function Title(partition: Cardinal):String;
+  function CreateAFSPassword: Boolean;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;

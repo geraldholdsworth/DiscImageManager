@@ -259,11 +259,11 @@ object NewImageForm: TNewImageForm
   end
   object AFSSize: TGroupBox
     Left = 268
-    Height = 81
+    Height = 104
     Top = 64
     Width = 260
     Caption = 'Acorn FS Image Size'
-    ClientHeight = 62
+    ClientHeight = 85
     ClientWidth = 250
     TabOrder = 10
     Visible = False
@@ -281,13 +281,21 @@ object NewImageForm: TNewImageForm
     end
     object AFSImageSizeLabel: TLabel
       Left = 8
-      Height = 16
-      Top = 40
+      Height = 24
+      Top = 32
       Width = 232
       Alignment = taCenter
       AutoSize = False
       Caption = 'AFSImageSizeLabel'
       ParentColor = False
+    end
+    object cb_AFScreatepword: TCheckBox
+      Left = 8
+      Height = 18
+      Top = 56
+      Width = 138
+      Caption = 'Create password file'
+      TabOrder = 1
     end
   end
 end

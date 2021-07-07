@@ -648,7 +648,9 @@ function TDiscImage.FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
 var
  index     : Integer;
  c,y,m,d   : Byte;
- cdate     : Word;
+ cdate,
+ freesecs,
+ firstfree : Word;
  mapsize,
  mapsizeal,
  allocmap1,
@@ -682,7 +684,9 @@ begin
   secsize:=256;
   secspertrack:=16;
   //Interleave option
-  if FForceInter=0 then Finterleave:=3 //Default for AFS
+  if FForceInter=0 then
+   if afslevel=3 then Finterleave:=3 //MUX - Default for AFS L3
+   else Finterleave:=1 //SEQ - default for AFS L2
   else Finterleave:=FForceInter;
   //Level 2
   if afslevel=2 then
@@ -703,7 +707,7 @@ begin
    //Sectors for one side at $14
    Write16b((harddrivesize>>8)div 2,afshead+$14);
    //Root SIN at $16
-   Fafsroot:=afshead+$100;
+   Fafsroot:=afshead+$200;
    afsroot_size:=$200;//Root is 2 sectors long
    Write24b(Fafsroot>>8,afshead+$16);
    //Creation Date at $19
@@ -748,21 +752,30 @@ begin
    WriteByte(cycle,Fafsroot+afsroot_size-1);
    //Write the image allocation map
    for index:=0 to (harddrivesize>>8)-1 do   //Blank entries just reference the
-    Write16b(index+1,allocmap1+5+(index*2)); //next sector
+    Write16b(index+1,allocmap1+5+(index*2)); //next sector.
    //AFS Headers
-   WriteBits(1,allocmap1+6,7,1); //sector 0
-   WriteBits(1,allocmap1+26,7,1);//sector 10
-   WriteBits(1,allocmap1+6,6,1); //sector 0
-   WriteBits(1,allocmap1+26,6,1);//sector 10
-   WriteBits(1,allocmap1+6,5,1); //sector 0
-   WriteBits(1,allocmap1+26,5,1);//sector 10
-   WriteByte(0,allocmap1+5);
-   WriteByte(0,allocmap1+25);
+   WriteBits(1,allocmap1+6,7,1); //sector 0 mark as written
+   WriteBits(1,allocmap1+26,7,1);//sector 10 mark as written
+   WriteBits(1,allocmap1+6,6,1); //sector 0 end of chain
+   WriteBits(1,allocmap1+26,6,1);//sector 10 end of chain
+   WriteBits(1,allocmap1+6,5,1); //sector 0 start of chain
+   WriteBits(1,allocmap1+26,5,1);//sector 10 start of chain
+   WriteByte(0,allocmap1+5);     //No next sector
+   WriteByte(0,allocmap1+25);    //No next sector
+   //Sector 1 and sector 801 (blank sectors for DFS) are not used
+   WriteBits(1,allocmap1+8,7,1);   //sector 1 mark as written
+   WriteBits(1,allocmap1+1608,7,1);//sector 801 mark as written
+   WriteBits(1,allocmap1+8,6,1);   //sector 1 end of chain
+   WriteBits(1,allocmap1+1608,6,1);//sector 801 end of chain
+   WriteBits(1,allocmap1+8,5,1);   //sector 1 start of chain
+   WriteBits(1,allocmap1+1608,5,1);//sector 801 start of chain
+   WriteByte(0,allocmap1+7);       //No next sector
+   WriteByte(0,allocmap1+1607);    //No next sector
    //Root
    WriteBits(1,allocmap1+6+Fafsroot>>7,5,1);//Start
-   WriteBits(1,allocmap1+6+Fafsroot>>7,7,1);
+   WriteBits(1,allocmap1+6+Fafsroot>>7,7,1);//Has been written
    WriteBits(1,allocmap1+6+(Fafsroot+afsroot_size)>>7-2,6,1);//End
-   WriteBits(1,allocmap1+6+(Fafsroot+afsroot_size)>>7-2,7,1);
+   WriteBits(1,allocmap1+6+(Fafsroot+afsroot_size)>>7-2,7,1);//Has been written
    WriteByte(0,allocmap1+5+(Fafsroot+afsroot_size)>>7-2);//Zero length LSB
    if afsroot_size>>8>2 then
     for index:=1 to (afsroot_size>>8)-1 do
@@ -780,12 +793,43 @@ begin
    WriteBits(1,allocmap1+6+allocmap2>>7,5,1); //Start
    WriteBits(1,allocmap1+6+(allocmap2+mapsizeal)>>7,6,1); //End
    WriteByte(0,allocmap1+5+(allocmap2+mapsizeal)>>7);
+   //Work out and set the number of free sectors and pointer to first free
+   freesecs:=0;      //Counter for number of free sectors
+   firstfree:=$FFFF; //Dummy start
+   index:=5;         //Start at the beginning
+   while index<mapsize do
+   begin
+    if ReadBits(allocmap1+index+1,7,1)=0 then //Bit 7 is not set, so is unwritten
+    begin
+     inc(freesecs); //Count it as a free sector
+     if firstfree=$FFFF then     //Is it the first?
+      firstfree:=(index-5)div 2; //then record it
+    end;
+    inc(index,2);//Next sector
+   end;
+   Write16b(freesecs,allocmap1+1); //Write the free sector count to the map
+   Write16b(firstfree,allocmap1+3);//Write the first free sector to the map
+   //Now re-align the unwritten sector pointers so they jump over the written ones
+   index:=mapsize-2;//Start at the end
+   firstfree:=(index-5)div 2;//And take note of the next sector
+   while index>5 do //Continue until we reach the start
+   begin
+    dec(index,2); //Entries are 2 bytes long
+    if ReadBits(allocmap1+index+1,7,1)=0 then //If unwritten
+    begin
+     Write16b(firstfree,allocmap1+index);     //Write the last known free
+     firstfree:=(index-5)div 2;               //And update to point to this one
+    end;
+   end;
+   //Mark end of map
+   Write16b(0,allocmap1+mapsize-2);
+   WriteBits(1,allocmap1+mapsize-1,6,1);
    //Copy the primary allocation map to the copy
    for index:=0 to mapsize-1 do
     WriteByte(ReadByte(allocmap1+index),allocmap2+index);
    //Update the current map indicators
-   WriteByte($01,allocmap1);
-   WriteByte($02,allocmap2);
+   WriteByte($02,allocmap1);
+   WriteByte($01,allocmap2);
    //Mark as a success
    Result:=True;
   end;
@@ -889,4 +933,12 @@ begin
   //Finalise the the variables by reading in the partition
   if Result then ReadAFSPartition;
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Create a blank AFS password file (this is a public method)
+-------------------------------------------------------------------------------}
+function TDiscImage.CreateAFSPassword: Boolean;
+begin
+ Result:=False;
 end;

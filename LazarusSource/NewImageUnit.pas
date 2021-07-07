@@ -35,6 +35,7 @@ type
   AFS: TRadioGroup;
   AFSSize: TGroupBox;
   AFSImageSizeLabel: TLabel;
+  cb_AFScreatepword: TCheckBox;
   MainFormat: TRadioGroup;
   DFS: TRadioGroup;
   ADFS: TRadioGroup;
@@ -115,6 +116,10 @@ begin
  Spectrum.ItemIndex  :=0;
  Amiga.ItemIndex     :=0;
  AFS.ItemIndex       :=0;
+ cb_AFScreatepword.Checked:=False;
+ AFSImageSize.Position:=AFSImageSize.Min;
+ AFSClick(Sender);
+ AFSImageSizeChange(Sender);
  //Hide all the sub options, except for the first one
  DFS.Visible         :=True;
  DFSTracks.Visible   :=True;
@@ -126,9 +131,6 @@ begin
  AFSSize.Visible     :=False;
  //Enable the create button
  btn_OK.Enabled      :=True;
- AFSImageSize.Position:=AFSImageSize.Min;
- AFSClick(Sender);
- AFSImageSizeChange(Sender);
 end;
 
 {-------------------------------------------------------------------------------

@@ -59,6 +59,8 @@ type
    CancelDragDrop: TAction;
    DuplicateFile1: TMenuItem;
    IyonixTextureTile: TImage;
+   menuSavePartition: TMenuItem;
+   SavePartition1: TMenuItem;
    ROPiTextureTile: TImage;
    RO3TextureTile: TImage;
    menuDuplicateFile: TMenuItem;
@@ -453,7 +455,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.32';
+    ApplicationVersion = '1.32.1';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -4494,10 +4496,16 @@ begin
                         NewImageForm.dirtype)
    else //AFS
     if NewImageForm.MainFormat.ItemIndex=7 then
+    begin
      ok:=Image.FormatHDD(diAcornFS,
                          NewImageForm.AFSImageSize.Position*10*1024,
                          False,
-                         NewImageForm.AFS.ItemIndex+2)
+                         NewImageForm.AFS.ItemIndex+2);
+     if(ok)and(NewImageForm.cb_AFScreatepword.Checked)then
+      //Create blank password file for AFS
+      if not Image.CreateAFSPassword then //If fails, report an error
+       ReportError('Failed to create a password file');
+    end
     else //Floppy Drive
      ok:=Image.FormatFDD(NewImageForm.MainFormat.ItemIndex,minor,tracks);
    if ok then

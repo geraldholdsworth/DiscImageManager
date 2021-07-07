@@ -6,6 +6,7 @@ Bugs
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
+* Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
 
 General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
@@ -18,6 +19,12 @@ General
 * Duplicate the facility to prevent infinite loops when reading images from Acorn FS to ADFS, Amiga and Spark.
 * Cancel button for progress display?
 * Tool to change the interleave of an image (ADFS L and AFS).
+* Click on root to enable saving of just that partition/drive (splitting of a DS DFS).
+* Click on root to enbale deleting of partition (and splitting of a DS DFS).
+* Import AFS into ADFS to create new partition.
+* Import SD DFS into SD DFS to create combined DS DFS.
+* Port the DFS Combine/Split to a separate application.
+* Side pane (left hand side) to allow separate images to be opened.
 
 ADFS
 * Change the size of the ADFS partition or image.
@@ -36,7 +43,16 @@ Spectrum/Amstrad
 MMFS
 * Write entire module.
 
+Spark
+* Create new archive.
+* Create directory.
+* Write file.
+* Rename file/directory.
+* Delete file/directory.
+* Move file.
+
 Acorn File Store (AFS)
+* Create blank password file.
 * Create blank ADFS/AFS L3 hybrid images.
 * Create directory.
 * Write file.

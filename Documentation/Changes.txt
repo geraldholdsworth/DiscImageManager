@@ -601,6 +601,19 @@ Bug fixes
 * Sometimes just clicking on a DFS root directory, or just generally in the directory listing but not over an entry, would cause the application to crash.
 * When the texture is changed the old texture would still remain under the filetype graphic on the File Details pane.
 
+1.32.1
+--------------------
+New or improved features
+* Finishing off the creating of Acorn FS Level 2 images, the number of free sectors and pointer to first free sector fields in the allocation map are now written to the allocation map.
+* Finishing off the creating of Acorn FS Level 2 images, reserving sectors 1 and 801, as they are not used, are now written to the allocation map, and the position of the root and the two allocation maps adjusted accordingly.
+* Finishing off the creating of Acorn FS Level 2 images, blank chains in the allocation map now skip over used sectors, and the map is now terminated correctly.
+* The file extension is now used, for DFS images, to confirm whether single or double sided when the 'Allow Zero Length' options is set and it is unsure what to ID the image as.
+
+Bug fixes
+* AFS Level 2 images were wrongly created as multiplex interleaved.
+* The extra checks on DFS images caused certain legitimate images to be rejected.
+* The second side of a DS DFS image, where the reported sectors was zero, caused the image to be IDed as a SS image.
+
 
 Platform History
 ----------------
