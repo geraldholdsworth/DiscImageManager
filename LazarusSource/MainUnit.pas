@@ -59,7 +59,12 @@ type
    CancelDragDrop: TAction;
    DuplicateFile1: TMenuItem;
    IyonixTextureTile: TImage;
+   DeletePartition1: TMenuItem;
+   AddPasswordFile1: TMenuItem;
+   menuAddPasswordFile: TMenuItem;
    menuSavePartition: TMenuItem;
+   menuDeletePartition: TMenuItem;
+   PartitionMenu: TMenuItem;
    SavePartition1: TMenuItem;
    ROPiTextureTile: TImage;
    RO3TextureTile: TImage;
@@ -455,7 +460,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.32.1';
+    ApplicationVersion = '1.32.2';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -907,10 +912,11 @@ begin
        if filetype='000' then filetype:='';//None, so reset
       end;
      end;
-     //ADFS, DFS & CFS only stuff
+     //ADFS, AFS, DFS & CFS only stuff
      if((Image.FormatNumber>>4=diAcornDFS)
       or(Image.FormatNumber>>4=diAcornADFS)
-      or(Image.FormatNumber>>4=diAcornUEF))
+      or(Image.FormatNumber>>4=diAcornUEF)
+      or(Image.FormatNumber>>4=diAcornFS))
      and(filename<>'')then
      begin
       //Is there an inf file?
@@ -951,10 +957,11 @@ begin
      end;
      attributes:=attributes+GetAttributes(attr1,Image.FormatNumber>>4);
      if importfilename='' then importfilename:='NewFile';
-     //Validate the filename (ADFS, DFS & CFS only)
+     //Validate the filename (ADFS, AFS, DFS & CFS only)
      if(Image.FormatNumber>>4=diAcornDFS)
-      or(Image.FormatNumber>>4=diAcornADFS)
-      or(Image.FormatNumber>>4=diAcornUEF)then
+     or(Image.FormatNumber>>4=diAcornADFS)
+     or(Image.FormatNumber>>4=diAcornUEF)
+     or(Image.FormatNumber>>4=diAcornFS)then
      begin
       //Remove any extraenous specifiers
       while (importfilename[4]=Image.DirSep) do
@@ -966,7 +973,8 @@ begin
       WinToBBC(importfilename);
       //Check to make sure that a DFS directory hasn't been changed
       if((Image.FormatNumber>>4=diAcornDFS)
-       or(Image.FormatNumber>>4=diAcornADFS))
+       or(Image.FormatNumber>>4=diAcornADFS)
+       or(Image.FormatNumber>>4=diAcornFS))
       and(importfilename[2]='/')then
        importfilename[2]:=Image.DirSep;
       //Remove any spaces, unless it is a big directory
@@ -981,8 +989,10 @@ begin
      NewFile.Attributes   :=attributes;
      NewFile.DirRef       :=-1; //Not a directory
      NewFile.ShortFileType:=filetype;
-     if Image.FormatNumber>>4=diAcornADFS then //Need the selected directory for ADFS
-      if DirList.Selected.Text='$' then NewFile.Parent:='$'
+     if(Image.FormatNumber>>4=diAcornADFS) //Need the selected directory for ADFS
+     or(Image.FormatNumber>>4=diAcornFS)then//And Acorn FS
+      if(DirList.Selected.Text='$')
+      or(DirList.Selected.Text='AFS$')then NewFile.Parent:=DirList.Selected.Text
       else
        NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
                                             DirList.Selected.Index);
@@ -1992,7 +2002,8 @@ begin
    img_Filetype.Hint:='';
    lb_FileType.Hint :='';
   end;
-  if(not TMyTreeNode(Node).IsDir)or(afspart)then //Can only add files to a directory
+  if(not TMyTreeNode(Node).IsDir)//Can only add files to a directory
+  or((afspart)and(Image.FormatNumber>>4=diAcornADFS))then//And not to ADFS section of hybrids
   begin
    AddFile1.Enabled        :=False;
    btn_AddFiles.Enabled    :=False;
@@ -2051,8 +2062,9 @@ begin
    or  (Image.FormatNumber>>4=diSpark)
    or  (Image.FormatNumber>>4=diAcornFS))then
     lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
-                                       Image.Disc[dir].Entries[entry].TimeStamp)
-   else
+                                       Image.Disc[dir].Entries[entry].TimeStamp);
+   if(Image.Disc[dir].Entries[entry].TimeStamp=0)
+   or(Image.FormatNumber>>4=diAcornFS)then
     if Image.Disc[dir].Entries[entry].DirRef=-1 then
     begin
      //Load address
@@ -4503,7 +4515,7 @@ begin
                          NewImageForm.AFS.ItemIndex+2);
      if(ok)and(NewImageForm.cb_AFScreatepword.Checked)then
       //Create blank password file for AFS
-      if not Image.CreateAFSPassword then //If fails, report an error
+      if not Image.CreateAFSPassword(NewImageForm.AFS.ItemIndex+2)then //If fails, report an error
        ReportError('Failed to create a password file');
     end
     else //Floppy Drive

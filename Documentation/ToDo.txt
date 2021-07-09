@@ -21,15 +21,16 @@ General
 * Tool to change the interleave of an image (ADFS L and AFS).
 * Click on root to enable saving of just that partition/drive (splitting of a DS DFS).
 * Click on root to enbale deleting of partition (and splitting of a DS DFS).
-* Import AFS into ADFS to create new partition.
+* Import AFS into ADFS to create new partition (REF:1).
 * Import SD DFS into SD DFS to create combined DS DFS.
 * Port the DFS Combine/Split to a separate application.
 * Side pane (left hand side) to allow separate images to be opened.
+* Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
 
 ADFS
 * Change the size of the ADFS partition or image.
 * Compact the free space map.
-* Add option to create an AFS partition.
+* Add option to create an AFS partition (REF:1).
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
@@ -41,7 +42,7 @@ Spectrum/Amstrad
 * Write entire module.
 
 MMFS
-* Write entire module.
+* Write entire module - remove from TDiscImage and incorporate into GUI (REF:3).
 
 Spark
 * Create new archive.
@@ -52,10 +53,8 @@ Spark
 * Move file.
 
 Acorn File Store (AFS)
-* Create blank password file.
-* Create blank ADFS/AFS L3 hybrid images.
+* Create blank ADFS/AFS L3 hybrid images (REF:1).
 * Create directory.
-* Write file.
 * Rename file/directory.
 * Delete file/directory.
 * Move file.

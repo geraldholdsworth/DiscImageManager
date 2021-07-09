@@ -60,7 +60,7 @@ type
    Length,
    Zone         : Cardinal;
   end;
-  //To collate fragments (ADFS/CDR/Amiga)
+  //To collate fragments (ADFS/CDR/Amiga/AFS)
   TFragmentArray= array of TFragment;
   //Provides feedback
   TProgressProc = procedure(Fupdate: String) of Object;
@@ -122,6 +122,9 @@ type
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function ReadString(ptr,term: Integer;var buffer: TDIByteArray;
                                       control: Boolean=True): String; overload;
+  procedure WriteString(str: String;ptr,len: Cardinal;pad: Byte);
+  procedure WriteString(str: String;ptr,len: Cardinal;pad: Byte;
+                                            var buffer: TDIByteArray); overload;
   function FormatToString: String;
   function FormatToExt: String;
   function ReadBits(offset,start,length: Cardinal): Cardinal;
@@ -228,7 +231,14 @@ type
   function GetAFSObjLength(offset: Cardinal): Cardinal;
   function GetAllocationMap: Cardinal;
   procedure ReadAFSFSM;
+  function AFSGetFreeSectors(used: Boolean=False): TFragmentArray;
+  function AFSAllocateFreeSpace(size :Cardinal;
+                                       var fragments: TFragmentArray): Cardinal;
+  procedure FinaliseAFSL2Map;
   function FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
+  function WriteAFSFile(var file_details: TDirEntry;
+                                              var buffer: TDIByteArray):Integer;
+  procedure WriteAFSObject(offset: Cardinal;var buffer: TDIByteArray);
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
@@ -319,7 +329,10 @@ type
                                    'DELDeleted'  ,'SEQSequence' ,'PRGProgram'  ,
                                    'USRUser File','RELRelative' ,'CBMCBM'      );
    //Disc title for new images
-   disctitle = 'DiscImgMgr';
+   disctitle    = 'DiscImgMgr';
+   afsdisctitle = 'DiscImageManager'; //AFS has longer titles
+   //Root name to use when AFS is partition on ADFS
+   afsrootname  = ':AFS$';
    {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
  published
   //Methods
@@ -367,7 +380,7 @@ type
   function DiscSize(partition: Cardinal):Int64;
   function FreeSpace(partition: Cardinal):Int64;
   function Title(partition: Cardinal):String;
-  function CreateAFSPassword: Boolean;
+  function CreateAFSPassword(afslevel: Byte): Boolean;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -483,6 +496,39 @@ begin
   Result:=Result+chr(r); //Add it to the string
   inc(x);                //Increase the counter
   r:=ReadByte(ptr+x,buffer);    //Read the next character
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Write a string to a buffer, for length len padded with pad
+-------------------------------------------------------------------------------}
+procedure TDiscImage.WriteString(str: String;ptr,len: Cardinal;pad: Byte);
+var
+ buffer: TDIByteArray;
+begin
+ buffer:=nil;
+ WriteString(str,ptr,len,pad,buffer);
+end;
+procedure TDiscImage.WriteString(str: String;ptr,len: Cardinal;pad: Byte;
+                                                      var buffer: TDIByteArray);
+var
+ x : Integer;
+ c : Byte;
+begin
+ //Only do something if a string has been supplied
+ if str<>'' then
+ begin
+  //if no length specified, use the length of the supplied string
+  if len=0 then len:=Length(str);
+  //Loop through each character
+  for x:=0 to len-1 do
+  begin
+   //If string is less than specified length, pad it with this byte
+   c:=pad;
+   if x<Length(str) then c:=Ord(str[x+1]);
+   //Write it to the specified buffer, or general data area if no buffer
+   WriteByte(c,ptr+x,buffer);
+  end;
  end;
 end;
 
@@ -1572,6 +1618,7 @@ begin
     diSinclair :Result:=WriteSpectrumFile(file_details,buffer);//Write Sinclair/Amstrad
     diAmiga    :Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
     diAcornUEF :Result:=WriteCFSFile(file_details,buffer);     //Write CFS
+    diAcornFS  :Result:=WriteAFSFile(file_details,buffer);     //Write Acorn FS
    end;
  end
  else Result:=-8; //Error - zero length file

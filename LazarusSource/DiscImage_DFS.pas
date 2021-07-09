@@ -35,14 +35,17 @@ begin
    if chk then
    begin
     dbl:=True; //Double sided flag
-    //Check the entire first two sectors - if they are all zero assume ssd
-    c:=0;
-    for i:=0 to $FE do if ReadByte($0A00+i)=0 then inc(c);
-    if(c=$FF)and(ReadByte($0AFF)=0)then dbl:=False;
-    if dbl then
+    if not FDFSZeroSecs then
     begin
-     for i:=0 to $FE do if ReadByte($B00+i)=0 then inc(c);
-     if(c=$FF)and(ReadByte($0BFF)=0)then dbl:=False;
+     //Check the entire first two sectors - if they are all zero assume ssd
+     c:=0;
+     for i:=0 to $FE do if ReadByte($0A00+i)=0 then inc(c);
+     if(c=$FF)and(ReadByte($0AFF)=0)then dbl:=False;
+     if dbl then
+     begin
+      for i:=0 to $FE do if ReadByte($B00+i)=0 then inc(c);
+      if(c=$FF)and(ReadByte($0BFF)=0)then dbl:=False;
+     end;
     end;
     //Offset 0x0A01 should have 9 bytes >31
     c:=0;
@@ -523,11 +526,7 @@ begin
    fn:=Copy(fn,3,Length(fn));
   end;
   //Now write the filename into the image
-  for t:=0 to 6 do
-   if t<Length(fn) then
-    WriteByte(ord(fn[t+1]),ConvertDFSSector(s+t+$08*(c+1),side))
-   else //Pad with spaces
-    WriteByte($20,         ConvertDFSSector(s+t+$08*(c+1),side));
+  WriteString(fn,ConvertDFSSector(s+$08*(c+1),side),7,32);
   //Directory specifier
   t:=Ord(dn[1]);
   //Attribute
@@ -735,7 +734,7 @@ begin
   a:=$000;               //First 8 characters
   if c>7 then a:=$100-8; //Last 4 characters
   b:=32;                 //Pad with spaces
-  if c<Length(title) then b:=Ord(title[c+1])AND$7F; //Chr, no top bit set
+  if c<Length(title) then b:=Ord(title[c+1]);//AND$7F; //Chr, no top bit set
   if b<32 then b:=32;    //Ensure no control characters
   WriteByte(b,ConvertDFSSector(a+c,side)); //Write it
  end;
