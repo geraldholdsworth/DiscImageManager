@@ -236,9 +236,14 @@ type
                                        var fragments: TFragmentArray): Cardinal;
   procedure FinaliseAFSL2Map;
   function FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
+  function CreateAFSDirectory(dirname,parent,attributes: String): Integer;
   function WriteAFSFile(var file_details: TDirEntry;
                                               var buffer: TDIByteArray):Integer;
+  function AFSAttrToByte(attr: String):Byte;
   procedure WriteAFSObject(offset: Cardinal;var buffer: TDIByteArray);
+  function RenameAFSFile(oldname:String;var newname: String): Integer;
+  procedure UpdateAFSDirectory(dirname: String);
+  function ValidateAFSFilename(filename: String): String;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
@@ -380,7 +385,7 @@ type
   function DiscSize(partition: Cardinal):Int64;
   function FreeSpace(partition: Cardinal):Int64;
   function Title(partition: Cardinal):String;
-  function CreateAFSPassword(afslevel: Byte): Boolean;
+  function CreateAFSPassword(afslevel: Byte;Accounts: TUserAccounts): Boolean;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -1640,6 +1645,8 @@ begin
   diAmiga    :      //Create directory on AmigaDOS
     Result:=CreateAmigaDirectory(filename,parent,attributes);
   diAcornUEF : exit;//Can't create directories on CFS
+  diAcornFS  :
+    Result:=CreateAFSDirectory(filename,parent,attributes);
  end;
 end;
 
@@ -1728,13 +1735,6 @@ begin
   //If there is a path, then follow it
   if Length(Path)>0 then
   begin
-   //filename gets truncated, so me be zero length at this point
-   if(Length(filename)>0)and(FFormat>>4<>diAcornDFS)then
-   begin
-    //Otherwise, we'll add it to the end of the Path
-    SetLength(Path,Length(Path)+1);
-    Path[Length(Path)-1]:=filename;
-   end;
    //Position into the Path array (i.e. directory level)
    level:=0;
    //Counters/Pointers
@@ -2007,6 +2007,7 @@ begin
   diSinclair : Result:=RenameSpectrumFile(oldfilename,newfilename);//Rename Sinclair/Amstrad
   diAmiga    : Result:=RenameAmigaFile(oldfilename,newfilename);   //Rename AmigaDOS
   diAcornUEF : Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
+  diAcornFS  : Result:=RenameAFSFile(oldfilename,newfilename);     //Rename AFS
  end;
 end;
 

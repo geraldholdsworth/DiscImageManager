@@ -53,6 +53,14 @@ type
   TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
   EOR         : Byte;       //Reserved for use by Repton Map Display
  end;
+ type
+//Define the records for an Acorn File Server password file
+  TUserAccount = record
+   Username,
+   Password   : String;
+   AccessLevel: Integer;
+ end;
+ TUserAccounts  =array of TUserAccount;
  TSearchResults =array of TDirEntry;
  //General purpose procedures
  procedure ResetDirEntry(var Entry: TDirEntry);

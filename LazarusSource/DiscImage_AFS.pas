@@ -882,8 +882,7 @@ function TDiscImage.FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
 var
  index     : Integer;
  y,m,d     : Byte;
- cdate,
- addr      : Word;
+ cdate     : Word;
  mapsize,
  mapsizeal,
  allocmap1,
@@ -915,6 +914,8 @@ begin
   //Default sizes
   secsize:=256;
   secspertrack:=16;
+  //Root is 2 sectors long
+  afsroot_size:=$200;
   //Interleave option
   if FForceInter=0 then
    if afslevel=3 then Finterleave:=3 //MUX - Default for AFS L3
@@ -935,7 +936,6 @@ begin
    Write16b((harddrivesize>>8)div 2,afshead+$14);
    //Root SIN at $16
    Fafsroot:=afshead+$200;
-   afsroot_size:=$200;//Root is 2 sectors long
    Write24b(Fafsroot>>8,afshead+$16);
    //Creation Date at $19
    y:=StrToIntDef(FormatDateTime('yyyy',Now),1981)-1981;//Year
@@ -964,26 +964,7 @@ begin
    //Copy the primary header to the copy
    for index:=0 to $FF do WriteByte(ReadByte(afshead+index),afshead2+index);
    //Write the directory object for $
-   //Pointer to first entry at $00
-   Write16b($0000,Fafsroot+$00);
-   //Cycle number at $02
-   WriteByte(cycle,Fafsroot+$02);
-   //Directory name at $03
-   WriteByte(Ord('$'),Fafsroot+$03);
-   for index:=1 to 9 do WriteByte($20,Fafsroot+$03+index);
-   //Write the free pointers
-   addr:=$11;
-   while addr+$1A<afsroot_size-$1A do
-   begin
-    Write16b(addr,Fafsroot+addr+$1A);
-    inc(addr,$1A);
-   end;
-   //Pointer to first free entry at $0D
-   Write16b(addr,Fafsroot+$0D);
-   //Number of entries in directory at $0F
-   WriteByte(0,Fafsroot+$0F);
-   //Copy of cycle number at end of root
-   WriteByte(cycle,Fafsroot+afsroot_size-1);
+   CreateAFSDirectory('$','$','DLR');
    //Write the image allocation map
    for index:=0 to (harddrivesize>>8)-1 do   //Blank entries just reference the
     Write16b(index+1,allocmap1+5+(index*2)); //next sector.
@@ -1092,7 +1073,7 @@ begin
    WriteByte($04,afshead+$26);
    //Copy the primary header to the copy
    for index:=0 to $FF do WriteByte(ReadByte(afshead+index),afshead2+index);
-   //Now to write the root
+   //Now to write the root (header)
    //ID at $00
    WriteString(objID,Fafsroot,0,0);
    //Map chain sequence number at $06
@@ -1107,26 +1088,11 @@ begin
    //Sector at $0A (3 bytes)
    Write24b((Fafsroot>>8)+1,Fafsroot+$0A);
    //Length at $0D (2 bytes)
-   afsroot_size:=$200;//Root is 2 sectors long
    Write16b(afsroot_size>>8,Fafsroot+$0D);
    //Copy of map chain sequence number at $FF
    WriteByte(cycle,Fafsroot+$FF);
    //Write the directory object for $
-   //Pointer to first entry at $100
-   Write16b($0000,Fafsroot+$100);
-   //Cycle number at $102
-   WriteByte(cycle,Fafsroot+$102);
-   //Directory name at $103
-   WriteByte(Ord('$'),Fafsroot+$103);
-   for index:=1 to 9 do WriteByte($20,Fafsroot+$103+index);
-   //Pointer to first free entry at $10D
-   Write16b($2B,Fafsroot+$10D);
-   //Number of entries in directory at $10F
-   WriteByte(0,Fafsroot+$10F);
-   //First entry at $111 (pointer is $FFFF to indicate parent)
-   Write16b($FFFF,Fafsroot+$111);
-   //Copy of cycle number at end of root
-   WriteByte(cycle,Fafsroot+afsroot_size-1);
+   CreateAFSDirectory('$','$','DLR');
    //Write the image bitmap
    for index:=0 to mapsize-1 do WriteByte($FF,afshead2+$100+index);
    for index:=0 to (Fafsroot>>8)+2 do
@@ -1140,15 +1106,104 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Create a new directory
+-------------------------------------------------------------------------------}
+function TDiscImage.CreateAFSDirectory(dirname,parent,attributes: String): Integer;
+var
+ buffer : TDIByteArray;
+ addr,
+ ptr,
+ dir,
+ entry,
+ dirsize: Cardinal;
+ newfile: TDirEntry;
+ ok     : Boolean;
+const
+ cycle    = 42;
+begin
+ Result:=-3; //Directory already exists
+ ok:=False;
+ if dirname='$' then ok:=True
+ else ok:=not FileExists(parent+dirsep+dirname,dir,entry);
+ if ok then
+ begin
+  Result:=-5; //Unknown error
+  //Set the size
+  dirsize:=$200;
+  if dirname='$' then dirsize:=afsroot_size;
+  //Set up the area for the directory structure
+  SetLength(buffer,dirsize);
+  //Pointer to first entry at $00
+  Write16b($0000,$00,buffer);
+  //Cycle number at $02
+  WriteByte(cycle,$02,buffer);
+  //Directory name at $03
+  WriteString(dirname,$03,10,32,buffer);
+  //Write the free pointers
+  addr:=$11;
+  while addr+$1A<dirsize-$1A do
+  begin
+   Write16b(addr,addr+$1A,buffer);
+   inc(addr,$1A);
+  end;
+  //Pointer to first free entry at $0D
+  Write16b(addr,$0D,buffer);
+  //Number of entries in directory at $0F
+  WriteByte(0,$0F,buffer);
+  //Copy of cycle number at end of root
+  WriteByte(cycle,dirsize-1,buffer);
+  //First entry at $11 (pointer is $FFFF to indicate parent), for Level 3
+  if(FFormat>>4=diAcornADFS)or(FFormat=diAcornFS<<4+2)then
+  begin
+   //Get the parent directory address
+   if dirname<>'$' then
+   begin
+    addr:=$0;
+    if parent<>'$' then
+     if FileExists(parent,dir,entry) then
+      addr:=FDisc[dir].Entries[entry].Sector;
+    if parent='$' then addr:=Fafsroot div secsize;
+   end else addr:=Fafsroot div secsize;//Unless it is root
+   //Update the pointer to the parent
+   if addr<>$0 then
+   begin
+    Write16b($FFFF,$11,buffer); //Pointer to parent
+    Write24b(addr,$28,buffer);  //Parent's SIN
+   end;
+  end;
+  //Are we writing the root?
+  if dirname='$' then
+  begin
+   //Then we'll just copy the data across and we're done
+   addr:=Fafsroot;
+   if(FFormat>>4=diAcornADFS)or(FFormat=diAcornFS<<4+2)then addr:=Fafsroot+$100;
+   for ptr:=0 to Length(buffer)-1 do
+    WriteByte(buffer[ptr],addr+ptr);
+   Result:=0;
+  end
+  else //Not writing the root, so just treat as a file
+  begin
+   ResetDirEntry(NewFile);
+   NewFile.Parent:=parent;
+   NewFile.Filename:=dirname;
+   NewFile.Attributes:='D'+attributes;
+   Result:=WriteAFSFile(NewFile,buffer);
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
 Create a blank AFS password file (this is a public method)
 -------------------------------------------------------------------------------}
-function TDiscImage.CreateAFSPassword(afslevel: Byte): Boolean;
+function TDiscImage.CreateAFSPassword(afslevel: Byte;
+                                              Accounts: TUserAccounts): Boolean;
 var
  buffer  : TDIByteArray;
  index   : Integer;
  newentry: TDirEntry;
-const
- user = 'Syst'+#$0D;
+ ptr     : Cardinal;
+ ok      : Boolean;
+ entry   : Byte;
 begin
  //Default response
  Result:=False;
@@ -1157,27 +1212,64 @@ begin
  SetLength(buffer,$100);
  //Blank it off
  for index:=0 to Length(buffer)-1 do buffer[index]:=0;
- //Level 2
- if afslevel=2 then
+ //Check to make sure that there is a Syst account
+ ok:=False;
+ if Length(Accounts)>0 then
+  for index:=0 to Length(Accounts)-1 do
+   if Accounts[index].UserName='Syst' then
+   begin
+    ok:=True;
+    Accounts[index].AccessLevel:=$C0; //Make sure it has system-wide access
+   end;
+ //None found, so add one at the top
+ if not ok then
  begin
-  //00 : User name (System) - 10 characters terminated by 0D
-  WriteString(user,$00,10,0,buffer);
-  //0A : Password (blank) - 6 characters terminated by 0D
-  buffer[$0A]:=$0D;
-  //10 : Status byte - b7 set, b6 system, b0-1 boot option
-  buffer[$10]:=$C0;
+  //Make room
+  SetLength(Accounts,Length(Accounts)+1);
+  //Move up by one
+  if Length(Accounts)>1 then
+   for index:=Length(Accounts)-2 downto 0 do
+    Accounts[index+1]:=Accounts[index];
+  //Add the system user account
+  Accounts[0].Username   :='Syst';
+  Accounts[0].Password   :='';
+  Accounts[0].AccessLevel:=$C0;
  end;
- //Level 3
- if afslevel=3 then
+ //Length per entry
+ if afslevel=2 then entry:=$11 else entry:=$1F;
+ //Start at the beginning
+ ptr:=0;
+ index:=0;
+ while(index<Length(Accounts))and(ptr+entry<Length(buffer))do
  begin
-  //00 : User name (System) - 20 characters terminated by 0D
-  WriteString(user,$00,20,0,buffer);
-  //14 : Password (blank) - 6 characters terminated by 0D
-  buffer[$14]:=$0D;
-  //1A : Free space - $00040404 default for user, $00FF0000 for system
-  buffer[$1C]:=$FF;
-  //1E : Status byte - b7 set, b6 system, b5 locked, b0-3 boot option
-  buffer[$1E]:=$C0;
+  //Level 2
+  if afslevel=2 then
+  begin
+   //00 : User name (System) - 10 characters terminated by 0D
+   WriteString(Accounts[index].Username+#$0D,ptr+$00,10,0,buffer);
+   //0A : Password (blank) - 6 characters terminated by 0D
+   WriteString(Accounts[index].Password+#$0D,ptr+$0A,6,0,buffer);
+   //10 : Status byte - b7 set, b6 system, b0-1 boot option
+   buffer[ptr+$10]:=Accounts[index].AccessLevel;
+  end;
+  //Level 3
+  if afslevel=3 then
+  begin
+   //00 : User name (System) - 20 characters terminated by 0D
+   WriteString(Accounts[index].Username+#$0D,ptr+$00,20,0,buffer);
+   //14 : Password (blank) - 6 characters terminated by 0D
+   WriteString(Accounts[index].Password+#$0D,ptr+$14,6,0,buffer);
+   //1A : Free space - $00040404 default for user, $00FF0000 for system
+   if Accounts[index].Username='Syst' then
+    Write32b($00FF0000,ptr+$1A,buffer)
+   else
+    Write32b($00040404,ptr+$1A,buffer);
+   //1E : Status byte - b7 set, b6 system, b5 locked, b0-3 boot option
+   buffer[$1E]:=Accounts[index].AccessLevel;
+  end;
+  //Next entry
+  inc(ptr,entry);
+  inc(index);
  end;
  //Set up the file entry
  ResetDirEntry(newentry);
@@ -1186,7 +1278,6 @@ begin
   newentry.Parent :=afsrootname
  else
   newentry.Parent :='$';
- newentry.Length  :=Length(buffer);
  //Write the file
  Result:=WriteAFSFile(newentry,buffer)>=0;
 end;
@@ -1207,7 +1298,7 @@ var
  sector    : Cardinal;
  fragments : TFragmentArray;
  block     : TDIByteArray;
- c,y,m,d   : Byte;
+ y,m,d     : Byte;
  cdate     : Word;
 begin
  dir:=0;
@@ -1237,6 +1328,8 @@ begin
     partition:=FDisc[dir].Partition;
     sector:=FDisc[pdir].Entries[entry].Sector*secsize;
    end;
+   //Set the length
+   file_details.Length:=Length(buffer);
    //Will if fit on the disc?
    if free_space[partition]>file_details.Length then
    begin
@@ -1247,11 +1340,24 @@ begin
      Result:=-5;//Unknown error
      //Allocate some space
      file_details.Sector:=AFSAllocateFreeSpace(file_details.Length,fragments)div secsize;
-     //Mark as not a directory
-     file_details.DirRef:=-1;
      //Did it allocate anything?
      if Length(fragments)>0 then
      begin
+      //Is the file actually a directory?
+      if Pos('D',file_details.Attributes)>0 then
+      begin
+       //Increase the number of directories by one
+       SetLength(FDisc,Length(FDisc)+1);
+       //Then assign DirRef
+       file_details.DirRef:=Length(FDisc)-1;
+       //Assign the directory properties
+       FDisc[Length(FDisc)-1].Directory:=file_details.Filename;
+       FDisc[Length(FDisc)-1].Title    :=file_details.Filename;
+       FDisc[Length(FDisc)-1].Broken   :=False;
+       SetLength(FDisc[Length(FDisc)-1].Entries,0);
+      end
+      else //Mark as not a directory
+       file_details.DirRef:=-1;
       //Set the date
       file_details.TimeStamp:=Floor(Now);
       //Insert it into the local copy of the catalogue
@@ -1319,14 +1425,7 @@ begin
       //Execution Address
       Write32b(file_details.ExecAddr,freeaddr+$10,block);
       //Attributes
-      c:=0;
-      if Pos('D',file_details.Attributes)>0 then c:=c OR $20;
-      if Pos('L',file_details.Attributes)>0 then c:=c OR $10;
-      if Pos('W',file_details.Attributes)>0 then c:=c OR $08;
-      if Pos('R',file_details.Attributes)>0 then c:=c OR $04;
-      if Pos('w',file_details.Attributes)>0 then c:=c OR $02;
-      if Pos('r',file_details.Attributes)>0 then c:=c OR $01;
-      Write32b(c,freeaddr+$0C,block);
+      Write32b(AFSAttrToByte(file_details.Attributes),freeaddr+$14,block);
       //Modification Date
       y:=StrToIntDef(FormatDateTime('yyyy',file_details.TimeStamp),1981)-1981;//Year
       m:=StrToIntDef(FormatDateTime('m',file_details.TimeStamp),1);           //Month
@@ -1343,6 +1442,20 @@ begin
     end;
    end;
   end;
+end;
+
+{-------------------------------------------------------------------------------
+Converts an attribute string to a byte
+-------------------------------------------------------------------------------}
+function TDiscImage.AFSAttrToByte(attr: String):Byte;
+begin
+ Result:=0;
+ if Pos('D',attr)>0 then Result:=Result OR $20;
+ if Pos('L',attr)>0 then Result:=Result OR $10;
+ if Pos('W',attr)>0 then Result:=Result OR $08;
+ if Pos('R',attr)>0 then Result:=Result OR $04;
+ if Pos('w',attr)>0 then Result:=Result OR $02;
+ if Pos('r',attr)>0 then Result:=Result OR $01;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1407,4 +1520,165 @@ begin
    if (addr AND $4000)<>$4000 then offset:=addr AND $FFF; //This is the next sector in the chain
   until((addr AND $4000)=$4000)or(bufptr>=Length(buffer)); //Continue until everything is written
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Rename an object
+-------------------------------------------------------------------------------}
+function TDiscImage.RenameAFSFile(oldname:String;var newname: String): Integer;
+var
+ dir,
+ entry,
+ ptr    : Cardinal;
+ swap   : TDirEntry;
+ changed: Boolean;
+begin
+ Result:=-2;//Original file does not exist
+ //Check that the new name meets the required AFS filename specs
+ newname:=ValidateAFSFilename(newname);
+ if FileExists(oldname,dir,entry) then
+ begin
+  Result:=-3;//New name already exists
+  //Check that the new name does not already exist
+  if(not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newname,ptr))
+  // or the user is just changing case
+  or(LowerCase(FDisc[dir].Entries[entry].Parent+dirsep+newname)=LowerCase(oldname))then
+  begin
+   Result:=-1;//Unknown error
+   //Just update the entry
+   FDisc[dir].Entries[entry].Filename:=newname;
+   //If it is a directory itself, change the name in it's header
+   if FDisc[dir].Entries[entry].DirRef<>-1 then
+   begin
+    //Change the name in the local copy
+    FDisc[FDisc[dir].Entries[entry].DirRef].Directory:=newname;
+    //Get the address of the directory
+    ptr:=FDisc[dir].Entries[entry].Sector*secsize;
+    if(FFormat>>4=diAcornADFS)or(FFormat=diAcornFS<<4+2)then //Level 3
+     ptr:=Read24b(ptr+$0A)*secsize;
+    //And write it to the header
+    WriteString(newname,ptr+$03,10,32);
+   end;
+   //Reorder the entries
+   if Length(FDisc[dir].Entries)>1 then
+    repeat
+     changed:=False;
+     if entry<Length(FDisc[dir].Entries)-1 then
+      //Move up the list
+      if FDisc[dir].Entries[entry].Filename>FDisc[dir].Entries[entry+1].Filename then
+      begin
+       swap:=FDisc[dir].Entries[entry];
+       FDisc[dir].Entries[entry]:=FDisc[dir].Entries[entry+1];
+       FDisc[dir].Entries[entry+1]:=swap;
+       entry:=entry+1;
+       changed:=True;
+      end;
+     if entry>0 then
+      //Move down the list
+      if FDisc[dir].Entries[entry].Filename<FDisc[dir].Entries[entry-1].Filename then
+      begin
+       swap:=FDisc[dir].Entries[entry];
+       FDisc[dir].Entries[entry]:=FDisc[dir].Entries[entry-1];
+       FDisc[dir].Entries[entry-1]:=swap;
+       entry:=entry-1;
+       changed:=True;
+      end;
+     until not changed;
+   //And update the parent directory
+   UpdateAFSDirectory(FDisc[dir].Entries[entry].Parent);
+   //Return the new entry
+   Result:=entry;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update the contents of a directory
+-------------------------------------------------------------------------------}
+procedure TDiscImage.UpdateAFSDirectory(dirname: String);
+var
+ dir,
+ entry,
+ addr,
+ ptr      : Cardinal;
+ index    : Integer;
+ pointers : array of Cardinal;
+ buffer   : TDIByteArray;
+begin
+ pointers:=nil;
+ if(FileExists(dirname,dir,entry))or(dirname='$')then
+ begin
+  //Get the directory reference and the address of the directory data
+  if dirname='$' then //Root?
+  begin
+   dir:=0;
+   addr:=Fafsroot*secsize;
+  end
+  else //Not root
+  begin
+   addr:=FDisc[dir].Entries[entry].Sector*secsize;
+   dir:=FDisc[dir].Entries[entry].DirRef;
+  end;
+  //We'll only continue if there are any entries
+  if Length(FDisc[dir].Entries)>0 then
+  begin
+   //Read in the directory so it is local
+   buffer:=ReadAFSObject(addr);
+   //Get the list of pointers
+   //Add the starting zero
+   SetLength(pointers,Length(pointers)+1);
+   pointers[Length(pointers)-1]:=$000;
+   //Go through each entry
+   for index:=0 to Length(FDisc[dir].Entries)-1 do
+   begin
+    //Start at the beginning of the chain
+    ptr:=Read16b($00,buffer);
+    while(ptr<>$0000) //We're looking for this entry's position
+    and(FDisc[dir].Entries[index].Sector<>Read16b(ptr+$17,buffer))do
+     //Follow the chain until we find this entry
+     ptr:=Read16b(ptr,buffer);
+    //Record it
+    SetLength(pointers,Length(pointers)+1);
+    pointers[Length(pointers)-1]:=ptr;
+    //Make sure the details are up to date
+    WriteString(FDisc[dir].Entries[index].Filename,ptr+$02,10,32,buffer);
+    Write32b(FDisc[dir].Entries[index].LoadAddr,ptr+$0C,buffer);
+    Write32b(FDisc[dir].Entries[index].ExecAddr,ptr+$10,buffer);
+    WriteByte(AFSAttrToByte(FDisc[dir].Entries[index].Attributes),ptr+$14,buffer);
+   end;
+   //Add the terminating zero
+   SetLength(pointers,Length(pointers)+1);
+   pointers[Length(pointers)-1]:=$000;
+   //Now we have a list of pointers in the correct order. We just write them out
+   //to the entries. Remember: there are 2 more pointers than entries.
+   for index:=0 to Length(FDisc[dir].Entries) do
+    Write16b(pointers[index+1],pointers[index],buffer);
+   //Write out the modified directory
+   WriteAFSObject(addr,buffer);
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Validate a filename
+-------------------------------------------------------------------------------}
+function TDiscImage.ValidateAFSFilename(filename: String): String;
+var
+ i: Integer;
+const
+  illegal = '#* .:$&@';
+begin
+ for i:=1 to Length(filename) do
+ begin
+  //Remove top-bit set characters
+  filename[i]:=chr(ord(filename[i])AND$7F);
+  //and remove control codes
+  if ord(filename[i])<32 then filename[i]:=chr(ord(filename[i])+32);
+ end;
+ //Is it not too long
+ filename:=Copy(filename,1,10);
+ //Remove any forbidden characters
+ for i:=1 to Length(filename) do
+  if Pos(filename[i],illegal)>0 then filename[i]:='_';
+ Result:=filename;
 end;

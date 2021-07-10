@@ -301,7 +301,7 @@ type
    procedure SelectNode(filename: String;casesens:Boolean=True);
    procedure CloseAllHexDumps;
    function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
-      index:Integer;dir:Boolean;Tree:TTreeView;ImageToUse:TDiscImage):TTreeNode;
+      index:Integer;dir:Boolean;Tree:TTreeView{;ImageToUse:TDiscImage}):TTreeNode;
    procedure AddDirectoryToImage(dirname: String);
    procedure AddSparkToImage(filename: String);
    procedure ShowErrorLog;
@@ -460,7 +460,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.32.2';
+    ApplicationVersion = '1.33';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -1028,7 +1028,7 @@ begin
       if Result>-1 then //File added OK
       begin
        HasChanged:=True;
-       AddFileToTree(DirList.Selected,NewFile.Filename,Result,False,DirList,Image);
+       AddFileToTree(DirList.Selected,NewFile.Filename,Result,False,DirList{,Image});
        UpdateImageInfo(side);
       end
       else
@@ -1077,7 +1077,7 @@ end;
 //Add a file or directory to the TTreeView, under ParentNode
 {------------------------------------------------------------------------------}
 function TMainForm.AddFileToTree(ParentNode: TTreeNode;importfilename: String;
-   index: Integer;dir: Boolean;Tree:TTreeView;ImageToUse:TDiscImage): TTreeNode;
+   index: Integer;dir: Boolean;Tree:TTreeView{;ImageToUse:TDiscImage}): TTreeNode;
 begin
  Result:=nil;
  if(ParentNode=nil)or(index<0)then exit;
@@ -1552,7 +1552,7 @@ begin
  begin
   //Adding new nodes for each one
   Node:=AddFileToTree(CurrDir,ImageToUse.Disc[dir].Entries[entry].Filename,
-                      entry,false,Tree,ImageToUse);
+                      entry,false,Tree{,ImageToUse});
   //If it is, indeed, a direcotry, the dir ref will point to the sub-dir
   if ImageToUse.Disc[dir].Entries[entry].DirRef>=0 then
    //and we'll recursively call ourself to add these entries
@@ -1876,8 +1876,10 @@ begin
   RenameFile1.Enabled   :=True;
   btn_Rename.Enabled    :=True;
   menuRenameFile.Enabled:=True;
+  //Enable the create directory button
   if(Image.FormatNumber>>4=diAcornADFS)
-  OR(Image.FormatNumber>>4=diAmiga)then //ADFS and Amiga
+  OR(Image.FormatNumber>>4=diAmiga)
+  or(Image.FormatNumber>>4=diAcornFS)then //ADFS, Amiga and Acorn FS
   begin
    NewDirectory1.Enabled   :=True;
    btn_NewDirectory.Enabled:=True;
@@ -1894,7 +1896,7 @@ begin
   //If the node does not have a parent, then the dir ref is the one contained
   //in the extra info. Otherwise is -1
   if Node.Parent<>nil then
-   dir  :=TMyTreeNode(Node.Parent).DirRef;//ParentDir;
+   dir  :=TMyTreeNode(Node.Parent).DirRef;
   //Then, get the filename and filetype of the file...not root directory
   if dir>=0 then
   begin
@@ -3048,7 +3050,7 @@ begin
            //Then add it to the tree, if successful
            if index>=0 then
             AddFileToTree(DirList.Selected,newentry.Filename,index,False,
-                          DirList,Image);
+                          DirList{,Image});
           end;
         end;
        end;
@@ -3999,8 +4001,14 @@ begin
   //Function returns pointer to next item (or parent if no children)
   if index>-1 then //Directory added OK
   begin
+   //Mark as changed
    HasChanged:=True;
-   Node:=AddFileToTree(DirList.Selected,dirname,index,True,DirList,Image);
+   //Create the node as a file
+   Node:=AddFileToTree(DirList.Selected,dirname,index,True,DirList{,Image});
+   //Update the directory reference and the directory flag
+   TMyTreeNode(Node).DirRef:=Length(Image.Disc)-1;
+   TMyTreeNode(Node).IsDir:=True;
+   //Update the image
    UpdateImageInfo;
    //Select the new node
    DirList.ClearSelection;
@@ -4406,7 +4414,7 @@ begin
        end;
      end;
      NewNode:=AddFileToTree(Dst,Image.Disc[dir].Entries[entry].Filename,
-                            index,TMyTreeNode(DraggedItem).IsDir,DirList,Image);
+                            index,TMyTreeNode(DraggedItem).IsDir,DirList{,Image});
      //Did we just copy a directory?
      if TMyTreeNode(DraggedItem).IsDir then
      begin
@@ -4515,7 +4523,7 @@ begin
                          NewImageForm.AFS.ItemIndex+2);
      if(ok)and(NewImageForm.cb_AFScreatepword.Checked)then
       //Create blank password file for AFS
-      if not Image.CreateAFSPassword(NewImageForm.AFS.ItemIndex+2)then //If fails, report an error
+      if not Image.CreateAFSPassword(NewImageForm.AFS.ItemIndex+2,nil)then //If fails, report an error
        ReportError('Failed to create a password file');
     end
     else //Floppy Drive

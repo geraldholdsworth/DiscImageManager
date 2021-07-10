@@ -7,6 +7,7 @@ Bugs
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
 * Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
+* Potential bug (ADFS and AFS): A directory that has entries gets renamed. The Parent field of the entries still points to the old name, and the same for grandparents, etc.
 
 General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
@@ -19,13 +20,14 @@ General
 * Duplicate the facility to prevent infinite loops when reading images from Acorn FS to ADFS, Amiga and Spark.
 * Cancel button for progress display?
 * Tool to change the interleave of an image (ADFS L and AFS).
-* Click on root to enable saving of just that partition/drive (splitting of a DS DFS).
-* Click on root to enbale deleting of partition (and splitting of a DS DFS).
+* Click on root to enable saving of just that partition/drive (splitting of a DS DFS) (REF:1).
+* Click on root to enable deleting of partition (and splitting of a DS DFS) (REF:1).
 * Import AFS into ADFS to create new partition (REF:1).
-* Import SD DFS into SD DFS to create combined DS DFS.
-* Port the DFS Combine/Split to a separate application.
-* Side pane (left hand side) to allow separate images to be opened.
+* Import SD DFS into SD DFS to create combined DS DFS (REF:1).
+* Side pane (left hand side) to allow separate images to be opened (REF:3).
 * Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
+* Add a new field to the TDirEntry: ParentRef...the reference to the object's parent. Then, add three new fields to the TDir: ParentRef, ParentEntry and Sector - the reference to the parent; the entry number in the parent; and the location in the image of the directory. Then implement it, throughout the code where possible, instead of using the Parent field of TDirEntry.
+* Incorporate the Acorn FS capabilities to the command line options.
 
 ADFS
 * Change the size of the ADFS partition or image.
@@ -53,8 +55,7 @@ Spark
 * Move file.
 
 Acorn File Store (AFS)
+* Add a dialogue box to allow the entering of user accounts for the password file.
 * Create blank ADFS/AFS L3 hybrid images (REF:1).
-* Create directory.
-* Rename file/directory.
 * Delete file/directory.
 * Move file.
