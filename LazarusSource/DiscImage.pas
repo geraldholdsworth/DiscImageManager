@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.33
+TDiscImage class V1.34
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -46,11 +46,13 @@ type
    Directory,                       //Directory name (ALL)
    Title       : String;            //Directory title (DFS/ADFS)
    Entries     : array of TDirEntry;//Entries (above)
-   Broken      : Boolean;           //Flag if directory is broken (ADFS)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
-   Locked      : Boolean;           //Flag if disc is locked (MMFS)
+   Broken,                          //Flag if directory is broken (ADFS)
+   Locked,                          //Flag if disc is locked (MMFS)
    AFSPartition: Boolean;           //Is this in the AFS partition? (ADFS/AFS)
+   Sector,                          //Where is this directory located (same as TDirEntry)
    Partition   : Cardinal;          //Which partition (side) is this on?
+   Parent      : Integer;           //What is the TDir reference of the parent (-1 if none)
   end;
   //Collection of directories
   TDisc         = array of TDir;
@@ -117,7 +119,6 @@ type
   CFSFiles      : array of TDIByteArray;//All the data for the CFS files
   FProgress     : TProgressProc;//Used for feedback
   SparkFile     : TSpark;       //For reading in Spark archives
-//  Fpartitions   : array of TDiscImage;//Used for extra partitions
   procedure ResetVariables;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function ReadString(ptr,term: Integer;var buffer: TDIByteArray;
@@ -168,6 +169,7 @@ type
   procedure UpdateProgress(Fupdate: String);
   function GetRootAddress: Cardinal;
   function Inflate(filename: String): TDIByteArray;
+  function InterleaveString: String;
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
@@ -230,13 +232,16 @@ type
   function ReadAFSObject(offset: Cardinal): TDIByteArray;
   function GetAFSObjLength(offset: Cardinal): Cardinal;
   function GetAllocationMap: Cardinal;
+  function GetAllocationMap(sector:Cardinal;var spt:Cardinal):Cardinal; overload;
   procedure ReadAFSFSM;
   function AFSGetFreeSectors(used: Boolean=False): TFragmentArray;
   function AFSAllocateFreeSpace(size :Cardinal;
-                                       var fragments: TFragmentArray): Cardinal;
+                 var fragments: TFragmentArray;addheader:Boolean=True): Cardinal;
+  procedure AFSDeAllocateFreeSpace(addr: Cardinal);
   procedure FinaliseAFSL2Map;
   function FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
   function CreateAFSDirectory(dirname,parent,attributes: String): Integer;
+  function ExtendAFSDirectory(sector: Cardinal):Cardinal;
   function WriteAFSFile(var file_details: TDirEntry;
                                               var buffer: TDIByteArray):Integer;
   function AFSAttrToByte(attr: String):Byte;
@@ -244,6 +249,15 @@ type
   function RenameAFSFile(oldname:String;var newname: String): Integer;
   procedure UpdateAFSDirectory(dirname: String);
   function ValidateAFSFilename(filename: String): String;
+  function DeleteAFSFile(filename: String): Boolean;
+  function RemoveAFSEntry(dir,entry: Cardinal): Boolean;
+  function InsertAFSEntry(dir: Cardinal;file_details:TDirEntry): Integer;
+  function MoveAFSFile(filename,directory: String): Integer;
+  function UpdateAFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+  function UpdateAFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
+  function AFSTimeToWord(timedate: TDateTime):Word;
+  function UpdateAFSAttributes(filename,attributes: String): Boolean;
+  function UpdateAFSDiscTitle(title: String): Boolean;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
@@ -381,11 +395,11 @@ type
   procedure BeginUpdate;
   procedure EndUpdate;
   function ValidateFilename(parent:String;var filename:String): Boolean;
-//  function Partition(part: Cardinal):TDiscImage;
   function DiscSize(partition: Cardinal):Int64;
   function FreeSpace(partition: Cardinal):Int64;
   function Title(partition: Cardinal):String;
   function CreateAFSPassword(afslevel: Byte;Accounts: TUserAccounts): Boolean;
+  function GetParent(dir: Integer): String;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -405,7 +419,7 @@ type
   property CRC32:               String        read GetImageCrc;
   property ProgressIndicator:   TProgressProc write FProgress;
   property InterleaveMethod:    Byte          read FForceInter write FForceInter;
-  property InterleaveInUse:     Byte          read FInterleave;
+  property InterleaveInUse:     String        read InterleaveString;
   property MaxDirectoryEntries: Cardinal      read FMaxDirEnt;
   property SparkAsFS:           Boolean       read FSparkAsFS write FSparkAsFS;
   property AFSPresent:          Boolean       read FAFSPresent;
@@ -1031,6 +1045,8 @@ begin
   Locked      :=False;
   AFSPartition:=False;
   Partition   :=0;
+  Sector      :=0;
+  Parent      :=-1;
  end;
 end;
 
@@ -1296,6 +1312,21 @@ begin
  if Length(blockptrs)=1 then Result:=L_Inflate(filename);
  //If there are no blocks, then just return the entire file
  if Length(blockptrs)=0 then Result:=buffer;
+end;
+
+{-------------------------------------------------------------------------------
+Convert the interleave into a string
+-------------------------------------------------------------------------------}
+function TDiscImage.InterleaveString: String;
+const
+ ints:array[0..2] of String=('Sequential','Interleave','Multiplex');
+begin
+ Result:='';
+ if(FFormat>>4=diAcornDFS)and(FDSD)then Result:=ints[1];
+ if(FFormat=diAcornADFS<<4+2)
+ or(FFormat=diAcornADFS<<4+$E)
+ or(FFormat>>4=diAcornFS)then
+  if FInterleave-1<=High(ints) then Result:=ints[FInterleave-1];
 end;
 
 //++++++++++++++++++ Published Methods +++++++++++++++++++++++++++++++++++++++++
@@ -1645,7 +1676,7 @@ begin
   diAmiga    :      //Create directory on AmigaDOS
     Result:=CreateAmigaDirectory(filename,parent,attributes);
   diAcornUEF : exit;//Can't create directories on CFS
-  diAcornFS  :
+  diAcornFS  :      //Create directory on Acorn FS
     Result:=CreateAFSDirectory(filename,parent,attributes);
  end;
 end;
@@ -1666,6 +1697,7 @@ begin
   diAmiga    :      //Retitle AmigaDOS directory
     Result:=RetitleAmigaDirectory(filename,newtitle);
   diAcornUEF : exit;//CFS doesn't have directories
+  diAcornFS  : exit;//Can't retitle AFS directories
  end;
 end;
 
@@ -1706,9 +1738,9 @@ begin
  begin
   SetLength(Path,0);
   //Explode the pathname into an array, without the '.'
-  if FFormat>>4<>diAcornDFS then //Not DFS
-   Path:=filename.Split(dir_sep)
-  else //With DFS, we need the initial root name, including the '.'
+  if(FFormat>>4<>diAcornDFS)and(FFormat>>4<>diCommodore)then //Not DFS or Commodore
+   Path:=filename.Split(dir_sep);
+  if FFormat>>4=diAcornDFS then //With DFS, we need the initial root name, including the '.'
   begin
    //So should only be 2 entries
    SetLength(Path,2);
@@ -1730,6 +1762,25 @@ begin
      Path[1]:=Copy(filename,Pos(dir_sep,filename)+Length(dir_sep))
     else
      Path[1]:=filename;
+   end;
+  end;
+  if FFormat>>4=diCommodore then //Commodore is similar to DFS
+  begin
+   //So should only be 2 entries
+   SetLength(Path,2);
+   //But supplied filename may not contain the root
+   if Pos(root_name+dir_sep,filename)>0 then
+   begin
+    //Root name
+    Path[0]:=Copy(filename,0,Pos(root_name+dir_sep,filename));
+    //And filename
+    Path[1]:=Copy(filename,Pos(root_name+dir_sep,filename)
+                          +Length(root_name)+Length(dir_sep),Length(filename));
+   end
+   else
+   begin
+    Path[0]:=root_name;
+    Path[1]:=filename;
    end;
   end;
   //If there is a path, then follow it
@@ -1900,14 +1951,14 @@ begin
  //Reset the search results array to empty
  SetLength(Result,0);
  //Has the complete path been included in the Filename?
- if Pos(DirSep,search.Filename)>0 then
+ if Pos(dir_sep,search.Filename)>0 then
  begin
   //Split filename into parent and filename
   if FFormat<>diAcornDFS then //Not DFS
   begin
    target:=Length(search.Filename);
    //Look for the last directory separator
-   while(search.Filename[target]<>DirSep)and(target>1)do
+   while(search.Filename[target]<>dir_sep)and(target>1)do
     dec(target);
    //And split into parent and filename
    search.Parent:=LeftStr(search.Filename,target-1);
@@ -2024,6 +2075,7 @@ begin
   diSinclair : Result:=DeleteSinclairFile(filename);//Delete Sinclair/Amstrad
   diAmiga    : Result:=DeleteAmigaFile(filename);   //Delete AmigaDOS
   diAcornUEF : Result:=DeleteCFSFile(entry);        //Delete CFS
+  diAcornFS  : Result:=DeleteAFSFile(filename);     //Delete Acorn FS
  end;
 end;
 
@@ -2035,7 +2087,7 @@ var
  oldfn: String;
 begin
  Result:=-12;
- //Can only move files on DFS (between drives), ADFS, Amiga and CFS
+ //Can only move files on DFS (between drives), ADFS, Amiga, AFS and CFS
  if FFormat>>4=diAcornDFS then //Move on DFS
  begin
   oldfn:=filename;
@@ -2048,12 +2100,13 @@ begin
  begin
   if FFormat>>4=diAcornADFS then Result:=MoveADFSFile(filename,directory);
   if FFormat>>4=diAmiga     then Result:=MoveAmigaFile(filename,directory);
+  if FFormat>>4=diAcornFS   then Result:=MoveAFSFile(filename,directory);
  end;
 end;
 function TDiscImage.MoveFile(source: Cardinal;dest: Integer): Integer;
 begin
  Result:=-12;
- //Can only move files on DFS (between drives), ADFS, Amiga and CFS
+ //Can only move files on DFS (between drives), ADFS, Amiga, AFS and CFS
  if FFormat>>4=diAcornUEF then //Move on CFS
   Result:=MoveCFSFile(source,dest);
 end;
@@ -2094,9 +2147,9 @@ begin
    begin
     Result:=-5;//Unknown error
     //Is there a file of the same name at the new location?
-    if FileExists(directory+DirSep+file_details.Filename,ptr) then
+    if FileExists(directory+dir_sep+file_details.Filename,ptr) then
      //Delete the old one
-     DeleteFile(directory+DirSep+file_details.Filename);
+     DeleteFile(directory+dir_sep+file_details.Filename);
     //Set up the filedetails
     file_details.Parent:=directory;
     if FFormat>>4=diAcornDFS then //DFS
@@ -2112,7 +2165,7 @@ begin
   begin
    Result:=-10; //Can't move or copy to the same directory
    //Is there already a file/directory of that name at the destination?
-   if not FileExists(directory+dirsep+newfilename,ptr) then
+   if not FileExists(directory+dir_sep+newfilename,ptr) then
    begin
     //First, create a new directory at the destination
     Result:=CreateDirectory(newfilename,directory,FDisc[dir].Entries[entry].Attributes);
@@ -2127,7 +2180,7 @@ begin
      if Length(FDisc[d].Entries)>0 then
       for e:=0 to Length(FDisc[d].Entries)-1 do
       begin
-       tempfn:=FDisc[d].Entries[e].Parent+dir_sep+FDisc[d].Entries[e].Filename;
+       tempfn:=GetParent(d)+dir_sep+FDisc[d].Entries[e].Filename;
        CopyFile(tempfn,newparent);
       end;
     end;
@@ -2138,7 +2191,7 @@ end;
 function TDiscImage.CopyFile(source: Cardinal;dest: Integer): Integer;
 begin
  Result:=-12;
- //Can only copy files on DFS (between drives), ADFS, Amiga and CFS
+ //Can only copy files on DFS (between drives), ADFS, Amiga, AFS and CFS
  if FFormat>>4=diAcornUEF then //Copy on CFS
   Result:=CopyCFSFile(source,dest);
 end;
@@ -2156,6 +2209,7 @@ begin
   diSinclair : Result:=UpdateSinclairFileAttributes(filename,attributes);//Update Sinclair/Amstrad attributes
   diAmiga    : Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
   diAcornUEF : Result:=UpdateCFSAttributes(entry,attributes);            //Update CFS attributes
+  diAcornFS  : Result:=UpdateAFSAttributes(filename,attributes);         //Update AFS attributes
  end;
 end;
 
@@ -2172,6 +2226,7 @@ begin
   diSinclair : Result:=UpdateSinclairDiscTitle(title);//Title Sinclair/Amstrad Disc
   diAmiga    : Result:=UpdateAmigaDiscTitle(title);   //Title AmigaDOS Disc
   diAcornUEF : Result:=False;                         //Can't retitle CFS
+  diAcornFS  : Result:=UpdateAFSDiscTitle(title);     //Title AFS Disc
  end;
 end;
 
@@ -2188,6 +2243,7 @@ begin
   diSinclair : exit;//Update Sinclair/Amstrad Boot ++++++++++++++++++++++++++++++++++++++
   diAmiga    : exit;//Update AmigaDOS Boot ++++++++++++++++++++++++++++++++++++++++++++++
   diAcornUEF : exit;//Can't update CFS boot option
+  diAcornFS  : exit;//Can't update AFS boot option
  end;
 end;
 
@@ -2203,7 +2259,8 @@ begin
   diCommodore: exit;//Update Commodore 64/128 Load Address
   diSinclair : exit;//Update Sinclair/Amstrad Load Address
   diAmiga    : exit;//Update AmigaDOS Load Address
-  diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,True);    //Update update CFS Load Address
+  diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,True);    //Update CFS Load Address
+  diAcornFS  : Result:=UpdateAFSFileAddr(filename,newaddr,True); //Update AFS Load Address
  end;
 end;
 
@@ -2219,7 +2276,8 @@ begin
   diCommodore: exit;//Update Commodore 64/128 Execution Address
   diSinclair : exit;//Update Sinclair/Amstrad Execution Address
   diAmiga    : exit;//Update AmigaDOS Execution Address
-  diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,False);    //Update update CFS Execution Address
+  diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,False);    //Update CFS Execution Address
+  diAcornFS  : Result:=UpdateAFSFileAddr(filename,newaddr,False); //Update AFS Execution Address
  end;
 end;
 
@@ -2235,7 +2293,8 @@ begin
   diCommodore: exit;//Update Commodore 64/128 Timestamp
   diSinclair : exit;//Update Sinclair/Amstrad Timestamp
   diAmiga    : exit;//Update AmigaDOS Timestamp
-  diAcornUEF : exit;//Update update CFS Timestamp
+  diAcornUEF : exit;//Update CFS Timestamp
+  diAcornFS  : Result:=UpdateAFSTimeStamp(filename,newtimedate);//Update AFS Timestamp
  end;
 end;
 
@@ -2251,7 +2310,8 @@ begin
   diCommodore: exit;//Update Commodore 64/128 Filetype
   diSinclair : exit;//Update Sinclair/Amstrad Filetype
   diAmiga    : exit;//Update AmigaDOS Filetype
-  diAcornUEF : exit;//Update update CFS Filetype
+  diAcornUEF : exit;//Update CFS Filetype
+  diAcornFS  : exit;//Update AFS Filetype
  end;
 end;
 
@@ -2339,6 +2399,7 @@ begin
   diAmiga    : len:=30;
   diAcornUEF : len:=10;
   diMMFS     : len:=7;
+  diAcornFS  : len:=10;
  end;
  if len=0 then exit; //Unsupported
  //Extract the filename
@@ -2350,7 +2411,7 @@ begin
   exit;
  end;
  //Validate it
- if FileExists(parent+DirSep+filename,ptr) then
+ if FileExists(parent+dir_sep+filename,ptr) then
  begin
   newfn:=filename;
   ctr:=0;
@@ -2358,7 +2419,7 @@ begin
    inc(ctr);
    while Length(newfn+IntToStr(ctr))>len do
     newfn:=LeftStr(newfn,Length(newfn)-1);
-  until(not FileExists(parent+DirSep+newfn+IntToStr(ctr),ptr))or(ctr=0);
+  until(not FileExists(parent+dir_sep+newfn+IntToStr(ctr),ptr))or(ctr=0);
   if ctr>0 then
   begin
    filename:=newfn+IntToStr(ctr);
@@ -2366,15 +2427,6 @@ begin
   end;
  end else Result:=True;
 end;
-
-{-------------------------------------------------------------------------------
-Returns a partition 'part'
--------------------------------------------------------------------------------}
-{function TDiscImage.Partition(part: Cardinal):TDiscImage;
-begin
- Result:=nil;
- if part<Length(FPartitions) then Result:=FPartitions[part];
-end;}
 
 {-------------------------------------------------------------------------------
 Returns the disc size for a partition
@@ -2401,6 +2453,23 @@ function TDiscImage.Title(partition: Cardinal):String;
 begin
  Result:='';
  if partition<Length(disc_name) then Result:=disc_name[partition];
+end;
+
+{-------------------------------------------------------------------------------
+Returns the complete path for the parent
+-------------------------------------------------------------------------------}
+function TDiscImage.GetParent(dir: Integer): String;
+begin
+ Result:='';
+ if dir<Length(FDisc)then
+  while dir<>-1 do
+  begin
+   Result:=FDisc[dir].Directory+dir_sep+Result;
+   dir:=FDisc[dir].Parent;
+  end;
+ if Result<>'' then
+  if Result[Length(Result)]=dir_sep then
+   Result:=LeftStr(Result,Length(Result)-1);
 end;
 
 {$INCLUDE 'DiscImage_ADFS.pas'}

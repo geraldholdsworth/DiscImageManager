@@ -630,6 +630,34 @@ Bug fixes
 * There were some writes, specifically for ADFS and AFS, that would not happen because the application failed to find the parent directory. This was a bug introduced in an earlier version.
 * When creating a directory in ADFS or Acorn FS the GUI would get 'confused' about who the parent of this new directory was. It seems that the appropriate flag and field where not getting updated. It would work OK if this image was then saved and re-opened.
 
+1.34 - 17th July 2021
+---------------------
+New or improved features
+* Added a couple of extra fields to the backend's directory records for parent and sector location.
+* Deleting files and directories from an Acorn FS image is now possible.
+* Added graphics for the four new menu items: Add Password File, Edit Password File, Save Partition and Delete Partition.
+* Added buttons for the four new functions: Add Password File, Edit Password File, Save Partition and Delete Partition.
+* Main form initial size increased to take account of the four new buttons.
+* Directories now get expanded on Acorn File Server images if needed.
+* Files can now be moved within an Acorn File Server image.
+* Load and Execution addresses can now be edited with Acorn File Server images.
+* Datestamps can now be edited with Acorn File Server images.
+* File attributes for Acorn File Server images can now be edited.
+* Disc title for Acorn File Server and ADFS/AFS Hybrid images can now be changed.
+* IDing for DFS now checks for blank filenames, and rejects images that have any.
+* The Free Space display now shows the interleave type used, and hides any fields not in use for the format.
+* Can now create new Acorn File Server images from the command line.
+
+Bug fixes
+* A bug was introduced in the previous version where some Old Map ADFS images would crash the application.
+* Changed the code so that a potential bug, where a parent directory was renamed but the parent field of it's descendants were not updated, should not occur.
+* Opening a file in File Viewer, where the filename has top-bit set characters, caused the application to crash.
+* Adding of files to an Acorn FS Level 3 image never updated the free space map.
+* The Acorn FS Level 2 free space map was sometimes not updated correctly, due to the wrong map size being recorded in the header.
+* A bug was introduced in an recent version where downloading files, particularly a selection of files, resulted in the complete image path being given as the filename.
+* If a file, on a Commodore image, had a dot '.' as part of the name then this would fail to be found. This means that operations such as downloading would not work.
+* An AFS Level 2 image, where the headers do not match, were getting IDed as a DFS image.
+
 
 Platform History
 ----------------

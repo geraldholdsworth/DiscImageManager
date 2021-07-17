@@ -8,7 +8,8 @@ var
  c,i    : Byte;
  t0,t1  : Integer;
  chk,dbl: Boolean;
- sec    :Cardinal;
+ sec    : Cardinal;
+ temp   : String;
 begin
  if FFormat=diInvalidImg then
  begin
@@ -95,6 +96,7 @@ begin
      chk:=False;
     end;
     //Now we check the files. If the sector addresses are outside the disc, we fail
+    //We'll also check for blank filenames too
     if(chk)and(ReadByte($105)>>3>0)then //If there are any entries
     begin
      //Side 0
@@ -107,6 +109,11 @@ begin
       inc(sec,Read16b($108+4+i*8)+((ReadByte($108+6+i*8)AND$30)<<12));
       //If the end of the file is over the end of the disc, fail it
       if sec>t0<<8 then chk:=False;
+      //Check for blank filenames
+      temp:=ReadString($008+(i*8),-7);
+      RemoveTopBit(temp); //Attributes are in the top bit
+      RemoveSpaces(temp); //Remove extraneous spaces
+      if temp='' then chk:=False;
      end;
      //Side 2
      if(dbl)and(ReadByte($B05)>>3>0)then
@@ -120,6 +127,11 @@ begin
        inc(sec,Read16b($B08+4+i*8)+((ReadByte($B08+6+i*8)AND$30)<<12));
        //If the end of the file is over the end of the disc, fail it as a double
        if sec>t1<<8 then dbl:=False;
+       //Check for blank filenames
+       temp:=ReadString($A08+(i*8),-7);
+       RemoveTopBit(temp); //Attributes are in the top bit
+       RemoveSpaces(temp); //Remove extraneous spaces
+       if temp='' then dbl:=False;
       end;
       //Refresh the double sided flag
       FDSD:=dbl;
@@ -181,9 +193,9 @@ Read Acorn DFS Disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
 var
- s,t,c,f,
+ s,t,f,
  locked,
- ptr,amt,
+ ptr,
  diroff    : Integer;
  temp      : String;
 begin
@@ -245,12 +257,9 @@ begin
      ptr:=f-31;
     end;
    //Read in the filename
-   temp:='';
-   for c:=0 to 6 do
-   begin
-    amt:=ReadByte(ConvertDFSSector(diroff+($08*ptr)+c,s))AND$7F;
-    if amt>32 then temp:=temp+chr(amt);
-   end;
+   temp:=ReadString(diroff+($08*ptr),-7);
+   RemoveTopBit(temp); //Attributes are in the top bit
+   RemoveSpaces(temp); //Remove extraneous spaces
    Result[s-mmbdisc].Entries[f-1].Filename:=temp;
    //Get the directory character
    temp:=chr(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$7F);
@@ -573,9 +582,9 @@ begin
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Make sure the new filename does not already exist
-  if(not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr))
+  if(not FileExists(GetParent(dir)+dir_sep+newfilename,ptr))
   // or the user is just changing case
-  or(LowerCase(FDisc[dir].Entries[entry].Parent+dirsep+newfilename)=LowerCase(oldfilename))then
+  or(LowerCase(GetParent(dir)+dir_sep+newfilename)=LowerCase(oldfilename))then
   begin
    //Change the entry
    FDisc[dir].Entries[entry].Filename:=newfilename;

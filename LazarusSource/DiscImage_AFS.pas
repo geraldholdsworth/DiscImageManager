@@ -53,7 +53,11 @@ function TDiscImage.ID_AFS: Boolean;
      //Level 2
      if FFormat=diAcornFS<<4+1 then
       //Confirm the root is where it says it is
-      if ReadByte((Read24b(afspart1+$16)*secsize)+3)=$24 then afshead:=afspart1
+      if ReadByte((Read24b(afspart1+$16)*secsize)+3)=$24 then
+      begin
+       afshead:=afspart1;
+       afshead2:=afspart2;
+      end
       else FFormat:=diInvalidImg; //It isn't, so invalid image
      //Level 3
      if FFormat=diAcornFS<<4+2 then
@@ -117,9 +121,14 @@ begin
  if((FFormat>>4=diAcornADFS)and(FAFSPresent))
  or(FFormat>>4=diAcornFS)then
  begin
-  if FFormat>>4=diAcornADFS then afshead:=Read24b($0F6)*secsize;
+  if FFormat>>4=diAcornADFS then
+  begin
+   afshead:=Read24b($0F6)*secsize;
+   afshead2:=Read24b($1F6)*secsize;
+  end;
   //Confirm that there is a valid AFS partition here
-  if ReadString(afshead,-4)='AFS0' then //Should be 'AFS0'
+  if (ReadString(afshead,-4)='AFS0')
+  and(ReadString(afshead2,-4)='AFS0')then //Should be 'AFS0'
   begin
    //Update the progress indicator
    UpdateProgress('Reading Acorn FS partition');
@@ -176,10 +185,11 @@ begin
         //Making room for it
         SetLength(FDisc,Length(FDisc)+1);
         //And now read it in
-        FDisc[Length(FDisc)-1]:=ReadAFSDirectory(FDisc[d].Entries[e].Parent
+        FDisc[Length(FDisc)-1]:=ReadAFSDirectory(GetParent(d)
                                                 +dir_sep
                                                 +FDisc[d].Entries[e].Filename,
                                                 FDisc[d].Entries[e].Sector*secsize);
+        FDisc[Length(FDisc)-1].Parent:=d;
         //Remember it
         SetLength(visited,Length(visited)+1);
         visited[Length(visited)-1]:=FDisc[d].Entries[e].Sector;
@@ -276,6 +286,7 @@ begin
    Fafsroot:=addr div secsize; //Make a note of where the root is
    afsroot_size:=GetAFSObjLength(addr); //And a note of the root size
   end;
+  Result.Sector:=addr div secsize;
   //Number of entries in the directory
   numentries:=ReadByte($0F,buffer);
   SetLength(Result.Entries,numentries);
@@ -489,14 +500,60 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Gets the Level 2 allocation map address
+Gets the allocation map address
 -------------------------------------------------------------------------------}
 function TDiscImage.GetAllocationMap: Cardinal;
+var
+ dummy: Cardinal;
+begin
+ Result:=GetAllocationMap(0,dummy);
+end;
+function TDiscImage.GetAllocationMap(sector:Cardinal;var spt:Cardinal):Cardinal;
+var
+ szofbmp,
+ Ldiscsize,
+ afsstart,
+ trackstrt : Cardinal;
 begin
  Result:=0; //Default
- if FFormat=diAcornFS<<4+1 then //Only Level 2
+ //Level 2
+ if FFormat=diAcornFS<<4+1 then
   if ReadByte(Read24b(afshead+$1B)*secsize)>ReadByte(Read24b(afshead+$1E)*secsize)then
    Result:=Read24b(afshead+$1B)*secsize else Result:=Read24b(afshead+$1E)*secsize;
+ //Level 3 and Hybrid
+ if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
+ begin
+  spt:=Read16b(afshead+$1A);
+  //Level 3
+  if FFormat=diAcornFS<<4+2 then
+  begin
+   Ldiscsize:=disc_size[0];     //Look at the entire image
+   afsstart:=0;                 //But not below here, which is ADFS header
+  end
+  else
+  begin //Hybrids - AFS will take up the second 'side'
+   Ldiscsize:=disc_size[1];     //Only look at the AFS part of the image
+   afsstart:=disc_size[0];      //And not below here, which is the ADFS partition
+  end;
+  if sector>=afsstart then //Ensure it is in our 'area'
+  begin
+   //Read the size of the bitmap
+   szofbmp:=ReadByte(afshead+$1C)*secsize;
+   //Is it big enough to hold the entire disc?
+   if szofbmp>=(((afsstart+Ldiscsize)div secsize)div 8)+1 then //Yes
+   begin
+    Result:=(Fafsroot*secsize)-szofbmp;
+    spt:=Ldiscsize div secsize;
+   end
+   else
+   begin
+    //Get the sector offset of each track
+    trackstrt:=spt*secsize;
+    //Our counter - first track after the ADFS part
+    Result:=((sector*secsize)div trackstrt)*trackstrt;
+   end;
+  end;
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -727,7 +784,7 @@ end;
 Find and allocate some free space
 -------------------------------------------------------------------------------}
 function TDiscImage.AFSAllocateFreeSpace(size :Cardinal;
-                                       var fragments: TFragmentArray): Cardinal;
+                 var fragments: TFragmentArray;addheader:Boolean=True): Cardinal;
 var
  FSM,
  alloc    : TFragmentArray;
@@ -735,7 +792,8 @@ var
  index    : Integer;
  sector,
  fragsize,
- allocmap : Cardinal;
+ allocmap,
+ spt      : Cardinal;
 begin
  //Return a erroronous result
  Result:=$FFFFFFFF;
@@ -745,7 +803,8 @@ begin
  if Length(FSM)>0 then
  begin
   //Level 3 includes a 256 byte object header
-  if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then inc(size,$100);
+  if((FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS))
+  and(addheader)then inc(size,$100);
   //Are there any that will fit the data without fragmenting?
   index:=0;
   found:=False;
@@ -786,9 +845,10 @@ begin
      //Populate it
      alloc[Length(alloc)-1].Offset:=sector AND$FFF;
      //Length no bigger than a sector size
-     alloc[Length(alloc)-1].Length:=fragsize MOD secsize;
-     if alloc[Length(alloc)-1].Length=0 then //The above will return zero if it
-      alloc[Length(alloc)-1].Length:=secsize;//is the sector size
+     if fragsize>secsize then
+      alloc[Length(alloc)-1].Length:=secsize
+     else
+      alloc[Length(alloc)-1].Length:=fragsize;
      //Decrease this fragment size by what we've allocated
      dec(fragsize,alloc[Length(alloc)-1].Length);
      //And onto the next sector
@@ -819,11 +879,81 @@ begin
       //Mark as written
       WriteBits(1,allocmap+(alloc[index].Offset*2)+6,7,1);
      end;
+     if FFormat=diAcornFS<<4+2 then
+     begin
+      for fragsize:=0 to Ceil(alloc[index].Length/secsize)-1 do
+      begin
+       //Need to find where the FSM for this sector is
+       allocmap:=GetAllocationMap(alloc[index].Offset+fragsize,spt);
+       //Get the sector within this area
+       sector:=(alloc[index].Offset+fragsize)mod spt;
+       //And mark the areas as used
+       WriteBits(0,allocmap+(sector div 8),sector mod 8,1);
+      end;
+     end;
     end;
     //Compact the free space map
     if FFormat=diAcornFS<<4+1 then FinaliseAFSL2Map;
     //Return the address of the first fragment
     Result:=fragments[0].Offset;
+   end;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Deallocate specified area in the free space map
+-------------------------------------------------------------------------------}
+procedure TDiscImage.AFSDeAllocateFreeSpace(addr: Cardinal);
+var
+ allocmap,
+ sector,
+ spt      : Cardinal;
+ index,
+ frag     : Integer;
+begin
+ //Level 2
+ if FFormat=diAcornFS<<4+1 then
+ begin
+  //Get the address of the allocation map
+  allocmap:=GetAllocationMap;
+  while ReadByte(allocmap+(addr*2)+6)AND$40<>$40 do
+  begin
+   //Clear the top nybble
+   WriteBits(0,allocmap+(addr*2)+6,4,4);
+   //Next in the chain
+   addr:=Read16b(allocmap+(addr*2)+5)AND$FFF;
+  end;
+  //The last entry (as this would get missed in the loop)
+  Write16b(0,allocmap+(addr*2)+5);
+  //Compact the map
+  FinaliseAFSL2Map;
+ end;
+ //Level 3 and Hybrid
+ if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
+ begin
+  addr:=addr*secsize;
+  if ReadString(addr,-6)='JesMap' then //Make sure it is a valid block
+  begin
+   //Set the starting point
+   frag:=$0A;
+   //Dummy sector
+   sector:=$FF;
+   while(sector<>0)and(frag<$FA)do
+   begin
+    //Get the next sector
+    sector:=Read24b(addr+frag);
+    //Just to be sure
+    if sector<>0 then
+     for index:=0 to Read16b(addr+frag+3)-1 do
+     begin
+      //Get the location of the map for this sector
+      allocmap:=GetAllocationMap(sector+index,spt);
+      //Mark it as free
+      WriteBits(1,allocmap+((sector+index)mod spt)div 8,(sector+index)mod 8,1);
+     end;
+    //Next pointer
+    inc(frag,5);
    end;
   end;
  end;
@@ -843,7 +973,8 @@ begin
  if FFormat=diAcornFS<<4+1 then
  begin
   allocmap :=GetAllocationMap;
-  mapsize  :=Read24b(afshead+$21);//The size of the map
+  //The reported map size at afshead+$21 is not always accurate
+  mapsize  :=(disc_size[0]div secsize)*2+5;//The size of the map
   //Work out and set the number of free sectors and pointer to first free
   freesecs:=0;      //Counter for number of free sectors
   firstfree:=$FFFF; //Dummy start
@@ -881,8 +1012,6 @@ Create a blank AFS image
 function TDiscImage.FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
 var
  index     : Integer;
- y,m,d     : Byte;
- cdate     : Word;
  mapsize,
  mapsizeal,
  allocmap1,
@@ -938,11 +1067,7 @@ begin
    Fafsroot:=afshead+$200;
    Write24b(Fafsroot>>8,afshead+$16);
    //Creation Date at $19
-   y:=StrToIntDef(FormatDateTime('yyyy',Now),1981)-1981;//Year
-   m:=StrToIntDef(FormatDateTime('m',Now),1);           //Month
-   d:=StrToIntDef(FormatDateTime('d',Now),1);           //Date
-   cdate:=((y AND$F)<<12)OR((y AND$F0)<<1)OR(d AND$1F)OR((m AND$F)<<8);
-   Write16b(cdate,afshead+$19);
+   Write16b(AFSTimeToWord(Now),afshead+$19);
    //Map A location at $1B
    allocmap1:=afshead2+$100;
    Write24b(allocmap1>>8,afshead+$1B);
@@ -1062,11 +1187,7 @@ begin
    Fafsroot:=afshead2+$100+mapsize;
    Write24b(Fafsroot>>8,afshead+$1F);
    //Creation Date at $22
-   y:=StrToIntDef(FormatDateTime('yyyy',Now),1981)-1981;//Year
-   m:=StrToIntDef(FormatDateTime('m',Now),1);           //Month
-   d:=StrToIntDef(FormatDateTime('d',Now),1);           //Date
-   cdate:=((y AND$F)<<12)OR((y AND$F0)<<1)OR(d AND$1F)OR((m AND$F)<<8);
-   Write16b(cdate,afshead+$22);
+   Write16b(AFSTimeToWord(Now),afshead+$22);
    //First free cylinder at $24
    Write16b(1,afshead+$24); //Not sure why it is always 1
    // $04 at $26
@@ -1124,7 +1245,7 @@ begin
  Result:=-3; //Directory already exists
  ok:=False;
  if dirname='$' then ok:=True
- else ok:=not FileExists(parent+dirsep+dirname,dir,entry);
+ else ok:=not FileExists(parent+dir_sep+dirname,dir,entry);
  if ok then
  begin
   Result:=-5; //Unknown error
@@ -1139,8 +1260,8 @@ begin
   WriteByte(cycle,$02,buffer);
   //Directory name at $03
   WriteString(dirname,$03,10,32,buffer);
-  //Write the free pointers
-  addr:=$11;
+  //Write the free pointers (aka file placement markers)
+  if FFormat=diAcornFS<<4+1 then addr:=$11 else addr:=$2B; //Start position
   while addr+$1A<dirsize-$1A do
   begin
    Write16b(addr,addr+$1A,buffer);
@@ -1188,6 +1309,123 @@ begin
    NewFile.Filename:=dirname;
    NewFile.Attributes:='D'+attributes;
    Result:=WriteAFSFile(NewFile,buffer);
+  end;
+  //Refresh the free space map
+  ReadAFSFSM;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Extend a directory by another 512 bytes
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtendAFSDirectory(sector: Cardinal):Cardinal;
+var
+ fragments: TFragmentArray;
+ buffer   : TDIByteArray;
+ l3offset,
+ allocmap,
+ frag,
+ fraglen,
+ fragnum  : Cardinal;
+ dirsize,
+ addr     : Word;
+const
+ blocksize = $200;
+begin
+ //Defaults
+ Result:=0;//Zero length, by default, on failure
+ fragments:=nil;
+ buffer:=nil;
+ l3offset:=0;
+ //Take account of the JesMap header
+ if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then l3offset:=secsize;
+ //Only continue if the directory needs extending
+ if Read16b(sector*secsize+$0D+l3offset)=0 then
+ begin
+  //Allocate some space for the next block
+  AFSAllocateFreeSpace(blocksize,fragments,False);
+  //Did it allocate anything?
+  if Length(fragments)>0 then
+  begin
+   //Get the directory
+   buffer:=ReadAFSObject(sector*secsize);
+   dirsize:=Length(buffer);//Current directory length
+   //Create the block
+   SetLength(buffer,dirsize+blocksize);
+   //Write the pointers in this block
+   addr:=dirsize-((dirsize-$11)mod$1A); //Starting position
+   while addr+$1A<Length(buffer)-$1A do
+   begin
+    Write16b(addr,addr+$1A,buffer);
+    inc(addr,$1A);
+   end;
+   //Move the directory footer copy of the cycle number
+   WriteByte(ReadByte(dirsize-1,buffer),Length(buffer)-1,buffer);
+   //And clear the original
+   WriteByte($00,dirsize-1,buffer);
+   //Set the directory's next free chain to point into here
+   Write16b(addr,$0D,buffer);
+   //Level 3 : Update the JesMap pointers to include this
+   if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
+   begin
+    //Start of chain
+    addr:=$0A-5;
+    //Dummy values
+    frag:=$FF;
+    fraglen:=$FF;
+    //Go through each entry until we hit a zero or the end
+    while(addr<$FA)and(frag<>0)and(fraglen<>0)do
+    begin
+     //Move onto the next entry
+     inc(addr,5);
+     //Get the value for this entry
+     frag:=Read24b(sector*secsize+addr);
+     fraglen:=Read16b(sector*secsize+addr+3);
+    end;
+    //Any free entries?
+    if addr<$FA then
+    begin
+     fragnum:=0;
+     while(fragnum<Length(fragments))and(addr+5<$FA)do
+     begin
+      //First fragment just follows on from the last
+      if fragments[fragnum].Offset div secsize=frag+fraglen then
+       Write16b(fraglen+(fragments[fragnum].Length div secsize),sector*secsize+addr+3)
+      else
+      begin
+       //Just tag it on
+       Write24b(fragments[fragnum].Offset div secsize,sector*secsize+addr);
+       Write16b(fragments[fragnum].Length div secsize,sector*secsize+addr+3);
+       //And move the pointer on
+       inc(addr,5);
+      end;
+      //Next fragment
+      inc(fragnum);
+      //Refresh the value for this entry
+      frag:=Read24b(sector*secsize+addr);
+      fraglen:=Read16b(sector*secsize+addr+3);
+     end;
+    end;
+   end;
+   //Level 2 : Adjust the FSM for the directory to chain onto this
+   if FFormat=diAcornFS<<4+1 then
+   begin
+    allocmap:=GetAllocationMap;
+    //Get the last sector of the previous block
+    addr:=sector*2+5;
+    while ReadByte(allocmap+addr+1)AND$40<>$40 do inc(addr,2);
+    //Point it to the start of this block, preserving the flags
+    frag:=Read16b(allocmap+addr)AND$F000;
+    Write16b((fragments[0].Offset div secsize)OR frag,allocmap+addr);
+    //Reset the 'Last in chain' bit of this sector
+    WriteBits(0,allocmap+addr+1,6,1);
+    //Reset the 'First in chain' bit of the start sector of this block
+    WriteBits(0,allocmap+(fragments[0].Offset div secsize)*2+6,5,1);
+   end;
+   //Write the new block out
+   WriteAFSObject(sector*secsize,buffer);
+   //Return resultant new length
+   Result:=Length(buffer);
   end;
  end;
 end;
@@ -1291,15 +1529,12 @@ var
  dir,pdir,
  entry,
  partition,
- ptr,addr,
- lastaddr,
- freeaddr,
+ ptr,
  fragnum,
+ newlen,
  sector    : Cardinal;
  fragments : TFragmentArray;
  block     : TDIByteArray;
- y,m,d     : Byte;
- cdate     : Word;
 begin
  dir:=0;
  entry:=0;
@@ -1309,7 +1544,7 @@ begin
  if file_details.Filename<>'$' then
   file_details.Filename:=ValidateADFSFilename(file_details.Filename);
  //First make sure it doesn't exist already
- if not FileExists(file_details.Parent+dirsep+file_details.Filename,pdir,entry)then
+ if not FileExists(file_details.Parent+dir_sep+file_details.Filename,pdir,entry)then
   //Get the directory where we are adding it to, and make sure it exists
   if FileExists(file_details.Parent,pdir,entry) then
   begin
@@ -1333,7 +1568,15 @@ begin
    //Will if fit on the disc?
    if free_space[partition]>file_details.Length then
    begin
-    Result:=-4;//Directory full
+    Result:=-9;//Cannot extend directory
+    //Look to see if the directory needs expanding, before we add
+    newlen:=ExtendAFSDirectory(sector div secsize);
+    //Update the local copy's length
+    if(pdir<>$FFFF)and(newlen<>0)then
+    begin
+     FDisc[pdir].Entries[entry].Length:=newlen;
+     ReadAFSFSM;
+    end;
     //Is there enough space in the directory?
     if Read16b(sector+$0D)<>0 then
     begin
@@ -1354,14 +1597,14 @@ begin
        FDisc[Length(FDisc)-1].Directory:=file_details.Filename;
        FDisc[Length(FDisc)-1].Title    :=file_details.Filename;
        FDisc[Length(FDisc)-1].Broken   :=False;
+       FDisc[Length(FDisc)-1].Parent   :=dir;
+       FDisc[Length(FDisc)-1].Sector   :=file_details.Sector;
        SetLength(FDisc[Length(FDisc)-1].Entries,0);
       end
       else //Mark as not a directory
        file_details.DirRef:=-1;
       //Set the date
       file_details.TimeStamp:=Floor(Now);
-      //Insert it into the local copy of the catalogue
-      Result:=ExtendADFSCat(dir,file_details); //We'll just 'borrow' the ADFS method
       //Write the file data
       if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
       begin
@@ -1395,48 +1638,15 @@ begin
       end;
       //Write the data to the image (we don't need the fragments now)
       WriteAFSObject(file_details.Sector*secsize,buffer);
-      //Read it in so it is local
-      block:=ReadAFSObject(sector);
-      //Add in the new file
-      ptr:=0;
-      addr:=0;
-      //Find where we need to go
-      while ptr<Result+1 do
-      begin
-       inc(ptr);
-       lastaddr:=addr;
-       addr:=Read16b(lastaddr,block);
-      end;
-      //Get the next free slot
-      freeaddr:=Read16b($0D,block);
-      //Get the next free slot after that and write it to the header
-      Write16b(Read16b(freeaddr,block),$0D,block);
-      //Change the pointer to the new entry
-      Write16b(freeaddr,lastaddr,block);
-      //Point the new entry to the next one, which could be zero
-      Write16b(addr,freeaddr,block);
-      //Increase the counter
-      WriteByte(ReadByte($0F,block)+1,$0F,block);
-      //Insert all the fields
-      //Filename
-      WriteString(file_details.Filename,freeaddr+$02,10,32,block);
-      //Load Address
-      Write32b(file_details.LoadAddr,freeaddr+$0C,block);
-      //Execution Address
-      Write32b(file_details.ExecAddr,freeaddr+$10,block);
-      //Attributes
-      Write32b(AFSAttrToByte(file_details.Attributes),freeaddr+$14,block);
-      //Modification Date
-      y:=StrToIntDef(FormatDateTime('yyyy',file_details.TimeStamp),1981)-1981;//Year
-      m:=StrToIntDef(FormatDateTime('m',file_details.TimeStamp),1);           //Month
-      d:=StrToIntDef(FormatDateTime('d',file_details.TimeStamp),1);           //Date
-      cdate:=((y AND$F)<<12)OR((y AND$F0)<<1)OR(d AND$1F)OR((m AND$F)<<8);
-      Write16b(cdate,freeaddr+$15,block);
-      //SIN of object
-      Write24b(file_details.Sector,freeaddr+$17,block);
-      //Now we can write it back out again
-      WriteAFSObject(sector,block);
-      //Refresh the free space map
+      //Insert it into the directory
+      Result:=InsertAFSEntry(dir,file_details);
+     end;
+     //We'll look to expand the directory, following the addition, for next time
+     newlen:=ExtendAFSDirectory(sector div secsize);
+     //Update the local copy's length
+     if(pdir<>$FFFF)and(newlen<>0)then
+     begin
+      FDisc[pdir].Entries[entry].Length:=newlen;
       ReadAFSFSM;
      end;
     end;
@@ -1540,9 +1750,9 @@ begin
  begin
   Result:=-3;//New name already exists
   //Check that the new name does not already exist
-  if(not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newname,ptr))
+  if(not FileExists(GetParent(dir)+dir_sep+newname,ptr))
   // or the user is just changing case
-  or(LowerCase(FDisc[dir].Entries[entry].Parent+dirsep+newname)=LowerCase(oldname))then
+  or(LowerCase(GetParent(dir)+dir_sep+newname)=LowerCase(oldname))then
   begin
    Result:=-1;//Unknown error
    //Just update the entry
@@ -1585,7 +1795,7 @@ begin
       end;
      until not changed;
    //And update the parent directory
-   UpdateAFSDirectory(FDisc[dir].Entries[entry].Parent);
+   UpdateAFSDirectory(GetParent(dir));
    //Return the new entry
    Result:=entry;
   end;
@@ -1624,11 +1834,11 @@ begin
   begin
    //Read in the directory so it is local
    buffer:=ReadAFSObject(addr);
+   //First, we'll add new entries and update existing ones
    //Get the list of pointers
-   //Add the starting zero
-   SetLength(pointers,Length(pointers)+1);
+   SetLength(pointers,Length(pointers)+1);//Add the starting zero
    pointers[Length(pointers)-1]:=$000;
-   //Go through each entry
+   //Go through each entry in the array
    for index:=0 to Length(FDisc[dir].Entries)-1 do
    begin
     //Start at the beginning of the chain
@@ -1641,10 +1851,14 @@ begin
     SetLength(pointers,Length(pointers)+1);
     pointers[Length(pointers)-1]:=ptr;
     //Make sure the details are up to date
-    WriteString(FDisc[dir].Entries[index].Filename,ptr+$02,10,32,buffer);
-    Write32b(FDisc[dir].Entries[index].LoadAddr,ptr+$0C,buffer);
-    Write32b(FDisc[dir].Entries[index].ExecAddr,ptr+$10,buffer);
-    WriteByte(AFSAttrToByte(FDisc[dir].Entries[index].Attributes),ptr+$14,buffer);
+    if ptr<>0 then
+    begin
+     WriteString(FDisc[dir].Entries[index].Filename,ptr+$02,10,32,buffer);
+     Write32b(FDisc[dir].Entries[index].LoadAddr,ptr+$0C,buffer);
+     Write32b(FDisc[dir].Entries[index].ExecAddr,ptr+$10,buffer);
+     WriteByte(AFSAttrToByte(FDisc[dir].Entries[index].Attributes),ptr+$14,buffer);
+     Write16b(AFSTimeToWord(FDisc[dir].Entries[index].TimeStamp),ptr+$15,buffer);
+    end;
    end;
    //Add the terminating zero
    SetLength(pointers,Length(pointers)+1);
@@ -1653,8 +1867,12 @@ begin
    //to the entries. Remember: there are 2 more pointers than entries.
    for index:=0 to Length(FDisc[dir].Entries) do
     Write16b(pointers[index+1],pointers[index],buffer);
+   //Update the file counter
+   WriteByte(Length(FDisc[dir].Entries),$0F,buffer);
    //Write out the modified directory
    WriteAFSObject(addr,buffer);
+   //Refresh the free space map
+   ReadAFSFSM;
   end;
  end;
 end;
@@ -1681,4 +1899,281 @@ begin
  for i:=1 to Length(filename) do
   if Pos(filename[i],illegal)>0 then filename[i]:='_';
  Result:=filename;
+end;
+
+{-------------------------------------------------------------------------------
+Delete a file/directory
+-------------------------------------------------------------------------------}
+function TDiscImage.DeleteAFSFile(filename: String): Boolean;
+var
+ dir,
+ entry    : Cardinal;
+ success  : Boolean;
+begin
+ Result:=False;
+ //Make sure the file exists, and is not the root
+ if(filename<>root_name)or(filename<>afsrootname)then
+  if FileExists(filename,dir,entry) then
+  begin
+   success:=True;
+   //Is this a directory being deleted?
+   if FDisc[dir].Entries[entry].DirRef>=0 then
+   begin
+    //Recursively delete the contents
+    while(Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
+      and(success)do
+     success:=DeleteAFSFile(filename+dir_sep
+                  +FDisc[FDisc[dir].Entries[entry].DirRef].Entries[0].Filename);
+   end;
+   //Remove the entry from the directory
+   if success then Result:=RemoveAFSEntry(dir,entry);
+  end;
+end;
+
+{-------------------------------------------------------------------------------
+Remove an entry from a directory
+-------------------------------------------------------------------------------}
+function TDiscImage.RemoveAFSEntry(dir,entry: Cardinal): Boolean;
+var
+ ptr,pptr : Cardinal;
+ buffer   : TDIByteArray;
+ index    : Integer;
+begin
+ Result:=False;
+ //Extract the parent directory
+ buffer:=ReadAFSObject(FDisc[dir].Sector*secsize);
+ //Find the part of the chain where the file is
+ ptr:=Read16b(0,buffer);
+ //Previous pointer
+ pptr:=0;
+ while(ptr<>0)and(FDisc[dir].Entries[entry].Sector<>Read16b(ptr+$17,buffer))do
+ begin
+  pptr:=ptr;
+  ptr:=Read16b(ptr,buffer);
+ end;
+ //Did we find it?
+ if FDisc[dir].Entries[entry].Sector=Read16b(ptr+$17,buffer) then
+ begin
+  //Point the previous entry to wherever this part of the file is pointing
+  //(i.e. replace the pointer to here with this entry)
+  Write16b(Read16b(ptr,buffer),pptr,buffer);
+  //Put the 'next free entry' pointer in the header in place of where this is pointing to
+  Write16b(Read16b($0D,buffer),ptr,buffer);
+  //Update the 'next free entry' pointer to point to this entry
+  Write16b(ptr,$0D,buffer);
+  //Write the parent directory back
+  WriteAFSObject(FDisc[dir].Sector*secsize,buffer);
+  //Update the free space map to free up the area
+  AFSDeAllocateFreeSpace(Read24b(ptr+$17,buffer));
+  //Remove from the local array
+  if entry<Length(FDisc[dir].Entries)-1 then
+   for index:=entry+1 to Length(FDisc[dir].Entries)-1 do
+    FDisc[dir].Entries[index-1]:=FDisc[dir].Entries[index];
+  //Remove the last entry
+  SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);
+  //Update the directory
+  UpdateAFSDirectory(GetParent(dir));
+  //Refresh the free space map
+  ReadAFSFSM;
+  //Return a success
+  Result:=True;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Insert an entry into a directory
+-------------------------------------------------------------------------------}
+function TDiscImage.InsertAFSEntry(dir: Cardinal;file_details:TDirEntry): Integer;
+var
+ block    : TDIByteArray;
+ sector,
+ ptr,
+ addr,
+ lastaddr,
+ freeaddr : Cardinal;
+begin
+ sector:=FDisc[dir].Sector*secsize;
+ //Insert it into the local copy of the catalogue
+ Result:=ExtendADFSCat(dir,file_details); //We'll just 'borrow' the ADFS method
+ //Read it in so it is local
+ block:=ReadAFSObject(sector);
+ //Add in the new file
+ ptr:=0;
+ addr:=0;
+ //Find where we need to go
+ while ptr<Result+1 do
+ begin
+  inc(ptr);
+  lastaddr:=addr;
+  addr:=Read16b(lastaddr,block);
+ end;
+ //Get the next free slot
+ freeaddr:=Read16b($0D,block);
+ //Get the next free slot after that and write it to the header
+ Write16b(Read16b(freeaddr,block),$0D,block);
+ //Change the pointer to the new entry
+ Write16b(freeaddr,lastaddr,block);
+ //Point the new entry to the next one, which could be zero
+ Write16b(addr,freeaddr,block);
+ //Increase the counter
+ WriteByte(ReadByte($0F,block)+1,$0F,block);
+ //Insert all the fields
+ //Filename
+ WriteString(file_details.Filename,freeaddr+$02,10,32,block);
+ //Load Address
+ Write32b(file_details.LoadAddr,freeaddr+$0C,block);
+ //Execution Address
+ Write32b(file_details.ExecAddr,freeaddr+$10,block);
+ //Attributes
+ Write32b(AFSAttrToByte(file_details.Attributes),freeaddr+$14,block);
+ //Modification Date
+ Write16b(AFSTimeToWord(file_details.TimeStamp),freeaddr+$15,block);
+ //SIN of object
+ Write24b(file_details.Sector,freeaddr+$17,block);
+ //Now we can write it back out again
+ WriteAFSObject(sector,block);
+ //Refresh the free space map
+ ReadAFSFSM;
+end;
+
+{-------------------------------------------------------------------------------
+Move a file/directory
+-------------------------------------------------------------------------------}
+function TDiscImage.MoveAFSFile(filename,directory: String): Integer;
+var
+ direntry : TDirEntry;
+ sdir,
+ sentry,
+ ddir,
+ dentry,
+ ptr      : Cardinal;
+begin
+ Result:=-11;//Source file not found
+ //Does the file exist?
+ if FileExists(filename,sdir,sentry) then
+ begin
+  Result:=-6;//Destination directory not found
+  //Take a copy
+  direntry:=FDisc[sdir].Entries[sentry];
+  //Does the destination directory exist?
+  if(FileExists(directory,ddir,dentry))or(directory='$')then
+  begin
+   Result:=-10;//Can't move to the same directory
+   //Destination directory reference
+   ddir:=0;//Root
+   if directory<>'$' then ddir:=FDisc[ddir].Entries[dentry].DirRef;
+   if ddir<>sdir then //Can't move into the same directory
+   begin
+    Result:=-3; //File already exists in destination directory
+    //Alter for the new parent
+    direntry.Parent:=directory;
+    //Does the filename already exist in the new location?
+    if not FileExists(directory+Dir_Sep+direntry.Filename,ptr) then
+    begin
+     //Insert into the new directory
+     Result:=InsertAFSEntry(ddir,direntry);
+     //Now remove from the original directory
+     RemoveAFSEntry(sdir,sentry);
+    end;
+   end;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update the load or execution address of a file
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateAFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+var
+ dir,
+ entry: Cardinal;
+begin
+ Result:=False;
+ //Ensure that the file exists
+ if FileExists(filename,dir,entry) then
+  if dir<Length(FDisc) then
+   if entry<Length(FDisc[dir].Entries) then
+   begin
+    //Update the field
+    if load then FDisc[dir].Entries[entry].LoadAddr:=newaddr
+    else FDisc[dir].Entries[entry].ExecAddr:=newaddr;
+    //Update the directory entry
+    UpdateAFSDirectory(GetParent(dir));
+    Result:=True;
+   end;
+end;
+
+{-------------------------------------------------------------------------------
+Update the datestamp of a file
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateAFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
+var
+ dir,
+ entry: Cardinal;
+begin
+ Result:=False;
+ //Ensure that the file exists
+ if FileExists(filename,dir,entry) then
+  if dir<Length(FDisc) then
+   if entry<Length(FDisc[dir].Entries) then
+   begin
+    //Update the field
+    FDisc[dir].Entries[entry].TimeStamp:=Floor(newtimedate);
+    //Update the directory entry
+    UpdateAFSDirectory(GetParent(dir));
+    Result:=True;
+   end;
+end;
+
+{-------------------------------------------------------------------------------
+Convert a TDateTime to an AFS compatible Word
+-------------------------------------------------------------------------------}
+function TDiscImage.AFSTimeToWord(timedate: TDateTime):Word;
+var
+ y,m,d: Byte;
+begin
+ y:=StrToIntDef(FormatDateTime('yyyy',timedate),1981)-1981;//Year
+ m:=StrToIntDef(FormatDateTime('m',timedate),1);           //Month
+ d:=StrToIntDef(FormatDateTime('d',timedate),1);           //Date
+ Result:=((y AND$F)<<12)OR((y AND$F0)<<1)OR(d AND$1F)OR((m AND$F)<<8);
+end;
+
+{-------------------------------------------------------------------------------
+Update attributes on a file
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateAFSAttributes(filename,attributes: String): Boolean;
+var
+ dir,
+ entry : Cardinal;
+begin
+ Result:=False;
+ //Make sure that the file exists, but also to get the pointer
+ if FileExists(filename,dir,entry) then
+ begin
+  //Change the attributes on the local copy
+  FDisc[dir].Entries[entry].Attributes:=attributes;
+  //Then update the catalogue
+  UpdateAFSDirectory(GetParent(dir));
+  //And return a success
+  Result:=True;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update title on an AFS image
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateAFSDiscTitle(title: String): Boolean;
+begin
+ //Remove any extraenous spaces
+ RemoveSpaces(title);
+ //Make sure it is not overlength
+ title:=LeftStr(title,16);
+ //And update the internal variable
+ if FFormat>>4=diAcornADFS then disc_name[1]:=title else disc_name[0]:=title;
+ //Write to the image header
+ WriteString(title,afshead+4,16,32);
+ //And the copy
+ WriteString(title,afshead2+4,16,32);
+ //Return a positive result
+ Result:=True;
 end;

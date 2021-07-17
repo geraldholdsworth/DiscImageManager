@@ -56,15 +56,25 @@ type
   { TMainForm }
 type
   TMainForm = class(TForm)
+   AFSAttrPanel: TPanel;
    CancelDragDrop: TAction;
+   cb_AFS_ownl: TCheckBox;
+   cb_AFS_ownr: TCheckBox;
+   cb_AFS_ownw: TCheckBox;
+   cb_AFS_pubr: TCheckBox;
+   cb_AFS_pubw: TCheckBox;
    DuplicateFile1: TMenuItem;
    IyonixTextureTile: TImage;
    DeletePartition1: TMenuItem;
    AddPasswordFile1: TMenuItem;
    menuAddPasswordFile: TMenuItem;
+   menuEditPasswordFile: TMenuItem;
+   EditPasswordFile1: TMenuItem;
    menuSavePartition: TMenuItem;
    menuDeletePartition: TMenuItem;
+   AFSOAAttributeLabel: TLabel;
    PartitionMenu: TMenuItem;
+   AFSPubAttributeLabel: TLabel;
    SavePartition1: TMenuItem;
    ROPiTextureTile: TImage;
    RO3TextureTile: TImage;
@@ -111,6 +121,11 @@ type
    CRC32Panel: TPanel;
    btn_Settings: TToolButton;
    btn_DuplicateFile: TToolButton;
+   ToolButton1: TToolButton;
+   btn_AddPassword: TToolButton;
+   btn_EditPassword: TToolButton;
+   btn_DeletePartition: TToolButton;
+   btn_SavePartition: TToolButton;
    ToolSplitter: TSplitter;
    TimeStampPanel: TPanel;
    ParentPanel: TPanel;
@@ -1266,11 +1281,13 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.GetImageFilename(dir,entry: Integer): String;
 begin
- if Length(Image.Disc[dir].Entries)=0 then
-  Result:=Image.Disc[dir].Directory
- else
-  Result:=Image.Disc[dir].Entries[entry].Parent+Image.DirSep
-         +Image.Disc[dir].Entries[entry].Filename;
+ Result:='';
+ if(dir>=0)and(dir<Length(Image.Disc))then
+  if Length(Image.Disc[dir].Entries)=0 then
+   Result:=Image.Disc[dir].Directory
+  else
+   Result:=Image.GetParent(dir)+Image.DirSep
+          +Image.Disc[dir].Entries[entry].Filename;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1280,25 +1297,30 @@ function TMainForm.GetWindowsFilename(dir,entry: Integer): String;
 var
  extsep: Char;
 begin
- extsep:=#0;
- //Get the filename
- Result:=Image.Disc[dir].Entries[entry].Parent
-        +Image.DirSep
-        +Image.Disc[dir].Entries[entry].Filename;
- //Convert BBC chars to PC
- BBCtoWin(Result);
- //Replace any non-valid characters
- ValidateFilename(Result);
- //Add the filetype to the end, if any (but not directories)
- if (Image.Disc[dir].Entries[entry].ShortFileType<>'')
- and(Image.Disc[dir].Entries[entry].DirRef=-1) then
- begin
-  if(Image.FormatNumber>>4=diAcornDFS)
-  or(Image.FormatNumber>>4=diAcornADFS)then extsep:=','; //DFS and ADFS
-  if(Image.FormatNumber>>4=diCommodore)                  //Commodore
-  or(Image.FormatNumber>>4=diAmiga)then extsep:='.'; //Amiga
-  Result:=Result+extsep+Image.Disc[dir].Entries[entry].ShortFileType;
- end;
+ Result:='';
+ if(dir>=0)and(dir<Length(Image.Disc))then
+  if(entry>=0)and(entry<=Length(Image.Disc[dir].Entries))then
+  begin
+   extsep:=#0;
+   //Get the filename
+   Result:={Image.GetParent(dir)+Image.DirSep
+          +}Image.Disc[dir].Entries[entry].Filename;
+   //Convert BBC chars to PC
+   BBCtoWin(Result);
+   //Replace any non-valid characters
+   ValidateFilename(Result);
+   //Add the filetype to the end, if any (but not directories)
+   if (Image.Disc[dir].Entries[entry].ShortFileType<>'')
+   and(Image.Disc[dir].Entries[entry].DirRef=-1) then
+   begin
+    if(Image.FormatNumber>>4=diAcornDFS)
+    or(Image.FormatNumber>>4=diAcornADFS)
+    or(Image.FormatNumber>>4=diAcornFS)then extsep:=','; //DFS, ADFS and AFS
+    if(Image.FormatNumber>>4=diCommodore)                //Commodore
+    or(Image.FormatNumber>>4=diAmiga)then extsep:='.';   //Amiga
+    Result:=Result+extsep+Image.Disc[dir].Entries[entry].ShortFileType;
+   end;
+  end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1356,51 +1378,55 @@ var
 const
  adfsattr = 'RWELrwel';
 begin
- //Length of the hex numbers
- hexlen:=8;
- //6 for DFS (after discussion on Stardot forum)
- if Image.FormatNumber>>4=diAcornDFS then hexlen:=6;
- if DoCreateInf then
- begin
-  imagefilename:=Image.Disc[dir].Entries[entry].Filename;
-  if filename='' then //If no filename has been supplied, generate one
-   windowsfilename:=GetWindowsFilename(dir,entry)
-  else                //Otherwise just use the supplied name
-   windowsfilename:=filename;
-  //Add the root, if DFS and no directory specifier
-  if(Image.FormatNumber>>4=diAcornDFS)and(imagefilename[2]<>'.')then
-   imagefilename:=RightStr(Image.Disc[dir].Entries[entry].Parent,1)+'.'+imagefilename;
-  //Put quotes round the filename if it contains a space
-  if Pos(' ',imagefilename)>0 then imagefilename:='"'+imagefilename+'"';
-  //Create the string
-  inffile:=PadRight(LeftStr(imagefilename,12),12)+' '
-          +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+' '
-          +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+' '
-          +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen);
-  //Create the attributes
-  attributes:=$00;
-  if(Image.FormatNumber>>4=diAcornDFS)
-  or(Image.FormatNumber>>4=diAcornUEF)then //DFS and CFS
-   if Image.Disc[dir].Entries[entry].Attributes='L' then attributes:=$08;
-  if Image.FormatNumber>>4=diAcornADFS then //ADFS
-   for t:=0 to 7 do
-    if Pos(adfsattr[t+1],Image.Disc[dir].Entries[entry].Attributes)>0 then
-     inc(attributes,1 shl t);
-  inffile:=inffile+' '+IntToHex(attributes,2)
-          +' CRC32='+Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent+
-                                      Image.DirSep+
-                                      Image.Disc[dir].Entries[entry].Filename,
-                                      entry);
-  //Create the inf file
-  try
-   F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
-   F.Position:=0;
-   F.Write(inffile[1],Length(inffile));
-   F.Free;
-  except
-   //Could not create
+ if(dir>=0)and(dir<Length(Image.Disc))then
+  if(entry>=0)and(entry<Length(Image.Disc[dir].Entries))then
+  begin
+   //Length of the hex numbers
+   hexlen:=8;
+   //6 for DFS (after discussion on Stardot forum)
+   if Image.FormatNumber>>4=diAcornDFS then hexlen:=6;
+   if DoCreateInf then
+   begin
+    imagefilename:=Image.Disc[dir].Entries[entry].Filename;
+    if filename='' then //If no filename has been supplied, generate one
+     windowsfilename:=GetWindowsFilename(dir,entry)
+    else                //Otherwise just use the supplied name
+     windowsfilename:=filename;
+    //Add the root, if DFS and no directory specifier
+    if(Image.FormatNumber>>4=diAcornDFS)and(imagefilename[2]<>'.')then
+     imagefilename:=RightStr(Image.GetParent(dir),1)+'.'+imagefilename;
+    //Put quotes round the filename if it contains a space
+    if Pos(' ',imagefilename)>0 then imagefilename:='"'+imagefilename+'"';
+    //Create the string
+    inffile:=PadRight(LeftStr(imagefilename,12),12)+' '
+            +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+' '
+            +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+' '
+            +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen);
+    //Create the attributes
+    attributes:=$00;
+    if(Image.FormatNumber>>4=diAcornDFS)
+    or(Image.FormatNumber>>4=diAcornUEF)then //DFS and CFS
+     if Image.Disc[dir].Entries[entry].Attributes='L' then attributes:=$08;
+    if(Image.FormatNumber>>4=diAcornADFS)
+    or(Image.FormatNumber>>4=diAcornFS)then //ADFS and AFS
+     for t:=0 to 7 do
+      if Pos(adfsattr[t+1],Image.Disc[dir].Entries[entry].Attributes)>0 then
+       inc(attributes,1<<t);
+    inffile:=inffile+' '+IntToHex(attributes,2)
+            +' CRC32='+Image.GetFileCRC(Image.GetParent(dir)+Image.DirSep+
+                                        Image.Disc[dir].Entries[entry].Filename,
+                                        entry);
+    //Create the inf file
+    try
+     F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
+     F.Position:=0;
+     F.Write(inffile[1],Length(inffile));
+     F.Free;
+    except
+     //Could not create
+    end;
+   end;
   end;
- end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1745,10 +1771,9 @@ begin
   //And change the panel height to accomodate
   DFSAttrPanel.Height:=cb_DFS_l.Top+cb_DFS_l.Height;
  end;
- //ADFS
+ //ADFS and SparkFS
  if(Image.FormatNumber>>4=diAcornADFS)
- or(Image.FormatNumber>>4=diSpark)
- or(Image.FormatNumber>>4=diAcornFS)then
+ or(Image.FormatNumber>>4=diSpark)then
  begin
   //Make it visible
   if cbpos>0 then ADFSAttrPanel.Visible:=True;
@@ -1783,6 +1808,34 @@ begin
   cb_ADFS_owne.Visible:=Image.FormatNumber mod $10<3;
   cb_ADFS_pube.Visible:=Image.FormatNumber mod $10<3;
   cb_ADFS_pubp.Visible:=Image.FormatNumber mod $10<3;
+ end;
+ //Acorn FS
+ if Image.FormatNumber>>4=diAcornFS then
+ begin
+  //Make it visible
+  if cbpos>0 then AFSAttrPanel.Visible:=True;
+  //Position it below the CRC32 section
+  AFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+  //Position the ticks box inside - Owner Access
+  AFSOAAttributeLabel.Top:=0;
+  AFSOAAttributeLabel.Left:=(AFSAttrPanel.Width-AFSOAAttributeLabel.Width)div 2;
+  cb_AFS_ownw.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
+  cb_AFS_ownr.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
+  cb_AFS_ownl.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
+  cbpos:=AFSAttrPanel.Width div 4; //Equally space them
+  cb_AFS_ownw.Left:=cbpos*0;
+  cb_AFS_ownr.Left:=cbpos*1;
+  cb_AFS_ownl.Left:=cbpos*2;
+  //Position the ticks box inside - Public Access
+  AFSPubAttributeLabel.Top:=cb_AFS_ownw.Top+cb_AFS_ownw.Height;
+  AFSPubAttributeLabel.Left:=(AFSAttrPanel.Width-AFSPubAttributeLabel.Width)div 2;
+  cb_AFS_pubw.Top:=AFSPubAttributeLabel.Top+AFSPubAttributeLabel.Height;
+  cb_AFS_pubr.Top:=AFSPubAttributeLabel.Top+AFSPubAttributeLabel.Height;
+  cbpos:=AFSAttrPanel.Width div 2; //Equally space them
+  cb_AFS_pubw.Left:=cbpos*0;
+  cb_AFS_pubr.Left:=cbpos*1;
+  //And change the panel height to accomodate
+  AFSAttrPanel.Height:=cb_AFS_pubw.Top+cb_AFS_pubw.Height;
  end;
  //Commodore 64
  if Image.FormatNumber>>4=diCommodore then
@@ -1908,10 +1961,9 @@ begin
    or(Image.FormatNumber>>4=diAcornUEF)then
     //Tick/untick it
     cb_DFS_l.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-   //ADFS
+   //ADFS and SparkFS
    if(Image.FormatNumber>>4=diAcornADFS)
-   or(Image.FormatNumber>>4=diSpark)
-   or(Image.FormatNumber>>4=diAcornFS)then
+   or(Image.FormatNumber>>4=diSpark)then
    begin
     //Tick/untick them
     cb_ADFS_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
@@ -1922,6 +1974,16 @@ begin
     cb_ADFS_pubr.Checked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
     cb_ADFS_pube.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
     cb_ADFS_pubp.Checked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
+   end;
+   //Acorn FS
+   if Image.FormatNumber>>4=diAcornFS then
+   begin
+    //Tick/untick them
+    cb_AFS_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_ownr.Checked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_ownl.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_pubw.Checked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_pubr.Checked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    //Commodore 64
    if Image.FormatNumber>>4=diCommodore then
@@ -2049,13 +2111,12 @@ begin
   location:=''; //Default location string
   if dir>=0 then
   begin
+   temp:=Image.GetParent(dir);
    //Status bar
    UpdateImageInfo(Image.Disc[dir].Entries[entry].Side);
    //CRC32
-   lb_CRC32.Caption:=Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent+
-                                      Image.DirSep+filename,entry);
+   lb_CRC32.Caption:=Image.GetFileCRC(temp+Image.DirSep+filename,entry);
    //Parent
-   temp:=Image.Disc[dir].Entries[entry].Parent;
    RemoveTopBit(temp);
    lb_parent.Caption:=temp;
    //Timestamp - ADFS, Spark and FileStore only
@@ -2094,7 +2155,6 @@ begin
     location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)+' ';
    //All other formats - Sector
    if(Image.FormatNumber>>4=diAcornDFS)
-   //or(Image.FormatNumber>>4=diAcornADFS)
    or(Image.FormatNumber>>4=diAmiga) then
     location:=location+'Sector '
              +IntToStr(Image.Disc[dir].Entries[entry].Sector)+' ';
@@ -2112,16 +2172,14 @@ begin
    UpdateImageInfo(Image.Disc[dr].Partition);
    //Location of root - varies between formats
    location:='';
-   //ADFS Old map - Sector is an offset
-   if Image.MapType=diADFSOldMap then
-    location:='Sector Offset: 0x'+IntToHex(Image.RootAddress,8);
+   //ADFS Old map and Acorn File Server - Sector is an offset
+   if(Image.MapType=diADFSOldMap)
+   or(Image.FormatNumber>>4=diAcornFS)
+   or(Image.Disc[dr].AFSPartition)then
+    location:='Sector Offset: 0x'+IntToHex(Image.Disc[dr].Sector,8);
    //ADFS New map - Sector is an indirect address (fragment and sector)
    if Image.MapType=diADFSNewMap then
-    location:='Indirect address: 0x'+IntToHex(Image.RootAddress,8);
-   //Acorn FileStore
-   if(Image.FormatNumber>>4=diAcornFS)
-   or(Image.Disc[dr].AFSPartition)then
-    location:='Sector Offset: 0x'+IntToHex(Image.AFSRoot,8);
+    location:='Indirect address: 0x'+IntToHex(Image.Disc[dr].Sector,8);
   end;
   //Update the location label
   lb_location.Caption:=location;
@@ -2250,7 +2308,7 @@ begin
  //Keep the application open
  KeepOpen:=True;
  //Initial width and height of form
- Width:=749;
+ Width:=866;
  Height:=515;
  //Enable or disable buttons
  DisableControls;
@@ -2363,7 +2421,7 @@ var
 const DiscFormats = //Accepted format strings
  'DFSS    DFSS40  DFSD    DFSD40  WDFSS   WDFSS40 WDFSD   WDFSD40 ADFSS   ADFSM   '+
  'ADFSL   ADFSD   ADFSE   ADFSE+  ADFSF   ADFSF+  C1541   C1571   C1581   AMIGADD '+
- 'AMIGAHD CFS     ';
+ 'AMIGAHD CFS';
  const DiscNumber : array[1..22] of Integer = //Accepted format numbers
  ($001   ,$000   ,$011   ,$010   ,$021   ,$020   ,$031   ,$030   ,$100   ,$110,
   $120   ,$130   ,$140   ,$150   ,$160   ,$170   ,$200   ,$210   ,$220   ,$400,
@@ -2427,13 +2485,13 @@ begin
     if Length(param2)>3 then
     begin
      newmap:=False; //Default
-     if(param2[1]='N')or(param2[1]='n')then newmap:=True;
+     if UpperCase(param2[1])='N' then newmap:=True;
      dirtype:=0; //Default
-     if(param2[2]='N')or(param2[2]='n')then dirtype:=1;//New dir
-     if(param2[2]='B')or(param2[2]='b')then dirtype:=2;//Big dir
+     if UpperCase(param2[2])='N' then dirtype:=1;//New dir
+     if UpperCase(param2[2])='B' then dirtype:=2;//Big dir
      if(newmap)and(dirtype=0)then dirtype:=1; //Can't have old dir on new map
      if(not newmap)and(dirtype=2)then dirtype:=1;//Can't have big dir on old map
-     if(param2[Length(param2)]='M')or(param2[Length(param2)]='M')then //in MB
+     if UpperCase(RightStr(param2,1))='M' then //in MB
       harddrivesize:=StrToIntDef(Copy(param2,3,Length(param2)-3),20)*1024*1024
      else                                                             //in bytes
       harddrivesize:=StrToIntDef(Copy(param2,3),20*1024*1024);
@@ -2442,14 +2500,35 @@ begin
      if(not newmap)and(harddrivesize>512*1024*1024)then
       harddrivesize:=512*1024*1024;//512MB max for old map
      //OK, now create it
-     if Image.FormatHDD(1,harddrivesize,newmap,dirtype) then
+     if Image.FormatHDD(diAcornADFS,harddrivesize,newmap,dirtype) then
      begin
       HasChanged:=True;
       ShowNewImage(Image.Filename);
      end;
     end;
-   end
-   else
+   end;
+   if LeftStr(UpperCase(param),4)='AFSL' then //Create AFS
+    if StrToIntDef(param2,0)>0 then //Need a second parameter
+    begin
+     //Get the image size
+     harddrivesize:=StrToIntDef(param2,0);
+     //Has it been specified in Megabytes?
+     if UpperCase(RightStr(param2,1))='M' then harddrivesize:=harddrivesize*1024;
+     //Get the AFS level
+     dirtype:=StrToIntDef(RightStr(param,1),0);
+     //Is the specified image size big enough
+     if(dirtype=2)and(harddrivesize<400)then harddrivesize:=400;
+     if(dirtype=3)and(harddrivesize<640)then harddrivesize:=640;
+     //But not too big
+     if harddrivesize>512*1024 then harddrivesize:=512*1024;
+     //Create it
+     if Image.FormatHDD(diAcornFS,harddrivesize*1024,False,dirtype) then
+     begin
+      HasChanged:=True;
+      ShowNewImage(Image.Filename);
+     end;
+    end;
+   if Pos(UpperCase(param),DiscFormats)>0 then //Create other
    begin
     index:=(Pos(UpperCase(param),DiscFormats) DIV 8)+1;
     if(index>=Low(DiscNumber))and(index<=High(DiscNumber))then
@@ -2984,7 +3063,10 @@ begin
        if ImportSelectorForm.IsNodeTicked(dir,entry) then //Only those that are selected
        begin
         newentry:=NewImage.Disc[dir].Entries[entry];
-        UpdateProgress('Importing '+newentry.Parent+NewImage.DirSep+newentry.Filename);
+        //Set the parent, as this may be different
+        newentry.Parent:=NewImage.GetParent(dir);
+        UpdateProgress('Importing '+newentry.Parent+NewImage.DirSep+
+                                    newentry.Filename);
         //Validate the filename, as it could be different across file systems
         if newformat<>diAcornDFS then WinToBBC(newentry.Filename); //Not DFS
         //DFS and C64 don't have directories, so the parent is the selected node
@@ -2993,9 +3075,9 @@ begin
         //If going to DFS or C64
         if(curformat=diAcornDFS)or(curformat=diCommodore)then
         begin
-         //If coming from ADFS or Amiga, and is inside a directory,
+         //If coming from ADFS, AFS or Amiga, and is inside a directory,
          //add the first letter of this.
-         if((newformat=diAcornADFS)or(newformat=diAmiga))
+         if((newformat=diAcornADFS)or(newformat=diAmiga)or(newformat=diAcornFS))
          and(newentry.Parent<>NewImage.Disc[0].Directory)then
          begin
           index:=Length(newentry.Parent);
@@ -3040,7 +3122,7 @@ begin
          //Is it a file
          if newentry.DirRef=-1 then
           //Read the file in
-          if NewImage.ExtractFile(NewImage.Disc[dir].Entries[entry].Parent
+          if NewImage.ExtractFile(NewImage.GetParent(dir)
                                  +NewImage.DirSep
                                  +NewImage.Disc[dir].Entries[entry].Filename,
                                   buffer,entry) then
@@ -3125,7 +3207,7 @@ begin
   if dir<Length(Image.Disc) then
    if entry<Length(Image.Disc[dir].Entries)then
     //Change the filetype
-    if Image.ChangeFileType(Image.Disc[dir].Entries[entry].Parent
+    if Image.ChangeFileType(Image.GetParent(dir)
                            +Image.DirSep
                            +Image.Disc[dir].Entries[entry].Filename
                            ,IntToHex(ft,3))then
@@ -3196,8 +3278,9 @@ var
  dir,
  entry: Integer;
 begin
- //ADFS only
- if Image.FormatNumber>>4=diAcornADFS then
+ //ADFS and AFS only
+ if(Image.FormatNumber>>4=diAcornADFS)
+ or(Image.FormatNumber>>4=diAcornFS)then
  begin
   //Get the references
   entry:=DirList.Selected.Index;
@@ -3238,7 +3321,7 @@ begin
  if dir<Length(Image.Disc) then
   if entry<Length(Image.Disc[dir].Entries)then
    if newtimedate<>Image.Disc[dir].Entries[entry].TimeStamp then //And different
-    if Image.TimeStampFile(Image.Disc[dir].Entries[entry].Parent
+    if Image.TimeStampFile(Image.GetParent(dir)
                           +Image.DirSep
                           +Image.Disc[dir].Entries[entry].Filename
                           ,newtimedate) then //So send to the class
@@ -3407,8 +3490,24 @@ begin
  ImageDetailForm.lbImgFormat.Caption:=Image.FormatString;
  //Map type
  ImageDetailForm.lbMap.Caption      :=Image.MapTypeString;
+ ImageDetailForm.MapPanel.Visible   :=ImageDetailForm.lbMap.Caption<>'';
  //Directory type
  ImageDetailForm.lbDirType.Caption  :=Image.DirectoryTypeString;
+ ImageDetailForm.DirPanel.Visible   :=ImageDetailForm.lbDirType.Caption<>'';
+ //Interleave type
+ ImageDetailForm.lbInterleave.Caption:=Image.InterleaveInUse;
+ ImageDetailForm.InterleavePanel.Visible:=ImageDetailForm.lbInterleave.Caption<>'';
+ //Arrange the panels
+ with ImageDetailForm do
+ begin
+  pnSide0.Top        :=0;
+  pnSide1.Top        :=pnSide0.Top+pnSide0.Height;
+  FormatPanel.Top    :=pnSide1.Top+pnSide1.Height;
+  MapPanel.Top       :=FormatPanel.Top+FormatPanel.Height;
+  DirPanel.Top       :=MapPanel.Top+MapPanel.Height;
+  InterleavePanel.Top:=DirPanel.Top+DirPanel.Height;
+  CRCPanel.Top       :=InterleavePanel.Top+InterleavePanel.Height;
+ end;
  //Logo
  t:=ImageDetailForm.DirPanel.Top+ImageDetailForm.DirPanel.Height;
  s:=ImageDetailForm.OKBtnBack.Top-t;
@@ -3524,11 +3623,12 @@ begin
    titles[side].Text:=title;
    titles[0].Enabled:=not Image.AFSPresent;
    //Limit the length
-   if Image.FormatNumber>>4=diAcornDFS then titles[side].MaxLength:=12; //DFS
+   if Image.FormatNumber>>4=diAcornDFS  then titles[side].MaxLength:=12; //DFS
    if Image.FormatNumber>>4=diAcornADFS then titles[side].MaxLength:=10; //ADFS
+   if Image.FormatNumber>>4=diAcornFS   then titles[side].MaxLength:=10; //AFS
    //Boot Option
    boots[side].Visible  :=True;
-   if Length(Image.BootOpt)>0 then
+   if Length(Image.BootOpt)>side then
     boots[side].ItemIndex:=Image.BootOpt[side]
    else
     boots[side].Visible:=False;
@@ -3552,12 +3652,9 @@ begin
    for side:=0 to numsides-1 do
    begin
     //Update Disc Title
-    if not Image.AFSPresent then //Can't update if FileStore partition present
-     if Image.UpdateDiscTitle(titles[side].Text,side) then
-      HasChanged:=True;
+    if Image.UpdateDiscTitle(titles[side].Text,side)      then HasChanged:=True;
     //Update Boot Option
-    if Image.UpdateBootOption(boots[side].ItemIndex,side) then
-     HasChanged:=True;
+    if Image.UpdateBootOption(boots[side].ItemIndex,side) then HasChanged:=True;
    end;
    UpdateImageInfo;
   end;
@@ -3684,13 +3781,13 @@ begin
    //And each entry in that directory
    for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
     //write out each entry
-    WriteLine(F,'"'+Image.Disc[dir].Entries[entry].Parent+'","'
+    WriteLine(F,'"'+Image.GetParent(dir)+'","'
                    +Image.Disc[dir].Entries[entry].Filename+'","'
                    +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+'","'
                    +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+'","'
                    +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen)+'","'
                    +Image.Disc[dir].Entries[entry].Attributes+'","'
-                   +Image.GetFileCRC(Image.Disc[dir].Entries[entry].Parent
+                   +Image.GetFileCRC(Image.GetParent(dir)
                                     +Image.DirSep
                                     +Image.Disc[dir].Entries[entry].Filename)+'"');
   //Finally free up the file stream
@@ -3842,7 +3939,7 @@ begin
   if dir<Length(Image.Disc) then
    if entry<Length(Image.Disc[dir].Entries)then
     //Change the filetype
-    if Image.ChangeFileType(Image.Disc[dir].Entries[entry].Parent
+    if Image.ChangeFileType(Image.GetParent(dir)
                            +Image.DirSep
                            +Image.Disc[dir].Entries[entry].Filename
                            ,ft)then
@@ -4182,7 +4279,7 @@ begin
     B.Height:=R.Height;
     //We need it transparent
     B.Transparent:=True;
-    B.TransparentColor:=clFuchsia; //This is treated a transparent
+    B.TransparentColor:=clFuchsia; //This is treated as transparent
     B.Canvas.Brush.Color:=clFuchsia;
     B.Canvas.FillRect(Rect(0,0,R.Width,R.Height));
     //Put the file icon in
@@ -4566,6 +4663,15 @@ begin
     if cb_ADFS_pube.Checked then att:=att+'e';
     if cb_ADFS_pubp.Checked then att:=att+'P';
    end;
+   //Attributes - ADFS
+   if Image.FormatNumber>>4=diAcornFS then
+   begin
+    if cb_AFS_ownw.Checked then att:=att+'W';
+    if cb_AFS_ownr.Checked then att:=att+'R';
+    if cb_AFS_ownl.Checked then att:=att+'L';
+    if cb_AFS_pubw.Checked then att:=att+'w';
+    if cb_AFS_pubr.Checked then att:=att+'r';
+   end;
    //Attributes - Commodore 64
    if Image.FormatNumber>>4=diCommodore then
    begin
@@ -4721,12 +4827,12 @@ begin
    begin
     dir  :=TMyTreeNode(Node).ParentDir;
     //Get the full filename with path
-    filename:=Image.Disc[dir].Entries[entry].Parent+
-              Image.DirSep+
+    filename:=Image.GetParent(dir)+Image.DirSep+
               Image.Disc[dir].Entries[entry].Filename;
     //Load the file
     if Image.ExtractFile(filename,buffer,entry) then
     begin
+     RemoveTopBit(filename);
      //Check it is not already open
      i:=0;
      index:=-1;
@@ -4960,6 +5066,7 @@ begin
  img_FileType.Picture.Bitmap:=nil;
  //Disable the access tick boxes
  ADFSAttrPanel.Visible:=False;
+ AFSAttrPanel.Visible :=False;
  DFSAttrPanel.Visible :=False;
  C64AttrPanel.Visible :=False;
  //And untick them

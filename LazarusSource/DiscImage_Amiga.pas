@@ -194,9 +194,10 @@ begin
        //Once found, list their entries
        SetLength(Result,Length(Result)+1);
        //Read in the contents of the directory
-       Result[Length(Result)-1]:=ReadAmigaDir(Result[d].Entries[ptr].Parent+dir_sep
+       Result[Length(Result)-1]:=ReadAmigaDir(GetParent(d)+dir_sep
                                          +Result[d].Entries[ptr].Filename,
                                           Result[d].Entries[ptr].Sector);
+       Result[Length(Result)-1].Parent:=d;
        //Update the directory reference
        Result[d].Entries[ptr].DirRef:=Length(Result)-1;
       end;
@@ -235,6 +236,7 @@ begin
    Result.Directory:=dirname
   else
    Result.Directory:=ReadString(offset*secsize+$1B1,-ReadByte(offset*secsize+$1B0));
+  Result.Sector:=offset;
   //Go through the hash table and find the entries.
   ent:=Read32b(offset*secsize+$0C,True); //Size of hash table
   if ent=0 then ent:=(secsize div 4)-56; //if 0, then it should be BSIZE/4 - 56

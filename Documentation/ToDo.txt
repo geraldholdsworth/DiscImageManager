@@ -7,7 +7,6 @@ Bugs
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
 * Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
-* Potential bug (ADFS and AFS): A directory that has entries gets renamed. The Parent field of the entries still points to the old name, and the same for grandparents, etc.
 
 General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
@@ -26,8 +25,8 @@ General
 * Import SD DFS into SD DFS to create combined DS DFS (REF:1).
 * Side pane (left hand side) to allow separate images to be opened (REF:3).
 * Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
-* Add a new field to the TDirEntry: ParentRef...the reference to the object's parent. Then, add three new fields to the TDir: ParentRef, ParentEntry and Sector - the reference to the parent; the entry number in the parent; and the location in the image of the directory. Then implement it, throughout the code where possible, instead of using the Parent field of TDirEntry.
-* Incorporate the Acorn FS capabilities to the command line options.
+* Put settings form into tabs, or similar, to separate the various options.
+* Add in 'View' options to show or hide: File Details pane; Toolbar; Status Bar.
 
 ADFS
 * Change the size of the ADFS partition or image.
@@ -57,5 +56,3 @@ Spark
 Acorn File Store (AFS)
 * Add a dialogue box to allow the entering of user accounts for the password file.
 * Create blank ADFS/AFS L3 hybrid images (REF:1).
-* Delete file/directory.
-* Move file.

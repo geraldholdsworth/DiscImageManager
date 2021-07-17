@@ -268,6 +268,7 @@ begin
  else
   Result.Directory:=dirname;
  Result.AFSPartition:=False;
+ Result.Sector:=sector;
  //Initialise some of the variables
  StartSeq        :=$00;
  EndSeq          :=$FF;
@@ -289,7 +290,10 @@ begin
  begin
   //New Map, so the sector will be an internal disc address
   if dirname=root_name then //root address
-   addr:=NewDiscAddrToOffset(rootfrag)
+  begin
+   addr:=NewDiscAddrToOffset(rootfrag);
+   Result.Sector:=rootfrag;
+  end
   else                      //other object address
    addr:=NewDiscAddrToOffset(sector);
   //We need the total length of the big directory
@@ -870,11 +874,11 @@ function TDiscImage.ReadADFSDisc: TDisc;
      //Re-assemble the disc title
      if Length(OldName0)>0 then
       for d:=1 to Length(OldName0) do
-       disc_name[(d*2)-1]  :=chr(ord(OldName0[d])AND$7F);
+       disc_name[0][(d*2)-1]  :=chr(ord(OldName0[d])AND$7F);
      //Both parts are interleaved
      if Length(OldName1)>0 then
       for d:=1 to Length(OldName1) do
-       disc_name[ d*2   ]  :=chr(ord(OldName1[d])AND$7F);
+       disc_name[0][ d*2   ]  :=chr(ord(OldName1[d])AND$7F);
      //Then remove all extraenous spaces
      RemoveSpaces(disc_name[0]);
     end else disc_name[0]:='AFS L3';
@@ -957,10 +961,11 @@ function TDiscImage.ReadADFSDisc: TDisc;
         //Once found, list their entries
         SetLength(Result,Length(Result)+1);
         //Read in the contents of the directory
-        Result[Length(Result)-1]:=ReadADFSDir(Result[d].Entries[ptr].Parent
+        Result[Length(Result)-1]:=ReadADFSDir(GetParent(d)
                                              +dir_sep
                                              +Result[d].Entries[ptr].Filename,
                                               Result[d].Entries[ptr].Sector);
+        Result[Length(Result)-1].Parent:=d;
         //Update the directory reference
         Result[d].Entries[ptr].DirRef:=Length(Result)-1;
        end;
@@ -1544,12 +1549,18 @@ function TDiscImage.UpdateADFSDiscTitle(title: String): Boolean;
 var
  t: Integer;
 begin
+ //Is this an ADFS/AFS Hybrid?
+ if FFormat=diAcornADFS<<4+$E then
+ begin
+  Result:=UpdateAFSDiscTitle(title);
+  exit;
+ end;
  //Remove any extraenous spaces
  RemoveSpaces(title);
- //And update the internal variable
- disc_name[0]:=title;
  //Make sure it is not overlength
  title:=LeftStr(title,10);
+ //And update the internal variable
+ disc_name[0]:=title;
  //Pad with zeros if underlength
  if Length(title)<10 then
   for t:=Length(title) to 10 do
@@ -1733,7 +1744,7 @@ begin
  if not((file_details.Filename='$')and(FDirType=diADFSBigDir))then
   file_details.Filename:=ValidateADFSFilename(file_details.Filename);
  //First make sure it doesn't exist already
- if(not FileExists(file_details.Parent+dirsep+file_details.Filename,ref))
+ if(not FileExists(file_details.Parent+dir_sep+file_details.Filename,ref))
  or((file_details.Filename='$')and(FDirType=diADFSBigDir))then
   //Get the directory where we are adding it to, and make sure it exists
   if(FileExists(file_details.Parent,ref))OR(file_details.Parent='$')then
@@ -1861,6 +1872,8 @@ begin
         FDisc[Length(FDisc)-1].Directory:=FDisc[dir].Entries[ptr].Filename;
         FDisc[Length(FDisc)-1].Title    :=FDisc[dir].Entries[ptr].Filename;
         FDisc[Length(FDisc)-1].Broken   :=False;
+        FDisc[Length(FDisc)-1].Parent   :=dir;
+        FDisc[Length(FDisc)-1].Sector   :=FDisc[dir].Entries[ptr].Sector;
         SetLength(FDisc[Length(FDisc)-1].Entries,0);
        end;
        //And send the result back to the client
@@ -2213,7 +2226,7 @@ begin
   //Validate the name
   dirname:=ValidateADFSFilename(dirname);
  //Make sure it does not already exist
- if(not FileExists(parent+dirsep+dirname,ref))OR(dirname='$')then
+ if(not FileExists(parent+dir_sep+dirname,ref))OR(dirname='$')then
  begin
   Result:=-5;//Unknown error
   //Set as 'D' so it gets added as a directory
@@ -2543,7 +2556,7 @@ begin
   //Change the attributes on the local copy
   FDisc[dir].Entries[entry].Attributes:=attributes;
   //Then update the catalogue
-  UpdateADFSCat(FDisc[dir].Entries[entry].Parent);
+  UpdateADFSCat(GetParent(dir));
   //And return a success
   Result:=True;
  end;
@@ -2604,7 +2617,7 @@ begin
    //Re-title the directory, limiting it to 19 characters
    FDisc[FDisc[dir].Entries[entry].DirRef].Title:=LeftStr(newtitle,19);
    //Update the catalogue, which will update the title
-   UpdateADFSCat(FDisc[dir].Entries[entry].Parent+dir_sep
+   UpdateADFSCat(GetParent(dir)+dir_sep
                 +FDisc[dir].Entries[entry].Filename);
   end;
   Result:=True;
@@ -2631,9 +2644,9 @@ begin
  begin
   Result:=-3; //New name already exists
   //Make sure the new filename does not already exist
-  if(not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr))
+  if(not FileExists(GetParent(dir)+dir_sep+newfilename,ptr))
   // or the user is just changing case
-  or(LowerCase(FDisc[dir].Entries[entry].Parent+dirsep+newfilename)=LowerCase(oldfilename))then
+  or(LowerCase(GetParent(dir)+dir_sep+newfilename)=LowerCase(oldfilename))then
   begin
    Result:=-1;//Unknown error
    //Get the difference in lengths
@@ -2652,7 +2665,7 @@ begin
     if FDisc[FDisc[dir].Entries[entry].DirRef].Title=FDisc[dir].Entries[entry].Filename then
      FDisc[FDisc[dir].Entries[entry].DirRef].Title:=newfilename;
     //This will update the catalogue for that directory, updating the title too
-    UpdateADFSCat(FDisc[dir].Entries[entry].Parent+dir_sep
+    UpdateADFSCat(GetParent(dir)+dir_sep
                  +FDisc[dir].Entries[entry].Filename,newfilename);
    end;
    //Change the entry
@@ -2683,7 +2696,7 @@ begin
       end;
      until not changed;
    //Update the catalogue
-   UpdateADFSCat(FDisc[dir].Entries[entry].Parent);
+   UpdateADFSCat(GetParent(dir));
    Result:=entry;
   end;
  end;
@@ -2913,7 +2926,6 @@ Delete an ADFS file/directory
 function TDiscImage.DeleteADFSFile(filename: String;
                     TreatAsFile:Boolean=False;extend:Boolean=True):Boolean;
 var
-// ptr,
  entry,
  dir,
  addr,
@@ -2930,25 +2942,19 @@ begin
   begin
    entry:=$FFFF;
    dir  :=$FFFF;
-  end{
-  else
-  begin
-   //FileExists returns a pointer to the file
-   entry:=ptr mod$10000;  //Bottom 16 bits - entry reference
-   dir  :=ptr div$10000;  //Top 16 bits - directory reference
-  end};
+  end;
   success:=True;
   if filename<>'$' then
    //If directory, delete contents first
    if(FDisc[dir].Entries[entry].DirRef>0)and(not TreatAsFile)then
     //We'll do a bit of recursion to remove each entry one by one. If it
     //encounters a directory, that will get it's contents deleted, then itself.
-    while (Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
-      and (success) do
+    while(Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
+      and(success)do
       //If any fail for some reason, the whole thing fails
      success:=DeleteADFSFile(
              filename
-            +dirsep
+            +dir_sep
             +FDisc[FDisc[dir].Entries[entry].DirRef].Entries[0].Filename);
   //Only continue if we are successful
   if success then
@@ -2956,7 +2962,7 @@ begin
    if filename<>'$' then
    begin
     //Make a note of the parent - these will become invalid soon
-    fileparent:=FDisc[dir].Entries[entry].Parent;
+    fileparent:=GetParent(dir);
     //Take a note of where it is on disc
     addr:=FDisc[dir].Entries[entry].Sector;
     //And how much space it took up
@@ -3265,7 +3271,7 @@ begin
   //Take a copy
   direntry:=FDisc[sdir].Entries[sentry];
   //Remember the original parent
-  sparent:=direntry.Parent;
+  sparent:=GetParent(sdir);
   if(FileExists(directory,ddir,dentry))or(directory='$')then
   begin
    Result:=-10;//Can't move to the same directory
@@ -3278,7 +3284,7 @@ begin
     //Alter for the new parent
     direntry.Parent:=directory;
     //Does the filename already exist in the new location?
-    if not FileExists(directory+DirSep+direntry.Filename,ptr) then
+    if not FileExists(directory+Dir_Sep+direntry.Filename,ptr) then
     begin
      Result:=-5;//Unknown error
      //Extend the destination directory (Big Dir)
@@ -3830,7 +3836,7 @@ begin
     if load then FDisc[dir].Entries[entry].LoadAddr:=newaddr AND$FFFFFFFF
             else FDisc[dir].Entries[entry].ExecAddr:=newaddr AND$FFFFFFFF;
     //And update the catalogue for the parent directory
-    UpdateADFSCat(FDisc[dir].Entries[entry].Parent);
+    UpdateADFSCat(GetParent(dir));
     //Return a positive result
     Result:=True;
    end;

@@ -180,6 +180,7 @@ begin
  amt:=0;
  //Set the root directory name
  Result[0].Directory:=root_name;
+ Result[0].Sector:=root;
  repeat
   //Track/Sector for next link or 00/FF for end
   t:=ReadByte(ptr);
@@ -993,9 +994,9 @@ begin
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Make sure the new filename does not already exist
-  if(not FileExists(FDisc[dir].Entries[entry].Parent+dirsep+newfilename,ptr))
+  if(not FileExists(GetParent(dir)+dir_sep+newfilename,ptr))
   // or the user is just changing case
-  or(LowerCase(FDisc[dir].Entries[entry].Parent+dirsep+newfilename)=LowerCase(oldfilename))then
+  or(LowerCase(GetParent(dir)+dir_sep+newfilename)=LowerCase(oldfilename))then
   begin
    //Change the entry
    FDisc[dir].Entries[entry].Filename:=newfilename;

@@ -41,6 +41,9 @@ type
   AcornLogo: TImage;
   AmigaLogo: TImage;
   CommodoreLogo: TImage;
+  lbInterleave: TLabel;
+  InterleaveLabel: TLabel;
+  InterleavePanel: TPanel;
   SinclairLogo: TImage;
   lbDirType: TLabel;
   MapLabel: TLabel;

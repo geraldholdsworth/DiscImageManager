@@ -71,6 +71,16 @@ begin
     ResetDir(FDisc[ref]);
     //And add the filename
     FDisc[ref].Directory:=SparkFile.FileList[index].Filename;
+    if d<>$FFFF then
+    begin
+     FDisc[ref].Parent:=FDisc[d].Entries[e].DirRef;
+     FDisc[ref].Sector:=FDisc[d].Entries[e].Sector;
+    end
+    else
+    begin
+     FDisc[ref].Parent:=0;
+     FDisc[ref].Sector:=root;
+    end;
    end;
    //FileExists returns pointers to what it found
    if pnt='$' then d:=0 //But we need to up it to take account of root
