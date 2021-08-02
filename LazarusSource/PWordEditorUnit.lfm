@@ -1,0 +1,259 @@
+object PwordEditorForm: TPwordEditorForm
+  Left = 626
+  Height = 267
+  Top = 208
+  Width = 500
+  HorzScrollBar.Page = 471
+  HorzScrollBar.Range = 472
+  VertScrollBar.Page = 20
+  VertScrollBar.Range = 20
+  BorderIcons = []
+  BorderStyle = bsDialog
+  Caption = 'Acorn FS User Account Editor'
+  ClientHeight = 254
+  ClientWidth = 500
+  Color = 15527148
+  OnHide = FormHide
+  OnPaint = FormPaint
+  OnShow = FormShow
+  Position = poMainFormCenter
+  LCLVersion = '2.0.0.4'
+  object AccountsPanel: TPanel
+    Left = 0
+    Height = 216
+    Top = 0
+    Width = 500
+    BevelOuter = bvNone
+    ClientHeight = 216
+    ClientWidth = 500
+    TabOrder = 0
+    object HeaderPanel: TPanel
+      Left = 0
+      Height = 20
+      Top = 0
+      Width = 500
+      Align = alTop
+      BevelOuter = bvNone
+      ClientHeight = 20
+      ClientWidth = 500
+      TabOrder = 0
+      OnPaint = FormPaint
+      object UsernamesHdr: TPanel
+        Left = 0
+        Height = 20
+        Top = 0
+        Width = 120
+        BorderStyle = bsSingle
+        Caption = 'Username'
+        ClientHeight = 18
+        ClientWidth = 118
+        TabOrder = 0
+        OnPaint = FormPaint
+        object Label1: TLabel
+          Left = 1
+          Height = 16
+          Top = 1
+          Width = 116
+          Align = alClient
+          Alignment = taCenter
+          Caption = 'Username'
+          ParentColor = False
+        end
+      end
+      object PasswordsHdr: TPanel
+        Left = 120
+        Height = 20
+        Top = 0
+        Width = 120
+        BorderStyle = bsSingle
+        Caption = 'Password'
+        ClientHeight = 18
+        ClientWidth = 118
+        TabOrder = 1
+        OnPaint = FormPaint
+        object Label2: TLabel
+          Left = 1
+          Height = 16
+          Top = 1
+          Width = 116
+          Align = alClient
+          Alignment = taCenter
+          Caption = 'Password'
+          ParentColor = False
+        end
+      end
+      object SystemHdr: TPanel
+        Left = 240
+        Height = 20
+        Top = 0
+        Width = 56
+        BorderStyle = bsSingle
+        Caption = 'System'
+        ClientHeight = 18
+        ClientWidth = 54
+        TabOrder = 2
+        OnPaint = FormPaint
+        object Label3: TLabel
+          Left = 1
+          Height = 16
+          Top = 1
+          Width = 52
+          Align = alClient
+          Alignment = taCenter
+          Caption = 'System'
+          ParentColor = False
+        end
+      end
+      object LockedHdr: TPanel
+        Left = 296
+        Height = 20
+        Top = 0
+        Width = 56
+        BorderStyle = bsSingle
+        Caption = 'Locked'
+        ClientHeight = 18
+        ClientWidth = 54
+        TabOrder = 3
+        OnPaint = FormPaint
+        object Label4: TLabel
+          Left = 1
+          Height = 16
+          Top = 1
+          Width = 52
+          Align = alClient
+          Alignment = taCenter
+          Caption = 'Locked'
+          ParentColor = False
+        end
+      end
+      object BootOptionHdr: TPanel
+        Left = 352
+        Height = 20
+        Top = 0
+        Width = 120
+        BorderStyle = bsSingle
+        Caption = 'Boot Option'
+        ClientHeight = 18
+        ClientWidth = 118
+        TabOrder = 4
+        OnPaint = FormPaint
+        object Label5: TLabel
+          Left = 1
+          Height = 16
+          Top = 1
+          Width = 116
+          Align = alClient
+          Alignment = taCenter
+          Caption = 'Boot Option'
+          ParentColor = False
+        end
+      end
+    end
+    object AccountsScroll: TScrollBox
+      Left = 0
+      Height = 196
+      Top = 20
+      Width = 500
+      HorzScrollBar.Page = 23
+      VertScrollBar.Page = 22
+      Align = alClient
+      BorderStyle = bsNone
+      ClientHeight = 196
+      ClientWidth = 500
+      TabOrder = 1
+      OnPaint = FormPaint
+      object btnAdd: TSpeedButton
+        Left = 0
+        Height = 22
+        Top = 0
+        Width = 23
+        Flat = True
+        Glyph.Data = {
+          36040000424D3604000000000000360000002800000010000000100000000100
+          20000000000000040000640000006400000000000000000000000000000000AA
+          00030000000000000000007900376B9B6B9479A279CD7AA37AEF7AA37AEF79A3
+          79CC6A9C6A9500760036000000000000000000AA00030000000000AA00030000
+          0000000000066096609780A880FF79AA79FF5A995AFF348834FF308730FF5898
+          58FF79AA79FF81A881FF60966097000000060000000000550003000000000000
+          00076C9B6CBB8AB48AFF3E893EFF007800F9007D00FB569156FD5C945CFD1F82
+          1FFB007700F93F893FFF89B489FF6B9C6BBC0000000600000000000000006399
+          63988AB48AFF007D00F9007C00FC007600FF6E9C6EFFF4F6F4FFFFFFFFFF9BB6
+          9BFF007200FF007C00FC007D00F88AB58AFF6296629700000000007D003982A9
+          82FF398739FF007C00FC3B883BFF007800FF75A075FFFCFDFCFFFFFFFFFFA2BB
+          A2FF007400FF3B883BFF007D00FD3B883BFF81A881FF007B003A709E709678AC
+          78FF007B00F9007300FF007000FF006000FF589258FFF9FAF9FFFFFFFFFF93B1
+          93FF005900FF007000FE007100FF007500FA79A979FF6D9E6D987DA77DCE60A8
+          60FF008500FB99B699FFB2C6B2FFA5BDA5FFBDCDBDFFFCFCFCFFFFFFFFFFCDD9
+          CDFFA4BCA4FFAFC4AFFFA8BFA8FF288328FB519551FF7EA57ECF80AB80F05CAA
+          5CFF009200FDE9EFE9FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFFFFFF
+          FFFFFFFFFFFFFFFFFFFFFFFFFFFF5B945BFD248524FF7DA67DF083AD83F06FB6
+          6FFF37A037FDDEE9DEFFFFFFFFFFF7F9F7FFFAFBFAFFFEFFFEFFFFFFFFFFFBFC
+          FBFFF8F9F8FFFCFDFCFFF2F4F2FF559155FD288528FF7DA57DF183AC83CD8DC8
+          8DFF5AAE5AFB79B579FF80B680FF65A665FF91B291FFFAFBFAFFFFFFFFFFB0C5
+          B0FF539053FF6F9D6FFF689A68FF007D00FB569756FF7CA57CCE6C9B6C97A7D5
+          A7FF7ABD7AF961B161FF50AB50FE009900FF70AC70FFF8FAF8FFFFFFFFFF97B4
+          97FF006300FF007800FE007900FF007600FA78A978FF6E9D6E99005200389ABE
+          9AFFA2D1A2FF80C080FD7FBD7FFF59AE59FF8BBE8BFFFFFFFFFFFFFFFFFFA4BE
+          A4FF007300FF368636FF007B00FD3B883BFF81A881FF007D0039000000005891
+          5899BBDEBBFFA8D6A8F88AC48AFD76BB76FF8BC18BFFDBE9DBFFE4EEE4FF91BC
+          91FF008F00FF008900FD028702F88AB58AFF6298629700000000000000000000
+          00066A9B6ABBC1E2C1FFB5DBB5FF9ACE9AFA84C284FB69B669FD53AD53FD4BA9
+          4BFB41A441FA57A757FF8DBD8DFF6D9C6DBC0000000500000000005500030000
+          000000000007508D50969EBF9EFFBCDFBCFFB3DDB3FFA2D2A2FF94CA94FF8EC8
+          8EFF8FC48FFF85AF85FF5F965F96000000060000000000550003000000000055
+          00030000000000000000004300396095609787AD87CE8CB28CEF88B088F081AA
+          81CD689968980069003800000000000000000055000300000000
+        }
+        OnClick = btnAddClick
+      end
+    end
+  end
+  object ControlsPanel: TPanel
+    Left = 0
+    Height = 50
+    Top = 204
+    Width = 500
+    Align = alBottom
+    ClientHeight = 50
+    ClientWidth = 500
+    TabOrder = 1
+    OnPaint = FormPaint
+    object CancelButton: TBitBtn
+      Left = 4
+      Height = 30
+      Top = 8
+      Width = 100
+      Cancel = True
+      Caption = 'Cancel'
+      Color = 15527148
+      ModalResult = 2
+      TabOrder = 0
+    end
+    object OKBtnBack: TPanel
+      Left = 120
+      Height = 30
+      Top = 8
+      Width = 100
+      BevelColor = clYellow
+      BevelInner = bvLowered
+      BevelOuter = bvLowered
+      BevelWidth = 4
+      ClientHeight = 30
+      ClientWidth = 100
+      Color = clYellow
+      ParentColor = False
+      TabOrder = 1
+      object OKButton: TBitBtn
+        Left = 0
+        Height = 30
+        Top = 0
+        Width = 100
+        Caption = '&OK'
+        Color = 15527148
+        ModalResult = 1
+        OnClick = OKButtonClick
+        TabOrder = 0
+      end
+    end
+  end
+end

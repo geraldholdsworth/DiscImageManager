@@ -1,7 +1,7 @@
 unit DiscImageUtils;
 
 {
-DiscImageUtils V1.34 - part of TDiscImage class
+DiscImageUtils V1.35 - part of TDiscImage class
 
 Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
 
@@ -58,7 +58,11 @@ type
   TUserAccount = record
    Username,
    Password   : String;
-   AccessLevel: Integer;
+   FreeSpace  : Cardinal;
+   System,
+   Locked     : Boolean;
+   BootOption,
+   AccessLevel: Byte;
  end;
  TUserAccounts  =array of TUserAccount;
  TSearchResults =array of TDirEntry;

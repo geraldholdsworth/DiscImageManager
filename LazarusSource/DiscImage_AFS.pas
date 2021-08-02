@@ -85,7 +85,7 @@ var
  start: Byte;
 begin
  Result:=False;
- if FFormat=diInvalidImg then
+ if(FFormat=diInvalidImg)or(FFormat>>4=diAcornFS)then
  begin
   //Interleaving, depending on the option
   Finterleave:=FForceInter;
@@ -605,10 +605,13 @@ begin
     t:=((fragments[index].Offset div secsize)+entry)div spt;
     s:=((fragments[index].Offset div secsize)+entry)mod spt;
     if t<tracks then //Make sure it is within range
+    begin
      free_space_map[part,t,s]:=$FF-fragments[index].Zone;
+     dec(free_space[part],secsize); //Decrease the free space
+    end;
    end;
    //Decrease the total free space
-   dec(free_space[part],fragments[index].Length);
+   //dec(free_space[part],fragments[index].Length);
   end;
 end;
 
@@ -692,7 +695,7 @@ begin
    //Location of the bitmap (just before the root)
    bmploc:=(Fafsroot*secsize)-szofbmp;
    //Go through the bitmap, sector by sector
-   for index:=0 to (Ldiscsize div secsize)-1 do
+   for index:=afsstart div secsize to ((afsstart+Ldiscsize)div secsize)-1 do
    begin
     //Is the bit set, then it is free
     if(IsBitSet(ReadByte(bmploc+(index div 8)),index mod 8))and(not used)then
@@ -935,6 +938,10 @@ begin
   addr:=addr*secsize;
   if ReadString(addr,-6)='JesMap' then //Make sure it is a valid block
   begin
+   //Deallocate the JesMap header
+   allocmap:=GetAllocationMap(addr div secsize,spt); //Get the address
+   //And mark it as free
+   WriteBits(1,allocmap+((addr div secsize)mod spt)div 8,(addr div secsize)mod 8,1);
    //Set the starting point
    frag:=$0A;
    //Dummy sector
@@ -1016,10 +1023,6 @@ var
  mapsizeal,
  allocmap1,
  allocmap2 : Cardinal;
-const
- afsID    = 'AFS0';
- objID    = 'JesMap';
- cycle    = 42; //Random...42 - the answer to life, the universe and everything
 begin
  Result:=False;
  if(afslevel=2)or(afslevel=3)then
@@ -1058,7 +1061,7 @@ begin
    afshead2:=afshead+$A00;
    //Write the AFS headers
    //ID at $00
-   WriteString(afsID,afshead,0,0);
+   WriteString('AFS0',afshead,0,0);
    //Title at $04
    WriteString(afsdisctitle,afshead+$04,16,32);
    //Sectors for one side at $14
@@ -1163,67 +1166,79 @@ begin
    Write24b(afshead2>>8,$1F6);//AFS Header copy 2
    WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
    //Write the AFS headers
-   //ID at $00
-   WriteString(afsID,afshead,0,0);
-   //Title at $04
-   WriteString(afsdisctitle,afshead+$04,16,32);
-   //Tracks at $14
-   Write16b((harddrivesize>>8)div secspertrack,afshead+$14);
-   //Disc size (number of sectors) at $16
-   Write24b(harddrivesize>>8,afshead+$16);
-   //Partitions at $19
-   WriteByte(1,afshead+$19);
-   //Sectors per track at $1A
-   Write16b(secspertrack,afshead+$1A);
-   //Size of bitmap at $1C
-   mapsize:=Ceil(((harddrivesize>>8)/8)/secsize);
-   WriteByte(mapsize,afshead+$1C);
-   mapsize:=mapsize<<8;
-   //Next drive at $1D
-   WriteByte($01,afshead+$1D);
-   // $00 at $1E
-   WriteByte($00,afshead+$1E);
-   //Root SIN at $1F
-   Fafsroot:=afshead2+$100+mapsize;
-   Write24b(Fafsroot>>8,afshead+$1F);
-   //Creation Date at $22
-   Write16b(AFSTimeToWord(Now),afshead+$22);
-   //First free cylinder at $24
-   Write16b(1,afshead+$24); //Not sure why it is always 1
-   // $04 at $26
-   WriteByte($04,afshead+$26);
-   //Copy the primary header to the copy
-   for index:=0 to $FF do WriteByte(ReadByte(afshead+index),afshead2+index);
-   //Now to write the root (header)
-   //ID at $00
-   WriteString(objID,Fafsroot,0,0);
-   //Map chain sequence number at $06
-   WriteByte(cycle,Fafsroot+$06);
-   // $00 at $07
-   WriteByte($00,Fafsroot+$07);
-   //LSB of object length at $08
-   WriteByte($00,Fafsroot+$08);
-   // $00 at $09
-   WriteByte($00,Fafsroot+$09);
-   //First group of allocated sectors at $0A
-   //Sector at $0A (3 bytes)
-   Write24b((Fafsroot>>8)+1,Fafsroot+$0A);
-   //Length at $0D (2 bytes)
-   Write16b(afsroot_size>>8,Fafsroot+$0D);
-   //Copy of map chain sequence number at $FF
-   WriteByte(cycle,Fafsroot+$FF);
-   //Write the directory object for $
-   CreateAFSDirectory('$','$','DLR');
-   //Write the image bitmap
-   for index:=0 to mapsize-1 do WriteByte($FF,afshead2+$100+index);
-   for index:=0 to (Fafsroot>>8)+2 do
-    WriteBits(0,afshead2+$100+(index div 8),index mod 8,1);
+   WriteAFSPartition(afsdisctitle,harddrivesize);
    //Mark as a success
    Result:=True;
   end;
   //Finalise the the variables by reading in the partition
   if Result then ReadAFSPartition;
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Write a Level 3 partition
+-------------------------------------------------------------------------------}
+procedure TDiscImage.WriteAFSPartition(afsdisctitle: String;harddrivesize: Cardinal);
+var
+ mapsize: Cardinal;
+ index  : Integer;
+begin
+ //Write the AFS headers
+ //ID at $00
+ WriteString('AFS0',afshead,0,0);
+ //Title at $04
+ WriteString(afsdisctitle,afshead+$04,16,32);
+ //Tracks at $14
+ Write16b((harddrivesize>>8)div secspertrack,afshead+$14);
+ //Disc size (number of sectors) at $16
+ Write24b(harddrivesize>>8,afshead+$16);
+ //Partitions at $19
+ WriteByte(1,afshead+$19);
+ //Sectors per track at $1A
+ Write16b(secspertrack,afshead+$1A);
+ //Size of bitmap at $1C
+ mapsize:=Ceil(((harddrivesize>>8)/8)/secsize);
+ WriteByte(mapsize,afshead+$1C);
+ mapsize:=mapsize<<8;
+ //Next drive at $1D
+ WriteByte($01,afshead+$1D);
+ // $00 at $1E
+ WriteByte($00,afshead+$1E);
+ //Root SIN at $1F
+ Fafsroot:=afshead2+$100+mapsize;
+ Write24b(Fafsroot>>8,afshead+$1F);
+ //Creation Date at $22
+ Write16b(AFSTimeToWord(Now),afshead+$22);
+ //First free cylinder at $24
+ Write16b(1,afshead+$24); //Not sure why it is always 1
+ // $04 at $26
+ WriteByte($04,afshead+$26);
+ //Copy the primary header to the copy
+ for index:=0 to $FF do WriteByte(ReadByte(afshead+index),afshead2+index);
+ //Now to write the root (header)
+ //ID at $00
+ WriteString('JesMap',Fafsroot,0,0);
+ //Map chain sequence number at $06
+ WriteByte(42,Fafsroot+$06);
+ // $00 at $07
+ WriteByte($00,Fafsroot+$07);
+ //LSB of object length at $08
+ WriteByte($00,Fafsroot+$08);
+ // $00 at $09
+ WriteByte($00,Fafsroot+$09);
+ //First group of allocated sectors at $0A
+ //Sector at $0A (3 bytes)
+ Write24b((Fafsroot>>8)+1,Fafsroot+$0A);
+ //Length at $0D (2 bytes)
+ Write16b(afsroot_size>>8,Fafsroot+$0D);
+ //Copy of map chain sequence number at $FF
+ WriteByte(42,Fafsroot+$FF);
+ //Write the directory object for $
+ CreateAFSDirectory('$','$','DLR');
+ //Write the image bitmap
+ for index:=0 to mapsize-1 do WriteByte($FF,afshead2+$100+index);
+ for index:=0 to (Fafsroot>>8)+(afsroot_size div secsize) do
+  WriteBits(0,afshead2+$100+(index div 8),index mod 8,1);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1431,20 +1446,23 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Create a blank AFS password file (this is a public method)
+Create a blank AFS password file
 -------------------------------------------------------------------------------}
-function TDiscImage.CreateAFSPassword(afslevel: Byte;
-                                              Accounts: TUserAccounts): Boolean;
+function TDiscImage.CreateAFSPassword(Accounts: TUserAccounts): Integer;
 var
  buffer  : TDIByteArray;
  index   : Integer;
  newentry: TDirEntry;
  ptr     : Cardinal;
  ok      : Boolean;
- entry   : Byte;
+ entry,
+ afslevel: Byte;
 begin
+ afslevel:=0;
+ if FFormat>>4=diAcornFS then afslevel:=(FFormat AND$F)+1;
+ if FFormat>>4=diAcornADFS then afslevel:=3;
  //Default response
- Result:=False;
+ Result:=-5;
  buffer:=nil; //To stop 'hints' or 'warnings' from the compiler
  //Password file is 256 bytes long
  SetLength(buffer,$100);
@@ -1457,7 +1475,7 @@ begin
    if Accounts[index].UserName='Syst' then
    begin
     ok:=True;
-    Accounts[index].AccessLevel:=$C0; //Make sure it has system-wide access
+    Accounts[index].System:=True;//Make sure it has system-wide access
    end;
  //None found, so add one at the top
  if not ok then
@@ -1471,7 +1489,10 @@ begin
   //Add the system user account
   Accounts[0].Username   :='Syst';
   Accounts[0].Password   :='';
-  Accounts[0].AccessLevel:=$C0;
+  Accounts[0].System     :=True;
+  Accounts[0].Locked     :=False;
+  Accounts[0].BootOption :=0;
+  Accounts[0].FreeSpace  :=$00FF0000;
  end;
  //Length per entry
  if afslevel=2 then entry:=$11 else entry:=$1F;
@@ -1480,6 +1501,16 @@ begin
  index:=0;
  while(index<Length(Accounts))and(ptr+entry<Length(buffer))do
  begin
+  //Build the access level, using the options
+  Accounts[index].AccessLevel:=$80 OR(Accounts[index].BootOption AND 3);
+  if Accounts[index].System then
+   Accounts[index].AccessLevel:=Accounts[index].AccessLevel OR $40;
+  if Accounts[index].Locked then
+   Accounts[index].AccessLevel:=Accounts[index].AccessLevel OR $20;
+  //Free Space
+  if Accounts[index].FreeSpace=0 then
+   if Accounts[index].Username='Syst' then Accounts[index].FreeSpace:=$00FF0000
+   else Accounts[index].FreeSpace:=$00040404;
   //Level 2
   if afslevel=2 then
   begin
@@ -1498,12 +1529,9 @@ begin
    //14 : Password (blank) - 6 characters terminated by 0D
    WriteString(Accounts[index].Password+#$0D,ptr+$14,6,0,buffer);
    //1A : Free space - $00040404 default for user, $00FF0000 for system
-   if Accounts[index].Username='Syst' then
-    Write32b($00FF0000,ptr+$1A,buffer)
-   else
-    Write32b($00040404,ptr+$1A,buffer);
+   Write32b(Accounts[index].FreeSpace,ptr+$1A,buffer);
    //1E : Status byte - b7 set, b6 system, b5 locked, b0-3 boot option
-   buffer[$1E]:=Accounts[index].AccessLevel;
+   buffer[ptr+$1E]:=Accounts[index].AccessLevel;
   end;
   //Next entry
   inc(ptr,entry);
@@ -1513,11 +1541,82 @@ begin
  ResetDirEntry(newentry);
  newentry.Filename:='Passwords';
  if FFormat>>4=diAcornADFS then
-  newentry.Parent :=afsrootname
+ begin
+  newentry.Parent :=afsrootname;
+  newentry.Side   :=1;
+ end
  else
+ begin
   newentry.Parent :='$';
+  newentry.Side   :=0;
+ end;
+ ok:=True;
+ //Does one already exist?
+ if FileExists(newentry.Parent+dir_sep+newentry.Filename,ptr) then
+  ok:=DeleteAFSFile(newentry.Parent+dir_sep+newentry.Filename);
  //Write the file
- Result:=WriteAFSFile(newentry,buffer)>=0;
+ if ok then Result:=WriteAFSFile(newentry,buffer);
+end;
+
+{-------------------------------------------------------------------------------
+Read the AFS password file
+-------------------------------------------------------------------------------}
+function TDiscImage.ReadAFSPassword: TUserAccounts;
+var
+ pwordfile: String;
+ dir,
+ entry    : Cardinal;
+ ctr,
+ entrylen,
+ userlen,
+ freespc  : Integer;
+ buffer   : TDiByteArray;
+begin
+ //Start with a blank array
+ Result:=nil;
+ //Get the full pathname for the password file
+ if FFormat>>4=diAcornADFS then pwordfile:=afsrootname+dir_sep+'Passwords'
+ else pwordfile:=FDisc[0].Directory+dir_sep+'Passwords';
+ //Make sure it exists
+ if FileExists(pwordfile,dir,entry) then
+  if ExtractAFSFile(pwordfile,buffer) then //And extract it
+  begin
+   //Entry size, username size, and free space length
+   if FFormat=diAcornFS<<4+1 then
+   begin
+    entrylen:=$11;
+    userlen:=10;
+    freespc:=0;
+   end
+   else
+   begin
+    entrylen:=$1F;
+    userlen:=20;
+    freespc:=4;
+   end;
+   //Entry counter
+   ctr:=0;
+   //Continue until we hit a blank, or the end of the data
+   while(ReadByte(ctr,buffer)<>0)and(ctr+entrylen<Length(buffer))do
+   begin
+    //Next entry
+    SetLength(Result,Length(Result)+1);
+    //Username
+    Result[Length(Result)-1].Username:=ReadString(ctr,-userlen,buffer);
+    //Password
+    Result[Length(Result)-1].Password:=ReadString(ctr+userlen,-6,buffer);
+    //Access Level and boot option
+    Result[Length(Result)-1].AccessLevel:=ReadByte(ctr+userlen+6+freespc,buffer);
+    Result[Length(Result)-1].BootOption:=Result[Length(Result)-1].AccessLevel AND $3;
+    Result[Length(Result)-1].System:=Result[Length(Result)-1].AccessLevel AND $40=$40;
+    Result[Length(Result)-1].Locked:=Result[Length(Result)-1].AccessLevel AND $20=$20;
+    //Free space allocation
+    if freespc>0 then
+     Result[Length(Result)-1].FreeSpace:=Read32b(ctr+userlen+6,buffer);
+    //Move the pointer on
+    inc(ctr,entrylen);
+   end;
+  end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1551,13 +1650,20 @@ begin
    Result:=-2; //Image full
    file_details.Sector:=0;
    //Where we are inserting this into
-   if file_details.Parent='$' then
+   if file_details.Parent='$' then //root (single partition)
    begin
     dir:=0;
     partition:=0;
     sector:=Fafsroot*secsize;
-   end
-   else
+   end;
+   if file_details.Parent=afsrootname then //root (ADFS hybrid)
+   begin
+    dir:=pdir;
+    partition:=1;
+    sector:=Fafsroot*secsize;
+   end;
+   //Somewhere else
+   if(file_details.Parent<>'$')and(file_details.Parent<>afsrootname)then
    begin
     dir:=FDisc[pdir].Entries[entry].DirRef;
     partition:=FDisc[dir].Partition;
@@ -2176,4 +2282,68 @@ begin
  WriteString(title,afshead2+4,16,32);
  //Return a positive result
  Result:=True;
+end;
+
+{-------------------------------------------------------------------------------
+Add an AFS partition to an ADFS image
+-------------------------------------------------------------------------------}
+function TDiscImage.AddAFSPartition(size: Cardinal): Boolean;
+var
+ fsst,
+ fsed       : Cardinal;
+ fsptr      : Byte;
+ index      : Integer;
+ oldfilename: String;
+begin
+ Result:=False;
+ if size<9*secsize then exit; //Minimum size is 9 sectors
+ //Only for adding AFS partition to 8 bit ADFS
+ if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ begin
+  fsed:=GetADFSMaxLength(False);
+  //Is there enough free space?
+  if fsed>=size div secsize then
+  begin
+   //Work out the start
+   fsst:=GetDataLength-size;
+   //Setup the location of the AFS headers
+   afshead:=fsst;
+   afshead2:=afshead+$100;
+   //Root is 2 sectors long
+   afsroot_size:=$200;
+   //Adjust the ADFS free space map
+   fsptr:=GetADFSMaxLength(True);
+   Write24b(Read24b($100+fsptr)-(size div secsize),$100+fsptr); //Just adjust the length
+   //Adjust the ADFS disc size
+   Write24b(fsst div secsize,$FC);
+   //Clear the ADFS disc title
+   for index:=0 to 4 do
+   begin
+    WriteByte(0,$F7+index);
+    WriteByte(0,$1F6+index);
+   end;
+   //Point towards the two AFS headers
+   Write24b(afshead div secsize,$F6);
+   Write24b(afshead2 div secsize,$1F6);
+   //Update our disc sizes
+   disc_size[0]:=fsst;
+   SetLength(disc_size,2);
+   disc_size[1]:=size;
+   SetLength(free_space,2);
+   //Clear the partition of any left over data
+   for index:=afshead to GetDataLength-1 do WriteByte(0,index);
+   //Create the partition
+   WriteAFSPartition(disc_name[0],GetDataLength);
+   //Update the checksums
+   WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
+   WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
+   //Now we re-ID and re-read the data
+   oldfilename:=imagefilename;
+   IDImage;
+   ReadImage;
+   imagefilename:=oldfilename;
+   //Set a positive result
+   Result:=True;
+  end;
+ end;
 end;

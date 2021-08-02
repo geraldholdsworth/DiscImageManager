@@ -87,6 +87,12 @@ begin
      //Check for AFS Level 3 partition
      //Value at $0F6 must be zero for normal ADFS, so if non zero will be AFS
      FAFSPresent:=ReadByte($0F6)<>0;
+     //Check that the root is valid - could be AFS with no ADFS
+     if FAFSPresent then //We'll just check the end name, and set to AFS L3
+//     begin
+//      FFormat:=diAcornADFS<<4+$E;
+      if ReadString($6FB,-4)<>'Hugo' then FFormat:=diAcornFS<<4+2;
+//     end;
     end;
     if(FFormat mod $10<3)or(FFormat=diAcornADFS<<4+$0E)then //ADFS S,M,L or unknown
     begin
@@ -797,6 +803,13 @@ Calculate Boot Block or Old Map Free Space Checksum
 -------------------------------------------------------------------------------}
 function TDiscImage.ByteChecksum(offset,size: Cardinal): Byte;
 var
+ buffer: TDIByteArray;
+begin
+ SetLength(buffer,0);
+ Result:=ByteChecksum(offset,size,buffer);
+end;
+function TDiscImage.ByteChecksum(offset,size: Cardinal;var buffer:TDIByteArray): Byte;
+var
  acc,
  pointer: Cardinal;
  carry : Byte;
@@ -812,7 +825,7 @@ begin
   //and reset the carry
   acc:=acc and $FF;
   //Add each byte to the accumulator
-  inc(acc,ReadByte(offset+pointer)+carry);
+  inc(acc,ReadByte(offset+pointer,buffer)+carry);
  end;
  //Return an 8 bit number
  Result:=acc and $FF;
@@ -824,10 +837,11 @@ Read ADFS Disc
 function TDiscImage.ReadADFSDisc: TDisc;
  function ReadTheADFSDisc: TDisc;
  var
-  d,ptr    : Cardinal;
+  d,ptr,i  : Cardinal;
   OldName0,
   OldName1 : String;
   addr     : TFragmentArray;
+  visited  : array of Cardinal;
  begin
   //Initialise some variables
   root   :=$00; //Root address (set to zero so we can id the disc)
@@ -946,12 +960,22 @@ function TDiscImage.ReadADFSDisc: TDisc;
    Result[0]:=ReadADFSDir(root_name,root);
    //Now iterate through the entries and find the sub-directories
    d:=0;
+   //Add the root as a visited directory
+   SetLength(visited,1);
+   visited[0]:=root;
    repeat
     //If there are actually any entries
     if Length(Result[d].Entries)>0 then
     begin
      //Go through the entries
      for ptr:=0 to Length(Result[d].Entries)-1 do
+     begin
+      //Make sure we haven't seen this before. If a directory references a higher
+      //directory we will end up in an infinite loop.
+      if Length(visited)>0 then
+       for i:=0 to Length(visited)-1 do
+        if visited[i]=Result[d].Entries[ptr].Sector then
+         Result[d].Entries[ptr].Filename:='';//Blank off the filename so we can remove it later
       //And add them if they are valid
       if Result[d].Entries[ptr].Filename<>'' then
       begin
@@ -966,10 +990,14 @@ function TDiscImage.ReadADFSDisc: TDisc;
                                              +Result[d].Entries[ptr].Filename,
                                               Result[d].Entries[ptr].Sector);
         Result[Length(Result)-1].Parent:=d;
+        //Remember it
+        SetLength(visited,Length(visited)+1);
+        visited[Length(visited)-1]:=Result[d].Entries[ptr].Sector;
         //Update the directory reference
         Result[d].Entries[ptr].DirRef:=Length(Result)-1;
        end;
       end;
+     end;
     end;
     inc(d);
    //The length of disc will increase as more directories are found
@@ -3240,7 +3268,7 @@ begin
    if dest+len>filelen then
     len:=filelen-dest;
    //Read the data into the buffer
-   ReadDiscData(source,len,0,buffer[dest]);
+   ReadDiscData(source,len,0,dest,buffer);
    //Move the size pointer on, by the amount read
    inc(dest,len);
    //Get the next block pointer
@@ -3934,5 +3962,104 @@ begin
      end;
     end;
    end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Extract an ADFS or AFS partition
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractADFSPartition(side: Cardinal): TDIByteArray;
+var
+ index    : Integer;
+begin
+ Result:=nil;
+ if FFormat=diAcornADFS<<4+$E then //Make sure it is a hybrid
+ begin
+  //Copy the original data
+  Result:=Fdata;
+  //Extracting the ADFS part is simply just blanking the AFS partition, and the
+  //ADFS disc title (so that $0F6 and $1F6 do not point to anything).
+  if side=0 then
+  begin
+   //Blank off the addresses
+   Write24b(0,$0F6,Result);
+   Write24b(0,$1F6,Result);
+   //Add a free space entry
+   index:=ReadByte($1FE,Result);
+   if index<$F3 then
+   begin
+    //Start
+    Write24b(Read24b($0FC,Result),$000+index,Result);
+    //Length
+    Write24b((Length(Result)>>8)-Read24b($0FC,Result),$100+index,Result);
+    //Pointer
+    inc(index,3);
+    WriteByte(index,$1FE);
+   end;
+   //Expand the image size
+   Write24b(Length(Result)>>8,$0FC,Result);
+   //Update the checksums
+   WriteByte(ByteCheckSum($0000,$100,Result),$0FF,Result);
+   WriteByte(ByteCheckSum($0100,$100,Result),$1FF,Result);
+  end;
+  //Extracting the AFS part - as ADFS, just blank off the ADFS part, making sure
+  //that the ADFS root is unreadable.
+  if side=1 then
+  begin
+   //Blank the ADFS section (we'll use the WriteByte method to take account of interleave)
+   for index:=$200 to (Read24b($FC,Result)<<8)-1 do WriteByte($00,index,Result);
+   //Blank the ADFS free space map lengths
+   for index:=$100 to $1F5 do Result[index]:=$00;
+   //Blank the ADFS free space map starts
+   for index:=$001 to $0F5 do Result[index]:=$00;
+   Result[$000]:=$20;
+   //And the rest of the header
+   for index:=$1F9 to $1FE do Result[index]:=$00;
+   for index:=$0F9 to $0FE do Result[index]:=$00;
+   Result[$0FC]:=$20;
+   //Update the checksums
+   WriteByte(ByteCheckSum($0000,$100,Result),$0FF,Result);
+   WriteByte(ByteCheckSum($0100,$100,Result),$1FF,Result);
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Get the maximum size for a partition on an ADFS 8 bit image
+-------------------------------------------------------------------------------}
+function TDiscImage.GetADFSMaxLength(lastentry:Boolean): Cardinal;
+var
+ index,
+ last  : Integer;
+ fsst,
+ fsed,
+ fsptr : Cardinal;
+begin
+ Result:=0;
+ //Only for adding AFS partition to 8 bit ADFS
+ if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ begin
+  //Is there enough space? Must be contiguous at the end
+  fsptr:=ReadByte($1FE); //Pointer to next free space entry
+  if fsptr>0 then //There is some free space
+  begin
+   fsst:=0;
+   fsed:=0;
+   index:=0;
+   last:=0;
+   //Find the final entry (which might not necessarily be the last)
+   while index<fsptr do
+   begin
+    if Read24b(index)>fsst then
+    begin
+     fsst:=Read24b(index);     //Start
+     fsed:=Read24b($100+index);//Length
+     last:=index;
+    end;
+    inc(index,3);
+   end;
+   if not lastentry then Result:=fsed*secsize
+   else Result:=last;
+  end;
  end;
 end;

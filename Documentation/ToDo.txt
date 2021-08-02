@@ -16,22 +16,14 @@ General
 * For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
 * Ask to force overwrite if many files are getting written.
 * Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
-* Duplicate the facility to prevent infinite loops when reading images from Acorn FS to ADFS, Amiga and Spark.
 * Cancel button for progress display?
 * Tool to change the interleave of an image (ADFS L and AFS).
-* Click on root to enable saving of just that partition/drive (splitting of a DS DFS) (REF:1).
-* Click on root to enable deleting of partition (and splitting of a DS DFS) (REF:1).
-* Import AFS into ADFS to create new partition (REF:1).
-* Import SD DFS into SD DFS to create combined DS DFS (REF:1).
 * Side pane (left hand side) to allow separate images to be opened (REF:3).
 * Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
-* Put settings form into tabs, or similar, to separate the various options.
-* Add in 'View' options to show or hide: File Details pane; Toolbar; Status Bar.
 
 ADFS
-* Change the size of the ADFS partition or image.
-* Compact the free space map.
-* Add option to create an AFS partition (REF:1).
+* Change the size of the ADFS partition or image (ideally, this can be done using a similar method to below - create a new image and import the contents into it).
+* Compact the free space map (this can be done from the GUI - use method to create a new image, same size and format as current, then import the contents of the current image across).
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
@@ -52,7 +44,3 @@ Spark
 * Rename file/directory.
 * Delete file/directory.
 * Move file.
-
-Acorn File Store (AFS)
-* Add a dialogue box to allow the entering of user accounts for the password file.
-* Create blank ADFS/AFS L3 hybrid images (REF:1).

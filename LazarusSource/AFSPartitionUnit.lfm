@@ -1,0 +1,73 @@
+object AFSPartitionForm: TAFSPartitionForm
+  Left = 436
+  Height = 85
+  Top = 224
+  Width = 320
+  BorderIcons = [biSystemMenu]
+  BorderStyle = bsDialog
+  Caption = 'Acorn FS Partition Size'
+  ClientHeight = 85
+  ClientWidth = 320
+  Color = 15527148
+  OnResize = FormResize
+  Position = poMainFormCenter
+  LCLVersion = '2.0.12.0'
+  object PartitionSize: TTrackBar
+    Left = 0
+    Height = 24
+    Top = 0
+    Width = 320
+    OnChange = PartitionSizeChange
+    Position = 0
+    TickMarks = tmBoth
+    TickStyle = tsNone
+    Align = alTop
+    TabOrder = 0
+  end
+  object PartitionSizeLabel: TLabel
+    Left = 0
+    Height = 16
+    Top = 24
+    Width = 320
+    Align = alTop
+    Alignment = taCenter
+    Caption = 'PartitionSizeLabel'
+    ParentColor = False
+  end
+  object CancelButton: TBitBtn
+    Left = 8
+    Height = 30
+    Top = 48
+    Width = 100
+    Cancel = True
+    Caption = 'Cancel'
+    Color = 15527148
+    ModalResult = 2
+    TabOrder = 1
+  end
+  object OKBtnBack: TPanel
+    Left = 124
+    Height = 30
+    Top = 48
+    Width = 100
+    BevelColor = clYellow
+    BevelInner = bvLowered
+    BevelOuter = bvLowered
+    BevelWidth = 4
+    ClientHeight = 30
+    ClientWidth = 100
+    Color = clYellow
+    ParentColor = False
+    TabOrder = 2
+    object OKButton: TBitBtn
+      Left = 0
+      Height = 30
+      Top = 0
+      Width = 100
+      Caption = '&OK'
+      Color = 15527148
+      ModalResult = 1
+      TabOrder = 0
+    end
+  end
+end

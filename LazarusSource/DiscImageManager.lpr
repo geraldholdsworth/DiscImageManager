@@ -15,13 +15,14 @@ uses
   ProgressUnit in 'ProgressUnit.pas',
   ImageDetailUnit in 'ImageDetailUnit.pas',
   HexDumpUnit in 'HexDumpUnit.pas',
-  SplitDFSUnit in 'SplitDFSUnit.pas',
   SearchUnit in 'SearchUnit.pas',
   CustomDialogueUnit in 'CustomDialogueUnit.pas',
   HardDriveUnit in 'HardDriveUnit.pas',
   ErrorLogUnit in 'ErrorLogUnit.pas',
   SettingsUnit in 'SettinsUnit.pas',
-  ImportSelectorUnit in 'ImportSelectorUnit.pas';
+  ImportSelectorUnit in 'ImportSelectorUnit.pas',
+  PWordEditorUnit in 'PWordEditorUnit.pas',
+  AFSPartitionUnit in 'AFSParitionUnit.pas';
 
 {$R *.res}
 
@@ -34,12 +35,13 @@ begin
  Application.CreateForm(TNewImageForm, NewImageForm);
  Application.CreateForm(TProgressForm, ProgressForm);
  Application.CreateForm(TImageDetailForm, ImageDetailForm);
- Application.CreateForm(TSplitDFSForm, SplitDFSForm);
  Application.CreateForm(TSearchForm, SearchForm);
  Application.CreateForm(TCustomDialogue, CustomDialogue);
  Application.CreateForm(THardDriveForm, HardDriveForm);
  Application.CreateForm(TErrorLogForm, ErrorLogForm);
  Application.CreateForm(TSettingsForm, SettingsForm);
  Application.CreateForm(TImportSelectorForm, ImportSelectorForm);
+ Application.CreateForm(TPwordEditorForm, PwordEditorForm);
+ Application.CreateForm(TAFSPartitionForm, AFSPartitionForm);
  Application.Run;
 end.

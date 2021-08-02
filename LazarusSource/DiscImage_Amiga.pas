@@ -338,7 +338,7 @@ begin
    if dest+len>filelen then
     len:=filelen-dest;
    //Read the data into the buffer
-   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,buffer[dest]);
+   ReadDiscData(source,len,FDisc[dir].Entries[entry].Side,dest,buffer);
    //Move the size pointer on, by the amount read
    inc(dest,len);
    //Get the next block pointer

@@ -63,19 +63,32 @@ type
    cb_AFS_ownw: TCheckBox;
    cb_AFS_pubr: TCheckBox;
    cb_AFS_pubw: TCheckBox;
+   menuFixADFS: TMenuItem;
+   ToolBarContainer: TCoolBar;
+   FilesToolBar: TToolBar;
+   menuImage: TMenuItem;
+   menuFiles: TMenuItem;
+   menuTools: TMenuItem;
+   menuPartition: TMenuItem;
+   btn_AddPartition: TToolButton;
+   ToolsToolBar: TToolBar;
+   PartitionToolBar: TToolBar;
    DuplicateFile1: TMenuItem;
    IyonixTextureTile: TImage;
-   DeletePartition1: TMenuItem;
-   AddPasswordFile1: TMenuItem;
    menuAddPasswordFile: TMenuItem;
    menuEditPasswordFile: TMenuItem;
-   EditPasswordFile1: TMenuItem;
+   menuAddPartition: TMenuItem;
+   menuViewFileDetails: TMenuItem;
+   menuViewStatus: TMenuItem;
+   menuViewToolBar: TMenuItem;
+   TextureTiles: TPanel;
+   ImageToolBar: TToolBar;
+   ViewMenu: TMenuItem;
    menuSavePartition: TMenuItem;
    menuDeletePartition: TMenuItem;
    AFSOAAttributeLabel: TLabel;
    PartitionMenu: TMenuItem;
    AFSPubAttributeLabel: TLabel;
-   SavePartition1: TMenuItem;
    ROPiTextureTile: TImage;
    RO3TextureTile: TImage;
    menuDuplicateFile: TMenuItem;
@@ -121,7 +134,6 @@ type
    CRC32Panel: TPanel;
    btn_Settings: TToolButton;
    btn_DuplicateFile: TToolButton;
-   ToolButton1: TToolButton;
    btn_AddPassword: TToolButton;
    btn_EditPassword: TToolButton;
    btn_DeletePartition: TToolButton;
@@ -142,17 +154,14 @@ type
    HexDumpMenu: TMenuItem;
    HexDump1: TMenuItem;
    menuHexDump: TMenuItem;
-   menuFixADFS: TMenuItem;
-   menuSplitDFS: TMenuItem;
    btn_FileSearch: TToolButton;
-   ToolsMenu: TMenuItem;
    menuSaveAsCSV: TMenuItem;
    menuRenameFile: TMenuItem;
    menuNewDir: TMenuItem;
    menuDeleteFile: TMenuItem;
    menuAbout: TMenuItem;
    FilesMenu: TMenuItem;
-   HelpMenu: TMenuItem;
+   ToolsMenu: TMenuItem;
    menuNewImage: TMenuItem;
    menuOpenImage: TMenuItem;
    menuSaveImage: TMenuItem;
@@ -163,7 +172,6 @@ type
    ToolBarImages: TImageList;
    AddNewFile: TOpenDialog;
    SaveImage: TSaveDialog;
-   MainToolBar: TToolBar;
    btn_OpenImage: TToolButton;
    btn_SaveImage: TToolButton;
    btn_Delete: TToolButton;
@@ -174,12 +182,9 @@ type
    btn_NewDirectory: TToolButton;
    btn_CloseImage: TToolButton;
    btn_SaveAsCSV: TToolButton;
-   btn_SplitDFS: TToolButton;
    btn_FixADFS: TToolButton;
    btn_HexDump: TToolButton;
-   ToolButton3: TToolButton;
    btn_download: TToolButton;
-   ToolButton5: TToolButton;
    btn_About: TToolButton;
    OpenImageFile: TOpenDialog;
    DirList: TTreeView;
@@ -212,14 +217,18 @@ type
    AddFile1: TMenuItem;
    NewDirectory1: TMenuItem;
    //Events - mouse clicks
+   procedure btn_AddPartitionClick(Sender: TObject);
+   procedure btn_AddPasswordClick(Sender: TObject);
    procedure btn_CloseImageClick(Sender: TObject);
+   procedure btn_DeletePartitionClick(Sender: TObject);
+   procedure btn_EditPasswordClick(Sender: TObject);
    procedure btn_FileSearchClick(Sender: TObject);
    procedure btn_FixADFSClick(Sender: TObject);
    procedure btn_ImageDetailsClick(Sender: TObject);
    procedure btn_NewDirectoryClick(Sender: TObject);
    procedure btn_SaveAsCSVClick(Sender: TObject);
+   procedure btn_SavePartitionClick(Sender: TObject);
    procedure btn_SettingsClick(Sender: TObject);
-   procedure btn_SplitDFSClick(Sender: TObject);
    procedure DuplicateFile1Click(Sender: TObject);
    procedure ed_timestampEditingDone(Sender: TObject);
    procedure HexDumpSubItemClick(Sender: TObject);
@@ -227,6 +236,7 @@ type
    procedure lb_loadaddrClick(Sender: TObject);
    procedure lb_timestampClick(Sender: TObject);
    procedure lb_titleClick(Sender: TObject);
+   procedure ShowHideToolbar(Sender: TObject);
    procedure sb_FileTypeClick(Sender: TObject);
    procedure FileTypeClick(Sender: TObject);
    procedure btn_NewImageClick(Sender: TObject);
@@ -288,6 +298,7 @@ type
     var Handled: Boolean);
    procedure CopyToClipboardExecute(Sender: TObject);
    procedure PasteFromClipboardExecute(Sender: TObject);
+   procedure ToolBarContainerChange(Sender: TObject);
    //Misc
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure ImportFiles(NewImage: TDiscImage);
@@ -316,7 +327,7 @@ type
    procedure SelectNode(filename: String;casesens:Boolean=True);
    procedure CloseAllHexDumps;
    function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
-      index:Integer;dir:Boolean;Tree:TTreeView{;ImageToUse:TDiscImage}):TTreeNode;
+      index:Integer;dir:Boolean;Tree:TTreeView):TTreeNode;
    procedure AddDirectoryToImage(dirname: String);
    procedure AddSparkToImage(filename: String);
    procedure ShowErrorLog;
@@ -326,6 +337,7 @@ type
    function AddFileErrorToText(error: Integer):String;
    procedure UpdateImageInfo(partition: Cardinal=0);
    procedure ArrangeFileDetails;
+   function FindPartitionRoot(filepath: String): Integer;
    procedure ReportError(error: String);
    function AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
    procedure ShowInfo(info: String);
@@ -391,6 +403,8 @@ type
     Fdebug        :Boolean;
     //Allow DFS images with zero number of sectors
     FDFSZeroSecs  :Boolean;
+    //View options (what is visible)
+    ViewOptions   :Cardinal;
    const
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
     FileTypes: array[3..140] of String =
@@ -475,7 +489,7 @@ type
    const
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.34';
+    ApplicationVersion = '1.35';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -519,8 +533,9 @@ implementation
 {$R *.lfm}
 
 uses
-  AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SplitDFSUnit,SearchUnit,
-  CustomDialogueUnit,ErrorLogUnit,SettingsUnit,ImportSelectorUnit;
+  AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SearchUnit,
+  CustomDialogueUnit,ErrorLogUnit,SettingsUnit,ImportSelectorUnit,
+  PWordEditorUnit,AFSPartitionUnit;
 
 {------------------------------------------------------------------------------}
 //Rescale the form
@@ -539,8 +554,20 @@ begin
   for i:=0 to -1+ImageDetails.Panels.Count do
    ImageDetails.Panels[i].Width:=
          Round(ImageDetails.Panels[i].Width*Screen.PixelsPerInch/DesignTimePPI);
-  MainToolBar.ImagesWidth:=
-              Round(MainToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
+  //Tool bars
+  ImageToolBar.ImagesWidth:=
+              Round(ImageToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
+  FilesToolBar.ImagesWidth:=
+              Round(FilesToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
+  PartitionToolBar.ImagesWidth:=
+              Round(PartitionToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
+  ToolsToolBar.ImagesWidth:=
+              Round(ToolsToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
+  //Toolbar bands
+  ToolBarContainer.Bands[0].Width:=ImageToolBar.Width+14;
+  ToolBarContainer.Bands[1].Width:=FilesToolBar.Width+14;
+  ToolBarContainer.Bands[2].Width:=PartitionToolBar.Width+14;
+  ToolBarContainer.Bands[3].Width:=ToolsToolBar.Width+14;
   //Can use TMonitor.PixelsPerInch to scale to a big monitor
  end;
 end;
@@ -882,7 +909,7 @@ begin
    if TMyTreeNode(DirList.Selected).IsDir then
    begin
     //Find out which side of a DFS disc it is
-    if (Image.FormatNumber mod 2=1)
+    if (Image.DoubleSided)//FormatNumber mod 2=1)
     and(Image.FormatNumber>>4=diAcornDFS)then //Only for DFS double sided
     //As with DFS we can only Add with the root selected, the index will be the side
      side:=DirList.Selected.Index
@@ -1043,7 +1070,7 @@ begin
       if Result>-1 then //File added OK
       begin
        HasChanged:=True;
-       AddFileToTree(DirList.Selected,NewFile.Filename,Result,False,DirList{,Image});
+       AddFileToTree(DirList.Selected,NewFile.Filename,Result,False,DirList);
        UpdateImageInfo(side);
       end
       else
@@ -1092,7 +1119,7 @@ end;
 //Add a file or directory to the TTreeView, under ParentNode
 {------------------------------------------------------------------------------}
 function TMainForm.AddFileToTree(ParentNode: TTreeNode;importfilename: String;
-   index: Integer;dir: Boolean;Tree:TTreeView{;ImageToUse:TDiscImage}): TTreeNode;
+   index: Integer;dir: Boolean;Tree:TTreeView): TTreeNode;
 begin
  Result:=nil;
  if(ParentNode=nil)or(index<0)then exit;
@@ -1728,6 +1755,7 @@ end;
 procedure TMainForm.ArrangeFileDetails;
 var
  cbpos: Integer;
+ attr : Boolean;
 procedure ArrangeComponent(c,p: TControl;l: TLabel);
 begin
  c.Visible:=l.Caption<>'';
@@ -1736,6 +1764,10 @@ begin
  c.Top    :=p.Top+p.Height;
 end;
 begin
+ //Display the attributes section?
+ attr:=False;
+ if DirList.SelectionCount=1 then
+  if DirList.Selected.Parent<>nil then attr:=True;
  cbpos:=0;
  //Show or hide the headers
  ArrangeComponent(FilenamePanel ,FileDetailsLabel,lb_FileName); //Filename
@@ -1760,7 +1792,7 @@ begin
  or(Image.FormatNumber>>4=diAcornUEF)then
  begin
   //Make it visible
-  if cbpos>0 then DFSAttrPanel.Visible:=True;
+  if(cbpos>0)and(attr)then DFSAttrPanel.Visible:=True;
   //Position it below the CRC32 section
   DFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
   //Position the tick box inside
@@ -1776,7 +1808,7 @@ begin
  or(Image.FormatNumber>>4=diSpark)then
  begin
   //Make it visible
-  if cbpos>0 then ADFSAttrPanel.Visible:=True;
+  if(cbpos>0)and(attr)then ADFSAttrPanel.Visible:=True;
   //Position it below the CRC32 section
   ADFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
   //Position the ticks box inside - Owner Access
@@ -1813,7 +1845,7 @@ begin
  if Image.FormatNumber>>4=diAcornFS then
  begin
   //Make it visible
-  if cbpos>0 then AFSAttrPanel.Visible:=True;
+  if(cbpos>0)and(attr)then AFSAttrPanel.Visible:=True;
   //Position it below the CRC32 section
   AFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
   //Position the ticks box inside - Owner Access
@@ -1841,7 +1873,7 @@ begin
  if Image.FormatNumber>>4=diCommodore then
  begin
   //Make it visible
-  if cbpos>0 then C64AttrPanel.Visible:=True;
+  if(cbpos>0)and(attr)then C64AttrPanel.Visible:=True;
   //Position it below the CRC32 section
   C64AttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
   //Position the ticks box inside
@@ -1860,6 +1892,29 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//find the root name of the selected partition
+{------------------------------------------------------------------------------}
+function TMainForm.FindPartitionRoot(filepath: String): Integer;
+begin
+ //By default, use the main root
+ Result:=0;
+ if Length(Image.Disc)>1 then //Definately another root present
+ begin
+  //Then extract the root part
+  if(Pos('.',filepath)>0)and(Image.FormatNumber>>4<>diAcornDFS)then
+   filepath:=LeftStr(filepath,Pos('.',filepath)-1);
+  if(Pos('.',filepath)>3)and(Image.FormatNumber>>4=diAcornDFS)then
+   filepath:=LeftStr(filepath,Pos('.',filepath,3)-1);
+  //Then look to find the AFS root
+  Result:=0;
+  while(Image.Disc[Result].Directory<>filepath)and(Result<Length(Image.Disc)-1)do
+   inc(Result);
+  //Did we find the root?
+  if Image.Disc[Result].Directory<>filepath then Result:=-1; //Then return -1
+ end;
+end;
+
+{------------------------------------------------------------------------------}
 //This is called when the selection changes on the TreeView
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListChange(Sender: TObject; Node: TTreeNode);
@@ -1867,7 +1922,9 @@ var
  entry,
  dir,
  dr,
+ rt,
  ft       : Integer;
+ ptr      : Cardinal;
  filename,
  filetype,
  location,
@@ -1907,16 +1964,47 @@ begin
  DuplicateFile1.Enabled   :=DirList.SelectionCount=1;
  menuDuplicateFile.Enabled:=DirList.SelectionCount=1;
  btn_DuplicateFile.Enabled:=DirList.SelectionCount=1;
+ //Delete and Save Partition
+ afspart:=False;
+ //Check for DFS double sided
+ if(Image.FormatNumber>>4=diAcornDFS)
+ and(Image.DoubleSided)then afspart:=True;
+ //Check for ADFS/AFS Hybrid
+ if Image.FormatNumber=diAcornADFS<<4+$E then afspart:=True;
+ btn_DeletePartition.Enabled:=(afspart)and(DirList.SelectionCount=1);
+ menuDeletePartition.Enabled:=(afspart)and(DirList.SelectionCount=1);
+ btn_SavePartition.Enabled  :=(afspart)and(DirList.SelectionCount=1);
+ menuSavePartition.Enabled  :=(afspart)and(DirList.SelectionCount=1);
+ //Check for 8 bit ADFS
+ btn_AddPartition.Enabled   :=(Image.FormatNumber>>4=diAcornADFS)
+                           and(Image.DirectoryType=diADFSOldDir)
+                           and(Image.MapType=diADFSOldMap)
+                           and(not Image.AFSPresent);
+ menuAddPartition.Enabled   :=(Image.FormatNumber>>4=diAcornADFS)
+                           and(Image.DirectoryType=diADFSOldDir)
+                           and(Image.MapType=diADFSOldMap)
+                           and(not Image.AFSPresent);
+ //Change the captions
+ temp:='Partition';
+ if Image.FormatNumber>>4=diAcornDFS then temp:='Side';
+ btn_DeletePartition.Hint   :='Delete '+temp;
+ menuDeletePartition.Caption:='&Delete '+temp;
+ btn_SavePartition.Hint     :='Save '+temp+' As';
+ menuSavePartition.Caption  :='&Save '+temp+' As...';
  //Disable the Add Files and Rename menu
- AddFile1.Enabled        :=False;
- btn_AddFiles.Enabled    :=False;
- menuAddFile.Enabled     :=False;
- RenameFile1.Enabled     :=False;
- btn_Rename.Enabled      :=False;
- menuRenameFile.Enabled  :=False;
- NewDirectory1.Enabled   :=False;
- btn_NewDirectory.Enabled:=False;
- menuNewDir.Enabled      :=False;
+ AddFile1.Enabled            :=False;
+ btn_AddFiles.Enabled        :=False;
+ menuAddFile.Enabled         :=False;
+ RenameFile1.Enabled         :=False;
+ btn_Rename.Enabled          :=False;
+ menuRenameFile.Enabled      :=False;
+ NewDirectory1.Enabled       :=False;
+ btn_NewDirectory.Enabled    :=False;
+ menuNewDir.Enabled          :=False;
+ btn_AddPassword.Enabled     :=False;
+ menuAddPasswordFile.Enabled :=False;
+ btn_EditPassword.Enabled    :=False;
+ menuEditPasswordFile.Enabled:=False;
  //If only a single item selected
  if(Node<>nil)and(DirList.SelectionCount=1)then
  begin
@@ -1950,6 +2038,30 @@ begin
   //in the extra info. Otherwise is -1
   if Node.Parent<>nil then
    dir  :=TMyTreeNode(Node.Parent).DirRef;
+  //Enable the add/edit password buttons
+  if(Image.FormatNumber>>4=diAcornFS)
+  or((Image.FormatNumber>>4=diAcornADFS)and(Image.AFSPresent))then
+  begin
+   rt:=FindPartitionRoot(GetFilePath(DirList.Selections[0]));
+   //ADFS...find the AFS parent
+   if(Image.FormatNumber>>4=diAcornADFS)and(rt=0)then rt:=-1;
+   if rt>=0 then
+   begin
+    //Does the password file exist on the root?
+    if Image.FileExists(Image.Disc[rt].Directory+Image.DirSep+'Passwords',ptr) then
+    begin
+     //Yes, so enable the edit button
+     btn_EditPassword.Enabled:=True;
+     menuEditPasswordFile.Enabled:=True;
+    end
+    else
+    begin
+     //No, so enable the add button
+     btn_AddPassword.Enabled :=True;
+     menuAddPasswordFile.Enabled:=True;
+    end;
+   end;
+  end;
   //Then, get the filename and filetype of the file...not root directory
   if dir>=0 then
   begin
@@ -2082,7 +2194,7 @@ begin
   //Filename
   RemoveTopBit(filename);
   if filename='' then filename:='unnamed';
-  lb_FileName.Caption:=filename;
+  lb_FileName.Caption:=ReplaceStr(filename,'&','&&');
   //Filetype Image
   ft:=Node.ImageIndex;
   if (ft=directory) or (ft=directory_o) then
@@ -2308,7 +2420,7 @@ begin
  //Keep the application open
  KeepOpen:=True;
  //Initial width and height of form
- Width:=866;
+ Width:=876;
  Height:=515;
  //Enable or disable buttons
  DisableControls;
@@ -2318,6 +2430,26 @@ begin
  SearchForm.ResetSearchFields;
  //Clear the status bar
  UpdateImageInfo;
+ //Show/Hide the various elements
+ //File Details
+ menuViewFileDetails.Checked:=ViewOptions AND $01=$01;
+ FileInfoPanel.Visible:=menuViewFileDetails.Checked;
+ ToolSplitter.Visible:=FileInfoPanel.Visible;
+ //Image Details
+ menuViewStatus.Checked:=ViewOptions AND $02=$02;
+ ImageDetails.Visible:=menuViewStatus.Checked;
+ //Image Toolbar
+ menuImage.Checked:=ViewOptions AND $10=$10;
+ ToolBarContainer.Bands[0].Visible:=menuImage.Checked;
+ //Files Toolbar
+ menuFiles.Checked:=ViewOptions AND $20=$20;
+ ToolBarContainer.Bands[1].Visible:=menuFiles.Checked;
+ //Partition Toolbar
+ menuPartition.Checked:=ViewOptions AND $40=$40;
+ ToolBarContainer.Bands[2].Visible:=menuPartition.Checked;
+ //Tools Toolbar
+ menuTools.Checked:=ViewOptions AND $80=$80;
+ ToolBarContainer.Bands[3].Visible:=menuTools.Checked;
  //Reset the tracking variables
  PathBeforeEdit           :='';
  NameBeforeEdit           :='';
@@ -2740,6 +2872,13 @@ begin
  DoHideDEL:=GetRegValB('Hide_CDR_DEL',False);
  //Allow DFS images with zero sectors
  FDFSZeroSecs:=GetRegValB('DFS_Zero_Sectors',True);
+ //View menu options
+ ViewOptions:=GetRegValI('View_Options',$FFFF);
+ //Toolbar order - this doesn't work currently
+{ ToolBarContainer.Bands.Items[0]:=GetRegValS('ToolBar0','ImageToolBar');
+ ToolBarContainer.Bands.Items[1].Text:=GetRegValS('ToolBar1','FilesToolBar');
+ ToolBarContainer.Bands.Items[2].Text:=GetRegValS('ToolBar2','PartitionToolBar');
+ ToolBarContainer.Bands.Items[3].Text:=GetRegValS('ToolBar3','ToolsToolBar');}
  //Produce log files for debugging
  Fdebug:=GetRegValB('Debug_Mode',False);
  debuglogfile:=GetTempDir+'DIM_LogFile.txt';
@@ -2893,7 +3032,22 @@ begin
    end;
    //Is there something loaded?
    if Image.Filename<>'' then open:=open OR $02; //Something is open
+   if((NewImage.FormatNumber=diAcornDFS<<4+0)
+   or (NewImage.FormatNumber=diAcornDFS<<4+2))
+   and((Image.FormatNumber=diAcornDFS<<4+0)
+   or  (Image.FormatNumber=diAcornDFS<<4+2))then //Loading a DFS SS while a SS is open
+    open:=$04; //Might want to convert an SS to a DS
    //Go through the different states
+   if open=$04 then //Convert DFS SS to DFS DS
+   begin
+    msg:='The new image is a '+NewImage.FormatString+', '
+        +'and the open image is a '+Image.FormatString+'.'#13#10;
+    msg:=msg+'Would you like to open this as an image, '
+            +'or convert the open one by adding this as a second side/partition?';
+    confirm:=AskConfirm(msg,'Open','Convert','');
+    if confirm=mrOK     then open:=$01;
+    if confirm=mrCancel then open:=$04;
+   end;
    if open=$03 then //Ask user
    begin
     //Prepare message
@@ -2943,6 +3097,15 @@ begin
     if QueryUnsaved then OpenImage(FileName);
    if open=$03 then //Import contents
     ImportFiles(NewImage);
+   if open=$04 then //Convert DFS SS into DFS DS or AFS L3 partition onto ADFS
+    if Image.AddPartition(FileName) then
+    begin
+     //Update the changed flag
+     HasChanged:=True;
+     //And the directory display
+     ShowNewImage(Image.Filename);
+     UpdateImageInfo;
+    end else ReportError('Failed to add a side/partition to the current image.');
    if open=$00 then //Can't load
     ReportError('"'+ExtractFilename(FileName)
                    +'" has not been recognised as a valid disc image that '
@@ -3252,6 +3415,44 @@ end;
 procedure TMainForm.lb_titleClick(Sender: TObject);
 begin
  SwapLabelEdit(ed_title,lb_title,True,False);
+end;
+
+{------------------------------------------------------------------------------}
+//Show/Hide a Toolbar
+{------------------------------------------------------------------------------}
+procedure TMainForm.ShowHideToolbar(Sender: TObject);
+var
+ Item: Integer;
+begin
+ //Default value
+ Item:=-1;
+ //Find the menu item
+ if TMenuItem(Sender)=menuViewFileDetails then Item:=0;
+ if TMenuItem(Sender)=menuViewStatus      then Item:=1;
+ if TMenuItem(Sender)=menuImage           then Item:=4;
+ if TMenuItem(Sender)=menuFiles           then Item:=5;
+ if TMenuItem(Sender)=menuPartition       then Item:=6;
+ if TMenuItem(Sender)=menuTools           then Item:=7;
+ //Tick/Untick it
+ TMenuItem(Sender).Checked:=not TMenuItem(Sender).Checked;
+ //Make the appropriate element visible or not
+ case Item of
+  0      : FileInfoPanel.Visible                 :=TMenuItem(Sender).Checked;
+  1      : ImageDetails.Visible                  :=TMenuItem(Sender).Checked;
+  4,5,6,7: ToolBarContainer.Bands[Item-4].Visible:=TMenuItem(Sender).Checked;
+ end;
+ //And the tool splitter, if the file info panel is visible or not
+ ToolSplitter.Visible:=FileInfoPanel.Visible;
+ //Set the registry option
+ if Item<>-1 then
+ begin
+  //First, clear the bit
+  ViewOptions:=ViewOptions AND($FFFF-(1<<Item));
+  //Then set it, if needed
+  if TMenuItem(Sender).Checked then ViewOptions:=ViewOptions OR(1<<Item);
+  //And finally write to the registry
+  SetRegValI('View_Options',ViewOptions);
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -3683,6 +3884,131 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Delete the current partition
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_DeletePartitionClick(Sender: TObject);
+var
+ side: Integer;
+begin
+ //Get the root reference
+ side:=FindPartitionRoot(GetFilePath(DirList.Selections[0]));
+ //if valid, find the partition/side
+ if(side>=0)and(side<Length(Image.Disc))then
+ begin
+  side:=Image.Disc[side].Partition;
+  //Now delete it
+  if Image.SeparatePartition(side) then
+  begin
+   //Update the changed flag
+   HasChanged:=True;
+   //And the display
+   ShowNewImage(Image.Filename);
+   UpdateImageInfo;
+  end;
+ end else ReportError('Invalid Partition Selected');
+end;
+
+{------------------------------------------------------------------------------}
+//Save the current partition
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_SavePartitionClick(Sender: TObject);
+var
+ side,
+ index,
+ targetformat: Integer;
+ exts: array of String;
+begin
+ targetformat:=-1;
+ //Get the root reference
+ side:=FindPartitionRoot(GetFilePath(DirList.Selections[0]));
+ //if valid, find the partition/side
+ if(side>=0)and(side<Length(Image.Disc))then
+ begin
+  side:=Image.Disc[side].Partition;
+  //Open the Save As dialogue box
+  SaveImage.Title:='Save Partition As';
+  //DS DFS Image, so target is SS DFS
+  if(Image.FormatNumber>>4=diAcornDFS)
+  and(Image.DoubleSided{FormatNumber mod 2=1})then targetformat:=Image.FormatNumber-1;
+  //ADFS/AFS Hybrid, with AFS partition selected, so target will be AFS Level 3
+  if(Image.FormatNumber>>4=diAcornADFS)
+  and(side<>0)then targetformat:=diAcornFS<<4+2;
+  //ADFS/AFS Hybrid, with ADFS partition selected, so target will be ADFS 'L'
+  if(Image.FormatNumber>>4=diAcornADFS)
+  and(side=0)then targetformat:=diAcornADFS<<4+2;
+  //Populate the filter part of the dialogue
+  index:=0;
+  SaveImage.Filter:=Image.SaveFilter(index,targetformat);
+  if index=0 then index:=1;
+  SaveImage.FilterIndex:=index;
+  //Populate the filename part of the dialogue
+  exts:=SaveImage.Filter.Split('|');
+  SaveImage.FileName:='Untitled.'+Copy(exts[(index*2)-1],3);
+  SaveImage.DefaultExt:='.'+Copy(exts[(index*2)-1],3);
+  //Show the dialogue
+  if SaveImage.Execute then
+   Image.SeparatePartition(side,SaveImage.FileName);
+ end else ReportError('Invalid partition selected');
+end;
+
+{------------------------------------------------------------------------------}
+//Creates a new password file
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_AddPasswordClick(Sender: TObject);
+var
+ index   : Integer;
+begin
+ index:=Image.CreatePasswordFile(nil);
+ if index>=0 then
+ begin
+  HasChanged:=True;
+  AddFileToTree(DirList.Selected,'Passwords',index,False,DirList);
+  UpdateImageInfo;
+ end
+ else
+  ReportError('Failed to create Passwords file');
+end;
+
+{------------------------------------------------------------------------------}
+//Adds a new AFS partition to an ADFS image
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_AddPartitionClick(Sender: TObject);
+begin
+ //Set up the form
+ AFSPartitionForm.PartitionSize.Min:=9;
+ AFSPartitionForm.PartitionSize.Max:=Image.GetMaxLength div $100;
+ AFSPartitionForm.PartitionSize.Position:=AFSPartitionForm.PartitionSize.Max;
+ AFSPartitionForm.PartitionSizeChange(Sender);
+ //Display the form
+ if AFSPartitionForm.ShowModal=mrOK then //If OK was clicked, then continue
+  if Image.AddPartition(AFSPartitionForm.PartitionSize.Position*$100) then
+  begin
+   HasChanged:=True;
+   ShowNewImage(Image.Filename);
+   UpdateImageInfo;
+  end
+  else
+   ReportError('Failed to create Acorn FS partition');
+end;
+
+{------------------------------------------------------------------------------}
+//Opens the Password Editor form
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_EditPasswordClick(Sender: TObject);
+begin
+ //Display them on the form
+ PWordEditorForm.UserAccounts:=Image.ReadPasswordFile;
+ //Show the form modally
+ PWordEditorForm.ShowModal;
+ //If user clicked OK
+ if PWordEditorForm.ModalResult=mrOK then
+ begin
+  if Image.CreatePasswordFile(PWordEditorForm.UserAccounts)>=0 then
+   HasChanged:=True;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
 //Opens the file search window
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_FileSearchClick(Sender: TObject);
@@ -3849,20 +4175,6 @@ begin
   //Repaint the main form
   Repaint;
  end;
-end;
-
-{------------------------------------------------------------------------------}
-//Split a DSD or combine two SSDs
-{------------------------------------------------------------------------------}
-procedure TMainForm.btn_SplitDFSClick(Sender: TObject);
-begin
- SplitDFSForm.ShowModal;
- //Report back to the user the result
- if SplitDFSForm.ModalResult=mrOK then
-  ShowInfo('Operation was a success');
- if SplitDFSForm.ModalResult=mrAbort then
-  ReportError('Operation failed');
- //We'll ignore cancel, as this was a user operation
 end;
 
 {------------------------------------------------------------------------------}
@@ -4063,7 +4375,9 @@ begin
  if Sender is TForm then
   TileCanvas(TForm(Sender).Canvas); //For a TForm
  if Sender is TScrollBox then
-  TileCanvas(TScrollBox(Sender).Canvas); //For a TForm
+  TileCanvas(TScrollBox(Sender).Canvas); //For a TScrollBox
+ if Sender is TControlBar then
+  TileCanvas(TControlBar(Sender).Canvas); //For a TControlBar
 end;
 
 {------------------------------------------------------------------------------}
@@ -4620,7 +4934,7 @@ begin
                          NewImageForm.AFS.ItemIndex+2);
      if(ok)and(NewImageForm.cb_AFScreatepword.Checked)then
       //Create blank password file for AFS
-      if not Image.CreateAFSPassword(NewImageForm.AFS.ItemIndex+2,nil)then //If fails, report an error
+      if Image.CreatePasswordFile(nil)<0 then //If fails, report an error
        ReportError('Failed to create a password file');
     end
     else //Floppy Drive
@@ -5143,6 +5457,18 @@ end;
 function TMainForm.IntToStrComma(size: Int64): String;
 begin
  Result:=Format('%.0n',[1.0*size]);
+end;
+
+{------------------------------------------------------------------------------}
+//Order of the toolbars has changed
+{------------------------------------------------------------------------------}
+procedure TMainForm.ToolBarContainerChange(Sender: TObject);
+var
+ index: Integer;
+begin
+ for index:=0 to ToolBarContainer.Bands.Count-1 do
+  SetRegValS('ToolBar'+IntToStr(index)
+            ,ToolBarContainer.Bands[index].Control.Name);
 end;
 
 {------------------------------------------------------------------------------}

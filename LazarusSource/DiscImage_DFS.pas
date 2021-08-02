@@ -201,7 +201,7 @@ var
 begin
  Result:=nil;
  //Determine how many sides
- if (FFormat AND $1)=1 then //Double sided image
+ if FDSD then //Double sided image
  begin
   SetLength(Result,2);
   SetLength(bootoption,2);
@@ -250,14 +250,14 @@ begin
    //Is it a Watford, and are we in the Watford area?
    diroff:=$000;
    ptr:=f;
-   if(FFormat mod$10>$01)and(FFormat mod$10<$04)then
+   if(FFormat mod$10=2)or(FFormat mod$10=3)then
     if (f>31) then
     begin
      diroff:=$200;
      ptr:=f-31;
     end;
    //Read in the filename
-   temp:=ReadString(diroff+($08*ptr),-7);
+   temp:=ReadString(ConvertDFSSector(diroff+($08*ptr),s),-7);
    RemoveTopBit(temp); //Attributes are in the top bit
    RemoveSpaces(temp); //Remove extraneous spaces
    Result[s-mmbdisc].Entries[f-1].Filename:=temp;
@@ -791,7 +791,7 @@ begin
   side:=FDisc[dir].Entries[entry].Side;
   //Read the data into the buffer
   if filelen>0 then
-   ReadDiscData(source,filelen,side,buffer[0]);
+   ReadDiscData(source,filelen,side,0,buffer);
   //Return positive
   Result:=True;
  end;
@@ -826,5 +826,121 @@ begin
     //Return a positive result
     Result:=True;
    end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Extract a DFS side
+-------------------------------------------------------------------------------}
+function TDiscImage.ExtractDFSPartition(side: Cardinal): TDIByteArray;
+var
+ sidesize,
+ address  : Cardinal;
+begin
+ Result:=nil;
+ if side<2 then
+ begin
+  //How big is the side?
+  sidesize:=(ReadByte(ConvertDFSSector($107,side))
+           +(ReadByte(ConvertDFSSector($106,side))AND$3)*$100)*$100;
+  if sidesize=0 then sidesize:=$32000; //Assume 200K
+  //Setup the array
+  SetLength(Result,sidesize);
+  //Copy the data across
+  for address:=$0 to sidesize-1 do
+   Result[address]:=ReadByte(ConvertDFSSector(address,side));
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Add a side to a single sided image
+-------------------------------------------------------------------------------}
+function TDiscImage.AddDFSSide(var buffer: TDIByteArray): Boolean;
+var
+ FdataCopy,
+ NewData    : TDIByteArray;
+ addr,
+ side0size,
+ side2size,
+ totsize    : Cardinal;
+ oldfilename: String;
+begin
+ Result:=False;
+ if not FDSD then
+ begin
+  //Take a copy of the class main data area
+  FdataCopy:=Fdata;
+  //Set the double sided flag, so that the convert sector function works
+  FDSD:=True;
+  //Set the new buffer to a size big enough to receive
+  side0size:=(ReadByte(ConvertDFSSector($107,0))
+            +(ReadByte(ConvertDFSSector($106,0))AND$3)*$100)*$100;
+  if side0size=0 then side0size:=$32000; //Assume 200K
+  side2size:=(ReadByte(ConvertDFSSector($107,0),buffer)
+            +(ReadByte(ConvertDFSSector($106,0),buffer)AND$3)*$100)*$100;
+  if side2size=0 then side2size:=$32000; //Assume 200K
+  //Work out the total size
+  if side0size>=side2size then totsize:=2*side0size else totsize:=2*side2size;
+  SetLength(NewData,totsize);
+  //Merge the data with the current data, but into another buffer
+  //Step 1 - copy the current data into the new buffer, interleaving it
+  for addr:=0 to side0size-1 do
+   WriteByte(ReadByte(ConvertDFSSector(addr,0))
+            ,ConvertDFSSector(addr,0),NewData);//Does range checking
+  //Step 2 - copy the new data into the new buffer, interleaving it
+  for addr:=0 to side2size-1 do
+   WriteByte(ReadByte(ConvertDFSSector(addr,0),buffer)
+            ,ConvertDFSSector(addr,1),NewData);//Does range checking
+  //Move this buffer into the class main data area
+  Fdata:=NewData;
+  oldfilename:=imagefilename;
+  //Re-ID the image to confirm
+  if IDImage then //If success return a TRUE
+   Result:=True
+  else //If failure, restore the class main data area and return a FALSE
+  begin
+   Fdata:=FdataCopy;
+   //Re-ID the image
+   IDImage; //This will return a true result anyway
+  end;
+  //Re-read the image
+  ReadImage;
+  imagefilename:=oldfilename;
+ end;
+end;
+function TDiscImage.AddDFSSide(filename: String): Boolean;
+var
+ NewImage: TDiscImage;
+ F       : TFileStream;
+ buffer  : TDIByteArray;
+begin
+ Result:=False;
+ buffer:=nil;
+ //Only read the file in if it actually exists (or rather, Windows can find it)
+ if SysUtils.FileExists(filename) then
+ begin
+  //Only for Acorn DFS
+  if(FFormat>>4=diAcornDFS)and(not FDSD)then //Single sided images only
+  begin
+   //Pre-load the proposed image
+   NewImage:=TDiscImage.Create;
+   NewImage.LoadFromFile(filename,False);
+   //And make sure it is a DFS SS image
+   if (NewImage.FormatNumber>>4=diAcornDFS)
+   and(not NewImage.DoubleSided)then
+   begin
+    //Load the file in
+    try
+     F:=TFileStream.Create(filename,fmOpenRead or fmShareDenyNone);
+     SetLength(buffer,F.Size);
+     F.Read(buffer[0],F.Size);
+    except
+    end;
+    F.Free;
+    //Continue if there is any data
+    if Length(buffer)>0 then Result:=AddDFSSide(buffer);
+   end;
+   NewImage.Free;
+  end;
  end;
 end;

@@ -658,6 +658,32 @@ Bug fixes
 * If a file, on a Commodore image, had a dot '.' as part of the name then this would fail to be found. This means that operations such as downloading would not work.
 * An AFS Level 2 image, where the headers do not match, were getting IDed as a DFS image.
 
+1.35 - 1st August 2021
+----------------------
+New or improved features
+* Added a window for editing the Acorn FS 'Passwords' file, and enabled the button.
+* Password files for Acorn FS images can now be edited.
+* Enabled the button to create a new password file.
+* Split the toolbar into 4 toolbars, and re-arranged the buttons (moved 'Fix ADFS Directories' to Tools).
+* New menu - 'View', with three items to enable the viewing, or hiding, of the File Details pane, Image Details status bar or the Toolbars.
+* Changed the main menu to reflect the new grouping in the toolbars.
+* Delete Partition now works for DS DFS images (producing SS DFS images) and ADFS Hybrid (producing either ADFS or Acorn FS images).
+* Save Partition now works for DS DFS images (producing SS DFS images) and ADFS Hybrid (producing either ADFS or Acorn FS images).
+* Slight change to the format strings for Acorn ADFS Hybrid images.
+* Two single sided DFS images can now be combined to form a double sided image, away from the Split/Combine DFS utility.
+* Split/Combine DFS button, and menu item, removed from the toolbar and main menu, along with the Utilities menu.
+* Functions to do with Partitions and AFS Password files removed from the File context menu.
+* Added the function to Add Partition to ADFS 8 bit images, along with the corresponding menu item and tool bar button.
+* Improved the free space calculation with Acorn FS partitions.
+
+Bug fixes
+* Deleting a file in Acorn FS Level 3 did not release the object header sector.
+* Reading the second side of a double sided DFS image would read the filenames from the first side.
+* A DFS directory identifier as '&' would result in an underlined '.' in the file details display.
+* Failed to import any files to the Acorn FS partition of an ADFS/AFS Hybrid.
+* The attribute panel would be shown when a root directory is selected.
+* The Free Space Map for ADFS/AFS hybrids was not getting read correctly.
+
 
 Platform History
 ----------------

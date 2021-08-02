@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.34
+TDiscImage class V1.35
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -130,6 +130,7 @@ type
   function FormatToExt: String;
   function ReadBits(offset,start,length: Cardinal): Cardinal;
   procedure WriteBits(value,offset,start,length: Cardinal);
+  procedure WriteBits(value,offset,start,length: Cardinal;buffer: TDIByteArray); overload;
   function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
   function TimeDateToRISCOS(delphitime: TDateTime): Int64;
   function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
@@ -177,7 +178,8 @@ type
   function CalculateADFSDirCheck(sector: Cardinal;buffer:TDIByteArray): Byte; overload;
   function NewDiscAddrToOffset(addr: Cardinal;offset:Boolean=True): TFragmentArray;
   function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
-  function ByteChecksum(offset,size: Cardinal): Byte;
+  function ByteChecksum(offset,size: Cardinal): Byte;      
+  function ByteChecksum(offset,size: Cardinal;var buffer: TDIByteArray): Byte; overload;
   function ReadADFSDisc: TDisc;
   procedure ADFSFreeSpaceMap;
   procedure ADFSFillFreeSpaceMap(address: Cardinal;usage: Byte);
@@ -224,6 +226,8 @@ type
   function UpdateADFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
   function UpdateADFSFileType(filename:String;newtype:String):Boolean;
   function UpdateADFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
+  function ExtractADFSPartition(side: Cardinal): TDIByteArray;
+  function GetADFSMaxLength(lastentry:Boolean): Cardinal;
   //Acorn FileStore Routines
   function ID_AFS: Boolean;
   procedure ReadAFSPartition;
@@ -240,8 +244,11 @@ type
   procedure AFSDeAllocateFreeSpace(addr: Cardinal);
   procedure FinaliseAFSL2Map;
   function FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
+  procedure WriteAFSPartition(afsdisctitle: String;harddrivesize: Cardinal);
   function CreateAFSDirectory(dirname,parent,attributes: String): Integer;
   function ExtendAFSDirectory(sector: Cardinal):Cardinal;
+  function CreateAFSPassword(Accounts: TUserAccounts): Integer;
+  function ReadAFSPassword: TUserAccounts;
   function WriteAFSFile(var file_details: TDirEntry;
                                               var buffer: TDIByteArray):Integer;
   function AFSAttrToByte(attr: String):Byte;
@@ -258,6 +265,7 @@ type
   function AFSTimeToWord(timedate: TDateTime):Word;
   function UpdateAFSAttributes(filename,attributes: String): Boolean;
   function UpdateAFSDiscTitle(title: String): Boolean;
+  function AddAFSPartition(size: Cardinal): Boolean;
   //DFS Routines
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
@@ -274,6 +282,9 @@ type
   function UpdateDFSBootOption(option,side: Byte): Boolean;
   function ExtractDFSFile(filename: String;var buffer: TDIByteArray): Boolean;
   function UpdateDFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+  function ExtractDFSPartition(side: Cardinal): TDIByteArray;
+  function AddDFSSide(var buffer: TDIByteArray): Boolean;
+  function AddDFSSide(filename: String): Boolean; overload;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
@@ -367,7 +378,8 @@ type
   function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
   function FileExists(filename: String;var Ref: Cardinal): Boolean;
   function FileExists(filename: String;var dir,entry: Cardinal): Boolean; overload;
-  function ReadDiscData(addr,count,side: Cardinal;var buffer): Boolean;
+  function ReadDiscData(addr,count,side,offset: Cardinal;
+                                             var buffer: TDIByteArray): Boolean;
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
@@ -385,7 +397,7 @@ type
   function RetitleDirectory(var filename,newtitle: String): Boolean;
   function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function FixDirectories: Boolean;
-  function SaveFilter(var FilterIndex: Integer):String;
+  function SaveFilter(var FilterIndex: Integer;thisformat: Integer=-1):String;
   function UpdateLoadAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
   function UpdateExecAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
   function TimeStampFile(filename: String;newtimedate: TDateTime): Boolean;
@@ -398,8 +410,13 @@ type
   function DiscSize(partition: Cardinal):Int64;
   function FreeSpace(partition: Cardinal):Int64;
   function Title(partition: Cardinal):String;
-  function CreateAFSPassword(afslevel: Byte;Accounts: TUserAccounts): Boolean;
+  function CreatePasswordFile(Accounts: TUserAccounts): Integer;
+  function ReadPasswordFile: TUserAccounts;
   function GetParent(dir: Integer): String;
+  function SeparatePartition(side: Cardinal;filename: String=''): Boolean;
+  function GetMaxLength: Cardinal;
+  function AddPartition(size: Cardinal): Boolean;
+  function AddPartition(filename: String): Boolean; overload;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -534,6 +551,7 @@ var
  x : Integer;
  c : Byte;
 begin
+ if(str='')and(len>0)then str:=AddCharR(chr(pad),str,len);
  //Only do something if a string has been supplied
  if str<>'' then
  begin
@@ -567,7 +585,7 @@ const
                                 'Spark Archive');
  SUB : array[0..8] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','','','','','','','','','','',''),
-  ('S','M','L','D','E','E+','F','F+','','','','','','','','Hard Disc'),
+  ('S','M','L','D','E','E+','F','F+','','','','','','','Hybrid','Hard Disc'),
   ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
   ('','Extended','','','','','','','','','','','','','',''),
   ('DD','HD','','','','','','','','','','','','','','Hard Disc'),
@@ -585,8 +603,8 @@ begin
     Result:=Result+' '+SUB[FFormat>>4,FFormat MOD $10];
   end;
  //ADFS with AFS partition
- if(FFormat>>4=diAcornADFS)and(FAFSPresent)then
-  Result:=Result+'/'+FS[diAcornFS];
+ {if(FFormat>>4=diAcornADFS)and(FAFSPresent)then
+  Result:=Result+'/'+FS[diAcornFS];}
 end;
 
 {-------------------------------------------------------------------------------
@@ -655,6 +673,13 @@ Write upto 32 bits of data from the buffer, starting at offset(bytes)+start(bits
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteBits(value,offset,start,length: Cardinal);
 var
+ buffer: TDIByteArray;
+begin
+ SetLength(buffer,0);
+ WriteBits(value,offset,start,length,buffer);
+end;
+procedure TDiscImage.WriteBits(value,offset,start,length: Cardinal;buffer:TDIByteArray);
+var
  start_byte,
  start_bit,
  bit,
@@ -683,7 +708,7 @@ begin
    begin
     //To save re-reading the same byte over and over
     pos:=offset+start_byte;
-    lastbyte:=ReadByte(pos);
+    lastbyte:=ReadByte(pos,buffer);
     lastcopy:=lastbyte; //Take a copy to see if we need to write
    end;
    b:=((value AND (1 shl bit))shr bit)shl start_bit; //Bit to set
@@ -692,7 +717,7 @@ begin
    //Then write the byte back, if it has changed
    if lastbyte<>lastcopy then
    begin
-    WriteByte(lastbyte,pos);
+    WriteByte(lastbyte,pos,buffer);
     lastcopy:=lastbyte; //Take a copy of the changed byte
    end;
   end;
@@ -1382,7 +1407,7 @@ end;
 {-------------------------------------------------------------------------------
 Construct a save filter
 -------------------------------------------------------------------------------}
-function TDiscImage.SaveFilter(var FilterIndex: Integer):String;
+function TDiscImage.SaveFilter(var FilterIndex: Integer;thisformat: Integer=-1):String;
 var
  currentformat,
  queryformat   : Byte;
@@ -1407,9 +1432,11 @@ begin
    //Add the format string and extension
    ext:=FormatToString+'|*.'+ext;
    Result:=Result+ext;
+   //Next entry
    inc(index);
    //Set the filter index, if we are at the current format
-   if currentformat=queryformat then FilterIndex:=index;
+   if(currentformat=queryformat)and(thisformat=-1)then FilterIndex:=index;
+   if(thisformat=queryformat)and(thisformat<>-1)then FilterIndex:=index;
   end;
  end;
  //Restore the current format
@@ -1733,6 +1760,20 @@ begin
   Result:=True;
   exit;
  end;
+ //AFS Root
+ if filename=afsrootname then
+  if Length(FDisc)>0 then
+  begin
+   i:=0;
+   while(i<Length(FDisc))and(FDisc[i].Directory<>filename)do inc(i);
+   if FDisc[i].Directory=filename then
+   begin
+    dir:=i;
+    entry:=$FFFF;
+    Result:=True;
+    exit;
+   end;
+  end;
  //Not going to search if there is no tree to search in
  if(Length(FDisc)>0)and(filename<>'')then//or if there is nothing being searched for
  begin
@@ -1859,27 +1900,27 @@ end;
 {-------------------------------------------------------------------------------
 Direct access to disc data
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadDiscData(addr,count,side: Cardinal; var buffer): Boolean;
+function TDiscImage.ReadDiscData(addr,count,side,offset: Cardinal;
+                                             var buffer: TDIByteArray): Boolean;
 var
  i   : Cardinal;
- temp: TDIByteArray;
 begin
  Result:=False;
- temp:=nil;
  if count>0 then //Make sure there is something to read
  begin
   //Simply copy from source to destination
-  SetLength(temp,count);
   for i:=0 to count-1 do
   begin
-   if FFormat>>4<>diAcornDFS then //All but DFS
-    temp[i]:=ReadByte(addr+i);
-   if FFormat>>4=diAcornDFS then  //DFS only
-    temp[i]:=ReadByte(ConvertDFSSector(addr+i,side));
+   if offset+i<Length(buffer) then //Bit of range checking
+   begin
+    if FFormat>>4<>diAcornDFS then //All but DFS
+     buffer[offset+i]:=ReadByte(addr+i);
+    if FFormat>>4=diAcornDFS then  //DFS only
+     buffer[offset+i]:=ReadByte(ConvertDFSSector(addr+i,side));
+   end;
   end;
-  //Do the move
-  Move(temp[0],buffer,count);
-  Result:=True;
+  //Return a success if we didn't go out of range
+  Result:=offset+count<=Length(buffer);
  end;
 end;
 
@@ -2202,15 +2243,16 @@ Set the attributes for a file
 function TDiscImage.UpdateAttributes(filename,attributes: String;entry:Cardinal=0):Boolean;
 begin
  Result:=False;
- case FFormat>>4 of
-  diAcornDFS : Result:=UpdateDFSFileAttributes(filename,attributes);     //Update DFS attributes
-  diAcornADFS: Result:=UpdateADFSFileAttributes(filename,attributes);    //Update ADFS attributes
-  diCommodore: Result:=UpdateCDRFileAttributes(filename,attributes);     //Update Commodore 64/128 attributes
-  diSinclair : Result:=UpdateSinclairFileAttributes(filename,attributes);//Update Sinclair/Amstrad attributes
-  diAmiga    : Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
-  diAcornUEF : Result:=UpdateCFSAttributes(entry,attributes);            //Update CFS attributes
-  diAcornFS  : Result:=UpdateAFSAttributes(filename,attributes);         //Update AFS attributes
- end;
+ if(filename<>root_name)and(filename<>afsrootname)then
+  case FFormat>>4 of
+   diAcornDFS : Result:=UpdateDFSFileAttributes(filename,attributes);     //Update DFS attributes
+   diAcornADFS: Result:=UpdateADFSFileAttributes(filename,attributes);    //Update ADFS attributes
+   diCommodore: Result:=UpdateCDRFileAttributes(filename,attributes);     //Update Commodore 64/128 attributes
+   diSinclair : Result:=UpdateSinclairFileAttributes(filename,attributes);//Update Sinclair/Amstrad attributes
+   diAmiga    : Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
+   diAcornUEF : Result:=UpdateCFSAttributes(entry,attributes);            //Update CFS attributes
+   diAcornFS  : Result:=UpdateAFSAttributes(filename,attributes);         //Update AFS attributes
+  end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -2456,6 +2498,28 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Create a password file for AFS systems
+-------------------------------------------------------------------------------}
+function TDiscImage.CreatePasswordFile(Accounts: TUserAccounts): Integer;
+begin
+ Result:=-5;
+ if(FFormat>>4=diAcornFS)
+ or((FFormat>>4=diAcornADFS)and(Fafspresent)) then
+  Result:=CreateAFSPassword(Accounts);
+end;
+
+{-------------------------------------------------------------------------------
+Read the password file for AFS systems
+-------------------------------------------------------------------------------}
+function TDiscImage.ReadPasswordFile: TUserAccounts;
+begin
+ Result:=nil;
+ if(FFormat>>4=diAcornFS)
+ or((FFormat>>4=diAcornADFS)and(Fafspresent)) then
+  Result:=ReadAFSPassword;
+end;
+
+{-------------------------------------------------------------------------------
 Returns the complete path for the parent
 -------------------------------------------------------------------------------}
 function TDiscImage.GetParent(dir: Integer): String;
@@ -2470,6 +2534,113 @@ begin
  if Result<>'' then
   if Result[Length(Result)]=dir_sep then
    Result:=LeftStr(Result,Length(Result)-1);
+end;
+
+{-------------------------------------------------------------------------------
+Extracts or deletes a partition/side
+-------------------------------------------------------------------------------}
+function TDiscImage.SeparatePartition(side: Cardinal;filename: String=''): Boolean;
+var
+ buffer    : TDIByteArray;
+ FDiscDrive: TFileStream;
+ ext       : String;
+ oldformat : Word;
+begin
+ //If filename is empty, delete the current partition.
+ //If filename is not empty, save the current partition
+ Result:=False;
+ buffer:=nil;
+ //Blank filename, so extract the other partition
+ if filename='' then
+ begin
+  if side=0 then side:=1
+  else
+  if side=1 then side:=0;
+ end;
+ //Extract the partition/side into a buffer.
+ case FFormat>>4 of
+  diAcornDFS : buffer:=ExtractDFSPartition(side);  //DFS
+  diAcornADFS: buffer:=ExtractADFSPartition(side); //Acorn ADFS/Acorn FS
+ end;
+ //Ensure there is something to deal with
+ if buffer<>nil then
+ begin
+  //Filename is not blank, so save the data
+  if filename<>'' then
+  begin
+   //Validate the filename
+   ext:=ExtractFileExt(filename); //First extract the extension
+   if ext='' then //If it hasn't been given an extension, then give it the default
+   begin
+    filename:=LeftStr(filename,Length(filename)-Length(ext));
+    //Remember the current format
+    oldformat:=FFormat;
+    //If we have an ADFS/AFS hybrid, and are saving the AFS partition
+    if(FFormat=diAcornADFS)and(side<>0)then FFormat:=diAcornFS;
+    filename:=filename+'.'+FormatToExt;
+    //Change back
+    FFormat:=oldformat;
+   end;
+   //Create the stream
+   try
+    FDiscDrive:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
+    //Move to the beginning of the stream
+    FDiscDrive.Position:=0;
+    //Read the image into the data buffer
+    FDiscDrive.Write(buffer[0],Length(buffer));
+    //Close the stream
+    FDiscDrive.Free;
+   except
+    //Could not create
+   end;
+  end;
+  //Filename is blank, so replace the data
+  if filename='' then
+  begin
+   //Remember the old filename
+   filename:=imagefilename;
+   //Move the buffer into the main data store
+   Fdata:=buffer;
+   //ID it
+   if IDImage then
+   begin
+    //Restore the filename
+    imagefilename:=filename;
+    //Re-read
+    ReadImage;
+   end;
+  end;
+  Result:=True;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Get the maximum size for a partition on an ADFS 8 bit image
+-------------------------------------------------------------------------------}
+function TDiscImage.GetMaxLength: Cardinal;
+begin
+ Result:=0;
+ //Only 8 bit ADFS
+ if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+  Result:=GetADFSMaxLength(False);
+end;
+
+{-------------------------------------------------------------------------------
+Adds a partition to an existing image
+-------------------------------------------------------------------------------}
+function TDiscImage.AddPartition(size: Cardinal): Boolean;
+begin
+ Result:=False;
+ //Only for adding AFS partition to 8 bit ADFS
+ if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+  Result:=AddAFSPartition(size);
+end;
+function TDiscImage.AddPartition(filename: String): Boolean;
+begin
+ Result:=False;
+ //Only for Acorn DFS
+ if(FFormat>>4=diAcornDFS)and(not FDSD)then //Single sided images only
+  Result:=AddDFSSide(filename);
 end;
 
 {$INCLUDE 'DiscImage_ADFS.pas'}
