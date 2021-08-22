@@ -1,10 +1,10 @@
 object HexDumpForm: THexDumpForm
-  Left = 302
-  Height = 636
-  Top = 122
+  Left = 307
+  Height = 603
+  Top = 154
   Width = 635
   Caption = 'HexDumpForm'
-  ClientHeight = 636
+  ClientHeight = 603
   ClientWidth = 635
   Color = 15527148
   Constraints.MaxWidth = 635
@@ -17,7 +17,7 @@ object HexDumpForm: THexDumpForm
   LCLVersion = '2.0.12.0'
   object PageControl: TPageControl
     Left = 0
-    Height = 636
+    Height = 603
     Top = 0
     Width = 635
     ActivePage = HexDump
@@ -29,12 +29,12 @@ object HexDumpForm: THexDumpForm
     OnChange = PageControlChange
     object HexDump: TTabSheet
       Caption = 'Hex Dump'
-      ClientHeight = 606
+      ClientHeight = 573
       ClientWidth = 629
       ImageIndex = 14
       object HexDumpDisplay: TStringGrid
         Left = 0
-        Height = 574
+        Height = 541
         Top = 32
         Width = 597
         Align = alClient
@@ -142,12 +142,12 @@ object HexDumpForm: THexDumpForm
       end
       object ScrollPanel: TPanel
         Left = 597
-        Height = 574
+        Height = 541
         Top = 32
         Width = 32
         Align = alRight
         BevelOuter = bvNone
-        ClientHeight = 574
+        ClientHeight = 541
         ClientWidth = 32
         TabOrder = 2
         object btnMoveUp: TSpeedButton
@@ -166,7 +166,7 @@ object HexDumpForm: THexDumpForm
           Left = 0
           Height = 32
           Hint = 'Move Down A Page'
-          Top = 510
+          Top = 477
           Width = 32
           Align = alBottom
           Flat = True
@@ -178,7 +178,7 @@ object HexDumpForm: THexDumpForm
           Left = 0
           Height = 32
           Hint = 'Move Down A Line'
-          Top = 478
+          Top = 445
           Width = 32
           Align = alBottom
           Flat = True
@@ -214,7 +214,7 @@ object HexDumpForm: THexDumpForm
           Left = 0
           Height = 32
           Hint = 'Move To Bottom'
-          Top = 542
+          Top = 509
           Width = 32
           Align = alBottom
           Flat = True
@@ -224,7 +224,7 @@ object HexDumpForm: THexDumpForm
         end
         object ScrollBar: TScrollBar
           Left = 0
-          Height = 382
+          Height = 349
           Top = 96
           Width = 24
           Align = alClient
@@ -240,8 +240,8 @@ object HexDumpForm: THexDumpForm
     end
     object BasicViewer: TTabSheet
       Caption = 'BBC BASIC File'
-      ClientHeight = 606
-      ClientWidth = 629
+      ClientHeight = 608
+      ClientWidth = 627
       TabVisible = False
       object BasicOutput: TIpHtmlPanel
         Left = 0
@@ -267,8 +267,8 @@ object HexDumpForm: THexDumpForm
     end
     object SpriteViewer: TTabSheet
       Caption = 'Sprite Viewer'
-      ClientHeight = 606
-      ClientWidth = 629
+      ClientHeight = 608
+      ClientWidth = 627
       TabVisible = False
       object SpriteOutput: TScrollBox
         Left = 0
@@ -296,8 +296,8 @@ object HexDumpForm: THexDumpForm
     end
     object ImageViewer: TTabSheet
       Caption = 'Image Viewer'
-      ClientHeight = 606
-      ClientWidth = 629
+      ClientHeight = 608
+      ClientWidth = 627
       TabVisible = False
       object ImagePanel: TPanel
         Left = 0
@@ -321,8 +321,8 @@ object HexDumpForm: THexDumpForm
     end
     object TextViewer: TTabSheet
       Caption = 'Text File'
-      ClientHeight = 606
-      ClientWidth = 629
+      ClientHeight = 608
+      ClientWidth = 627
       TabVisible = False
       object TextOutput: TMemo
         Left = 0

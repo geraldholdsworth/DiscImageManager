@@ -1,7 +1,7 @@
 object CustomDialogue: TCustomDialogue
   Left = 668
   Height = 195
-  Top = 232
+  Top = 233
   Width = 360
   BorderIcons = []
   BorderStyle = bsDialog
@@ -213,9 +213,9 @@ object CustomDialogue: TCustomDialogue
     OnPaint = FormPaint
     object MessageLabel: TLabel
       Left = 0
-      Height = 48
+      Height = 45
       Top = 40
-      Width = 288
+      Width = 275
       Alignment = taCenter
       Caption = 'The file has been detected as an image.'#10'Would you like to import the contents or add to the open image?'
       Constraints.MaxWidth = 288

@@ -27,9 +27,9 @@ object SearchForm: TSearchForm
     OnPaint = FormPaint
     object SearchFiletypeLabel: TLabel
       Left = 16
-      Height = 16
+      Height = 19
       Top = 37
-      Width = 57
+      Width = 71
       Alignment = taRightJustify
       Caption = 'Filetype:'
       Font.Color = clWindowText
@@ -64,9 +64,9 @@ object SearchForm: TSearchForm
     end
     object SearchFilenameLabel: TLabel
       Left = 8
-      Height = 16
+      Height = 19
       Top = 10
-      Width = 64
+      Width = 80
       Alignment = taRightJustify
       Caption = 'Filename:'
       Font.Color = clWindowText

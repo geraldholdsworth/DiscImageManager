@@ -22,7 +22,8 @@ uses
   SettingsUnit in 'SettinsUnit.pas',
   ImportSelectorUnit in 'ImportSelectorUnit.pas',
   PWordEditorUnit in 'PWordEditorUnit.pas',
-  AFSPartitionUnit in 'AFSParitionUnit.pas';
+  AFSPartitionUnit in 'AFSParitionUnit.pas',
+  ChangeInterleaveUnit in 'ChangeInterleaveUnit.pas';
 
 {$R *.res}
 
@@ -43,5 +44,6 @@ begin
  Application.CreateForm(TImportSelectorForm, ImportSelectorForm);
  Application.CreateForm(TPwordEditorForm, PwordEditorForm);
  Application.CreateForm(TAFSPartitionForm, AFSPartitionForm);
+ Application.CreateForm(TChangeInterleaveForm, ChangeInterleaveForm);
  Application.Run;
 end.

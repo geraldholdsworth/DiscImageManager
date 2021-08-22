@@ -64,6 +64,8 @@ type
    cb_AFS_pubr: TCheckBox;
    cb_AFS_pubw: TCheckBox;
    menuFixADFS: TMenuItem;
+   menuDefrag: TMenuItem;
+   menuChangeInterleave: TMenuItem;
    ToolBarContainer: TCoolBar;
    FilesToolBar: TToolBar;
    menuImage: TMenuItem;
@@ -71,6 +73,8 @@ type
    menuTools: TMenuItem;
    menuPartition: TMenuItem;
    btn_AddPartition: TToolButton;
+   btn_ChangeInterleave: TToolButton;
+   btn_Defrag: TToolButton;
    ToolsToolBar: TToolBar;
    PartitionToolBar: TToolBar;
    DuplicateFile1: TMenuItem;
@@ -219,7 +223,9 @@ type
    //Events - mouse clicks
    procedure btn_AddPartitionClick(Sender: TObject);
    procedure btn_AddPasswordClick(Sender: TObject);
+   procedure btn_ChangeInterleaveClick(Sender: TObject);
    procedure btn_CloseImageClick(Sender: TObject);
+   procedure btn_DefragClick(Sender: TObject);
    procedure btn_DeletePartitionClick(Sender: TObject);
    procedure btn_EditPasswordClick(Sender: TObject);
    procedure btn_FileSearchClick(Sender: TObject);
@@ -301,7 +307,7 @@ type
    procedure ToolBarContainerChange(Sender: TObject);
    //Misc
    function CreateDirectory(dirname,attr: String): TTreeNode;
-   procedure ImportFiles(NewImage: TDiscImage);
+   procedure ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);
    procedure SwapLabelEdit(editcont: TEdit;labelcont: TLabel;dir,hex: Boolean);
    function QueryUnsaved: Boolean;
    function GetFilePath(Node: TTreeNode): String;
@@ -350,6 +356,7 @@ type
    procedure CreateFileTypeDialogue;
    procedure DoCopyMove(copymode: Boolean);
    procedure WriteToDebug(line: String);
+   procedure Defrag(side: Byte);
   private
    var
     //To keep track of renames
@@ -487,9 +494,11 @@ type
    //Debug log filename
    debuglogfile  :String;
    const
+    //DPI that the application was designed in
+    DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.35';
+    ApplicationVersion = '1.36';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -535,40 +544,38 @@ implementation
 uses
   AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SearchUnit,
   CustomDialogueUnit,ErrorLogUnit,SettingsUnit,ImportSelectorUnit,
-  PWordEditorUnit,AFSPartitionUnit;
+  PWordEditorUnit,AFSPartitionUnit,ChangeInterleaveUnit;
 
 {------------------------------------------------------------------------------}
 //Rescale the form
 {------------------------------------------------------------------------------}
 procedure TMainForm.AfterConstruction;
 var
- i: Integer;
+ i,ppi: Integer;
+ ratio: Real;
 begin
  inherited;
- if Screen.PixelsPerInch<>DesignTimePPI then
+ ppi:=Screen.PixelsPerInch;//Can use TMonitor.PixelsPerInch to scale to a big monitor
+ if ppi<>DesignedDPI then
  begin
+  ratio:=ppi/DesignedDPI;
   //Status Bar
-  ImageDetails.Height:=
-                  Round(ImageDetails.Height*Screen.PixelsPerInch/DesignTimePPI);
-  ImageDetails.Panels[0].Width:=ImageDetails.Height;
+  ImageDetails.Height            :=Round(ImageDetails.Height*ratio);
+  ImageDetails.Panels[0].Width   :=ImageDetails.Height;
   for i:=0 to -1+ImageDetails.Panels.Count do
-   ImageDetails.Panels[i].Width:=
-         Round(ImageDetails.Panels[i].Width*Screen.PixelsPerInch/DesignTimePPI);
+   ImageDetails.Panels[i].Width  :=Round(ImageDetails.Panels[i].Width*ratio);
   //Tool bars
-  ImageToolBar.ImagesWidth:=
-              Round(ImageToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
-  FilesToolBar.ImagesWidth:=
-              Round(FilesToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
-  PartitionToolBar.ImagesWidth:=
-              Round(PartitionToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
-  ToolsToolBar.ImagesWidth:=
-              Round(ToolsToolBar.ImagesWidth*Screen.PixelsPerInch/DesignTimePPI);
+  ImageToolBar.ImagesWidth       :=Round(ImageToolBar.ImagesWidth*ratio);
+  FilesToolBar.ImagesWidth       :=Round(FilesToolBar.ImagesWidth*ratio);
+  PartitionToolBar.ImagesWidth   :=Round(PartitionToolBar.ImagesWidth*ratio);
+  ToolsToolBar.ImagesWidth       :=Round(ToolsToolBar.ImagesWidth*ratio);
   //Toolbar bands
-  ToolBarContainer.Bands[0].Width:=ImageToolBar.Width+14;
-  ToolBarContainer.Bands[1].Width:=FilesToolBar.Width+14;
-  ToolBarContainer.Bands[2].Width:=PartitionToolBar.Width+14;
-  ToolBarContainer.Bands[3].Width:=ToolsToolBar.Width+14;
-  //Can use TMonitor.PixelsPerInch to scale to a big monitor
+  ToolBarContainer.Bands[0].Width:=ImageToolBar.Width+Round(14*ratio);
+  ToolBarContainer.Bands[1].Width:=FilesToolBar.Width+Round(14*ratio);
+  ToolBarContainer.Bands[2].Width:=PartitionToolBar.Width+Round(14*ratio);
+  ToolBarContainer.Bands[3].Width:=ToolsToolBar.Width+Round(14*ratio);
+  //Directory Listing
+  DirList.ImagesWidth            :=Round(DirList.ImagesWidth*ratio);
  end;
 end;
 
@@ -840,7 +847,7 @@ begin
   ErrorLogForm.Left:=Left;
   //Resize the form
   ErrorLogForm.Width:=Width;
-  ErrorLogForm.Height:=Round(64*Screen.PixelsPerInch/ErrorLogForm.DesignTimePPI);
+  ErrorLogForm.Height:=Round(64*Screen.PixelsPerInch/DesignedDPI);
   //If it is off the screen, put it on the screen
   if ErrorLogForm.Top>Screen.DesktopHeight then ErrorLogForm.Top:=0;
  end;
@@ -1310,7 +1317,7 @@ function TMainForm.GetImageFilename(dir,entry: Integer): String;
 begin
  Result:='';
  if(dir>=0)and(dir<Length(Image.Disc))then
-  if Length(Image.Disc[dir].Entries)=0 then
+  if(Length(Image.Disc[dir].Entries)=0)or(entry=-1)then
    Result:=Image.Disc[dir].Directory
   else
    Result:=Image.GetParent(dir)+Image.DirSep
@@ -1953,37 +1960,41 @@ begin
  btn_Delete.Hint        :='Delete File'+multiple;
  //Enable the buttons, if there is a selection, otherwise disable
  btn_download.Enabled     :=DirList.SelectionCount>0;
- ExtractFile1.Enabled     :=DirList.SelectionCount>0;
- menuExtractFile.Enabled  :=DirList.SelectionCount>0;
- DeleteFile1.Enabled      :=DirList.SelectionCount>0;
+ ExtractFile1.Enabled     :=btn_download.Enabled;
+ menuExtractFile.Enabled  :=btn_download.Enabled;    
  btn_Delete.Enabled       :=DirList.SelectionCount>0;
- menuDeleteFile.Enabled   :=DirList.SelectionCount>0;
- HexDump1.Enabled         :=DirList.SelectionCount=1;
- menuHexDump.Enabled      :=DirList.SelectionCount=1;
+ DeleteFile1.Enabled      :=btn_Delete.Enabled;
+ menuDeleteFile.Enabled   :=btn_Delete.Enabled;       
  btn_HexDump.Enabled      :=DirList.SelectionCount=1;
- DuplicateFile1.Enabled   :=DirList.SelectionCount=1;
- menuDuplicateFile.Enabled:=DirList.SelectionCount=1;
+ HexDump1.Enabled         :=btn_HexDump.Enabled;
+ menuHexDump.Enabled      :=btn_HexDump.Enabled;     
  btn_DuplicateFile.Enabled:=DirList.SelectionCount=1;
+ DuplicateFile1.Enabled   :=btn_DuplicateFile.Enabled;
+ menuDuplicateFile.Enabled:=btn_DuplicateFile.Enabled;
  //Delete and Save Partition
  afspart:=False;
  //Check for DFS double sided
- if(Image.FormatNumber>>4=diAcornDFS)
- and(Image.DoubleSided)then afspart:=True;
+ if(Image.FormatNumber>>4=diAcornDFS)and(Image.DoubleSided)then afspart:=True;
  //Check for ADFS/AFS Hybrid
  if Image.FormatNumber=diAcornADFS<<4+$E then afspart:=True;
  btn_DeletePartition.Enabled:=(afspart)and(DirList.SelectionCount=1);
- menuDeletePartition.Enabled:=(afspart)and(DirList.SelectionCount=1);
+ menuDeletePartition.Enabled:=btn_DeletePartition.Enabled;
  btn_SavePartition.Enabled  :=(afspart)and(DirList.SelectionCount=1);
- menuSavePartition.Enabled  :=(afspart)and(DirList.SelectionCount=1);
+ menuSavePartition.Enabled  :=btn_SavePartition.Enabled;
  //Check for 8 bit ADFS
  btn_AddPartition.Enabled   :=(Image.FormatNumber>>4=diAcornADFS)
                            and(Image.DirectoryType=diADFSOldDir)
                            and(Image.MapType=diADFSOldMap)
                            and(not Image.AFSPresent);
- menuAddPartition.Enabled   :=(Image.FormatNumber>>4=diAcornADFS)
-                           and(Image.DirectoryType=diADFSOldDir)
-                           and(Image.MapType=diADFSOldMap)
-                           and(not Image.AFSPresent);
+ menuAddPartition.Enabled   :=btn_AddPartition.Enabled;
+ //Defrag (Compact) button
+ btn_defrag.Enabled:=Length(Image.Disc)>0;
+ menudefrag.Enabled:=btn_defrag.Enabled;
+ //Change Interleave
+ btn_ChangeInterleave.Enabled:=(Image.FormatNumber=diAcornADFS<<4+2) //ADFS L
+                             or(Image.FormatNumber=diAcornADFS<<4+$E)//ADFS Hybrid
+                             or(Image.FormatNumber>>4=diAcornFS);    //Acorn FS
+ menuChangeInterleave.Enabled:=btn_ChangeInterleave.Enabled;
  //Change the captions
  temp:='Partition';
  if Image.FormatNumber>>4=diAcornDFS then temp:='Side';
@@ -2178,8 +2189,7 @@ begin
    img_Filetype.Hint:='';
    lb_FileType.Hint :='';
   end;
-  if(not TMyTreeNode(Node).IsDir)//Can only add files to a directory
-  or((afspart)and(Image.FormatNumber>>4=diAcornADFS))then//And not to ADFS section of hybrids
+  if not TMyTreeNode(Node).IsDir then //Can only add files to a directory
   begin
    AddFile1.Enabled        :=False;
    btn_AddFiles.Enabled    :=False;
@@ -2420,7 +2430,7 @@ begin
  //Keep the application open
  KeepOpen:=True;
  //Initial width and height of form
- Width:=876;
+ Width:=751;
  Height:=515;
  //Enable or disable buttons
  DisableControls;
@@ -2759,6 +2769,12 @@ begin
     //Now delete it - no confirmations
     DeleteFile(false);
    end;
+   //Change Interleave Method +++++++++++++++++++++++++++++++++++++++++++++++++++
+   if(option='--interleave')or(option='-in')then
+    if(Image.FormatNumber=diAcornADFS<<4+2)
+    or(Image.FormatNumber=diAcornADFS<<4+$E)
+    or(Image.FormatNumber>>4=diAcornFS)then
+     if Image.ChangeInterleaveMethod(StrToIntDef(param,0)) then HasChanged:=True;
    //Extract files ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    if (option='--extract') or (option='-e') then
    begin
@@ -2838,6 +2854,8 @@ begin
    //Update the status bar
    UpdateImageInfo;
   end;
+ //Defrag image ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ if(option='--defrag')or(option='-df')then Defrag(StrToIntDef(param,0));
  //Keep Application Open +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  if (option='--keepopen') or (option='-k') then
   KeepOpen:=True;
@@ -3121,41 +3139,81 @@ end;
 {------------------------------------------------------------------------------}
 //Import an image's contents into the current image
 {------------------------------------------------------------------------------}
-procedure TMainForm.ImportFiles(NewImage: TDiscImage);
+procedure TMainForm.ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);
 var
  Node      : TTreeNode;
  newentry  : TDirEntry;
- rootname  : String;
+ rootname,
+ method    : String;
  curformat,
- newformat : Byte;
- dir,
- entry     : Cardinal;
+ newformat,
+ side,
+ sidecount : Byte;
+ dir,dr,
+ entry,
  index,
  MaxDirEnt,
  NumFiles  : Integer;
  buffer    : TDIByteArray;
  ok        : Boolean;
 begin
- //Show a progress message
- ProgressForm.Show;
- //Process the messages to close the file dialogue box
- Application.ProcessMessages;
- //Import the contents
- NewImage.ReadImage;//First, read in the catalogue
- ProgressForm.Hide;
- Application.ProcessMessages;
+ //Read in the catalogue of the new image, if there is none
+ if Length(NewImage.Disc)=0 then
+ begin
+  //Show a progress message
+  ProgressForm.Show;
+  //Process the messages to close the file dialogue box
+  Application.ProcessMessages;
+  //Read the catalogue
+  NewImage.ReadImage;
+  ProgressForm.Hide;
+  Application.ProcessMessages;
+ end;
  //Show the contents in the import selector box
  ImportSelectorForm.Show; //The TTreeView needs to be visible
  //Copy the DiscImage across
- ImportSelectorForm.FImage:=NewImage;;
+ ImportSelectorForm.FImage:=NewImage;
  //Add the disc image to the tree
  AddImageToTree(ImportSelectorForm.ImportDirList,NewImage);
- //Tick them all (just by ticking the first one)
- ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[0],True);
+ //Which side to tick
+ side:=0;
+ if DirList.SelectionCount>0 then
+ begin
+  entry:=DirList.Selections[0].Index;
+  if DirList.Selections[0].Parent<>nil then
+   dir:=TMyTreeNode(DirList.Selections[0].Parent).DirRef
+  else
+   dir:=-1;
+  dr:=TMyTreeNode(DirList.Selections[0]).DirRef;
+  if dir>=0 then side:=Image.Disc[dir].Entries[entry].Side
+  else side:=Image.Disc[dr].Partition;
+ end;
+ //Tick them all (just by ticking the roots...i.e. those without parents)
+ if ImportSelectorForm.ImportDirList.Items.Count>0 then
+ begin
+  sidecount:=0;
+  for index:=0 to ImportSelectorForm.ImportDirList.Items.Count-1 do
+   if ImportSelectorForm.ImportDirList.Items[index].Parent=nil then
+   begin
+    if sidecount=side then //Only tick the root on the first side/partition
+    begin
+     ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],True);
+     ImportSelectorForm.ImportDirList.Items[index].Expand(False);
+    end
+    else                   //And untick the other side/partition
+    begin
+     ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],False);
+     ImportSelectorForm.ImportDirList.Items[index].Collapse(True);
+    end;
+    inc(sidecount);
+   end;
+ end;
  //Now we need to hide the form so we can show it again, but modally.
  ImportSelectorForm.Hide;
  //And, finally, modally
- if ImportSelectorForm.ShowModal=mrOK then //And start the import
+ ok:=True;
+ if Dialogue then ok:=ImportSelectorForm.ShowModal=mrOK;
+ if ok then //And start the import
  begin
   //Work out the Maximum Directory Entries, now the user has chosen which files
   MaxDirEnt:=0;
@@ -3183,7 +3241,8 @@ begin
     or((MaxDirEnt>77)and(Image.DirectoryType=diADFSNewDir))))
   or  ((Image.FormatNumber>>4=diAcornDFS)and(NumFiles>31))     //Check DFS
   or  ((Image.FormatNumber>>4=diCommodore)and(NumFiles>144))   //Check Commodore
-  then ok:=AskConfirm(
+  then
+   if Dialogue then ok:=AskConfirm(
            'The current open image is not suitable for this archive. '
           +'Would you like to continue regardless?',
           'Yes','No','')=mrOK;
@@ -3195,6 +3254,9 @@ begin
    //Show the progress form again
    ProgressForm.Show;
    Application.ProcessMessages;
+   //Importing or moving (this is also used by defrag)
+   method:='Importing';
+   if not Dialogue then method:='Moving';
    //Turn error reporting off
    ErrorReporting:=False;
    //Clear the log
@@ -3228,8 +3290,7 @@ begin
         newentry:=NewImage.Disc[dir].Entries[entry];
         //Set the parent, as this may be different
         newentry.Parent:=NewImage.GetParent(dir);
-        UpdateProgress('Importing '+newentry.Parent+NewImage.DirSep+
-                                    newentry.Filename);
+        UpdateProgress(method+' '+newentry.Parent+NewImage.DirSep+newentry.Filename);
         //Validate the filename, as it could be different across file systems
         if newformat<>diAcornDFS then WinToBBC(newentry.Filename); //Not DFS
         //DFS and C64 don't have directories, so the parent is the selected node
@@ -3284,6 +3345,7 @@ begin
            CreateDirectory(newentry.Filename,'DLR');
          //Is it a file
          if newentry.DirRef=-1 then
+         begin
           //Read the file in
           if NewImage.ExtractFile(NewImage.GetParent(dir)
                                  +NewImage.DirSep
@@ -3295,8 +3357,18 @@ begin
            //Then add it to the tree, if successful
            if index>=0 then
             AddFileToTree(DirList.Selected,newentry.Filename,index,False,
-                          DirList{,Image});
-          end;
+                          DirList)
+           else //Failed to write the file
+            ReportError('Failed when '+method+' '+newentry.Parent+NewImage.DirSep
+                                                 +newentry.Filename
+                                                 +' : '
+                                                 +AddFileErrorToText(-index));
+          end
+          else //Failed to read the file
+           ReportError('Failed to read '+NewImage.GetParent(dir)
+                                        +NewImage.DirSep
+                                        +NewImage.Disc[dir].Entries[entry].Filename);
+         end;
         end;
        end;
    UpdateImageInfo;
@@ -3970,6 +4042,106 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Change the interleave of an image
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_ChangeInterleaveClick(Sender: TObject);
+begin
+ //Setup the Change Interleave dialogue
+ ChangeInterleaveForm.lb_Current.Caption:=Image.InterleaveInUse;
+ ChangeInterleaveForm.cb_NewMethod.ItemIndex:=Image.InterleaveInUseNum-1;
+ //Open the dialogue to select Interleave method
+ ChangeInterleaveForm.ShowModal;
+ //Change the Interleave
+ if ChangeInterleaveForm.ModalResult=mrOK then
+  if Image.ChangeInterleaveMethod(ChangeInterleaveForm.cb_NewMethod.ItemIndex+1) then
+   HasChanged:=True;
+end;
+
+{------------------------------------------------------------------------------}
+//Defrags (Compacts) the image (button click)
+{------------------------------------------------------------------------------}
+procedure TMainForm.btn_DefragClick(Sender: TObject);
+var
+ side      : Byte;
+ dir,
+ dr,entry  : Integer;
+begin
+ if Length(Image.Disc)>0 then
+ begin
+  //Determine which side/partition
+  side:=0;
+  if DirList.SelectionCount>0 then
+  begin
+   entry:=DirList.Selections[0].Index;
+   if DirList.Selections[0].Parent<>nil then
+    dir:=TMyTreeNode(DirList.Selections[0].Parent).DirRef
+   else
+    dir:=-1;
+   dr:=TMyTreeNode(DirList.Selections[0]).DirRef;
+   if dir>=0 then side:=Image.Disc[dir].Entries[entry].Side
+   else side:=Image.Disc[dr].Partition;
+  end;
+  //Call the defrag procedure
+  Defrag(side);
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//Defrags (Compacts) the image
+{------------------------------------------------------------------------------}
+procedure TMainForm.Defrag(side: Byte);
+var
+ NewImage  : TDiscImage;
+ ok        : Boolean;
+ sidecount,
+ index,root: Integer;
+begin
+ if Length(Image.Disc)>0 then
+ begin
+  //Create a new image, cloning the old one
+  NewImage:=TDiscImage.Create(Image);
+  //We need to work out the root reference
+  root:=0;
+  if DirList.Items.Count>0 then
+  begin
+   sidecount:=0;
+   for index:=0 to DirList.Items.Count-1 do
+    if DirList.Items[index].Parent=nil then
+    begin
+     if sidecount=side then root:=TMyTreeNode(DirList.Items[index]).DirRef;
+     inc(sidecount);
+    end;
+  end;
+  //Delete all the existing files in the root
+  while Length(Image.Disc[root].Entries)>0 do
+  begin
+   SelectNode(Image.Disc[root].Entries[0].Parent
+             +Image.DirSep
+             +Image.Disc[root].Entries[0].Filename);
+   DeleteFile(False);
+  end;
+  ok:=Length(Image.Disc[root].Entries)=0;
+  if ok then //Deleted all the files OK, so import again
+  begin
+   SelectNode(Image.Disc[root].Directory);
+   //Import the contents of the current image into it
+   ImportFiles(NewImage,False);
+   //Update the changed flag
+   HasChanged:=True;
+   //And the directory display
+   ShowNewImage(Image.Filename);
+   UpdateImageInfo;
+  end
+  else //Didn't create a new image, so revert
+  begin
+   Image.Free;
+   Image:=TDiscImage.Create(NewImage);
+  end;
+  NewImage.Free;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
 //Adds a new AFS partition to an ADFS image
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_AddPartitionClick(Sender: TObject);
@@ -4050,9 +4222,11 @@ begin
  ref:=0;
  //Assume the root, for now
  parentdir:='$';
- if DirList.Selected.Text<>'$' then //If not the root, get the parent directory
-  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
-                                          DirList.Selected.Index);
+ if DirList.Selections[0].Parent<>nil then //If not the root, get the parent directory
+  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selections[0]).ParentDir,
+                                          DirList.Selections[0].Index)
+ else
+  parentdir:=GetImageFilename(TMyTreeNode(DirList.Selections[0]).DirRef,-1);
  //Default name
  dirname:='NewDir';
  //Make sure it doesn't exist
@@ -4273,8 +4447,8 @@ begin
  //Tile the tree
  TileCanvas(Sender.Canvas,ARect);
  //Set the height of the icons to match the font
- if DirList.Items.Count>0 then
-  DirList.ImagesWidth:=DirList.Items[0].Height-3;
+{ if DirList.Items.Count>0 then
+  DirList.ImagesWidth:=DirList.Items[0].Height-3;}
  DefaultDraw:=True;
 end;
 
@@ -4404,9 +4578,11 @@ begin
   ReportError('Cannot find parent when adding directory "'+dirname+'"')
  else
  begin
-  if DirList.Selections[0].Text<>'$' then //If not the root, get the parent directory
-   parentdir:=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
-                                           DirList.Selected.Index);
+  if DirList.Selections[0].Parent<>nil then //If not the root, get the parent directory
+   parentdir:=GetImageFilename(TMyTreeNode(DirList.Selections[0]).ParentDir,
+                                           DirList.Selections[0].Index)
+  else
+   parentdir:=GetImageFilename(TMyTreeNode(DirList.Selections[0]).DirRef,-1);
   //Add it
   index:=Image.CreateDirectory(dirname,parentdir,attr);
   //Function returns pointer to next item (or parent if no children)
@@ -5562,6 +5738,8 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ReportError(error: String);
 begin
+ //Remove the top bit, if present
+ RemoveTopBit(error);
  if ErrorReporting then
   if ParamCount>0 then //If we are in command line mode, then do not use the GUI
    WriteLn(error)
@@ -5661,7 +5839,7 @@ begin
  FTDialogue.Caption:='RISC OS Filetypes';
  FTDialogue.Color:=$ECECEC;
  FTDialogue.Visible:=False;
- FTDialogue.Width:=Round((64*5)*(Screen.PixelsPerInch/DesignTimePPI));
+ FTDialogue.Width:=Round((64*5)*(Screen.PixelsPerInch/DesignedDPI));
  FTDialogue.Position:=poMainFormCenter;
  //Scrollbox
  sc:=TScrollbox.Create(FTDialogue);
@@ -5675,8 +5853,8 @@ begin
  begin
   FTButtons[i-3]:=TSpeedButton.Create(sc);
   FTButtons[i-3].Parent:=sc;
-  FTButtons[i-3].Width:=Round(64*(Screen.PixelsPerInch/DesignTimePPI));
-  FTButtons[i-3].Height:=Round(64*(Screen.PixelsPerInch/DesignTimePPI));
+  FTButtons[i-3].Width:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
+  FTButtons[i-3].Height:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
   FTButtons[i-3].Caption:=Image.GetFileTypeFromNumber(StrToInt('$'+FileTypes[i]));
   FTButtons[i-3].Tag:=StrToInt('$'+FileTypes[i]);
   FTButtons[i-3].Left:=((i-3)mod 5)*FTButtons[i-3].Width;
@@ -5684,7 +5862,7 @@ begin
   FTButtons[i-3].Flat:=True;
   FTButtons[i-3].GroupIndex:=1;
   FTButtons[i-3].Images:=FileImages;
-  FTButtons[i-3].ImageWidth:=Round(32*(Screen.PixelsPerInch/DesignTimePPI));
+  FTButtons[i-3].ImageWidth:=Round(32*(Screen.PixelsPerInch/DesignedDPI));
   FTButtons[i-3].Layout:=blGlyphTop;
   FTButtons[i-3].ImageIndex:=i;
   FTButtons[i-3].OnClick:=@FileTypeClick;
@@ -5697,11 +5875,11 @@ begin
  //Custom filetype
  FTEdit:=TEdit.Create(sc);
  FTEdit.Parent:=sc;
- FTEdit.Width:=Round(64*(Screen.PixelsPerInch/DesignTimePPI));
+ FTEdit.Width:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
  FTEdit.Text:='';
  FTEdit.Font.Name:='Courier New';
  FTEdit.Alignment:=taCenter;
- i:=Round(64*(Screen.PixelsPerInch/DesignTimePPI));
+ i:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
  FTEdit.Top:=(((riscoshigh-2)div 5)*i)+Round((i-FTEdit.Height)/2);
  FTEdit.Left:=((riscoshigh-2)mod 5)*FTEdit.Width;
  FTEdit.OnKeyPress:=@FileTypeKeyPress;

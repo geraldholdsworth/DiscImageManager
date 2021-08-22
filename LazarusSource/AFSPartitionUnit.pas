@@ -37,11 +37,17 @@ uses MainUnit;
 
 { TAFSPartitionForm }
 
+{------------------------------------------------------------------------------}
+//Update the size label
+{------------------------------------------------------------------------------}
 procedure TAFSPartitionForm.PartitionSizeChange(Sender: TObject);
 begin
  PartitionSizeLabel.Caption:=FloatToStr((PartitionSize.Position*$100)/1024)+'KB';
 end;
 
+{------------------------------------------------------------------------------}
+//Tile the form
+{------------------------------------------------------------------------------}
 procedure TAFSPartitionForm.FormResize(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);

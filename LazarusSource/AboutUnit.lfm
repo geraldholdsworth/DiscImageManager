@@ -1,5 +1,5 @@
 object AboutForm: TAboutForm
-  Left = 432
+  Left = 433
   Height = 306
   Top = 179
   Width = 520
@@ -120,7 +120,7 @@ object AboutForm: TAboutForm
     end
     object AckLabel: TLabel
       Left = 1
-      Height = 160
+      Height = 247
       Top = 144
       Width = 518
       Align = alTop

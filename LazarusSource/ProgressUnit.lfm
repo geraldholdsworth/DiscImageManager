@@ -43,9 +43,9 @@ object ProgressForm: TProgressForm
     end
     object WaitLabel: TLabel
       Left = 1
-      Height = 38
+      Height = 45
       Top = 1
-      Width = 331
+      Width = 337
       Alignment = taCenter
       Caption = 'Please wait, working...'
       ParentColor = False

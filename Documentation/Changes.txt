@@ -684,6 +684,21 @@ Bug fixes
 * The attribute panel would be shown when a root directory is selected.
 * The Free Space Map for ADFS/AFS hybrids was not getting read correctly.
 
+1.36 - 22nd August 2021
+-----------------------
+New or improved features
+* Added button and menu item for Defrag/Compact.
+* Added button and menu item for Change Interleave.
+* Implemented Defrag/Compact functionality.
+* On import, the Import Selector dialogue takes account of which side/partition is being imported to and automatically selects the appropriate side/partition on the incoming image, if appropriate.
+* Implemented Change Interleave for ADFS and AFS.
+* Added command line options for defrag and change interleave.
+
+Bug fixes
+* The Import Selector dialogue did not include a tick box for the second side/partition of a double sided DFS, or an ADFS/AFS Hybrid.
+* When adding files (specifially multi-zoned ADFS New Map), some would fail to write because the application was trying to write them off the end of the partition.
+* Deletions, additions and renames were not working on the Acorn FS partition of a hybrid image.
+* Writes, where the file would get fragmented, was not implemented. This was because the function which allocates fragments had not been fully completed to account for fragmenting an object.
 
 Platform History
 ----------------
@@ -694,3 +709,4 @@ Version 1.05.1         : Linux 64 bit added
 Version 1.05.3         : macOS 32 bit added
 Version 1.05.9         : Linux 32 bit added
 Version 1.05.10        : Raspbian OS 32 bit added
+Version 1.35           : No Raspbian OS 32 bit version

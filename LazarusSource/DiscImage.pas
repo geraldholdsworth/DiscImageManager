@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.35
+TDiscImage class V1.36
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -49,6 +49,7 @@ type
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
    Broken,                          //Flag if directory is broken (ADFS)
    Locked,                          //Flag if disc is locked (MMFS)
+   DOSPartition,                    //Is this in the DOS Plus partition? (ADFS/DOS Plus)
    AFSPartition: Boolean;           //Is this in the AFS partition? (ADFS/AFS)
    Sector,                          //Where is this directory located (same as TDirEntry)
    Partition   : Cardinal;          //Which partition (side) is this on?
@@ -74,6 +75,7 @@ type
   FBootBlock,                   //Is disc an AmigaDOS Kickstart?
   Fupdating,                    //Has BeginUpdate been called?
   FAFSPresent,                  //Is there an AFS partition present? (ADFS)
+  FDOSPresent,                  //Is there a DOS Plus partition present? (ADFS)
   FSparkAsFS,                   //Deal with Spark archives as a filing system
   FDFSzerosecs  : Boolean;      //Allow zero length disc images for DFS?
   secsize,                      //Sector Size
@@ -82,6 +84,7 @@ type
   root,                         //Root address (not fragment)
   rootfrag,                     //Root indirect address (Acorn ADFS New)
   Fafsroot,                     //Root address of the AFS root partition
+  Fdosroot,                     //Root address of the DOS Plus root partition
   afshead,                      //Address of the AFS header             
   afshead2,                     //Address of the AFS header copy
   bootmap,                      //Offset of the map (Acorn ADFS)
@@ -89,6 +92,7 @@ type
   format_vers,                  //Format version (Acorn ADFS New)
   root_size,                    //Size of the root directory (Acorn ADFS New)
   afsroot_size,                 //Size of the AFS Root directory
+  dosroot_size,                 //Size of the DOS Plus Root directory
   disc_id,                      //Disc ID (Acorn ADFS)
   emuheader,                    //Allow for any headers added by emulators
   namesize,                     //Size of the name area (Acorn ADFS Big Dir)
@@ -362,11 +366,14 @@ type
    disctitle    = 'DiscImgMgr';
    afsdisctitle = 'DiscImageManager'; //AFS has longer titles
    //Root name to use when AFS is partition on ADFS
-   afsrootname  = ':AFS$';
+   afsrootname  = ':AFS$';                                   
+   //Root name to use when DOS Plus is partition on ADFS
+   dosrootname  = ':DOS+$';
    {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
  published
   //Methods
   constructor Create;
+  constructor Create(Clone: TDiscImage); overload;
   function LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
   function IDImage: Boolean;
   procedure ReadImage;
@@ -417,6 +424,7 @@ type
   function GetMaxLength: Cardinal;
   function AddPartition(size: Cardinal): Boolean;
   function AddPartition(filename: String): Boolean; overload;
+  function ChangeInterleaveMethod(NewMethod: Byte): Boolean;
   //Properties
   property Disc:                TDisc         read FDisc;
   property FormatString:        String        read FormatToString;
@@ -428,19 +436,23 @@ type
   property MapTypeString:       String        read MapTypeToString;
   property DirectoryTypeString: String        read DirTypeToString;
   property DirSep:              Char          read dir_sep;
-  property Filename:            String        read imagefilename;
+  property Filename:            String        read imagefilename write imagefilename;
   property FreeSpaceMap:        TSide         read free_space_map;
   property BootOpt:             TDIByteArray  read bootoption;
   property RootAddress:         Cardinal      read GetRootAddress;
   property AFSRoot:             Cardinal      read Fafsroot;
+  property DOSPlusRoot:         Cardinal      read Fdosroot;
   property CRC32:               String        read GetImageCrc;
   property ProgressIndicator:   TProgressProc write FProgress;
   property InterleaveMethod:    Byte          read FForceInter write FForceInter;
   property InterleaveInUse:     String        read InterleaveString;
+  property InterleaveInUseNum:  Byte          read FInterleave;
   property MaxDirectoryEntries: Cardinal      read FMaxDirEnt;
   property SparkAsFS:           Boolean       read FSparkAsFS write FSparkAsFS;
   property AFSPresent:          Boolean       read FAFSPresent;
+  property DOSPresent:          Boolean       read FDOSPresent;
   property AllowDFSZeroSectors: Boolean       read FDFSzerosecs write FDFSzerosecs;
+  property RAWData:             TDIByteArray  read Fdata;
  public
   destructor Destroy; override;
  End;
@@ -463,16 +475,19 @@ begin
  FMap          :=False;
  FBootBlock    :=True;
  FAFSPresent   :=False;
+ FDOSPresent   :=False;
  secsize       :=$0100;
  bpmb          :=$0000;
  nzones        :=$0000;
  root          :=$0000;
  Fafsroot      :=$0000;
+ Fdosroot      :=$0000;
  bootmap       :=$0000;
  zone_spare    :=$0000;
  format_vers   :=$0000;
  root_size     :=$0000;
  afsroot_size  :=$0000;
+ dosroot_size  :=$0000;
  disc_id       :=$0000;
  SetLength(disc_size,1);
  disc_size[0]  :=$0000;
@@ -1372,6 +1387,30 @@ begin
  FSparkAsFS:=True;
  //Allow DFS images which report number of sectors as zero
  FDFSzerosecs:=True;
+end;
+constructor TDiscImage.Create(Clone: TDiscImage);
+var
+ index: Cardinal;
+begin
+ inherited Create;
+ //Reset the variables to default
+ ResetVariables;
+ SetDataLength(Length(Clone.RAWData));
+ //Copy the raw data across
+ for index:=0 to Length(Fdata)-1 do
+  Fdata[index]:=Clone.RAWData[index];
+ //ADFS Interleaving option
+ FForceInter  :=Clone.InterleaveMethod;
+ //Deal with Spark archives as a filing system (i.e. in this class)
+ FSparkAsFS   :=Clone.SparkAsFS;
+ //Allow DFS images which report number of sectors as zero
+ FDFSzerosecs :=Clone.AllowDFSZeroSectors;
+ //Filename
+ FFilename    :=Clone.Filename;
+ //Just read the data in
+ If IDImage then ReadImage;
+ //And set the filename
+ imagefilename:=FFilename;
 end;
 
 {-------------------------------------------------------------------------------
@@ -2641,6 +2680,35 @@ begin
  //Only for Acorn DFS
  if(FFormat>>4=diAcornDFS)and(not FDSD)then //Single sided images only
   Result:=AddDFSSide(filename);
+end;
+
+{-------------------------------------------------------------------------------
+Change the Interleave Method
+-------------------------------------------------------------------------------}
+function TDiscImage.ChangeInterleaveMethod(NewMethod: Byte): Boolean;
+var
+ buffer: TDIByteArray;
+ index : Cardinal;
+begin
+ Result:=False;
+ //Are we actually changing, and is it within range?
+ if(NewMethod<>Finterleave)and(NewMethod>0)and(NewMethod<4)then
+  //Only works with ADFS L and Acorn FS
+  if(FFormat=diAcornADFS<<4+2)
+  or(FFormat=diAcornADFS<<4+$E)
+  or(FFormat>>4=diAcornFS) then
+  begin
+   //Set up the buffer
+   SetLength(buffer,GetDataLength);
+   //Copy the data across, converting as we go to sequential
+   for index:=0 to Length(buffer) do
+    buffer[index]:=ReadByte(index);
+   //Now copy back forcing our new method
+   Finterleave:=NewMethod;
+   for index:=0 to Length(buffer) do
+    WriteByte(buffer[index],index);
+   Result:=True;
+  end;
 end;
 
 {$INCLUDE 'DiscImage_ADFS.pas'}

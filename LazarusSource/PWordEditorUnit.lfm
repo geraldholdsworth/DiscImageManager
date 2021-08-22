@@ -10,14 +10,14 @@ object PwordEditorForm: TPwordEditorForm
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Acorn FS User Account Editor'
-  ClientHeight = 254
+  ClientHeight = 267
   ClientWidth = 500
   Color = 15527148
   OnHide = FormHide
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.0.0.4'
+  LCLVersion = '2.0.12.0'
   object AccountsPanel: TPanel
     Left = 0
     Height = 216
@@ -211,7 +211,7 @@ object PwordEditorForm: TPwordEditorForm
   object ControlsPanel: TPanel
     Left = 0
     Height = 50
-    Top = 204
+    Top = 217
     Width = 500
     Align = alBottom
     ClientHeight = 50

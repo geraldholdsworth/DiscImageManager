@@ -1762,6 +1762,12 @@ var
  spacefound   : Boolean;
  fragments    : TFragmentArray;
 begin
+ //Is this on the AFS partition?
+ if LeftStr(file_details.Parent,Length(afsrootname))=afsrootname then
+ begin
+  Result:=WriteAFSFile(file_details,buffer);
+  exit;
+ end;
  l      :=0;
  dir    :=0;
  freeptr:=0;
@@ -1972,7 +1978,8 @@ begin
    //Go through them to find a big enough fragment
    i:=0;
    repeat
-    if fsfragments[i].Length>=filelen then
+    if(fsfragments[i].Length>=filelen)
+    and(fsfragments[i].Offset+filelen<disc_size[0])then
     begin
      //Found one, so set our flag
      spacefound:=True;
@@ -2241,6 +2248,12 @@ var
  buffer    : TDIByteArray;
  fileentry : TDirEntry;
 begin
+ //Is this on the AFS partition?
+ if LeftStr(parent,Length(afsrootname))=afsrootname then
+ begin
+  Result:=CreateAFSDirectory(dirname,parent,attributes);
+  exit;
+ end;
  SetLength(buffer,0);
  Result:=-3;//Directory already exists
  if(dirname='$')OR(parent='$')then //Creating the root
@@ -2664,6 +2677,12 @@ var
  swap   : TDirEntry;
  changed: Boolean;
 begin
+ //Is this on the AFS partition
+ if LeftStr(filename,Length(afsrootname))=afsrootname then
+ begin
+  Result:=RenameAFSFile(oldfilename,newfilename);
+  exit;
+ end;
  Result:=-2; //File does not exist
  //Check that the new name meets the required ADFS filename specs
  newfilename:=ValidateADFSFilename(newfilename);
@@ -2962,6 +2981,12 @@ var
  fileparent: String;
 begin
  Result:=False;
+ //Is this an AFS file?
+ if LeftStr(filename,Length(afsrootname))=afsrootname then
+ begin
+  Result:=DeleteAFSFile(filename);
+  exit;
+ end;
  //Check that the file exists
  if(FileExists(filename,dir,entry))or((filename='$')and(FDirType=diADFSBigDir))then
  begin
@@ -3216,7 +3241,8 @@ begin
  Result   :=False;
  fragments:=nil;
  //Is this on an AFS partition?
- if LeftStr(filename,4)=':AFS' then Result:=ExtractAFSFile(filename,buffer)
+ if LeftStr(filename,Length(afsrootname))=afsrootname then
+  Result:=ExtractAFSFile(filename,buffer)
  else //No, so look on ADFS
  if FileExists(filename,dir,entry) then //Does the file actually exist?
  //Yes, so load it - there is nothing to stop a directory header being extracted

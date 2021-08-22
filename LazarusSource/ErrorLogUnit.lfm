@@ -13,7 +13,6 @@ object ErrorLogForm: TErrorLogForm
     Top = 0
     Width = 485
     Align = alClient
-    Lines.Strings = (    )
     ReadOnly = True
     ScrollBars = ssAutoBoth
     TabOrder = 0

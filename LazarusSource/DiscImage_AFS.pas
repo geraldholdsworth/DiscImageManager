@@ -535,7 +535,7 @@ begin
    Ldiscsize:=disc_size[1];     //Only look at the AFS part of the image
    afsstart:=disc_size[0];      //And not below here, which is the ADFS partition
   end;
-  if sector>=afsstart then //Ensure it is in our 'area'
+  if sector*secsize>=afsstart then //Ensure it is in our 'area'
   begin
    //Read the size of the bitmap
    szofbmp:=ReadByte(afshead+$1C)*secsize;
@@ -805,6 +805,10 @@ begin
  //Are there any?
  if Length(FSM)>0 then
  begin
+  //The above array will have offsets relative to the start of the AFS partition
+  if FFormat>>4=diAcornADFS then
+   for index:=0 to Length(FSM)-1 do
+    inc(FSM[index].Offset,disc_size[0]); //So add the ADFS size to the offset
   //Level 3 includes a 256 byte object header
   if((FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS))
   and(addheader)then inc(size,$100);
@@ -824,10 +828,29 @@ begin
    end
    else inc(index); //No, go to next one
   end;
-  //If not
+  //If not then split the file into fragments
+  //(this part will also work if the file doesn't need fragmenting. However,
+  //this can cause a small file to be fragmented if the first free fragment is
+  //smaller)
   if not found then
   begin
-   exit; //Temporary
+   //Counter into the free fragments
+   index:=0;
+   //Iterate while there is data to account for
+   while size>0 do
+   begin
+    //Add a new fragment to our list
+    SetLength(fragments,Length(fragments)+1);
+    fragments[Length(fragments)-1].Offset:=FSM[index].Offset;
+    if FSM[index].Length>=size then
+     fragments[Length(fragments)-1].Length:=FSM[index].Length
+    else
+     fragments[Length(fragments)-1].Length:=size;
+    //Then decrease the overall length by this fragment's length
+    dec(size,fragments[Length(fragments)-1].Length);
+    //Next FSM fragment
+    inc(index);
+   end;
   end;
   //Split the fragments into sector sized fragments for allocation
   //If more than 47, on Level 3, then we'll need another JesMap block
@@ -882,7 +905,7 @@ begin
       //Mark as written
       WriteBits(1,allocmap+(alloc[index].Offset*2)+6,7,1);
      end;
-     if FFormat=diAcornFS<<4+2 then
+     if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
      begin
       for fragsize:=0 to Ceil(alloc[index].Length/secsize)-1 do
       begin
@@ -1295,10 +1318,10 @@ begin
    if dirname<>'$' then
    begin
     addr:=$0;
-    if parent<>'$' then
+    if(parent<>'$')and(parent<>afsrootname) then
      if FileExists(parent,dir,entry) then
       addr:=FDisc[dir].Entries[entry].Sector;
-    if parent='$' then addr:=Fafsroot div secsize;
+    if(parent='$')or(parent=afsrootname)then addr:=Fafsroot div secsize;
    end else addr:=Fafsroot div secsize;//Unless it is root
    //Update the pointer to the parent
    if addr<>$0 then
@@ -1666,7 +1689,7 @@ begin
    if(file_details.Parent<>'$')and(file_details.Parent<>afsrootname)then
    begin
     dir:=FDisc[pdir].Entries[entry].DirRef;
-    partition:=FDisc[dir].Partition;
+    partition:=FDisc[pdir].Partition;
     sector:=FDisc[pdir].Entries[entry].Sector*secsize;
    end;
    //Set the length
@@ -1746,6 +1769,7 @@ begin
       WriteAFSObject(file_details.Sector*secsize,buffer);
       //Insert it into the directory
       Result:=InsertAFSEntry(dir,file_details);
+      ReadAFSFSM;
      end;
      //We'll look to expand the directory, following the addition, for next time
      newlen:=ExtendAFSDirectory(sector div secsize);
@@ -1753,7 +1777,7 @@ begin
      if(pdir<>$FFFF)and(newlen<>0)then
      begin
       FDisc[pdir].Entries[entry].Length:=newlen;
-      ReadAFSFSM;
+      //ReadAFSFSM;
      end;
     end;
    end;
@@ -1932,8 +1956,14 @@ begin
   end
   else //Not root
   begin
-   addr:=FDisc[dir].Entries[entry].Sector*secsize;
-   dir:=FDisc[dir].Entries[entry].DirRef;
+   if dir<Length(FDisc) then
+    if entry<Length(FDisc[dir].Entries) then
+    begin
+     addr:=FDisc[dir].Entries[entry].Sector*secsize;
+     dir:=FDisc[dir].Entries[entry].DirRef;
+    end
+    else //Must be the root (as 'AFS$')
+     addr:=Fafsroot*secsize;
   end;
   //We'll only continue if there are any entries
   if Length(FDisc[dir].Entries)>0 then

@@ -1,7 +1,7 @@
 unit DiscImageUtils;
 
 {
-DiscImageUtils V1.35 - part of TDiscImage class
+DiscImageUtils V1.36 - part of TDiscImage class
 
 Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
 

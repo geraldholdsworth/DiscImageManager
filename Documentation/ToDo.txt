@@ -4,6 +4,8 @@ In no particular order
 
 Bugs
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
+  + This appears to happen on Windows (and probably Linux), with single screen only (dual or more it does not do this), resolution of 1400 by anything (or more), and scaled to more than 100%. The icons in the Directory Listing grow as the mouse moves.
+  + In addition, the tiling under the graphic for the filetype in the File Details, when it is not big enough, leaves a horrible black edge to the right and bottom.
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
 * Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
@@ -17,13 +19,11 @@ General
 * Ask to force overwrite if many files are getting written.
 * Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
 * Cancel button for progress display?
-* Tool to change the interleave of an image (ADFS L and AFS).
 * Side pane (left hand side) to allow separate images to be opened (REF:3).
 * Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
 
 ADFS
 * Change the size of the ADFS partition or image (ideally, this can be done using a similar method to below - create a new image and import the contents into it).
-* Compact the free space map (this can be done from the GUI - use method to create a new image, same size and format as current, then import the contents of the current image across).
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
@@ -44,3 +44,6 @@ Spark
 * Rename file/directory.
 * Delete file/directory.
 * Move file.
+
+DOS Plus
+* Write entire module.
