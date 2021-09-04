@@ -1,7 +1,7 @@
 unit DiscImageUtils;
 
 {
-DiscImageUtils V1.36 - part of TDiscImage class
+DiscImageUtils V1.37 - part of TDiscImage class
 
 Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
 
@@ -91,11 +91,15 @@ type
   diAcornFS    = $007;
   diSpark      = $008;
   diSJMDFS     = $009;
+  diDOSPlus    = $00A;
   diInvalidImg = $00FF; //Needs to be changed to $FFFF
   diADFSOldMap = $00;
   diADFSNewMap = $01;
   diAmigaOFS   = $02;
   diAmigaFFS   = $03;
+  diFAT12      = $12;
+  diFAT16      = $16;
+  diFAT32      = $32;
   diADFSOldDir = $00;
   diADFSNewDir = $01;
   diADFSBigDir = $02;

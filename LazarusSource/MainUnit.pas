@@ -57,10 +57,16 @@ type
 type
   TMainForm = class(TForm)
    AFSAttrPanel: TPanel;
+   DOSAttributeLabel: TLabel;
+   cb_DOS_archive: TCheckBox;
+   DOSAttrPanel: TPanel;
    CancelDragDrop: TAction;
    cb_AFS_ownl: TCheckBox;
+   cb_DOS_system: TCheckBox;
    cb_AFS_ownr: TCheckBox;
+   cb_DOS_read: TCheckBox;
    cb_AFS_ownw: TCheckBox;
+   cb_DOS_hidden: TCheckBox;
    cb_AFS_pubr: TCheckBox;
    cb_AFS_pubw: TCheckBox;
    menuFixADFS: TMenuItem;
@@ -306,57 +312,59 @@ type
    procedure PasteFromClipboardExecute(Sender: TObject);
    procedure ToolBarContainerChange(Sender: TObject);
    //Misc
-   function CreateDirectory(dirname,attr: String): TTreeNode;
-   procedure ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);
-   procedure SwapLabelEdit(editcont: TEdit;labelcont: TLabel;dir,hex: Boolean);
-   function QueryUnsaved: Boolean;
-   function GetFilePath(Node: TTreeNode): String;
-   procedure DeleteFile(confirm: Boolean);
-   procedure GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
-   procedure DisableControls;
-   procedure ParseCommandLine(cmd: String);
-   procedure ResetFileFields;
-   procedure ExtractFiles(ShowDialogue: Boolean);
-   function GetImageFilename(dir,entry: Integer): String;
-   function GetWindowsFilename(dir,entry: Integer): String;
-   procedure DownLoadFile(dir,entry: Integer; path: String;filename: String='');
-   procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
-   procedure DownLoadDirectory(dir,entry: Integer; path: String);
-   procedure OpenImage(filename: String);
+   procedure AddDirectoryToImage(dirname: String);
    procedure AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer;
                                     ImageToUse:TDiscImage;var highdir: Integer);
-   procedure ShowNewImage(title: String);
-   procedure AddImageToTree(Tree: TTreeView;ImageToUse: TDiscImage);
-   function ConvertToKMG(size: Int64): String;
-   function IntToStrComma(size: Int64): String;
-   procedure ValidateFilename(var f: String);
-   procedure SelectNode(filename: String;casesens:Boolean=True);
-   procedure CloseAllHexDumps;
-   function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
-      index:Integer;dir:Boolean;Tree:TTreeView):TTreeNode;
-   procedure AddDirectoryToImage(dirname: String);
-   procedure AddSparkToImage(filename: String);
-   procedure ShowErrorLog;
+   function AddFileErrorToText(error: Integer):String;
    function AddFileToImage(filename: String):Integer;
    function AddFileToImage(filename: String;filedetails: TDirEntry;
            buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer; overload;
-   function AddFileErrorToText(error: Integer):String;
-   procedure UpdateImageInfo(partition: Cardinal=0);
+   function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
+      index:Integer;dir:Boolean;Tree:TTreeView):TTreeNode;
+   procedure AddImageToTree(Tree: TTreeView;ImageToUse: TDiscImage);
+   procedure AddSparkToImage(filename: String);
    procedure ArrangeFileDetails;
-   function FindPartitionRoot(filepath: String): Integer;
-   procedure ReportError(error: String);
    function AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
-   procedure ShowInfo(info: String);
+   procedure CloseAllHexDumps;                                                   
+   function ConvertToKMG(size: Int64): String;
+   function CreateDirectory(dirname,attr: String): TTreeNode;
+   procedure CreateFileTypeDialogue;
+   procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
+   procedure Defrag(side: Byte);
+   procedure DeleteFile(confirm: Boolean);                                      
+   procedure DisableControls;
+   procedure DoCopyMove(copymode: Boolean);
+   procedure DownLoadDirectory(dir,entry: Integer; path: String);
+   procedure DownLoadFile(dir,entry: Integer; path: String;filename: String='');
+   procedure ExtractFiles(ShowDialogue: Boolean);
+   function FindPartitionRoot(filepath: String): Integer;
    function GetCopyMode(Shift: TShiftState): Boolean;
+   function GetFilePath(Node: TTreeNode): String;
+   function GetFileTypeGraphic(filetype: String;offset: Integer;
+                                     const filetypes: array of String): Integer;
+   function GetImageFilename(dir,entry: Integer): String;
+   procedure GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
    function GetNodeAt(Y: Integer): TTreeNode;
-   procedure UpdateProgress(Fupdate: String);
+   function GetTextureTile(Ltile:Integer=-1): TBitmap;
+   function GetWindowsFilename(dir,entry: Integer): String;
+   procedure ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);         
+   function IntToStrComma(size: Int64): String;
+   procedure OpenImage(filename: String);
+   procedure ParseCommandLine(cmd: String);
+   function QueryUnsaved: Boolean;
+   procedure ReportError(error: String);
+   procedure ResetFileFields;
+   procedure SelectNode(filename: String;casesens:Boolean=True);
+   procedure ShowErrorLog;
+   procedure ShowInfo(info: String);
+   procedure ShowNewImage(title: String);
+   procedure SwapLabelEdit(editcont: TEdit;labelcont: TLabel;dir,hex: Boolean);
    procedure TileCanvas(c: TCanvas);
    procedure TileCanvas(c: TCanvas;rc: TRect); overload;
-   function GetTextureTile(Ltile:Integer=-1): TBitmap;
-   procedure CreateFileTypeDialogue;
-   procedure DoCopyMove(copymode: Boolean);
+   procedure UpdateImageInfo(partition: Cardinal=0);
+   procedure UpdateProgress(Fupdate: String);
+   procedure ValidateFilename(var f: String);
    procedure WriteToDebug(line: String);
-   procedure Defrag(side: Byte);
   private
    var
     //To keep track of renames
@@ -413,8 +421,16 @@ type
     //View options (what is visible)
     ViewOptions   :Cardinal;
    const
+    //These point to certain icons used when no filetype is found, or non-ADFS
+    //The numbers are indexes into the TImageList component 'FileImages'.
+    appicon     =   0; //RISC OS Application
+    directory   =   1; //Generic directory
+    directory_o =   2; //Generic open directory
+    loadexec    =   3; //RISC OS Load/Exec
+//    RObrokenfile=   4; //RISC OS broken file
+    ROunknown   =   5; //Unknown RISC OS file
     //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
-    FileTypes: array[3..140] of String =
+    RISCOSFileTypes: array[6..143] of String =
                               ('0E1','1A6','1AD','3FB','004','6A2','11D','18A',
                                '19B','68E','69A','69B','69C','69D','69E','102',
                                '108','132','190','191','194','195','196','690',
@@ -433,10 +449,10 @@ type
                                'FEB','FEC','FED','FF0','FF1','FF2','FF4','FF5',
                                'FF6','FF7','FF8','FF9','FFA','FFB','FFC','FFD',
                                'FFE','FFF');
-    //To add more filetypes, increase the array, then ensure that 'riscoshigh'
-    //(below) matches. Finally, make sure they are in the correct order in the
+    //To add more filetypes, increase the array, then ensure that the numbers
+    //matche. Finally, make sure they are in the correct order in the
     //ImageList components: FileImages
-    Applications: array[152..184] of String =
+    RISCOSApplications: array[144..176] of String =
                               ('!alarm','!boot','!chars','!closeup','!configure',
                                '!dpingscan','!draw','!edit','!flasher','!fontprint',
                                '!fonts','!help','!hform','!hopper','!maestro',
@@ -445,6 +461,16 @@ type
                                '!scicalc','!serialdev','!showscrap','!sparkfs',
                                '!sparkfs1','!sparkfs2','!sparkfs3','!squash',
                                '!system','!t1tofont');
+    //Commodore 64 filetypes
+    C64unknown  = 177; //Commodore 64 unknown
+    C64FileTypes: array[178..181] of String =
+                              ('DEL','PRG','SEQ','USR');//Need REL and CBM
+    //DOS filetypes
+    unknown     = 182; //DOS unknown and generic for everything else
+    DOSFileTypes: array[183..199] of String =
+                              ('APP','BAT','BIN','CFG','CMD','COM','DOC','EXE',
+                               'FNT','HLP','ICN','IMG','INF','INI','PAT','SYS',
+                               'TXT');
     //Windows extension - used to translate from RISC OS to Windows
     Extensions: array[1..42] of String =
                          ('004aim','132ico' ,'190dsk' ,'198z80'   ,'1A6CPM',
@@ -456,27 +482,10 @@ type
                           'F83mng','F91uri' ,'FAFhtm' ,'FAFhtml'  ,'FE4dos',
                           'FF0tif','FF0tiff','FF6ttf' ,'FF9sprite','FFBbas',
                           'FFDdat','FFFtxt');
-    //These point to certain icons used when no filetype is found, or non-ADFS
-    //The numbers are indexes into the TImageList components 'FileSizeTypes'
-    //and 'FileImages' (which are smaller versions of the above.
-    appicon     =   0;
-    directory   =   1;
-    directory_o =   2;
-    riscoshigh  = 140;
-    //images 3 to 139 inclusive are the known filetypes, listed above
-    loadexec    = riscoshigh+ 1; //RISC OS file with Load/Exec specified
-    unknown     = riscoshigh+ 3; //RISC OS unknown filetype
-    nonadfs     = riscoshigh+ 5; //All other filing systems, except for D64/D71/D81
-    prgfile     = riscoshigh+ 4; //D64/D71/D81 PRG file
-    seqfile     = riscoshigh+ 5; //D64/D71/D81 SEQ file
-    usrfile     = riscoshigh+ 6; //D64/D71/D81 USR file
-    delfile     = riscoshigh+ 7; //D64/D71/D81 DEL file
-    relfile     = riscoshigh+ 5; //D64/D71/D81 REL file
-    cbmfile     = riscoshigh+ 5; //D64/D71/D81 CBM file
-    mmbdisc     = riscoshigh+ 9; //MMFS Disc with image
-    mmbdisclock = riscoshigh+10; //MMFS Locked disc
-    mmbdiscempt = riscoshigh+11; //MMFS Empty slot
-    appstart    = riscoshigh+12; //Common application sprites
+    //Others
+    mmbdisc     = 202; //MMFS Disc with image
+    mmbdisclock = 201; //MMFS Locked disc
+    mmbdiscempt = 200; //MMFS Empty slot
     //Icons for status bar - index into TImageList 'icons'
     changedicon   = 0;
     acornlogo     = 1;
@@ -486,6 +495,7 @@ type
     riscoslogo    = 5;
     sinclairlogo  = 6;
     sparklogo     = 7;
+    bbcmasterlogo = 8;
     //Time and Date format
     TimeDateFormat = 'hh:nn:ss dd mmm yyyy';
   public
@@ -498,7 +508,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.36';
+    ApplicationVersion = '1.37';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -1627,6 +1637,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ShowNewImage(title: String);
 begin
+ WriteToDebug('Displaying Image');
  //Clear all the labels, and enable/disable the buttons
  ResetFileFields;
  //Clear the search fields
@@ -1761,8 +1772,11 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ArrangeFileDetails;
 var
- cbpos: Integer;
- attr : Boolean;
+ cbpos,
+ dir   : Integer;
+ attr,
+ afs,
+ dos   : Boolean;
 procedure ArrangeComponent(c,p: TControl;l: TLabel);
 begin
  c.Visible:=l.Caption<>'';
@@ -1773,8 +1787,25 @@ end;
 begin
  //Display the attributes section?
  attr:=False;
+ afs:=False;
+ dos:=False;
+ //If there is just the one item selected
  if DirList.SelectionCount=1 then
-  if DirList.Selected.Parent<>nil then attr:=True;
+ begin
+  //And it is not the root
+  if DirList.Selected.Parent<>nil then
+  begin
+   //Set the flag to show the attributes
+   attr:=True;
+   //And make a note of the AFS and DOS flags, for ADFS
+   dir:=TMyTreeNode(DirList.Selected.Parent).DirRef; //Directory reference of the parent
+   if(dir>=0)and(dir<Length(Image.Disc))then
+   begin
+    afs:=Image.Disc[dir].AFSPartition;
+    dos:=Image.Disc[dir].DOSPartition;
+   end;
+  end;
+ end;
  cbpos:=0;
  //Show or hide the headers
  ArrangeComponent(FilenamePanel ,FileDetailsLabel,lb_FileName); //Filename
@@ -1793,108 +1824,135 @@ begin
  ed_title.Top          :=lb_title.Top;
  ArrangeComponent(LocationPanel ,DirTitlePanel   ,lb_location); //Location
  ArrangeComponent(CRC32Panel    ,LocationPanel   ,lb_CRC32);    //CRC32
- //Make the appropriate panel visible
- //DFS and UEF
- if(Image.FormatNumber>>4=diAcornDFS)
- or(Image.FormatNumber>>4=diAcornUEF)then
+ //Make the appropriate attribute panel visible
+ if(cbpos>0)and(attr)then
  begin
-  //Make it visible
-  if(cbpos>0)and(attr)then DFSAttrPanel.Visible:=True;
-  //Position it below the CRC32 section
-  DFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
-  //Position the tick box inside
-  DFSAttributeLabel.Top:=0;
-  DFSAttributeLabel.Left:=(DFSAttrPanel.Width-DFSAttributeLabel.Width)div 2;
-  cb_DFS_l.Top:=DFSAttributeLabel.Top+DFSAttributeLabel.Height;
-  cb_DFS_l.Left:=(DFSAttrPanel.Width-cb_DFS_l.Width)div 2;
-  //And change the panel height to accomodate
-  DFSAttrPanel.Height:=cb_DFS_l.Top+cb_DFS_l.Height;
- end;
- //ADFS and SparkFS
- if(Image.FormatNumber>>4=diAcornADFS)
- or(Image.FormatNumber>>4=diSpark)then
- begin
-  //Make it visible
-  if(cbpos>0)and(attr)then ADFSAttrPanel.Visible:=True;
-  //Position it below the CRC32 section
-  ADFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
-  //Position the ticks box inside - Owner Access
-  OAAttributeLabel.Top:=0;
-  OAAttributeLabel.Left:=(ADFSAttrPanel.Width-OAAttributeLabel.Width)div 2;
-  cb_ADFS_ownw.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
-  cb_ADFS_ownr.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
-  cb_ADFS_ownl.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
-  cb_ADFS_owne.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
-  cbpos:=ADFSAttrPanel.Width div 4; //Equally space them
-  cb_ADFS_ownw.Left:=cbpos*0;
-  cb_ADFS_ownr.Left:=cbpos*1;
-  cb_ADFS_ownl.Left:=cbpos*2;
-  cb_ADFS_owne.Left:=cbpos*3;
-  //Position the ticks box inside - Public Access
-  PubAttributeLabel.Top:=cb_ADFS_ownw.Top+cb_ADFS_ownw.Height;
-  PubAttributeLabel.Left:=(ADFSAttrPanel.Width-PubAttributeLabel.Width)div 2;
-  cb_ADFS_pubw.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
-  cb_ADFS_pubr.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
-  cb_ADFS_pube.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
-  cb_ADFS_pubp.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
-  cb_ADFS_pubw.Left:=cbpos*0;
-  cb_ADFS_pubr.Left:=cbpos*1;
-  cb_ADFS_pube.Left:=cbpos*2;
-  cb_ADFS_pubp.Left:=cbpos*3;
-  //And change the panel height to accomodate
-  ADFSAttrPanel.Height:=cb_ADFS_pubw.Top+cb_ADFS_pubw.Height;
-  //Show/hide those not applicable for new/old directories
-  cb_ADFS_owne.Visible:=Image.FormatNumber mod $10<3;
-  cb_ADFS_pube.Visible:=Image.FormatNumber mod $10<3;
-  cb_ADFS_pubp.Visible:=Image.FormatNumber mod $10<3;
- end;
- //Acorn FS
- if Image.FormatNumber>>4=diAcornFS then
- begin
-  //Make it visible
-  if(cbpos>0)and(attr)then AFSAttrPanel.Visible:=True;
-  //Position it below the CRC32 section
-  AFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
-  //Position the ticks box inside - Owner Access
-  AFSOAAttributeLabel.Top:=0;
-  AFSOAAttributeLabel.Left:=(AFSAttrPanel.Width-AFSOAAttributeLabel.Width)div 2;
-  cb_AFS_ownw.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
-  cb_AFS_ownr.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
-  cb_AFS_ownl.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
-  cbpos:=AFSAttrPanel.Width div 4; //Equally space them
-  cb_AFS_ownw.Left:=cbpos*0;
-  cb_AFS_ownr.Left:=cbpos*1;
-  cb_AFS_ownl.Left:=cbpos*2;
-  //Position the ticks box inside - Public Access
-  AFSPubAttributeLabel.Top:=cb_AFS_ownw.Top+cb_AFS_ownw.Height;
-  AFSPubAttributeLabel.Left:=(AFSAttrPanel.Width-AFSPubAttributeLabel.Width)div 2;
-  cb_AFS_pubw.Top:=AFSPubAttributeLabel.Top+AFSPubAttributeLabel.Height;
-  cb_AFS_pubr.Top:=AFSPubAttributeLabel.Top+AFSPubAttributeLabel.Height;
-  cbpos:=AFSAttrPanel.Width div 2; //Equally space them
-  cb_AFS_pubw.Left:=cbpos*0;
-  cb_AFS_pubr.Left:=cbpos*1;
-  //And change the panel height to accomodate
-  AFSAttrPanel.Height:=cb_AFS_pubw.Top+cb_AFS_pubw.Height;
- end;
- //Commodore 64
- if Image.FormatNumber>>4=diCommodore then
- begin
-  //Make it visible
-  if(cbpos>0)and(attr)then C64AttrPanel.Visible:=True;
-  //Position it below the CRC32 section
-  C64AttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
-  //Position the ticks box inside
-  C64AttributeLabel.Top:=0;
-  C64AttributeLabel.Left:=(C64AttrPanel.Width-C64AttributeLabel.Width)div 2;
-  cb_DFS_l.Top:=C64AttributeLabel.Top+C64AttributeLabel.Height;
-  cb_C64_c.Top:=0;
-  cb_C64_l.Top:=0;
-  //Equally space the boxes
-  cbpos:=C64AttrPanel.Width-cbpos div 2;
-  cb_C64_c.Left:=cbpos*0;
-  cb_C64_l.Left:=cbpos*1;
-  //And change the panel height to accomodate
-  C64AttrPanel.Height:=cb_C64_l.Top+cb_C64_l.Height;
+  //DFS and UEF
+  if(Image.FormatNumber>>4=diAcornDFS)
+  or(Image.FormatNumber>>4=diAcornUEF)then
+  begin
+   //Make it visible
+   DFSAttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   DFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the tick box inside
+   DFSAttributeLabel.Top:=0;
+   DFSAttributeLabel.Left:=(DFSAttrPanel.Width-DFSAttributeLabel.Width)div 2;
+   cb_DFS_l.Top:=DFSAttributeLabel.Top+DFSAttributeLabel.Height;
+   cb_DFS_l.Left:=(DFSAttrPanel.Width-cb_DFS_l.Width)div 2;
+   //And change the panel height to accomodate
+   DFSAttrPanel.Height:=cb_DFS_l.Top+cb_DFS_l.Height;
+  end;
+  //ADFS and SparkFS
+  if((Image.FormatNumber>>4=diAcornADFS)
+  or(Image.FormatNumber>>4=diSpark))
+  and(not afs)and(not dos)then
+  begin
+   //Make it visible
+   ADFSAttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   ADFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside - Owner Access
+   OAAttributeLabel.Top:=0;
+   OAAttributeLabel.Left:=(ADFSAttrPanel.Width-OAAttributeLabel.Width)div 2;
+   cb_ADFS_ownw.Top:=OAAttributeLabel.Top+OAAttributeLabel.Height;
+   cb_ADFS_ownr.Top:=cb_ADFS_ownw.Top;
+   cb_ADFS_ownl.Top:=cb_ADFS_ownw.Top;
+   cb_ADFS_owne.Top:=cb_ADFS_ownw.Top;
+   cbpos:=ADFSAttrPanel.Width div 4; //Equally space them
+   cb_ADFS_ownw.Left:=cbpos*0;
+   cb_ADFS_ownr.Left:=cbpos*1;
+   cb_ADFS_ownl.Left:=cbpos*2;
+   cb_ADFS_owne.Left:=cbpos*3;
+   //Position the ticks box inside - Public Access
+   PubAttributeLabel.Top:=cb_ADFS_ownw.Top+cb_ADFS_ownw.Height;
+   PubAttributeLabel.Left:=(ADFSAttrPanel.Width-PubAttributeLabel.Width)div 2;
+   cb_ADFS_pubw.Top:=PubAttributeLabel.Top+PubAttributeLabel.Height;
+   cb_ADFS_pubr.Top:=cb_ADFS_pubw.Top;
+   cb_ADFS_pube.Top:=cb_ADFS_pubw.Top;
+   cb_ADFS_pubp.Top:=cb_ADFS_pubw.Top;
+   cb_ADFS_pubw.Left:=cbpos*0;
+   cb_ADFS_pubr.Left:=cbpos*1;
+   cb_ADFS_pube.Left:=cbpos*2;
+   cb_ADFS_pubp.Left:=cbpos*3;
+   //And change the panel height to accomodate
+   ADFSAttrPanel.Height:=cb_ADFS_pubw.Top+cb_ADFS_pubw.Height;
+   //Show/hide those not applicable for new/old directories
+   cb_ADFS_owne.Visible:=Image.FormatNumber mod $10<3;
+   cb_ADFS_pube.Visible:=cb_ADFS_owne.Visible;
+   cb_ADFS_pubp.Visible:=cb_ADFS_owne.Visible;
+  end;
+  //Acorn FS
+  if(Image.FormatNumber>>4=diAcornFS)
+  or((Image.FormatNumber>>4=diAcornADFS)and(afs))then
+  begin
+   //Make it visible
+   AFSAttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   AFSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside - Owner Access
+   AFSOAAttributeLabel.Top:=0;
+   AFSOAAttributeLabel.Left:=(AFSAttrPanel.Width-AFSOAAttributeLabel.Width)div 2;
+   cb_AFS_ownw.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
+   cb_AFS_ownr.Top:=cb_AFS_ownw.Top;
+   cb_AFS_ownl.Top:=cb_AFS_ownw.Top;
+   cbpos:=AFSAttrPanel.Width div 4; //Equally space them
+   cb_AFS_ownw.Left:=cbpos*0;
+   cb_AFS_ownr.Left:=cbpos*1;
+   cb_AFS_ownl.Left:=cbpos*2;
+   //Position the ticks box inside - Public Access
+   AFSPubAttributeLabel.Top:=cb_AFS_ownw.Top+cb_AFS_ownw.Height;
+   AFSPubAttributeLabel.Left:=(AFSAttrPanel.Width-AFSPubAttributeLabel.Width)div 2;
+   cb_AFS_pubw.Top:=AFSPubAttributeLabel.Top+AFSPubAttributeLabel.Height;
+   cb_AFS_pubr.Top:=cb_AFS_pubw.Top;
+   cbpos:=AFSAttrPanel.Width div 2; //Equally space them
+   cb_AFS_pubw.Left:=cbpos*0;
+   cb_AFS_pubr.Left:=cbpos*1;
+   //And change the panel height to accomodate
+   AFSAttrPanel.Height:=cb_AFS_pubw.Top+cb_AFS_pubw.Height;
+  end;
+  //DOS Plus
+  if(Image.FormatNumber>>4=diDOSPlus)
+  or((Image.FormatNumber>>4=diAcornADFS)and(dos))then
+  begin
+   //Make it visible
+   DOSAttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   DOSAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside
+   DOSAttributeLabel.Top:=0;
+   DOSAttributeLabel.Left:=(DOSAttrPanel.Width-DOSAttributeLabel.Width)div 2;
+   cb_DOS_hidden.Top :=DOSAttributeLabel.Top+DOSAttributeLabel.Height;
+   cb_DOS_read.Top   :=cb_DOS_hidden.Top;
+   cb_DOS_system.Top :=cb_DOS_hidden.Top;
+   cb_DOS_archive.Top:=cb_DOS_hidden.Top;
+   cbpos:=DOSAttrPanel.Width div 4; //Equally space them
+   cb_DOS_hidden.Left :=cbpos*0;
+   cb_DOS_read.Left   :=cbpos*1;
+   cb_DOS_system.Left :=cbpos*2;
+   cb_DOS_archive.Left:=cbpos*3;
+   //And change the panel height to accomodate
+   DOSAttrPanel.Height:=cb_DOS_hidden.Top+cb_DOS_hidden.Height;
+  end;
+  //Commodore 64
+  if Image.FormatNumber>>4=diCommodore then
+  begin
+   //Make it visible
+   C64AttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   C64AttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside
+   C64AttributeLabel.Top:=0;
+   C64AttributeLabel.Left:=(C64AttrPanel.Width-C64AttributeLabel.Width)div 2;
+   cb_C64_c.Top:=C64AttributeLabel.Top+C64AttributeLabel.Height;
+   cb_C64_l.Top:=cb_C64_c.Top;
+   //Equally space the boxes
+   cbpos:=C64AttrPanel.Width div 2;
+   cb_C64_c.Left:=cbpos*0;
+   cb_C64_l.Left:=cbpos*1;
+   //And change the panel height to accomodate
+   C64AttrPanel.Height:=cb_C64_l.Top+cb_C64_l.Height;
+  end;
  end;
 end;
 
@@ -1939,7 +1997,8 @@ var
  temp     : String;
  multiple : Char;
  R        : TRect;
- afspart  : Boolean;
+ afspart,
+ dospart  : Boolean;
 begin
  filetype:='';
  //Reset the fields to blank
@@ -2041,14 +2100,25 @@ begin
   entry:=Node.Index;
   dir:=-1;
   dr:=TMyTreeNode(Node).DirRef;
-  afspart:=False;//AFS Partition?
-  if dr>=0 then afspart:=Image.Disc[dr].AFSPartition;
   //Clear the filename variable
   filename:='';
   //If the node does not have a parent, then the dir ref is the one contained
   //in the extra info. Otherwise is -1
   if Node.Parent<>nil then
    dir  :=TMyTreeNode(Node.Parent).DirRef;
+  afspart:=False;//AFS or DOS Partition?
+  dospart:=False;
+  if dir>=0 then
+  begin
+   afspart:=Image.Disc[dir].AFSPartition;
+   dospart:=Image.Disc[dir].DOSPartition;
+  end
+  else
+   if dr>=0 then
+   begin
+    afspart:=Image.Disc[dr].AFSPartition;
+    dospart:=Image.Disc[dr].DOSPartition;
+   end;
   //Enable the add/edit password buttons
   if(Image.FormatNumber>>4=diAcornFS)
   or((Image.FormatNumber>>4=diAcornADFS)and(Image.AFSPresent))then
@@ -2085,8 +2155,9 @@ begin
     //Tick/untick it
     cb_DFS_l.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
    //ADFS and SparkFS
-   if(Image.FormatNumber>>4=diAcornADFS)
-   or(Image.FormatNumber>>4=diSpark)then
+   if((Image.FormatNumber>>4=diAcornADFS)
+   or(Image.FormatNumber>>4=diSpark))
+   and(not afspart)and(not dospart)then
    begin
     //Tick/untick them
     cb_ADFS_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
@@ -2099,7 +2170,9 @@ begin
     cb_ADFS_pubp.Checked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    //Acorn FS
-   if Image.FormatNumber>>4=diAcornFS then
+   if(Image.FormatNumber>>4=diAcornFS)
+   or((Image.FormatNumber>>4=diAcornADFS)
+   and(afspart))then
    begin
     //Tick/untick them
     cb_AFS_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
@@ -2107,6 +2180,17 @@ begin
     cb_AFS_ownl.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
     cb_AFS_pubw.Checked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
     cb_AFS_pubr.Checked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+   end;
+   //DOS Plus
+   if(Image.FormatNumber>>4=diDOSPlus)
+   or((Image.FormatNumber>>4=diAcornADFS)
+   and(dospart))then
+   begin
+    //Tick/untick them
+    cb_DOS_hidden.Checked :=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_DOS_read.Checked   :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_DOS_system.Checked :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_DOS_archive.Checked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    //Commodore 64
    if Image.FormatNumber>>4=diCommodore then
@@ -2142,7 +2226,8 @@ begin
      filename:=Image.Disc[dir].Directory;
     //Pick up from the Node if it is an application or not
     if(Node.ImageIndex=appicon)
-    or(Node.ImageIndex>=appstart)then
+    or((Node.ImageIndex>=Low(RISCOSApplications))
+    and(Node.ImageIndex<=High(RISCOSApplications)))then
      filetype:='Application'
     else
      filetype:='Directory';
@@ -2219,8 +2304,9 @@ begin
   R.Left:=0;
   R.Width:=img_FileType.Width;
   R.Height:=img_FileType.Height;
-  //Draw the texture over it (probably don't need this)
-  img_FileType.Canvas.Draw(0,0,GetTextureTile);
+  //Draw the texture over it
+  TileCanvas(img_FileType.Canvas,R);
+  //Draw the filetype icon
   FileImages.StretchDraw(img_FileType.Canvas,ft,R);
   img_FileType.Tag:=ft; //To keep track of which image it is
   //Filetype text - only show for certain systems
@@ -2241,11 +2327,12 @@ begin
    //Parent
    RemoveTopBit(temp);
    lb_parent.Caption:=temp;
-   //Timestamp - ADFS, Spark and FileStore only
+   //Timestamp - ADFS, Spark, FileStore and DOS only
    if  (Image.Disc[dir].Entries[entry].TimeStamp>0)
    and((Image.FormatNumber>>4=diAcornADFS)
    or  (Image.FormatNumber>>4=diSpark)
-   or  (Image.FormatNumber>>4=diAcornFS))then
+   or  (Image.FormatNumber>>4=diAcornFS)
+   or  (Image.FormatNumber>>4=diDOSPlus))then
     lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
                                        Image.Disc[dir].Entries[entry].TimeStamp);
    if(Image.Disc[dir].Entries[entry].TimeStamp=0)
@@ -2272,6 +2359,11 @@ begin
    if Image.MapType=diADFSNewMap then
     location:='Indirect address: 0x'
              +IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
+   //DOS Plus - Sector is the starting cluster
+   if(Image.FormatNumber>>4=diDOSPlus)
+   or(Image.Disc[dir].DOSPartition)then
+    location:='Starting Cluster: 0x'
+             +IntToHex(Image.Disc[dir].Entries[entry].Sector,4);
    //Commodore formats - Sector and Track
    if Image.FormatNumber>>4=diCommodore then
     location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)+' ';
@@ -2323,65 +2415,81 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
 var
- ft,i,dir,entry: Integer;
- filetype      : String;
+ ft,i,
+ dir,
+ entry    : Integer;
+ filetype : String;
+ afspart,
+ dospart  : Boolean;
 begin
+ filetype:='';
+ WriteToDebug('Image index for '+Node.Text+' requested');
  //The directory and entry references, as always
  dir  :=TMyTreeNode(Node).ParentDir;
  entry:=Node.Index;
- //Are we ADFS?
- if((ImageToUse.FormatNumber>>4=diAcornADFS)
-  or(ImageToUse.FormatNumber>>4=diSpark)
-  or(ImageToUse.FormatNumber>>4=diAcornFS))
- and(Length(ImageToUse.Disc)>0)then
+ //AFS or DOS Partition?
+ afspart:=False;
+ dospart:=False;
+ WriteToDebug('Dir: '+IntToStr(dir));
+ WriteToDebug('Entry: '+IntToStr(entry));
+ if dir>=0 then
  begin
-  //Default is a file with load and exec address
-  ft:=loadexec;
-  //If it is not a directory
-  if not TMyTreeNode(Node).IsDir then
+  afspart:=ImageToUse.Disc[dir].AFSPartition;
+  dospart:=ImageToUse.Disc[dir].DOSPartition;
+  //Get the filetype to look for
+  if entry>=0 then
+   filetype:=ImageToUse.Disc[dir].Entries[entry].ShortFiletype;
+ end;
+ if afspart then WriteToDebug('AFS Partition present');
+ if dospart then WriteToDebug('DOS Partition present');
+ WriteToDebug('Looking for filetype "'+filetype+'"');
+ ft:=unknown; //Default icon to use
+ //Directory has a different icon
+ if not TMyTreeNode(Node).IsDir then
+ begin
+  WriteToDebug('Non-directory');
+  //Are we ADFS, SparkFS, AFS or DOS?
+  if((ImageToUse.FormatNumber>>4=diAcornADFS)
+   or(ImageToUse.FormatNumber>>4=diSpark)
+   or(ImageToUse.FormatNumber>>4=diAcornFS))
+  and(Length(ImageToUse.Disc)>0)and(not dospart)then
   begin
-   //And has a timestamp
-   if ImageToUse.Disc[dir].Entries[entry].TimeStamp>0 then
+   //Default
+   ft:=ROunknown;
+   //If it has a Load and/or Exec address
+   if(ImageToUse.Disc[dir].Entries[entry].LoadAddr<>0)
+   or(ImageToUse.Disc[dir].Entries[entry].ExecAddr<>0)then
+    ft:=loadexec;
+   //If it has a timestamp
+   if(ImageToUse.Disc[dir].Entries[entry].TimeStamp>0)
+   and(not afspart)and(not dospart)then
    begin
-    //Then we become an unknown filetype, until found that is
-    ft:=unknown;
-    //Start of search - the filetype constant array
-    i:=Low(FileTypes)-1;
-    //The filetype of the file
-    filetype:=ImageToUse.Disc[dir].Entries[entry].ShortFiletype;
-    //Just iterate through until we find a match, or get to the end
-    repeat
-     inc(i)
-    until (filetype=FileTypes[i])
-      or (i=riscoshigh);//High(FileTypes));
-    //Do we have a match? Make a note
-    if filetype=FileTypes[i] then ft:=i;
+    i:=GetFileTypeGraphic(filetype,Low(RISCOSFileTypes),RISCOSFileTypes);
+    if i<>unknown then ft:=i;
    end;
   end;
- end
- else
   //Is it a Commodore format?
-  if ImageToUse.FormatNumber>>4=diCommodore then
+  if(ImageToUse.FormatNumber>>4=diCommodore)
+  and(Length(ImageToUse.Disc)>0)then
   begin
    //Default is a PRG file
-   ft:=prgfile;
-   //Directory has a different icon
-   if not TMyTreeNode(Node).IsDir then
-   begin
-    //Get the appropriate filetype - no array for this as there is only 5 of them
-    if ImageToUse.Disc[dir].Entries[entry].ShortFileType='SEQ' then ft:=seqfile;
-    if ImageToUse.Disc[dir].Entries[entry].ShortFileType='USR' then ft:=usrfile;
-    if ImageToUse.Disc[dir].Entries[entry].ShortFileType='REL' then ft:=relfile;
-    if ImageToUse.Disc[dir].Entries[entry].ShortFileType='DEL' then ft:=delfile;
-    if ImageToUse.Disc[dir].Entries[entry].ShortFileType='CBM' then ft:=cbmfile;
-   end;
-  end
-  else
-   //If not ADFS or Commodore, use a default icon
-   ft:=nonadfs; //(which is actually from ADFS in RISC OS 3.11!!)
+   ft:=C64unknown;
+   i:=GetFileTypeGraphic(filetype,Low(C64FileTypes),C64FileTypes);
+   if i<>unknown then ft:=i;
+  end;
+  //DOS Plus (DOS)
+  if((ImageToUse.FormatNumber>>4=diDOSPlus)
+  or((ImageToUse.FormatNumber>>4=diAcornADFS)and(dospart)))
+  and(Length(ImageToUse.Disc)>0)then
+  begin
+   i:=GetFileTypeGraphic(filetype,Low(DOSFileTypes),DOSFileTypes);
+   if i<>unknown then ft:=i;
+  end;
+ end;
  //Diectory icons
  if TMyTreeNode(Node).IsDir then
  begin
+  WriteToDebug('Directory');
   //Different icon if it is expanded, i.e. open
   if Node.Expanded then
    ft:=directory_o
@@ -2389,23 +2497,17 @@ begin
    //to a closed one
    ft:=directory;
   //If RISC OS, and an application
-  if(ImageToUse.FormatNumber>>4=diAcornADFS)
-  or(ImageToUse.FormatNumber>>4=diSpark)then //ADFS and Spark only
-   if(ImageToUse.DirectoryType=diADFSNewDir)
-   OR(ImageToUse.DirectoryType=diADFSBigDir)then //New or Big
-    if Node.Text[1]='!' then
-    begin
-     ft:=appicon; //Default icon for application
-     //Start of search - the applications constant array
-     i:=appstart-1;
-     //Just iterate through until we find a match, or get to the end
-     repeat
-      inc(i)
-     until(LowerCase(Node.Text)=Applications[i])
-       or (i=High(Applications));
-     //Do we have a match? Make a note
-     if LowerCase(Node.Text)=Applications[i] then ft:=i;
-    end;
+  if(not dospart)and(not afspart)then
+   if(ImageToUse.FormatNumber>>4=diAcornADFS)
+   or(ImageToUse.FormatNumber>>4=diSpark)then //ADFS and Spark only
+    if(ImageToUse.DirectoryType=diADFSNewDir)
+    OR(ImageToUse.DirectoryType=diADFSBigDir)then //New or Big
+     if Node.Text[1]='!' then
+     begin
+      ft:=appicon; //Default icon for application
+      i:=GetFileTypeGraphic(Node.Text,Low(RISCOSApplications),RISCOSApplications);
+      if i<>unknown then ft:=i;
+     end;
   //If MMB
   if ImageToUse.FormatNumber>>4=diMMFS then
   begin
@@ -2418,6 +2520,26 @@ begin
  Node.ImageIndex:=ft;
  //And ensure it stays selected
  Node.SelectedIndex:=Node.ImageIndex;
+ WriteToDebug('Image index '+IntToStr(ft));
+end;
+
+{------------------------------------------------------------------------------}
+//Get a filetype graphic from a filetype string
+{------------------------------------------------------------------------------}
+function TMainForm.GetFileTypeGraphic(filetype: String;offset: Integer;
+                                      const filetypes: array of String): Integer;
+var
+ i: Integer;
+begin
+ Result:=unknown;
+ //Start of search - the filetype constant array
+ i:=Low(filetypes)-1;
+ //Just iterate through until we find a match, or get to the end
+ repeat
+  inc(i)
+ until(UpperCase(filetype)=UpperCase(filetypes[i]))or(i=High(filetypes));
+ //Do we have a match? Make a note
+ if UpperCase(filetype)=UpperCase(filetypes[i])then Result:=i+offset;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2904,6 +3026,8 @@ begin
  WriteToDebug('Application Started.');
  WriteToDebug('Version '+ApplicationVersion+' '+platform+' ('+arch+')');
  WriteToDebug('Screen DPI: '+IntToStr(Screen.PixelsPerInch));
+ WriteToDebug('If you are experiencing any issues, please email this to '+
+              'gerald@hollypops.co.uk with a description of your issue.');
 end;
 
 {------------------------------------------------------------------------------}
@@ -3786,20 +3910,23 @@ begin
  s:=ImageDetailForm.OKBtnBack.Top-t;
  //Centralise vertical
  ImageDetailForm.AcornLogo.Top    :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
- ImageDetailForm.CommodoreLogo.Top:=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
- ImageDetailForm.AmigaLogo.Top    :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
- ImageDetailForm.SinclairLogo.Top :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
+ ImageDetailForm.CommodoreLogo.Top:=ImageDetailForm.AcornLogo.Top;
+ ImageDetailForm.AmigaLogo.Top    :=ImageDetailForm.AcornLogo.Top;
+ ImageDetailForm.SinclairLogo.Top :=ImageDetailForm.AcornLogo.Top;
+ ImageDetailForm.BBCMasterLogo.Top:=ImageDetailForm.AcornLogo.Top;
  //Centralise horizontal
  s:=ImageDetailForm.Legend.Width;
  ImageDetailForm.AcornLogo.Left    :=(s-ImageDetailForm.AcornLogo.Width)div 2;
- ImageDetailForm.CommodoreLogo.Left:=(s-ImageDetailForm.AcornLogo.Width)div 2;
- ImageDetailForm.AmigaLogo.Left    :=(s-ImageDetailForm.AcornLogo.Width)div 2;
- ImageDetailForm.SinclairLogo.Left :=(s-ImageDetailForm.AcornLogo.Width)div 2;
+ ImageDetailForm.CommodoreLogo.Left:=ImageDetailForm.AcornLogo.Left;
+ ImageDetailForm.AmigaLogo.Left    :=ImageDetailForm.AcornLogo.Left;
+ ImageDetailForm.SinclairLogo.Left :=ImageDetailForm.AcornLogo.Left;
+ ImageDetailForm.BBCMasterLogo.Left:=ImageDetailForm.AcornLogo.Left;
  //Hide them all
  ImageDetailForm.AcornLogo.Visible    :=False;
  ImageDetailForm.CommodoreLogo.Visible:=False;
  ImageDetailForm.AmigaLogo.Visible    :=False;
  ImageDetailForm.SinclairLogo.Visible :=False;
+ ImageDetailForm.BBCMasterLogo.Visible:=False;
  //Now display the appropriate one
  case Image.FormatNumber>>4 of
   diAcornDFS,
@@ -3809,6 +3936,7 @@ begin
   diCommodore : ImageDetailForm.CommodoreLogo.Visible:=True;
   diAmiga     : ImageDetailForm.AmigaLogo.Visible    :=True;
   diSinclair  : ImageDetailForm.SinclairLogo.Visible :=True;
+  diDOSPlus   : ImageDetailForm.BBCMasterLogo.Visible:=True;
  end;
  //Should we label the top box?
  if Image.DoubleSided then
@@ -3897,8 +4025,15 @@ begin
    titles[0].Enabled:=not Image.AFSPresent;
    //Limit the length
    if Image.FormatNumber>>4=diAcornDFS  then titles[side].MaxLength:=12; //DFS
-   if Image.FormatNumber>>4=diAcornADFS then titles[side].MaxLength:=10; //ADFS
+   if Image.FormatNumber>>4=diAcornADFS then
+   begin
+    if(Image.DOSPresent)and(side=1)then
+     titles[side].MaxLength:=11  //DOS Partition in an ADFS disc
+    else
+     titles[side].MaxLength:=10; //ADFS
+   end;
    if Image.FormatNumber>>4=diAcornFS   then titles[side].MaxLength:=10; //AFS
+   if Image.FormatNumber>>4=diDOSPlus   then titles[side].MaxLength:=11; //DOS
    //Boot Option
    boots[side].Visible  :=True;
    if Length(Image.BootOpt)>side then
@@ -3912,6 +4047,12 @@ begin
   begin
    FSMlabel[0].Caption:=FSMlabel[0].Caption+' ADFS Partition';
    FSMlabel[1].Caption:=FSMlabel[1].Caption+' Acorn FS Partition';
+  end;
+  //Is this an ADFS/DOS Hybrid?
+  if(Image.FormatNumber>>4=diAcornADFS)and(Image.DOSPresent)then
+  begin
+   FSMlabel[0].Caption:=FSMlabel[0].Caption+' ADFS Partition';
+   FSMlabel[1].Caption:=FSMlabel[1].Caption+' DOS Plus Partition';
   end;
   //Change the dialogue box width
   ImageDetailForm.ClientWidth:=(Length(Image.FreeSpaceMap)*204)
@@ -5559,6 +5700,7 @@ begin
  AFSAttrPanel.Visible :=False;
  DFSAttrPanel.Visible :=False;
  C64AttrPanel.Visible :=False;
+ DOSAttrPanel.Visible :=False;
  //And untick them
  cb_ADFS_ownw.Checked:=False;
  cb_ADFS_ownr.Checked:=False;
@@ -5692,6 +5834,7 @@ begin
    diMMFS     : png:=bbclogo;       //BBC Micro logo for MMFS
    diSpark    : png:=sparklogo;     //!SparkFS logo for Spark
    diAcornFS  : png:=bbclogo;       //BBC Micro logo for Acorn FS
+   diDOSPlus  : png:=bbcmasterlogo; //BBC Master logo for DOS Plus
   end;
   Rect.Height:=Rect.Height-2;
   //Draw the icon
@@ -5827,8 +5970,8 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.CreateFileTypeDialogue;
 var
- i: Integer;
- sc: TScrollBox;
+ i,x: Integer;
+ sc : TScrollBox;
 begin
  //Create the filetype pop-up
  FTDialogue:=TForm.Create(nil);
@@ -5848,24 +5991,25 @@ begin
  sc.BorderStyle:=bsSingle;
  sc.OnPaint:=@FileInfoPanelPaint;
  //Controls
- SetLength(FTButtons,riscoshigh-2);
- for i:=3 to riscoshigh do
+ SetLength(FTButtons,High(RISCOSFileTypes)-2);
+ x:=Low(RISCOSFileTypes);
+ for i:=x to High(RISCOSFileTypes) do
  begin
-  FTButtons[i-3]:=TSpeedButton.Create(sc);
-  FTButtons[i-3].Parent:=sc;
-  FTButtons[i-3].Width:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
-  FTButtons[i-3].Height:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
-  FTButtons[i-3].Caption:=Image.GetFileTypeFromNumber(StrToInt('$'+FileTypes[i]));
-  FTButtons[i-3].Tag:=StrToInt('$'+FileTypes[i]);
-  FTButtons[i-3].Left:=((i-3)mod 5)*FTButtons[i-3].Width;
-  FTButtons[i-3].Top :=((i-3)div 5)*FTButtons[i-3].Height;
-  FTButtons[i-3].Flat:=True;
-  FTButtons[i-3].GroupIndex:=1;
-  FTButtons[i-3].Images:=FileImages;
-  FTButtons[i-3].ImageWidth:=Round(32*(Screen.PixelsPerInch/DesignedDPI));
-  FTButtons[i-3].Layout:=blGlyphTop;
-  FTButtons[i-3].ImageIndex:=i;
-  FTButtons[i-3].OnClick:=@FileTypeClick;
+  FTButtons[i-x]:=TSpeedButton.Create(sc);
+  FTButtons[i-x].Parent:=sc;
+  FTButtons[i-x].Width:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
+  FTButtons[i-x].Height:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
+  FTButtons[i-x].Caption:=Image.GetFileTypeFromNumber(StrToInt('$'+RISCOSFileTypes[i]));
+  FTButtons[i-x].Tag:=StrToInt('$'+RISCOSFileTypes[i]);
+  FTButtons[i-x].Left:=((i-x)mod 5)*FTButtons[i-x].Width;
+  FTButtons[i-x].Top :=((i-x)div 5)*FTButtons[i-x].Height;
+  FTButtons[i-x].Flat:=True;
+  FTButtons[i-x].GroupIndex:=1;
+  FTButtons[i-x].Images:=FileImages;
+  FTButtons[i-x].ImageWidth:=Round(32*(Screen.PixelsPerInch/DesignedDPI));
+  FTButtons[i-x].Layout:=blGlyphTop;
+  FTButtons[i-x].ImageIndex:=i;
+  FTButtons[i-x].OnClick:=@FileTypeClick;
  end;
  //Create a dummy button, for no selection
  FTDummyBtn:=TSpeedButton.Create(sc);
@@ -5880,8 +6024,8 @@ begin
  FTEdit.Font.Name:='Courier New';
  FTEdit.Alignment:=taCenter;
  i:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
- FTEdit.Top:=(((riscoshigh-2)div 5)*i)+Round((i-FTEdit.Height)/2);
- FTEdit.Left:=((riscoshigh-2)mod 5)*FTEdit.Width;
+ FTEdit.Top:=(((High(RISCOSFileTypes)-2)div 5)*i)+Round((i-FTEdit.Height)/2);
+ FTEdit.Left:=((High(RISCOSFileTypes)-2)mod 5)*FTEdit.Width;
  FTEdit.OnKeyPress:=@FileTypeKeyPress;
 end;
 

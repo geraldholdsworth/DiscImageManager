@@ -9,9 +9,10 @@ Bugs
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
 * Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
+* There is only the one directory separator, even with multiple partitions. Sometimes (ADFS/DOS Plus) these should be different.
 
 General
-* Drag and Drop facilities out of the application...currently looking unlikely for cross platform.
+* Drag and Drop facilities out of the application...currently looking unlikely for cross platform. This will need to be done using 'code-per-platform' directives.
 * Extend drag and drop copy/move to multiple selection.
 * Application to application communications.
 * Copy entire files onto clipboard? And then paste from clipboard?
@@ -23,7 +24,7 @@ General
 * Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
 
 ADFS
-* Change the size of the ADFS partition or image (ideally, this can be done using a similar method to below - create a new image and import the contents into it).
+* Change the size of the ADFS partition or image.
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
@@ -35,7 +36,7 @@ Spectrum/Amstrad
 * Write entire module.
 
 MMFS
-* Write entire module - remove from TDiscImage and incorporate into GUI (REF:3).
+* Remove from TDiscImage and incorporate into GUI (REF:3).
 
 Spark
 * Create new archive.
@@ -46,4 +47,17 @@ Spark
 * Move file.
 
 DOS Plus
-* Write entire module.
+* Create new image/partition.
+* Save partition.
+* Delete partition.
+* Change attributes.
+* Change timestamp.
+* Display filetype, separate from filename.
+* Change filetype.
+* Create directory.
+* Write file.
+* Rename file/directory.
+* Delete file/directory.
+* Move file.
+* Change volume name.
+* Defrag.

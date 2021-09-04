@@ -4,11 +4,17 @@ Disc Image Manager is an application used to load a retro disc image, read the c
 • Acorn ADFS, floppy formats S, M, L, D, E, E+, F, F+ and Hard Discs - Read and Write<br>
 • Acorn Cassette Filing System (CFS) - Read and Write<br>
 • !SparkFS and !PackDir - Read only<br>
-• Acorn File Server Level 2 and 3 - Read and Write<br>
+• Acorn File Server Level 2 and 3, including ADFS Hybrids - Read and Write<br>
+• DOS Plus, as used by BBC Master 512 - Read Only<br>
 • Commodore 1541 (not 40 track) - Read and Write<br>
 • Commodore 1571 - Read and Write<br>
 • Commodore 1581 - Read and Write<br>
 • Commodore AmigaDOS floppy and hard discs - Read Only<br>
+Currently working on:<br>
+• Making Commodore AmigaDOS writable<br>
+• Sinclair Spectrum +3 and Amstrad images<br>
+• SJ Research MDFS<br>
+• Multiple images open simultaenously<br>
 <br>
 Full instructions, in PDF format, are provided within the documentation folder (https://github.com/geraldholdsworth/DiscImageManager/blob/main/Documentation/Disc%20Image%20Manager%20User%20Guide.pdf).
 <br>

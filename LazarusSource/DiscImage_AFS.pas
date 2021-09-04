@@ -4,6 +4,7 @@
 IDs an AFS disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_AFS: Boolean;
+ //This will only identify a plain AFS disc, not an ADFS Hybrid
  function IDAFSPass(chgint:Boolean): Boolean;
  var
   afspart1,
@@ -767,18 +768,19 @@ begin
   begin
    dec(index);
    //Is the one below it adjacent?
-   if(Result[index].Offset=Result[index-1].Offset+secsize)
-   and(Result[index].Zone=Result[index-1].Zone)then
-   begin
-    //Then join them
-    inc(Result[index-1].Length,Result[index].Length);
-    //Move the ones above down
-    if index<Length(Result)-1 then
-     for entry:=index to Length(Result)-2 do
-      Result[entry]:=Result[entry+1];
-    //And let the last one drop off
-    SetLength(Result,Length(Result)-1);
-   end;
+   if Length(Result)>2 then
+    if(Result[index].Offset=Result[index-1].Offset+secsize)
+    and(Result[index].Zone=Result[index-1].Zone)then
+    begin
+     //Then join them
+     inc(Result[index-1].Length,Result[index].Length);
+     //Move the ones above down
+     if index<Length(Result)-1 then
+      for entry:=index to Length(Result)-2 do
+       Result[entry]:=Result[entry+1];
+     //And let the last one drop off
+     SetLength(Result,Length(Result)-1);
+    end;
   end;
  end;
 end;

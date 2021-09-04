@@ -92,7 +92,7 @@ begin
      //Set the directory separator
      dir_sep:='/';
      //and the root name
-     root_name:='root';
+     root_name:='DF0:';
      //More checks to ensure we have the root
      if (Checksum1<>Checksum2)
      or (Read32b(root*secsize+$000,True)<>$02)

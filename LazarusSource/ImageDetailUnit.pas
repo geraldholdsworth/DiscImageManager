@@ -64,6 +64,7 @@ type
   OKBtnBack: TPanel;
   pnSide0: TGroupBox;
   FreeLabel: TLabel;
+  BBCMasterLogo: TImage;
   SystemLabel: TLabel;
   DirectoryLabel: TLabel;
   FileLabel: TLabel;

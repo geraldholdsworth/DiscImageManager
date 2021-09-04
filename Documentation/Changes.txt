@@ -700,6 +700,22 @@ Bug fixes
 * Deletions, additions and renames were not working on the Acorn FS partition of a hybrid image.
 * Writes, where the file would get fragmented, was not implemented. This was because the function which allocates fragments had not been fully completed to account for fragmenting an object.
 
+1.37 - 4th September 2021
+-------------------------
+New or improved features
+* Can now read MS-DOS and DOS Plus images and partitions.
+* Changed the AmigaDOS root name to 'DF0:'.
+* Added new filetype graphics for Commodore 64 files.
+* Added a new graphic for non-Acorn and non-Commodore 64 files.
+
+Bug fixes
+* There was a potential for the application to crash when reading the Acorn FS free space map.
+* When an ADFS/AFS Hybrid image was open, the ADFS attribute panel was shown whether an ADFS or AFS object was selected.
+* The wrong icons were getting used for Acorn File Server files.
+* The file attributes for a Commodore 64 file where not correctly positioned on the form.
+* Modified the code in attempt to stop the icons growing in the directory listing, and to tile the background under the filetype icon on the File Details pane.
+
+
 Platform History
 ----------------
 

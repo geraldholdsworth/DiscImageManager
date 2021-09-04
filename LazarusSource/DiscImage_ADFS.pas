@@ -81,6 +81,27 @@ begin
       //Unless we have found a format
       if FFormat<>diInvalidImg then ctr:=2;
      end;
+     //Do we have an ADFS L, but reported size is $000AA0?
+     if(FFormat=diAcornADFS<<4+2)and(Read24b($0FC)=$000AA0)
+     and(ReadString($6FB,-4)='Hugo')then
+     begin
+      FDOSPresent:=True;
+      //Automatic interleave?
+      if FForceInter=0 then
+      begin
+       //If this is not as expected, then change the interleave
+       if(ReadByte($1000)<>$FF)or(Read24b($1001)<>$FFFFFF)then
+        if FInterleave=2 then FInterleave:=1 else FInterleave:=2;
+       //Still not as expected? Change back and clear the flag
+       if(ReadByte($1000)<>$FF)or(Read24b($1001)<>$FFFFFF)then
+       begin
+        if FInterleave=2 then FInterleave:=1 else FInterleave:=2;
+        FDOSPresent:=False;
+       end;
+      end;
+      //If, at this stage, the flag is set, reset the disc size to 4K.
+      if FDOSPresent then disc_size[0]:=$1000;
+     end;
      //Do we still have a mystery size? We'll ignore 800K as this was set earlier
      if(FFormat=diInvalidImg)and(disc_size[0]<819200)and(GetDataLength<819200)then
       FFormat:=diAcornADFS<<4+$0E; //Mark it as an unknown shape
@@ -89,10 +110,7 @@ begin
      FAFSPresent:=ReadByte($0F6)<>0;
      //Check that the root is valid - could be AFS with no ADFS
      if FAFSPresent then //We'll just check the end name, and set to AFS L3
-//     begin
-//      FFormat:=diAcornADFS<<4+$E;
       if ReadString($6FB,-4)<>'Hugo' then FFormat:=diAcornFS<<4+2;
-//     end;
     end;
     if(FFormat mod $10<3)or(FFormat=diAcornADFS<<4+$0E)then //ADFS S,M,L or unknown
     begin
@@ -218,6 +236,34 @@ begin
      end;
     end;
    end;
+   //Check for DOS Plus partition on ADFS Hard drives
+   if FFormat=diAcornADFS<<4+$F then
+   begin
+    //Start after the root
+    ctr:=((root+root_size)div$100)*$100;
+    while(ctr<=GetDataLength)and(not FDOSPresent)do
+    begin
+{     //Is there E9 or EB stored here
+     if(ReadByte(ctr)=$E9)or(ReadByte(ctr)=$EB)then
+     begin
+      //Read in the block size
+      ds:=Read16b(ctr+$B);
+      //Is there a FAT partition?
+      if Read24b(ctr+ds+1)=$FFFFFF then
+      begin
+       //Mark as DOS Partition present
+       FDOSPresent:=True;
+       //And set the ADFS partition size
+       disc_size[0]:=ctr;
+       //DOS Header
+       doshead:=ctr;
+      end;
+     end;}
+     if IDDOSPartition(ctr) then disc_size[0]:=ctr;
+     //Next marker
+     inc(ctr,$100);
+    end;
+   end;
   end;
   //Return a true or false
   Result:=FFormat>>4=diAcornADFS;
@@ -273,7 +319,10 @@ begin
  end
  else
   Result.Directory:=dirname;
+ //Reset the Partition flags
  Result.AFSPartition:=False;
+ Result.DOSPartition:=False;
+ //Set the sector
  Result.Sector:=sector;
  //Initialise some of the variables
  StartSeq        :=$00;
@@ -3241,9 +3290,20 @@ begin
  Result   :=False;
  fragments:=nil;
  //Is this on an AFS partition?
- if LeftStr(filename,Length(afsrootname))=afsrootname then
-  Result:=ExtractAFSFile(filename,buffer)
- else //No, so look on ADFS
+ if AFSPresent then
+  if LeftStr(filename,Length(afsrootname))=afsrootname then
+  begin
+   Result:=ExtractAFSFile(filename,buffer);
+   exit;
+  end;
+ //Is this on a DOS Partition?
+ if DOSPresent then
+  if(LeftStr(filename,2)='A:')or(LeftStr(filename,2)='C:')then
+  begin
+   Result:=ExtractDOSFile(filename,buffer);
+   exit;
+  end;
+ //No, so look on ADFS
  if FileExists(filename,dir,entry) then //Does the file actually exist?
  //Yes, so load it - there is nothing to stop a directory header being extracted
  //if passed in the filename parameter.
