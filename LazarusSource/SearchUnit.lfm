@@ -1,7 +1,7 @@
 object SearchForm: TSearchForm
   Left = 633
   Height = 335
-  Top = 295
+  Top = 319
   Width = 451
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
@@ -27,9 +27,9 @@ object SearchForm: TSearchForm
     OnPaint = FormPaint
     object SearchFiletypeLabel: TLabel
       Left = 16
-      Height = 19
+      Height = 16
       Top = 37
-      Width = 71
+      Width = 57
       Alignment = taRightJustify
       Caption = 'Filetype:'
       Font.Color = clWindowText
@@ -64,9 +64,9 @@ object SearchForm: TSearchForm
     end
     object SearchFilenameLabel: TLabel
       Left = 8
-      Height = 19
+      Height = 16
       Top = 10
-      Width = 80
+      Width = 64
       Alignment = taRightJustify
       Caption = 'Filename:'
       Font.Color = clWindowText

@@ -1,20 +1,20 @@
 object AFSPartitionForm: TAFSPartitionForm
   Left = 436
-  Height = 85
-  Top = 224
+  Height = 156
+  Top = 248
   Width = 320
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
-  Caption = 'Acorn FS Partition Size'
-  ClientHeight = 85
+  Caption = 'Partition Size'
+  ClientHeight = 156
   ClientWidth = 320
   Color = 15527148
-  OnResize = FormResize
+  OnPaint = FormPaint
   Position = poMainFormCenter
   LCLVersion = '2.0.12.0'
   object PartitionSize: TTrackBar
     Left = 0
-    Height = 24
+    Height = 37
     Top = 0
     Width = 320
     OnChange = PartitionSizeChange
@@ -27,7 +27,7 @@ object AFSPartitionForm: TAFSPartitionForm
   object PartitionSizeLabel: TLabel
     Left = 0
     Height = 16
-    Top = 24
+    Top = 37
     Width = 320
     Align = alTop
     Alignment = taCenter
@@ -37,7 +37,7 @@ object AFSPartitionForm: TAFSPartitionForm
   object CancelButton: TBitBtn
     Left = 8
     Height = 30
-    Top = 48
+    Top = 120
     Width = 100
     Cancel = True
     Caption = 'Cancel'
@@ -48,7 +48,7 @@ object AFSPartitionForm: TAFSPartitionForm
   object OKBtnBack: TPanel
     Left = 124
     Height = 30
-    Top = 48
+    Top = 120
     Width = 100
     BevelColor = clYellow
     BevelInner = bvLowered
@@ -69,5 +69,29 @@ object AFSPartitionForm: TAFSPartitionForm
       ModalResult = 1
       TabOrder = 0
     end
+  end
+  object rad_type: TRadioGroup
+    Left = 0
+    Height = 56
+    Top = 53
+    Width = 320
+    Align = alTop
+    AutoFill = True
+    Caption = 'Partition Type'
+    ChildSizing.LeftRightSpacing = 6
+    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
+    ChildSizing.EnlargeVertical = crsHomogenousChildResize
+    ChildSizing.ShrinkHorizontal = crsScaleChilds
+    ChildSizing.ShrinkVertical = crsScaleChilds
+    ChildSizing.Layout = cclLeftToRightThenTopToBottom
+    ChildSizing.ControlsPerLine = 1
+    ClientHeight = 37
+    ClientWidth = 310
+    ItemIndex = 0
+    Items.Strings = (
+      'Acorn File Server'
+      'DOS Plus'
+    )
+    TabOrder = 3
   end
 end

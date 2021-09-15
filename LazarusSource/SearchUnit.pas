@@ -90,7 +90,8 @@ begin
   for i:=0 to Length(results)-1 do
   begin
    //Create the text
-   line:=results[i].Parent+MainForm.Image.DirSep+results[i].Filename;
+   line:=results[i].Parent
+        +MainForm.Image.GetDirSep(results[i].Side)+results[i].Filename;
    //Remove any top bit set characters
    RemoveTopBit(line);
    //And list the result

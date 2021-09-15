@@ -944,3 +944,17 @@ begin
   end;
  end;
 end;
+
+{-------------------------------------------------------------------------------
+Move a file
+-------------------------------------------------------------------------------}
+function TDiscImage.MoveDFSFile(filename,directory: String): Integer;
+var
+ oldfn: String;
+begin
+ oldfn:=filename;
+ //Moving and copying are the same, essentially
+ Result:=CopyFile(filename,directory);
+ //We just need to delete the original once copied
+ if Result>-1 then DeleteFile(oldfn);
+end;

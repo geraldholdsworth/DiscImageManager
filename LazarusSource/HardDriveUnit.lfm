@@ -1,7 +1,7 @@
 object HardDriveForm: THardDriveForm
   Left = 483
   Height = 118
-  Top = 261
+  Top = 285
   Width = 490
   BorderIcons = []
   BorderStyle = bsDialog
@@ -122,7 +122,7 @@ object HardDriveForm: THardDriveForm
   end
   object CapacitySlider: TTrackBar
     Left = 80
-    Height = 25
+    Height = 37
     Top = 24
     Width = 328
     Max = 203
@@ -134,58 +134,59 @@ object HardDriveForm: THardDriveForm
   end
   object CapacityHeaderLabel: TLabel
     Left = 96
-    Height = 15
+    Height = 14
     Top = 8
-    Width = 103
+    Width = 114
     Caption = 'Hard Disc Capacity:'
     ParentColor = False
   end
   object CapacityLabel: TLabel
     Left = 416
-    Height = 15
+    Height = 14
     Top = 28
-    Width = 30
+    Width = 37
     Caption = '10MB'
     ParentColor = False
   end
   object cb_NewMap: TCheckBox
     Left = 88
-    Height = 19
+    Height = 23
     Top = 56
-    Width = 71
+    Width = 83
     Caption = 'New Map'
     OnChange = cb_NewMapChange
     TabOrder = 3
   end
   object rb_OldDir: TRadioButton
     Left = 296
-    Height = 19
+    Height = 23
     Top = 56
-    Width = 39
+    Width = 48
     Caption = 'Old'
+    Checked = True
     TabOrder = 4
   end
   object rb_NewDir: TRadioButton
     Left = 349
-    Height = 19
+    Height = 23
     Top = 56
-    Width = 44
+    Width = 53
     Caption = 'New'
     TabOrder = 5
   end
   object rb_BigDir: TRadioButton
     Left = 405
-    Height = 19
+    Height = 23
     Top = 56
-    Width = 37
+    Width = 46
     Caption = 'Big'
     TabOrder = 6
   end
   object DirectoryLabel: TLabel
     Left = 216
-    Height = 15
+    Height = 14
     Top = 56
-    Width = 51
+    Width = 59
     Caption = 'Directory:'
     ParentColor = False
   end

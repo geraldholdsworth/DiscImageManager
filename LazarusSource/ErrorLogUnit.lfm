@@ -1,7 +1,7 @@
 object ErrorLogForm: TErrorLogForm
   Left = 304
   Height = 64
-  Top = 113
+  Top = 137
   Width = 485
   Caption = 'Error Log'
   ClientHeight = 64

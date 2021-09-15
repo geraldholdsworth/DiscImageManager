@@ -715,6 +715,39 @@ Bug fixes
 * The file attributes for a Commodore 64 file where not correctly positioned on the form.
 * Modified the code in attempt to stop the icons growing in the directory listing, and to tile the background under the filetype icon on the File Details pane.
 
+1.38 - 15th September 2021
+--------------------------
+New or improved features
+* Can rename files and directories in DOS Plus images.
+* Can delete files and directories in DOS Plus images.
+* Can update file attributes in DOS Plus images.
+* Can retitle DOS Plus volume names, including those as partitions on ADFS hybrids.
+* Can update the time stamp for files and directories on DOS Plus images.
+* Details are now displayed for the DOS Plus root.
+* Filetypes are now displayed for DOS Plus files/directories.
+* Can add files to a DOS Plus image.
+* Added 'Sinclair Spectrum hard drive (*.hdf)' as an option in the Open Existing Image dialogue.
+* Added 'All Sinclair Spectrum (*.dsk;*.hdf)' as an option in the Open Existing Image dialogue.
+* Moved 'All files (*.*)' to the top of the list in the Open Existing Image dialogue.
+* Can create new directories on DOS Plus images.
+* Changed the filter for 'All files' from '*.*' to '*'.
+* Can save the DOS Plus partition from an ADFS/DOS Plus hybrid.
+* Can save the ADFS partition from an ADFS/DOS Plus hybrid.
+* Can delete the DOS Plus partition from an ADFS/DOS Plus hybrid.
+* Can delete the ADFS partition from an ADFS/DOS Plus hybrid.
+* Changed the "New Image" dialogue layout to get the items equally spaced on all options.
+* Added a new option to the "New Image" dialogue - 'DOS Plus/DOS' along with the corresponding image shape sub-options.
+* Added radio boxes to the "Add Partition" dialogue for Acorn File Server and DOS Plus.
+* Changed the title bar for "Add Partition" from 'AFS Partition Size' to just 'Partition Size'.
+* Tiled the "Add Partition" dialogue, as it had been missed previously.
+* Different directory separators are now specified with ADFS/DOS hybrids.
+
+Bug fixes
+* When reading in a DOS Plus directory, if the first character of the filename is 0x05 this is now replaced with 0xE5 instead of just skipping the entry.
+* DOS Directories were read direct from the data instead of being read into a buffer. This could result in the directory not being read correctly, particularly if it was fragmented.
+* The function to determine if a cluster number was valid sometimes returned a false positive.
+* Writes to an Acorn FS or DOS Plus partition of an ADFS hybrid sometimes failed to work correctly.
+* At some point in a previous version, the root name 'dropped' off the parent property for ADFS files. This meant that the search results returned files with the root missing from the pathname and therefore unable to locate when clicked on.
 
 Platform History
 ----------------

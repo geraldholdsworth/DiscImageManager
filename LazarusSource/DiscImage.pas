@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.37
+TDiscImage class V1.38
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -90,6 +90,7 @@ type
   afshead2,                     //Address of the AFS header copy
   doshead,                      //Address of the DOS Plus header, if exists
   dosmap,                       //Address of the DOS Plus FAT
+  dosmap2,                      //Address of the second DOS Plus FAT (if applicable)
   bootmap,                      //Offset of the map (Acorn ADFS)
   zone_spare,                   //Spare bits between zones (Acorn ADFS New)
   format_vers,                  //Format version (Acorn ADFS New)
@@ -120,6 +121,7 @@ type
   FATType,                      //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
   NumFATs       : Byte;         //Number of FATs in a DOS Plus image
   root_name,                    //Root title
+  dosrootname,                  //DOS Plus root name
   imagefilename,                //Filename of the disc image
   FFilename     : String;       //Copy of above, but doesn't get wiped
   dir_sep       : Char;         //Directory Separator
@@ -298,6 +300,7 @@ type
   function ExtractDFSPartition(side: Cardinal): TDIByteArray;
   function AddDFSSide(var buffer: TDIByteArray): Boolean;
   function AddDFSSide(filename: String): Boolean; overload;
+  function MoveDFSFile(filename,directory: String): Integer;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
@@ -367,17 +370,41 @@ type
   function IDDOSPartition(ctr: Cardinal): Boolean;
   procedure ReadDOSPartition;
   procedure ReadDOSHeader;
-  function ReadDOSDirectory(dirname: String;addr: Cardinal): TDir;
+  function ReadDOSDirectory(dirname:String;addr:Cardinal;var len:Cardinal):TDir;
+  function DOSExtToFileType(ext: String): String;
   function ConvertDOSTimeDate(time,date: Word): TDateTime;
+  function DOSTime(time: TDateTime): Word;
+  function DOSDate(date: TDateTime): Word;
   function ConvertDOSAttributes(attr: Byte): String;
+  function ConvertDOSAttributes(attr: String): Byte; overload;
   function DOSClusterToOffset(cluster: Cardinal): Cardinal;
   function GetClusterEntry(cluster: Cardinal): Cardinal;
+  procedure SetClusterEntry(cluster,entry: Cardinal);
   function IsClusterValid(cluster: Cardinal): Boolean;
+  function GetClusterChain(cluster:Cardinal;len:Cardinal=0):TFragmentArray;
+  procedure SetClusterChain(fragments: TFragmentArray);
   function ExtractDOSFile(filename: String;var buffer: TDIByteArray): Boolean;
+  function ReadDOSObject(cluster: Cardinal;len: Cardinal=0): TDIByteArray;
   procedure ReadDOSFSM;
   function DOSGetFreeSectors(used: Boolean=False): TFragmentArray;
   function RenameDOSFile(oldname:String;var newname: String): Integer;
   function ValidateDOSFilename(filename: String): String;
+  procedure UpdateDOSDirectory(dirname: String);
+  procedure AllocateDOSClusters(len:Cardinal;var fragments:TFragmentArray);
+  procedure DeAllocateDOSClusters(len:Cardinal;var fragments:TFragmentArray);
+  function WriteDOSObject(buffer:TDIByteArray;fragments:TFragmentArray):Boolean;
+  function WriteDOSFile(var file_details: TDirEntry;
+                                              var buffer: TDIByteArray):Integer;
+  function CreateDOSDirectory(dirname,parent,attributes: String): Integer;
+  function DeleteDOSFile(filename: String): Boolean;
+  function UpdateDOSAttributes(filename,attributes: String): Boolean;
+  function UpdateDOSDiscTitle(title: String): Boolean;
+  function UpdateDOSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
+  function AddDOSPartition(size: Cardinal): Boolean;
+  function FormatDOS(shape: Byte): TDisc;
+  procedure WriteDOSPartition;
+  procedure WriteDOSHeader;
+  function MoveDOSFile(filename,directory: String): Integer;
   //Private constants
   const
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
@@ -394,6 +421,7 @@ type
    //Root name to use when AFS is partition on ADFS
    afsrootname  = ':AFS$';
    {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
+   {$INCLUDE 'DiscImageDOSFileTypes.pas'}
  published
   //Published methods
   constructor Create;
@@ -446,9 +474,10 @@ type
   function GetParent(dir: Integer): String;
   function SeparatePartition(side: Cardinal;filename: String=''): Boolean;
   function GetMaxLength: Cardinal;
-  function AddPartition(size: Cardinal): Boolean;
+  function AddPartition(size: Cardinal;format: Byte): Boolean;
   function AddPartition(filename: String): Boolean; overload;
   function ChangeInterleaveMethod(NewMethod: Byte): Boolean;
+  function GetDirSep(partition: Byte): Char;
   //Published properties
   property AFSPresent:          Boolean       read FAFSPresent;
   property AFSRoot:             Cardinal      read Fafsroot;

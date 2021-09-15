@@ -2,7 +2,7 @@ object ProgressForm: TProgressForm
   Cursor = crHourGlass
   Left = 454
   Height = 200
-  Top = 190
+  Top = 214
   Width = 597
   BorderIcons = []
   BorderStyle = bsNone
@@ -43,9 +43,9 @@ object ProgressForm: TProgressForm
     end
     object WaitLabel: TLabel
       Left = 1
-      Height = 45
+      Height = 35
       Top = 1
-      Width = 337
+      Width = 342
       Alignment = taCenter
       Caption = 'Please wait, working...'
       ParentColor = False

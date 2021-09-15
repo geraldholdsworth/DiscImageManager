@@ -508,7 +508,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.37';
+    ApplicationVersion = '1.38';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -1049,9 +1049,12 @@ begin
      NewFile.DirRef       :=-1; //Not a directory
      NewFile.ShortFileType:=filetype;
      if(Image.FormatNumber>>4=diAcornADFS) //Need the selected directory for ADFS
-     or(Image.FormatNumber>>4=diAcornFS)then//And Acorn FS
+     or(Image.FormatNumber>>4=diAcornFS)   //And Acorn FS
+     or(Image.FormatNumber>>4=diDOSPlus)then//And DOS Plus
       if(DirList.Selected.Text='$')
-      or(DirList.Selected.Text='AFS$')then NewFile.Parent:=DirList.Selected.Text
+      or(DirList.Selected.Text='AFS$')
+      or(DirList.Selected.Text='A:')
+      or(DirList.Selected.Text='C:')then NewFile.Parent:=DirList.Selected.Text
       else
        NewFile.Parent    :=GetImageFilename(TMyTreeNode(DirList.Selected).ParentDir,
                                             DirList.Selected.Index);
@@ -2031,11 +2034,10 @@ begin
  DuplicateFile1.Enabled   :=btn_DuplicateFile.Enabled;
  menuDuplicateFile.Enabled:=btn_DuplicateFile.Enabled;
  //Delete and Save Partition
- afspart:=False;
- //Check for DFS double sided
- if(Image.FormatNumber>>4=diAcornDFS)and(Image.DoubleSided)then afspart:=True;
- //Check for ADFS/AFS Hybrid
- if Image.FormatNumber=diAcornADFS<<4+$E then afspart:=True;
+ afspart:=((Image.FormatNumber>>4=diAcornDFS)and(Image.DoubleSided)) //DFS DS
+        or((Image.FormatNumber>>4=diAcornADFS)and(Image.AFSPresent)) //ADFS/AFS
+        or((Image.FormatNumber>>4=diAcornADFS)and(Image.DOSPresent));//ADFS/DOS
+ //Show/Hide partition options
  btn_DeletePartition.Enabled:=(afspart)and(DirList.SelectionCount=1);
  menuDeletePartition.Enabled:=btn_DeletePartition.Enabled;
  btn_SavePartition.Enabled  :=(afspart)and(DirList.SelectionCount=1);
@@ -2044,7 +2046,8 @@ begin
  btn_AddPartition.Enabled   :=(Image.FormatNumber>>4=diAcornADFS)
                            and(Image.DirectoryType=diADFSOldDir)
                            and(Image.MapType=diADFSOldMap)
-                           and(not Image.AFSPresent);
+                           and(not Image.AFSPresent)
+                           and(not Image.DOSPresent);
  menuAddPartition.Enabled   :=btn_AddPartition.Enabled;
  //Defrag (Compact) button
  btn_defrag.Enabled:=Length(Image.Disc)>0;
@@ -2090,7 +2093,8 @@ begin
   //Enable the create directory button
   if(Image.FormatNumber>>4=diAcornADFS)
   OR(Image.FormatNumber>>4=diAmiga)
-  or(Image.FormatNumber>>4=diAcornFS)then //ADFS, Amiga and Acorn FS
+  or(Image.FormatNumber>>4=diAcornFS)
+  or(Image.FormatNumber>>4=diDOSPlus)then //ADFS, Amiga, Acorn FS and DOS Plus
   begin
    NewDirectory1.Enabled   :=True;
    btn_NewDirectory.Enabled:=True;
@@ -2282,9 +2286,17 @@ begin
    NewDirectory1.Enabled   :=False;
    btn_NewDirectory.Enabled:=False;
    menuNewDir.Enabled      :=False;
-   //Can edit a file's filetype
-   img_Filetype.Hint:='Click to edit';
-   lb_FileType.Hint :='Click to edit';
+   //Filetype hints
+   if Image.FormatNumber>>4=diDOSPlus then
+   begin //Can't edit
+    img_Filetype.Hint:='';
+    lb_FileType.Hint :='';
+   end
+   else
+   begin //Can edit
+    img_Filetype.Hint:='Click to edit';
+    lb_FileType.Hint :='Click to edit';
+   end;
   end;
   //Filename
   RemoveTopBit(filename);
@@ -2314,7 +2326,8 @@ begin
   or(Image.FormatNumber>>4=diCommodore) //C64
   or(Image.FormatNumber>>4=diAmiga)     //AmigaDOS
   or(Image.FormatNumber>>4=diSpark)     //Spark
-  or(Image.FormatNumber>>4=diAcornFS)then //Acorn FS
+  or(Image.FormatNumber>>4=diAcornFS)   //Acorn FS
+  or(Image.FormatNumber>>4=diDOSPlus)then//DOS Plus
    lb_FileType.Caption:=filetype;
   location:=''; //Default location string
   if dir>=0 then
@@ -2380,7 +2393,7 @@ begin
     location:='Starting Block 0x'
              +IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
   end;
-  if dir=-1 then
+  if dir=-1 then //Root directory
   begin
    //Status bar
    UpdateImageInfo(Image.Disc[dr].Partition);
@@ -2389,7 +2402,9 @@ begin
    //ADFS Old map and Acorn File Server - Sector is an offset
    if(Image.MapType=diADFSOldMap)
    or(Image.FormatNumber>>4=diAcornFS)
-   or(Image.Disc[dr].AFSPartition)then
+   or(Image.FormatNumber>>4=diDOSPlus)
+   or(Image.Disc[dr].AFSPartition)
+   or(Image.Disc[dr].DOSPartition)then
     location:='Sector Offset: 0x'+IntToHex(Image.Disc[dr].Sector,8);
    //ADFS New map - Sector is an indirect address (fragment and sector)
    if Image.MapType=diADFSNewMap then
@@ -2432,12 +2447,12 @@ begin
  dospart:=False;
  WriteToDebug('Dir: '+IntToStr(dir));
  WriteToDebug('Entry: '+IntToStr(entry));
- if dir>=0 then
+ if(dir>=0)and(dir<Length(ImageToUse.Disc))then
  begin
   afspart:=ImageToUse.Disc[dir].AFSPartition;
   dospart:=ImageToUse.Disc[dir].DOSPartition;
   //Get the filetype to look for
-  if entry>=0 then
+  if(entry>=0)and(entry<Length(ImageToUse.Disc[dir].Entries))then
    filetype:=ImageToUse.Disc[dir].Entries[entry].ShortFiletype;
  end;
  if afspart then WriteToDebug('AFS Partition present');
@@ -3037,8 +3052,9 @@ procedure TMainForm.SelectNode(filename: String;casesens:Boolean=True);
 var
  i,
  found  : Integer;
- dirname:String;
- Node   :TTreeNode;
+ dirname: String;
+ Node   : TTreeNode;
+ Ldirsep: Char;
 begin
  //Unselect everything
  DirList.ClearSelection;
@@ -3054,8 +3070,12 @@ begin
   Node:=DirList.Items[i];
   while Node.Parent<>nil do
   begin
+   if TMyTreeNode(Node).ParentDir>=0 then
+    Ldirsep:=Image.GetDirSep(Image.Disc[TMyTreeNode(Node).ParentDir].Partition)
+   else
+    Ldirsep:=Image.DirSep;
    Node:=Node.Parent;
-   dirname:=Node.Text+Image.DirSep+dirname;
+   dirname:=Node.Text+Ldirsep+dirname;
   end;
   //If it matches, then take a note
   if(dirname=filename)and(casesens)then found:=i;
@@ -3677,7 +3697,8 @@ var
 begin
  //ADFS and AFS only
  if(Image.FormatNumber>>4=diAcornADFS)
- or(Image.FormatNumber>>4=diAcornFS)then
+ or(Image.FormatNumber>>4=diAcornFS)
+ or(Image.FormatNumber>>4=diDOSPlus)then
  begin
   //Get the references
   entry:=DirList.Selected.Index;
@@ -4142,10 +4163,15 @@ begin
   SaveImage.Title:='Save Partition As';
   //DS DFS Image, so target is SS DFS
   if(Image.FormatNumber>>4=diAcornDFS)
-  and(Image.DoubleSided{FormatNumber mod 2=1})then targetformat:=Image.FormatNumber-1;
+  and(Image.DoubleSided)then targetformat:=Image.FormatNumber-1;
   //ADFS/AFS Hybrid, with AFS partition selected, so target will be AFS Level 3
   if(Image.FormatNumber>>4=diAcornADFS)
+  and(Image.AFSPresent)
   and(side<>0)then targetformat:=diAcornFS<<4+2;
+  //ADFS/DOS Hybrid, with DOS partition selected, so target will be DOS Plus
+  if(Image.FormatNumber>>4=diAcornADFS)
+  and(Image.DOSPresent)
+  and(side<>0)then targetformat:=diDOSPlus<<4;
   //ADFS/AFS Hybrid, with ADFS partition selected, so target will be ADFS 'L'
   if(Image.FormatNumber>>4=diAcornADFS)
   and(side=0)then targetformat:=diAcornADFS<<4+2;
@@ -4286,22 +4312,40 @@ end;
 //Adds a new AFS partition to an ADFS image
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_AddPartitionClick(Sender: TObject);
+var
+ partsize,
+ parttype : Integer;
+ part     : String;
 begin
  //Set up the form
- AFSPartitionForm.PartitionSize.Min:=9;
- AFSPartitionForm.PartitionSize.Max:=Image.GetMaxLength div $100;
- AFSPartitionForm.PartitionSize.Position:=AFSPartitionForm.PartitionSize.Max;
- AFSPartitionForm.PartitionSizeChange(Sender);
+ AFSPartitionForm.PartitionSize.Min:=9; //Minimum partition size
+ AFSPartitionForm.PartitionSize.Max:=Image.GetMaxLength div $100; //Max partition size
+ AFSPartitionForm.PartitionSize.Position:=AFSPartitionForm.PartitionSize.Max; //Current size
+ AFSPartitionForm.PartitionSizeChange(Sender); //Update the label
+ AFSPartitionForm.rad_type.ItemIndex:=0; //Set to Acorn FS by default
  //Display the form
  if AFSPartitionForm.ShowModal=mrOK then //If OK was clicked, then continue
-  if Image.AddPartition(AFSPartitionForm.PartitionSize.Position*$100) then
+ begin
+  //Get the specifications
+  partsize:=AFSPartitionForm.PartitionSize.Position*$100;
+  parttype:=AFSPartitionForm.rad_type.ItemIndex;
+  //Send to the class
+  if Image.AddPartition(partsize,parttype) then
   begin
+   //If successful, mark as changed
    HasChanged:=True;
+   //Update the display
    ShowNewImage(Image.Filename);
    UpdateImageInfo;
   end
   else
-   ReportError('Failed to create Acorn FS partition');
+  begin
+   //If unsuccessful then report an error
+   if parttype=0 then part:='Acorn File Server'
+   else part:='DOS Plus';
+   ReportError('Failed to create '+part+' partition');
+  end;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -4327,6 +4371,7 @@ end;
 procedure TMainForm.btn_FileSearchClick(Sender: TObject);
 begin
  SearchForm.Show;
+ SearchForm.Repaint;
 end;
 
 {------------------------------------------------------------------------------}
@@ -4732,7 +4777,7 @@ begin
    //Mark as changed
    HasChanged:=True;
    //Create the node as a file
-   Node:=AddFileToTree(DirList.Selected,dirname,index,True,DirList{,Image});
+   Node:=AddFileToTree(DirList.Selected,dirname,index,True,DirList);
    //Update the directory reference and the directory flag
    TMyTreeNode(Node).DirRef:=Length(Image.Disc)-1;
    TMyTreeNode(Node).IsDir:=True;
@@ -5209,8 +5254,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
 var
- minor,tracks: Byte;
- ok: Boolean;
+ major : Word;
+ minor,
+ tracks: Byte;
+ ok    : Boolean;
 begin
  if QueryUnsaved then
  begin
@@ -5219,6 +5266,19 @@ begin
   //If Create was clicked, then create a new image
   if NewImageForm.ModalResult=mrOK then
   begin
+   //Get the main format
+   major:=$FFF;
+   case NewImageForm.MainFormat.ItemIndex of
+    0: major:=diAcornDFS;
+    1: major:=diAcornADFS;
+    2: major:=diCommodore;
+    3: major:=diSinclair;
+    4: major:=diAmiga;
+    5: major:=diAcornUEF;
+    6: major:=diSpark;
+    7: major:=diAcornFS;
+    8: major:=diDOSPlus;
+   end;
    //Get the sub-format
    minor:=$F;
    case NewImageForm.MainFormat.ItemIndex of
@@ -5229,21 +5289,22 @@ begin
     4: minor:=NewImageForm.Amiga.ItemIndex;
     5: minor:=$0;
     7: minor:=NewImageForm.AFS.ItemIndex;
+    8: minor:=NewImageForm.DOS.ItemIndex;
    end;
    //Number of tracks (DFS only)
    tracks:=0; //Default
-   if NewImageForm.MainFormat.ItemIndex=0 then
+   if major=diAcornDFS then
     tracks:=NewImageForm.DFSTracks.ItemIndex;
    //Now create the image
    ok:=False;
    //ADFS Hard Drive
-   if(NewImageForm.MainFormat.ItemIndex=1)and(minor=8)then
+   if(major=diAcornADFS)and(minor=8)then
     ok:=Image.FormatHDD(diAcornADFS,
                         NewImageForm.harddrivesize,
                         NewImageForm.newmap,
                         NewImageForm.dirtype)
    else //AFS
-    if NewImageForm.MainFormat.ItemIndex=7 then
+    if major=diAcornFS then
     begin
      ok:=Image.FormatHDD(diAcornFS,
                          NewImageForm.AFSImageSize.Position*10*1024,
@@ -5255,7 +5316,7 @@ begin
        ReportError('Failed to create a password file');
     end
     else //Floppy Drive
-     ok:=Image.FormatFDD(NewImageForm.MainFormat.ItemIndex,minor,tracks);
+     ok:=Image.FormatFDD(major,minor,tracks);
    if ok then
    begin
     CloseAllHexDumps;
@@ -5273,59 +5334,89 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.AttributeChangeClick(Sender: TObject);
 var
- att,filepath: String;
+ att,
+ filepath: String;
+ dir     : Integer;
+ afs,dos : Boolean;
 begin
  if not DoNotUpdate then
  begin
+  afs:=False;
+  dos:=False;
+  //Determine if this is on an AFS or DOS partition
+  if DirList.SelectionCount=1 then //Assuming only one item selected
+  begin
+   //And it is not the root
+   if DirList.Selected.Parent<>nil then
+   begin
+    //Make a note of the AFS and DOS flags, for ADFS
+    dir:=TMyTreeNode(DirList.Selected.Parent).DirRef; //Directory reference of the parent
+    if(dir>=0)and(dir<Length(Image.Disc))then
+    begin
+     afs:=Image.Disc[dir].AFSPartition;
+     dos:=Image.Disc[dir].DOSPartition;
+    end;
+   end;
+  end;
   att:='';
-   //Attributes - DFS and UEF
-   if(Image.FormatNumber>>4=diAcornDFS)
-   or(Image.FormatNumber>>4=diAcornUEF)then
-    if cb_DFS_l.Checked then att:=att+'L';
-   //Attributes - ADFS
-   if Image.FormatNumber>>4=diAcornADFS then
-   begin
-    if cb_ADFS_ownw.Checked then att:=att+'W';
-    if cb_ADFS_ownr.Checked then att:=att+'R';
-    if cb_ADFS_ownl.Checked then att:=att+'L';
-    if cb_ADFS_owne.Checked then att:=att+'E';
-    if cb_ADFS_pubw.Checked then att:=att+'w';
-    if cb_ADFS_pubr.Checked then att:=att+'r';
-    if cb_ADFS_pube.Checked then att:=att+'e';
-    if cb_ADFS_pubp.Checked then att:=att+'P';
-   end;
-   //Attributes - ADFS
-   if Image.FormatNumber>>4=diAcornFS then
-   begin
-    if cb_AFS_ownw.Checked then att:=att+'W';
-    if cb_AFS_ownr.Checked then att:=att+'R';
-    if cb_AFS_ownl.Checked then att:=att+'L';
-    if cb_AFS_pubw.Checked then att:=att+'w';
-    if cb_AFS_pubr.Checked then att:=att+'r';
-   end;
-   //Attributes - Commodore 64
-   if Image.FormatNumber>>4=diCommodore then
-   begin
-    if cb_C64_c.Checked then att:=att+'C';
-    if cb_C64_l.Checked then att:=att+'L';
-   end;
-   if TMyTreeNode(DirList.Selected).IsDir then att:=att+'D';
-   //Get the file path
-   filepath:=GetFilePath(DirList.Selected);
-   //Update the attributes for the file
-   if Image.UpdateAttributes(filepath,att,DirList.Selected.Index) then
-   begin
-    HasChanged:=True;
-    //Update the status bar
-    UpdateImageInfo;
-   end
-   else
-   begin
-    //If unsuccessful, revert back.
-    DoNotUpdate:=True;
-    TCheckbox(Sender).Checked:=not TCheckbox(Sender).Checked;
-    DoNotUpdate:=False;
-   end;
+  //Attributes - DFS and UEF
+  if(Image.FormatNumber>>4=diAcornDFS)
+  or(Image.FormatNumber>>4=diAcornUEF)then
+   if cb_DFS_l.Checked then att:=att+'L';
+  //Attributes - ADFS
+  if(Image.FormatNumber>>4=diAcornADFS)and(not afs)and(not dos)then
+  begin
+   if cb_ADFS_ownw.Checked then att:=att+'W';
+   if cb_ADFS_ownr.Checked then att:=att+'R';
+   if cb_ADFS_ownl.Checked then att:=att+'L';
+   if cb_ADFS_owne.Checked then att:=att+'E';
+   if cb_ADFS_pubw.Checked then att:=att+'w';
+   if cb_ADFS_pubr.Checked then att:=att+'r';
+   if cb_ADFS_pube.Checked then att:=att+'e';
+   if cb_ADFS_pubp.Checked then att:=att+'P';
+  end;
+  //Attributes - AFS
+  if(Image.FormatNumber>>4=diAcornFS)
+  or((Image.FormatNumber>>4=diAcornADFS)and(afs))then
+  begin
+   if cb_AFS_ownw.Checked then att:=att+'W';
+   if cb_AFS_ownr.Checked then att:=att+'R';
+   if cb_AFS_ownl.Checked then att:=att+'L';
+   if cb_AFS_pubw.Checked then att:=att+'w';
+   if cb_AFS_pubr.Checked then att:=att+'r';
+  end;
+  //Attributes - Commodore 64
+  if Image.FormatNumber>>4=diCommodore then
+  begin
+   if cb_C64_c.Checked then att:=att+'C';
+   if cb_C64_l.Checked then att:=att+'L';
+  end;
+  //Attributes - DOS Plus
+  if(Image.FormatNumber>>4=diDOSPlus)
+  or((Image.FormatNumber>>4=diAcornADFS)and(dos))then
+  begin
+   if cb_DOS_hidden.Checked  then att:=att+'H';
+   if cb_DOS_read.Checked    then att:=att+'R';
+   if cb_DOS_system.Checked  then att:=att+'S';
+   if cb_DOS_archive.Checked then att:=att+'A';
+  end;
+  if TMyTreeNode(DirList.Selected).IsDir then att:=att+'D';
+  //Get the file path
+  filepath:=GetFilePath(DirList.Selected);
+  //Update the attributes for the file
+  if Image.UpdateAttributes(filepath,att,DirList.Selected.Index) then
+  begin
+   HasChanged:=True;
+   //Update the status bar
+   UpdateImageInfo;
+  end
+  else
+  begin
+   //If unsuccessful, revert back.
+   DoNotUpdate:=True;
+   TCheckbox(Sender).Checked:=not TCheckbox(Sender).Checked;
+   DoNotUpdate:=False;
+  end;
  end;
 end;
 

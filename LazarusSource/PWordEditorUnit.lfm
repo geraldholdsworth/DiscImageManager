@@ -1,7 +1,7 @@
 object PwordEditorForm: TPwordEditorForm
   Left = 626
   Height = 267
-  Top = 208
+  Top = 232
   Width = 500
   HorzScrollBar.Page = 471
   HorzScrollBar.Range = 472
@@ -10,7 +10,7 @@ object PwordEditorForm: TPwordEditorForm
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Acorn FS User Account Editor'
-  ClientHeight = 267
+  ClientHeight = 254
   ClientWidth = 500
   Color = 15527148
   OnHide = FormHide
@@ -211,7 +211,7 @@ object PwordEditorForm: TPwordEditorForm
   object ControlsPanel: TPanel
     Left = 0
     Height = 50
-    Top = 217
+    Top = 204
     Width = 500
     Align = alBottom
     ClientHeight = 50

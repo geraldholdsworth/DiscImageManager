@@ -243,22 +243,6 @@ begin
     ctr:=((root+root_size)div$100)*$100;
     while(ctr<=GetDataLength)and(not FDOSPresent)do
     begin
-{     //Is there E9 or EB stored here
-     if(ReadByte(ctr)=$E9)or(ReadByte(ctr)=$EB)then
-     begin
-      //Read in the block size
-      ds:=Read16b(ctr+$B);
-      //Is there a FAT partition?
-      if Read24b(ctr+ds+1)=$FFFFFF then
-      begin
-       //Mark as DOS Partition present
-       FDOSPresent:=True;
-       //And set the ADFS partition size
-       disc_size[0]:=ctr;
-       //DOS Header
-       doshead:=ctr;
-      end;
-     end;}
      if IDDOSPartition(ctr) then disc_size[0]:=ctr;
      //Next marker
      inc(ctr,$100);
@@ -471,6 +455,8 @@ begin
     offset:=entrys+ptr*entrysize;
     //Blank the entries
     ResetDirEntry(Entry);
+    //Sometimes the pathname has the root missing
+    if pathname[1]=dir_sep then pathname:=root_name+pathname;
     Entry.Parent:=pathname;
     //Read in the entries
     case FDirType of
@@ -1627,7 +1613,7 @@ var
  t: Integer;
 begin
  //Is this an ADFS/AFS Hybrid?
- if FFormat=diAcornADFS<<4+$E then
+ if FAFSPresent then
  begin
   Result:=UpdateAFSDiscTitle(title);
   exit;
@@ -1721,7 +1707,6 @@ begin
  // Start at the start zone to find a hole big enough for the file to fit
  zonecounter:=startzone;
  startoffset:=0;
-// for zonecounter:=0 to nzones-1 do
  while startoffset<=Ceil(nzones/2) do
  begin
   zone:=(zonecounter{+startzone}){mod nzones};
@@ -1812,11 +1797,19 @@ var
  fragments    : TFragmentArray;
 begin
  //Is this on the AFS partition?
- if LeftStr(file_details.Parent,Length(afsrootname))=afsrootname then
- begin
-  Result:=WriteAFSFile(file_details,buffer);
-  exit;
- end;
+ if FAFSPresent then
+  if LeftStr(file_details.Parent,Length(afsrootname))=afsrootname then
+  begin
+   Result:=WriteAFSFile(file_details,buffer);
+   exit;
+  end;
+ //Is this on the DOS partition?
+ if FDOSPresent then
+  if LeftStr(file_details.Parent,Length(dosrootname))=dosrootname then
+  begin
+   Result:=WriteDOSFile(file_details,buffer);
+   exit;
+  end;
  l      :=0;
  dir    :=0;
  freeptr:=0;
@@ -2298,11 +2291,19 @@ var
  fileentry : TDirEntry;
 begin
  //Is this on the AFS partition?
- if LeftStr(parent,Length(afsrootname))=afsrootname then
- begin
-  Result:=CreateAFSDirectory(dirname,parent,attributes);
-  exit;
- end;
+ if FAFSPresent then
+  if LeftStr(parent,Length(afsrootname))=afsrootname then
+  begin
+   Result:=CreateAFSDirectory(dirname,parent,attributes);
+   exit;
+  end;
+ //Is this on the DOS partition?
+ if FDOSPresent then
+  if LeftStr(parent,Length(dosrootname))=dosrootname then
+  begin
+   Result:=CreateDOSDirectory(dirname,parent,attributes);
+   exit;
+  end;
  SetLength(buffer,0);
  Result:=-3;//Directory already exists
  if(dirname='$')OR(parent='$')then //Creating the root
@@ -2461,6 +2462,20 @@ const
  oldattr = 'RWLDErweP'+#00;
  newattr = 'RWLDrw';
 begin
+ //Is this on the AFS partition?
+ if FAFSPresent then
+  if directory=afsrootname then
+  begin
+   UpdateAFSDirectory(directory);
+   exit;
+  end;
+ //Is this on the DOS partition?
+ if FDOSPresent then
+  if directory=dosrootname then
+  begin
+   UpdateDOSDirectory(directory);
+   exit;
+  end;
  if(FileExists(directory,ref))or(directory='$')then
  begin
   //Get the directory reference and sector address
@@ -2639,6 +2654,20 @@ var
  dir,
  entry : Cardinal;
 begin
+ //Is this on the AFS partition?
+ if FAFSPresent then
+  if LeftStr(filename,Length(afsrootname))=afsrootname then
+  begin
+   Result:=UpdateAFSAttributes(filename,attributes);
+   exit;
+  end;
+ //Is this on the DOS partition?
+ if FDOSPresent then
+  if LeftStr(filename,Length(dosrootname))=dosrootname then
+  begin
+   Result:=UpdateDOSAttributes(filename,attributes);
+   exit;
+  end;
  Result:=False;
  //Make sure that the file exists, but also to get the pointer
  if FileExists(filename,dir,entry) then
@@ -2727,11 +2756,19 @@ var
  changed: Boolean;
 begin
  //Is this on the AFS partition
- if LeftStr(filename,Length(afsrootname))=afsrootname then
- begin
-  Result:=RenameAFSFile(oldfilename,newfilename);
-  exit;
- end;
+ if FAFSPresent then
+  if LeftStr(filename,Length(afsrootname))=afsrootname then
+  begin
+   Result:=RenameAFSFile(oldfilename,newfilename);
+   exit;
+  end;
+ //Is this on the DOS partition
+ if FDOSPresent then
+  if LeftStr(filename,Length(dosrootname))=dosrootname then
+  begin
+   Result:=RenameDOSFile(oldfilename,newfilename);
+   exit;
+  end;
  Result:=-2; //File does not exist
  //Check that the new name meets the required ADFS filename specs
  newfilename:=ValidateADFSFilename(newfilename);
@@ -3031,11 +3068,19 @@ var
 begin
  Result:=False;
  //Is this an AFS file?
- if LeftStr(filename,Length(afsrootname))=afsrootname then
- begin
-  Result:=DeleteAFSFile(filename);
-  exit;
- end;
+ if FAFSPresent then
+  if LeftStr(filename,Length(afsrootname))=afsrootname then
+  begin
+   Result:=DeleteAFSFile(filename);
+   exit;
+  end;
+ //Is this a DOS file?
+ if FDOSPresent then
+  if LeftStr(filename,Length(dosrootname))=dosrootname then
+  begin
+   Result:=DeleteDOSFile(filename);
+   exit;
+  end;
  //Check that the file exists
  if(FileExists(filename,dir,entry))or((filename='$')and(FDirType=diADFSBigDir))then
  begin
@@ -3290,15 +3335,15 @@ begin
  Result   :=False;
  fragments:=nil;
  //Is this on an AFS partition?
- if AFSPresent then
+ if FAFSPresent then
   if LeftStr(filename,Length(afsrootname))=afsrootname then
   begin
    Result:=ExtractAFSFile(filename,buffer);
    exit;
   end;
  //Is this on a DOS Partition?
- if DOSPresent then
-  if(LeftStr(filename,2)='A:')or(LeftStr(filename,2)='C:')then
+ if FDOSPresent then
+  if LeftStr(filename,Length(dosrootname))=dosrootname then
   begin
    Result:=ExtractDOSFile(filename,buffer);
    exit;
@@ -4016,6 +4061,20 @@ var
  entry: Cardinal;
  rotd : Int64;
 begin
+ //Is this on an AFS partition?
+ if FAFSPresent then
+  if LeftStr(filename,Length(afsrootname))=afsrootname then
+  begin
+   Result:=UpdateAFSTimeStamp(filename,newtimedate);
+   exit;
+  end;
+ //Is this on a DOS Partition?
+ if FDOSPresent then
+  if LeftStr(filename,Length(dosrootname))=dosrootname then
+  begin
+   Result:=UpdateDOSTimeStamp(filename,newtimedate);
+   exit;
+  end;
  Result:=False;
  ptr:=0;
  //Ensure the file actually exists
@@ -4052,14 +4111,16 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Extract an ADFS or AFS partition
+Extract an ADFS, AFS or DOS partition
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtractADFSPartition(side: Cardinal): TDIByteArray;
 var
- index    : Integer;
+ index,
+ diff     : Integer;
+ start    : Cardinal;
 begin
  Result:=nil;
- if FFormat=diAcornADFS<<4+$E then //Make sure it is a hybrid
+ if(FAFSPresent)or(FDOSPresent)then //Make sure it is a hybrid
  begin
   //Copy the original data
   Result:=Fdata;
@@ -4068,16 +4129,22 @@ begin
   if side=0 then
   begin
    //Blank off the addresses
-   Write24b(0,$0F6,Result);
-   Write24b(0,$1F6,Result);
+   if FAFSPresent then //AFS Only
+   begin
+    Write24b(0,$0F6,Result);
+    Write24b(0,$1F6,Result);
+   end;
    //Add a free space entry
    index:=ReadByte($1FE,Result);
    if index<$F3 then
    begin
     //Start
-    Write24b(Read24b($0FC,Result),$000+index,Result);
+    start:=0;
+    if FAFSPresent then start:=Read24b($0FC,Result);
+    if FDOSPresent then start:=disc_size[0]>>8;
+    Write24b(start,$000+index,Result);
     //Length
-    Write24b((Length(Result)>>8)-Read24b($0FC,Result),$100+index,Result);
+    Write24b((Length(Result)>>8)-start,$100+index,Result);
     //Pointer
     inc(index,3);
     WriteByte(index,$1FE);
@@ -4090,7 +4157,7 @@ begin
   end;
   //Extracting the AFS part - as ADFS, just blank off the ADFS part, making sure
   //that the ADFS root is unreadable.
-  if side=1 then
+  if(side=1)and(FAFSPresent)then
   begin
    //Blank the ADFS section (we'll use the WriteByte method to take account of interleave)
    for index:=$200 to (Read24b($FC,Result)<<8)-1 do WriteByte($00,index,Result);
@@ -4106,6 +4173,21 @@ begin
    //Update the checksums
    WriteByte(ByteCheckSum($0000,$100,Result),$0FF,Result);
    WriteByte(ByteCheckSum($0100,$100,Result),$1FF,Result);
+  end;
+  //Extracting the DOS part - this is literally extracting the DOS Plus part
+  if(side=1)and(FDOSPresent)then
+  begin
+   //How much are we needing to shift the root up by?
+   diff:=$800-(Fdosroot-doshead);
+   //Reset the length of the outgoing buffer to the size of the DOS partition
+   SetLength(Result,disc_size[side]+diff);
+   //Then copy the data from the live array to the outgoing buffer.
+   for index:=doshead to Fdosroot-1 do //First the FAT
+    Result[index-doshead]:=ReadByte(index);
+   for index:=Fdosroot-doshead to $800 do //Blank off the rest of the FAT
+    Result[index]:=0;
+   for index:=Fdosroot to (doshead+disc_size[side])-1 do //Now the rest of the disc
+    Result[(index-doshead)+diff]:=ReadByte(index);
   end;
  end;
 end;

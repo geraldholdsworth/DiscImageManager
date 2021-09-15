@@ -4,19 +4,17 @@ In no particular order
 
 Bugs
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
-  + This appears to happen on Windows (and probably Linux), with single screen only (dual or more it does not do this), resolution of 1400 by anything (or more), and scaled to more than 100%. The icons in the Directory Listing grow as the mouse moves.
-  + In addition, the tiling under the graphic for the filetype in the File Details, when it is not big enough, leaves a horrible black edge to the right and bottom.
+  + This appears to happen on Windows (and probably Linux), with single screen only (dual or more it does not do this), resolution of 1400 by anything (or more), and scaled to more than 100%. The icons in the Directory Listing grow as the mouse moves. - TO BE TESTED
+  + In addition, the tiling under the graphic for the filetype in the File Details, when it is not big enough, leaves a horrible black edge to the right and bottom. - TO BE TESTED
 * File details tiling leaves empty areas after ejecting a disc while a file is selected.
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
 * Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
-* There is only the one directory separator, even with multiple partitions. Sometimes (ADFS/DOS Plus) these should be different.
 
 General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform. This will need to be done using 'code-per-platform' directives.
 * Extend drag and drop copy/move to multiple selection.
 * Application to application communications.
-* Copy entire files onto clipboard? And then paste from clipboard?
-* For RISC OS applications, look inside for a sprite file to display instead of the standard RISC OS Application icon.
+* Copy entire files onto clipboard? And then paste from clipboard? - as Drag and Drop, this will need to be done using 'code-per-platform' directives.
 * Ask to force overwrite if many files are getting written.
 * Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
 * Cancel button for progress display?
@@ -47,17 +45,6 @@ Spark
 * Move file.
 
 DOS Plus
-* Create new image/partition.
-* Save partition.
-* Delete partition.
-* Change attributes.
-* Change timestamp.
-* Display filetype, separate from filename.
-* Change filetype.
-* Create directory.
-* Write file.
-* Rename file/directory.
-* Delete file/directory.
-* Move file.
-* Change volume name.
-* Defrag.
+* Create new image
+* Add partition to an ADFS image.
+* Move file - this just changes a file/directory's parent.

@@ -18,7 +18,8 @@ type
   OKButton: TBitBtn;
   PartitionSizeLabel: TLabel;
   PartitionSize: TTrackBar;
-  procedure FormResize(Sender: TObject);
+  rad_type: TRadioGroup;
+  procedure FormPaint(Sender: TObject);
   procedure PartitionSizeChange(Sender: TObject);
  private
 
@@ -48,7 +49,7 @@ end;
 {------------------------------------------------------------------------------}
 //Tile the form
 {------------------------------------------------------------------------------}
-procedure TAFSPartitionForm.FormResize(Sender: TObject);
+procedure TAFSPartitionForm.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
 end;

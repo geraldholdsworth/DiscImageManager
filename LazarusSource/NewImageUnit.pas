@@ -31,6 +31,7 @@ type
  { TNewImageForm }
 
  TNewImageForm = class(TForm)
+  DOS: TRadioGroup;
   btn_Cancel: TBitBtn;
   AFS: TRadioGroup;
   AFSSize: TGroupBox;
@@ -83,6 +84,7 @@ begin
  Spectrum.Visible     :=False;
  Amiga.Visible        :=False;
  AFS.Visible          :=False;
+ DOS.Visible          :=False;
  //Now enable the appropriate one, based on the main option
  case MainFormat.ItemIndex of
   0: DFS.Visible      :=True;
@@ -91,6 +93,7 @@ begin
   3: Spectrum.Visible :=True;
   4: Amiga.Visible    :=True;
   7: AFS.Visible      :=True;
+  8: DOS.Visible      :=True;
  end;
  DFSTracks.Visible:=DFS.Visible;
  AFSSize.Visible  :=AFS.Visible;
@@ -116,6 +119,7 @@ begin
  Spectrum.ItemIndex  :=0;
  Amiga.ItemIndex     :=0;
  AFS.ItemIndex       :=0;
+ DOS.ItemIndex       :=0;
  cb_AFScreatepword.Checked:=False;
  AFSImageSize.Position:=AFSImageSize.Min;
  AFSClick(Sender);
@@ -129,6 +133,7 @@ begin
  Amiga.Visible       :=False;
  AFS.Visible         :=False;
  AFSSize.Visible     :=False;
+ DOS.Visible         :=False;
  //Enable the create button
  btn_OK.Enabled      :=True;
 end;

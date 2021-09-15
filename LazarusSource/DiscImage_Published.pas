@@ -288,6 +288,11 @@ begin
     FDisc:=FormatCFS;
     Result:=Length(FDisc)>0;
    end;
+  diDOSPlus://Create DOS or DOS Plus
+   begin
+    FDisc:=FormatDOS(minor);
+    Result:=Length(FDisc)>0;
+   end;
  end;
 end;
 
@@ -354,6 +359,7 @@ begin
     diAmiga    :Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
     diAcornUEF :Result:=WriteCFSFile(file_details,buffer);     //Write CFS
     diAcornFS  :Result:=WriteAFSFile(file_details,buffer);     //Write Acorn FS
+    diDOSPlus  :Result:=WriteDOSFile(file_details,buffer);     //Write DOS Plus
    end;
  end
  else Result:=-8; //Error - zero length file
@@ -377,6 +383,8 @@ begin
   diAcornUEF : exit;//Can't create directories on CFS
   diAcornFS  :      //Create directory on Acorn FS
     Result:=CreateAFSDirectory(filename,parent,attributes);
+  diDOSPlus  :      //Create directory on DOS Plus
+    Result:=CreateDOSDirectory(filename,parent,attributes);
  end;
 end;
 
@@ -397,6 +405,7 @@ begin
     Result:=RetitleAmigaDirectory(filename,newtitle);
   diAcornUEF : exit;//CFS doesn't have directories
   diAcornFS  : exit;//Can't retitle AFS directories
+  diDOSPlus  : exit;//Can't retitle DOS directories
  end;
 end;
 
@@ -432,11 +441,12 @@ begin
   Result:=True;
   exit;
  end;
- //AFS Root
- if filename=afsrootname then
+ //AFS or DOS Root
+ if(filename=afsrootname)or(filename=dosrootname)then
   if Length(FDisc)>0 then
   begin
    i:=0;
+   //Just look for the root
    while(i<Length(FDisc))and(FDisc[i].Directory<>filename)do inc(i);
    if FDisc[i].Directory=filename then
    begin
@@ -659,19 +669,23 @@ var
  entry  : Integer;
  found,
  target : Byte;
+ Ldirsep : Char;
 begin
  Result:=nil;
  //Reset the search results array to empty
  SetLength(Result,0);
  //Has the complete path been included in the Filename?
- if Pos(dir_sep,search.Filename)>0 then
+ if(Pos(GetDirSep(0),search.Filename)>0)
+ or(Pos(GetDirSep(1),search.Filename)>0)then
  begin
+  if Pos(GetDirSep(0),search.Filename)>0 then Ldirsep:=GetDirSep(0)
+  else if Pos(GetDirSep(1),search.Filename)>0 then Ldirsep:=GetDirSep(1);
   //Split filename into parent and filename
   if FFormat<>diAcornDFS then //Not DFS
   begin
    target:=Length(search.Filename);
    //Look for the last directory separator
-   while(search.Filename[target]<>dir_sep)and(target>1)do
+   while(search.Filename[target]<>Ldirsep)and(target>1)do
     dec(target);
    //And split into parent and filename
    search.Parent:=LeftStr(search.Filename,target-1);
@@ -790,6 +804,7 @@ begin
   diAmiga    : Result:=DeleteAmigaFile(filename);   //Delete AmigaDOS
   diAcornUEF : Result:=DeleteCFSFile(entry);        //Delete CFS
   diAcornFS  : Result:=DeleteAFSFile(filename);     //Delete Acorn FS
+  diDOSPlus  : Result:=DeleteDOSFile(filename);     //Delete DOS Plus
  end;
 end;
 
@@ -797,24 +812,14 @@ end;
 Moves a file from one directory to another
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveFile(filename,directory: String): Integer;
-var
- oldfn: String;
 begin
  Result:=-12;
- //Can only move files on DFS (between drives), ADFS, Amiga, AFS and CFS
- if FFormat>>4=diAcornDFS then //Move on DFS
- begin
-  oldfn:=filename;
-  //Moving and copying are the same, essentially
-  Result:=CopyFile(filename,directory);
-  //We just need to delete the original once copied
-  if Result>-1 then DeleteFile(oldfn);
- end
- else
- begin
-  if FFormat>>4=diAcornADFS then Result:=MoveADFSFile(filename,directory);
-  if FFormat>>4=diAmiga     then Result:=MoveAmigaFile(filename,directory);
-  if FFormat>>4=diAcornFS   then Result:=MoveAFSFile(filename,directory);
+ case FFormat>>4 of
+  diAcornDFS : Result:=MoveDFSFile(filename,directory);  //Move on DFS
+  diAcornADFS: Result:=MoveADFSFile(filename,directory); //Move ADFS File
+  diAmiga    : Result:=MoveAmigaFile(filename,directory);//Move Amiga File
+  diAcornFS  : Result:=MoveAFSFile(filename,directory);  //Move AFS File
+  diDOSPlus  : Result:=MoveDOSFile(filename,directory);  //Move DOS File
  end;
 end;
 function TDiscImage.MoveFile(source: Cardinal;dest: Integer): Integer;
@@ -925,6 +930,7 @@ begin
    diAmiga    : Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
    diAcornUEF : Result:=UpdateCFSAttributes(entry,attributes);            //Update CFS attributes
    diAcornFS  : Result:=UpdateAFSAttributes(filename,attributes);         //Update AFS attributes
+   diDOSPlus  : Result:=UpdateDOSAttributes(filename,attributes);         //Update DOS Plus attributes
   end;
 end;
 
@@ -936,12 +942,19 @@ begin
  Result:=False;
  case FFormat>>4 of
   diAcornDFS : Result:=UpdateDFSDiscTitle(title,side);//Title DFS Disc
-  diAcornADFS: Result:=UpdateADFSDiscTitle(title);    //Title ADFS Disc
+  diAcornADFS:
+   begin
+    if(FDOSPresent)and(side=1)then
+     Result:=UpdateDOSDiscTitle(title)                //Title DOS Plus on ADFS hybrid disc
+    else
+     Result:=UpdateADFSDiscTitle(title);              //Title ADFS Disc
+   end;
   diCommodore: Result:=UpdateCDRDiscTitle(title);     //Title Commodore 64/128 Disc
   diSinclair : Result:=UpdateSinclairDiscTitle(title);//Title Sinclair/Amstrad Disc
   diAmiga    : Result:=UpdateAmigaDiscTitle(title);   //Title AmigaDOS Disc
   diAcornUEF : Result:=False;                         //Can't retitle CFS
   diAcornFS  : Result:=UpdateAFSDiscTitle(title);     //Title AFS Disc
+  diDOSPlus  : Result:=UpdateDOSDiscTitle(title);     //Title DOS Plus Disc
  end;
 end;
 
@@ -959,6 +972,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Boot ++++++++++++++++++++++++++++++++++++++++++++++
   diAcornUEF : exit;//Can't update CFS boot option
   diAcornFS  : exit;//Can't update AFS boot option
+  diDOSPlus  : exit;//Can't update DOS boot option
  end;
 end;
 
@@ -976,6 +990,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Load Address
   diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,True);    //Update CFS Load Address
   diAcornFS  : Result:=UpdateAFSFileAddr(filename,newaddr,True); //Update AFS Load Address
+  diDOSPlus  : exit;//No Load address on DOS Plus
  end;
 end;
 
@@ -993,6 +1008,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Execution Address
   diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,False);    //Update CFS Execution Address
   diAcornFS  : Result:=UpdateAFSFileAddr(filename,newaddr,False); //Update AFS Execution Address
+  diDOSPlus  : exit;//No Execution address on DOS Plus
  end;
 end;
 
@@ -1010,6 +1026,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Timestamp
   diAcornUEF : exit;//Update CFS Timestamp
   diAcornFS  : Result:=UpdateAFSTimeStamp(filename,newtimedate);//Update AFS Timestamp
+  diDOSPlus  : Result:=UpdateDOSTimeStamp(filename,newtimedate);//Update DOS Timestamp
  end;
 end;
 
@@ -1027,6 +1044,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Filetype
   diAcornUEF : exit;//Update CFS Filetype
   diAcornFS  : exit;//Update AFS Filetype
+  diDOSPlus  : exit;//Update DOS Filetype - done through renaming
  end;
 end;
 
@@ -1085,6 +1103,7 @@ begin
   diSinclair : exit;//Update Sinclair/Amstrad
   diAmiga    : exit;//Update AmigaDOS
   diAcornUEF : exit;//Update CFS
+  diDOSPlus  : exit;//Update DOS Plus
  end;
 end;
 
@@ -1115,10 +1134,12 @@ begin
   diAcornUEF : len:=10;
   diMMFS     : len:=7;
   diAcornFS  : len:=10;
+  diDOSPlus  : len:=12; //Filename+'.'+extension
  end;
  if len=0 then exit; //Unsupported
  //Extract the filename
- while Pos('.',filename)>0 do filename:=Copy(filename,Pos('.',filename)+1);
+ while Pos(dir_sep,filename)>0 do
+  filename:=Copy(filename,Pos(dir_sep,filename)+1);
  //CFS files can have multiple files with the same name
  if FFormat>>4=diAcornUEF then
  begin
@@ -1196,17 +1217,22 @@ end;
 Returns the complete path for the parent
 -------------------------------------------------------------------------------}
 function TDiscImage.GetParent(dir: Integer): String;
+var
+ Ldirsep: Char;
 begin
  Result:='';
+ if(dir>=0)and(dir<Length(FDisc))then Ldirsep:=GetDirSep(FDisc[dir].Partition);
  if dir<Length(FDisc)then
   while dir<>-1 do
   begin
-   Result:=FDisc[dir].Directory+dir_sep+Result;
+   Result:=FDisc[dir].Directory+Ldirsep+Result;
    dir:=FDisc[dir].Parent;
   end;
  if Result<>'' then
-  if Result[Length(Result)]=dir_sep then
+ begin
+  while Result[Length(Result)]=Ldirsep do
    Result:=LeftStr(Result,Length(Result)-1);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1233,7 +1259,7 @@ begin
  //Extract the partition/side into a buffer.
  case FFormat>>4 of
   diAcornDFS : buffer:=ExtractDFSPartition(side);  //DFS
-  diAcornADFS: buffer:=ExtractADFSPartition(side); //Acorn ADFS/Acorn FS
+  diAcornADFS: buffer:=ExtractADFSPartition(side); //ADFS/AFS or DOS
  end;
  //Ensure there is something to deal with
  if buffer<>nil then
@@ -1249,7 +1275,11 @@ begin
     //Remember the current format
     oldformat:=FFormat;
     //If we have an ADFS/AFS hybrid, and are saving the AFS partition
-    if(FFormat=diAcornADFS)and(side<>0)then FFormat:=diAcornFS;
+    if(FFormat>>4=diAcornADFS)and(side<>0)and(FAFSPresent)then
+     FFormat:=diAcornFS<<4;
+    //If we have an ADFS/DOS hybrid, and are saving the DOS partition
+    if(FFormat>>4=diAcornADFS)and(side<>0)and(FDOSPresent)then
+     FFormat:=diDOSPlus<<4;
     filename:=filename+'.'+FormatToExt;
     //Change back
     FFormat:=oldformat;
@@ -1301,17 +1331,20 @@ end;
 {-------------------------------------------------------------------------------
 Adds a partition to an existing image
 -------------------------------------------------------------------------------}
-function TDiscImage.AddPartition(size: Cardinal): Boolean;
+function TDiscImage.AddPartition(size: Cardinal;format: Byte): Boolean;
 begin
  Result:=False;
- //Only for adding AFS partition to 8 bit ADFS
+ //Only for adding AFS or DOS Plus partition to 8 bit ADFS
  if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
-  Result:=AddAFSPartition(size);
+  case format of
+   0: Result:=AddAFSPartition(size); //Add AFS partition
+   1: Result:=AddDOSPartition(size); //Add DOS Plus partition
+  end;
 end;
 function TDiscImage.AddPartition(filename: String): Boolean;
 begin
  Result:=False;
- //Only for Acorn DFS
+ //Only for Acorn DFS, given a filename
  if(FFormat>>4=diAcornDFS)and(not FDSD)then //Single sided images only
   Result:=AddDFSSide(filename);
 end;
@@ -1343,4 +1376,16 @@ begin
     WriteByte(buffer[index],index);
    Result:=True;
   end;
+end;
+
+{-------------------------------------------------------------------------------
+Return the directory separator for the specified partition
+-------------------------------------------------------------------------------}
+function TDiscImage.GetDirSep(partition: Byte): Char;
+begin
+ Result:=dir_sep;
+ if partition=1 then
+ begin
+  if FDOSPresent then Result:='\';
+ end;
 end;

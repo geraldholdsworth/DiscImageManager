@@ -1,7 +1,7 @@
 object ImportSelectorForm: TImportSelectorForm
   Left = 414
   Height = 456
-  Top = 184
+  Top = 208
   Width = 400
   BorderIcons = []
   Caption = 'Select which files to import'

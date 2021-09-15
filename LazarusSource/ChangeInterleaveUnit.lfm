@@ -1,7 +1,7 @@
 object ChangeInterleaveForm: TChangeInterleaveForm
   Left = 549
   Height = 124
-  Top = 198
+  Top = 222
   Width = 234
   BorderIcons = []
   BorderStyle = bsDialog
@@ -51,7 +51,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   end
   object CurrentLabel: TLabel
     Left = 0
-    Height = 16
+    Height = 14
     Top = 0
     Width = 234
     Align = alTop
@@ -65,7 +65,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   object lb_Current: TLabel
     Left = 0
     Height = 15
-    Top = 16
+    Top = 14
     Width = 234
     Align = alTop
     Alignment = taCenter
@@ -76,8 +76,8 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   end
   object NewLabel: TLabel
     Left = 0
-    Height = 16
-    Top = 31
+    Height = 14
+    Top = 29
     Width = 234
     Align = alTop
     Alignment = taCenter
@@ -89,14 +89,14 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   end
   object cb_NewMethod: TComboBox
     Left = 0
-    Height = 20
-    Top = 47
+    Height = 26
+    Top = 43
     Width = 234
     Align = alTop
     Color = 15527148
     Font.Color = clBlack
     Font.Name = 'Courier New'
-    ItemHeight = 26
+    ItemHeight = 0
     ItemIndex = 0
     Items.Strings = (
       'Sequential'

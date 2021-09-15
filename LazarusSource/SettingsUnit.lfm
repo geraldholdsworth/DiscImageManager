@@ -1,7 +1,7 @@
 object SettingsForm: TSettingsForm
   Left = 485
   Height = 316
-  Top = 256
+  Top = 280
   Width = 448
   BorderIcons = []
   BorderStyle = bsDialog
@@ -19,8 +19,8 @@ object SettingsForm: TSettingsForm
     Top = 0
     Width = 448
     Caption = 'Window Texture'
-    ClientHeight = 146
-    ClientWidth = 444
+    ClientHeight = 149
+    ClientWidth = 446
     TabOrder = 0
     object TilePictureRO5: TImage
       Left = 176
@@ -40,25 +40,26 @@ object SettingsForm: TSettingsForm
     end
     object TileRO5: TRadioButton
       Left = 176
-      Height = 19
+      Height = 23
       Top = 120
-      Width = 71
+      Width = 84
       Caption = 'RISC OS 5'
+      Checked = True
       TabOrder = 0
     end
     object TileRO4: TRadioButton
       Left = 92
-      Height = 19
+      Height = 23
       Top = 120
-      Width = 71
+      Width = 84
       Caption = 'RISC OS 4'
       TabOrder = 1
     end
     object NoTile: TRadioButton
       Left = 12
-      Height = 19
+      Height = 23
       Top = 8
-      Width = 49
+      Width = 59
       Caption = 'None'
       TabOrder = 2
     end
@@ -72,9 +73,9 @@ object SettingsForm: TSettingsForm
     end
     object TileRO3: TRadioButton
       Left = 8
-      Height = 19
+      Height = 23
       Top = 120
-      Width = 71
+      Width = 84
       Caption = 'RISC OS 3'
       TabOrder = 3
     end
@@ -88,9 +89,9 @@ object SettingsForm: TSettingsForm
     end
     object TileIyonix: TRadioButton
       Left = 260
-      Height = 19
+      Height = 23
       Top = 120
-      Width = 52
+      Width = 63
       Caption = 'Iyonix'
       TabOrder = 4
     end
@@ -104,9 +105,9 @@ object SettingsForm: TSettingsForm
     end
     object TileROPi: TRadioButton
       Left = 344
-      Height = 19
+      Height = 23
       Top = 120
-      Width = 75
+      Width = 87
       Caption = 'RISC OS Pi'
       TabOrder = 5
     end
@@ -162,8 +163,8 @@ object SettingsForm: TSettingsForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 84
-    ClientWidth = 220
+    ClientHeight = 87
+    ClientWidth = 222
     ItemIndex = 0
     Items.Strings = (
       'Automatic (recommended)'
@@ -179,14 +180,14 @@ object SettingsForm: TSettingsForm
     Top = 176
     Width = 224
     Caption = 'Miscellaneous'
-    ClientHeight = 84
-    ClientWidth = 220
+    ClientHeight = 87
+    ClientWidth = 222
     TabOrder = 4
     object CreateINF: TCheckBox
       Left = 4
-      Height = 19
+      Height = 23
       Top = 8
-      Width = 176
+      Width = 205
       Caption = 'Create *.inf files on download'
       Checked = True
       State = cbChecked
@@ -194,17 +195,17 @@ object SettingsForm: TSettingsForm
     end
     object WriteDebug: TCheckBox
       Left = 4
-      Height = 19
+      Height = 23
       Top = 32
-      Width = 176
+      Width = 204
       Caption = 'Write Debugging Information'
       TabOrder = 1
     end
     object AllowDFSZeroSecs: TCheckBox
       Left = 4
-      Height = 19
+      Height = 23
       Top = 56
-      Width = 151
+      Width = 177
       Caption = 'Allow zero sectors in DFS'
       TabOrder = 2
     end
