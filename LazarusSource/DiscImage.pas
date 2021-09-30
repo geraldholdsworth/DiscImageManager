@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.38
+TDiscImage class V1.38.1
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
