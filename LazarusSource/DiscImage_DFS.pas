@@ -714,12 +714,22 @@ begin
   WriteByte(side_size div $100,ConvertDFSSector($106,s));
   WriteByte(side_size mod $100,ConvertDFSSector($107,s));
   inc(disc_size[s],side_size*$100);
+  //Increase the data length, if needed
+  if FDSD then
+   SetDataLength(disc_size[0]+disc_size[1]);
   //Disc Title
-  UpdateDFSDiscTitle(disctitle,tracks);
+  UpdateDFSDiscTitle(disctitle,s);
+  //Watford ID
+  if minor>1 then
+  begin
+   for t:=0 to 7 do WriteByte($AA,ConvertDFSSector($200+t,s));
+   WriteByte(side_size div $100,ConvertDFSSector($306,s));
+   WriteByte(side_size mod $100,ConvertDFSSector($307,s));
+  end;
   //Directory size
   inc(free_space[s],$200);
   //Next side
-  if (FFormat AND $1=1) then inc(s) else s:=2;
+  if(FFormat AND$1=1)then inc(s)else s:=2;
  until s=2;
  //Update the free space
  DFSFreeSpaceMap(Result);
