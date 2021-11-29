@@ -475,16 +475,20 @@ begin
         endofentry:=False;
         if Length(Entry.Filename)>0 then
         begin
-         for amt:=0 to Length(Entry.Filename)-1 do
+         for amt:=0 to 9 do //Length(Entry.Filename)-1 do
          begin
-          if ord(Entry.Filename[amt+1])>>7=1 then
+          //if ord(Entry.Filename[amt+1])>>7=1 then
+          if ReadByte(offset+amt,dirbuffer)>>7=1 then
            temp:=temp+OldAtts[amt];
-          if ord(Entry.Filename[amt+1])AND$7F=$0D then endofentry:=True;
-          //Clear the top bit
-          if not endofentry then
-           Entry.Filename[amt+1]:=chr(ord(Entry.Filename[amt+1])AND$7F)
-          else
-           Entry.Filename[amt+1]:=' ';
+          if amt<Length(Entry.Filename) then
+          begin
+           if ord(Entry.Filename[amt+1])AND$7F=$0D then endofentry:=True;
+           //Clear the top bit
+           if not endofentry then
+            Entry.Filename[amt+1]:=chr(ord(Entry.Filename[amt+1])AND$7F)
+           else
+            Entry.Filename[amt+1]:=' ';
+          end;
          end;
          RemoveSpaces(Entry.Filename);
         end;

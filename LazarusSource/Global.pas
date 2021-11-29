@@ -24,7 +24,11 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils,Registry;
+ Classes,SysUtils,Registry
+ {$IFDEF Darwin}
+ ,MacOSAll
+ {$ENDIF}
+ ;
 
 function ReadLine(var Stream: TFileStream;var Line: string): boolean;
 function WriteLine(var Stream: TFileStream;Line: string): boolean;

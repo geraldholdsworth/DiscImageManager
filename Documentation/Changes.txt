@@ -749,6 +749,18 @@ Bug fixes
 * Writes to an Acorn FS or DOS Plus partition of an ADFS hybrid sometimes failed to work correctly.
 * At some point in a previous version, the root name 'dropped' off the parent property for ADFS files. This meant that the search results returned files with the root missing from the pathname and therefore unable to locate when clicked on.
 
+1.39 - 
+--------------------------
+New or improved features
+* When the root directory is selected, the 'Directory Title' field now reads 'Disc Title' and changing the text will update the disc title of the image, instead of failing with Acorn DFS.
+* The Display Free Space button's hint text has been changed to 'View/Edit Image Details' to more accurately reflect the dialogue box.
+
+Bug fixes
+* Temporarily removed the 'file goes over disc edge' checks as some valid images were not getting opened.
+* Creating a double sided DFS image failed to work.
+* Creating a Watford DFS image failed to work.
+* When the ADFS filename is shorter than the available characters required for the attributes, not all the attributes were read in. This manifested itself with a directory entry shorter than 4 characters.
+
 Platform History
 ----------------
 

@@ -396,7 +396,12 @@ begin
  //Start with a false result
  Result:=False;
  case FFormat>>4 of
-  diAcornDFS : exit;//DFS doesn't have directories
+  diAcornDFS :      //DFS doesn't have directories
+  begin
+   //Update the disc title instead
+   if(filename[1]=':')and(filename[3]='.')and(filename[4]='$')then
+    Result:=UpdateDiscTitle(newtitle,StrToIntDef(filename[2],0));
+  end;
   diAcornADFS:      //Retitle ADFS directory
     Result:=RetitleADFSDirectory(filename,newtitle);
   diCommodore: exit;//Commodore doesn't have directories

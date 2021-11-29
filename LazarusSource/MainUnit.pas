@@ -508,7 +508,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.38.2';
+    ApplicationVersion = '1.38.3';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -1745,6 +1745,8 @@ begin
   title:=Image.Title(partition);
   RemoveTopBit(title);//Ensure top bit not set
   ImageDetails.Panels[2].Text:=title;
+  if(lb_title.Visible)and(DirTitleLabel.Caption='Disc Title')then
+   lb_title.Caption:=title;
   //Disc size
   ImageDetails.Panels[3].Text:=ConvertToKMG(Image.DiscSize(partition))
                            +' ('+IntToStrComma(Image.DiscSize(partition))+' Bytes)';
@@ -2257,6 +2259,7 @@ begin
      //Title of the subdirectory
      title:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
      RemoveTopBit(title);
+     DirTitleLabel.Caption:='Directory Title';
      lb_title.Caption:=title;
      ed_title.Enabled:=True; //Can be edited
     end;
@@ -2267,6 +2270,7 @@ begin
     filetype:='Root Directory';
     title:=Image.Disc[dr].Title;
     RemoveTopBit(title);
+    DirTitleLabel.Caption:='Disc Title';//Also see UpdateImageInfo
     lb_title.Caption:=title; //Title
     ed_title.Enabled:=True; //Can be edited
     //Report if directory is broken and include the error code
@@ -3797,6 +3801,7 @@ begin
   if Image.RetitleDirectory(filename,newtitle) then
   begin
    lb_title.Caption:=newtitle; //If success, then change the text
+   UpdateImageInfo; //And update the status bar, if need be
    HasChanged:=True;
   end;
  end;

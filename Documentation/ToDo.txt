@@ -20,6 +20,8 @@ General
 * Cancel button for progress display?
 * Side pane (left hand side) to allow separate images to be opened (REF:3).
 * Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
+* Add option for 'beyond disc edge check' to ID DFS images in the settings.
+* For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
 
 ADFS
 * Change the size of the ADFS partition or image.
