@@ -449,8 +449,10 @@ const
  oldheads = 2;
 begin
  Result:=disc_addr;
+ if(FForceInter=0)and(FFormat>>4=diAcornADFS)then
+  if(FFormat<>diAcornADFS<<4+$02)then exit;
  //ADFS L or AFS with 'INT' option
- if((FFormat=diAcornADFS<<4+$02)or(FFormat>>4=diAcornFS))
+ if((FFormat>>4=diAcornADFS{<<4+$02})or(FFormat>>4=diAcornFS))
  and(Finterleave>1)then
  begin
   //Variables not set, then set them to default

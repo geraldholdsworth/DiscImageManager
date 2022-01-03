@@ -754,6 +754,7 @@ Bug fixes
 New or improved features
 * When the root directory is selected, the 'Directory Title' field now reads 'Disc Title' and changing the text will update the disc title of the image, instead of failing with Acorn DFS.
 * The Display Free Space button's hint text has been changed to 'View/Edit Image Details' to more accurately reflect the dialogue box.
+* Extended the ADFS interleave options beyond ADFS 'L'. Forcing an interleave option will use that option for any ADFS format, not just 'L'.
 
 Bug fixes
 * Temporarily removed the 'file goes over disc edge' checks as some valid images were not getting opened.
