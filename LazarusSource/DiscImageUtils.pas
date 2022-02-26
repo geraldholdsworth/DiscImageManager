@@ -1,9 +1,9 @@
 unit DiscImageUtils;
 
 {
-DiscImageUtils V1.38.1 - part of TDiscImage class
+DiscImageUtils V1.38.4 - part of TDiscImage class
 
-Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free

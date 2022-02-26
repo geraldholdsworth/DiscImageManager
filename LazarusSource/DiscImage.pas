@@ -1,13 +1,13 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.38.4
+TDiscImage class V1.38.5
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
 1541, Commodore 1571, Commodore 1581, and Commodore AmigaDOS.
 
-Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -77,7 +77,9 @@ type
   FAFSPresent,                  //Is there an AFS partition present? (ADFS)
   FDOSPresent,                  //Is there a DOS Plus partition present? (ADFS)
   FSparkAsFS,                   //Deal with Spark archives as a filing system
-  FDFSzerosecs  : Boolean;      //Allow zero length disc images for DFS?
+  FDFSzerosecs,                 //Allow zero length disc images for DFS?
+  FDFSAllowBlank,               //Allow blank filenames
+  FDFSBeyondEdge: Boolean;      //Check for files going beyond the DFS disc edge
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   dosalloc,                     //Allocation Unit (DOS Plus)
@@ -286,7 +288,7 @@ type
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
   procedure DFSFreeSpaceMap(LDisc: TDisc);
   function ConvertDFSSector(address,side: Integer): Integer;
-  function WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function WriteDFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   procedure UpdateDFSCat(side: Integer);
   function ValidateDFSFilename(filename: String): String;
   function RenameDFSFile(oldfilename: String;var newfilename: String):Integer;
@@ -482,6 +484,8 @@ type
   property AFSPresent:          Boolean       read FAFSPresent;
   property AFSRoot:             Cardinal      read Fafsroot;
   property AllowDFSZeroSectors: Boolean       read FDFSzerosecs write FDFSzerosecs;
+  property DFSBeyondEdge:       Boolean       read FDFSBeyondEdge write FDFSBeyondEdge;
+  property DFSAllowBlanks:      Boolean       read FDFSAllowBlank write FDFSAllowBlank;
   property BootOpt:             TDIByteArray  read bootoption;
   property CRC32:               String        read GetImageCrc;
   property DirectoryType:       Byte          read FDirType;

@@ -137,7 +137,7 @@ begin
    if FFormat=diAcornFS<<4+1 then //Level 2
     disc_size[0]:=Read16b(afshead+$14)*2*secsize; //Only gives number of sectors for 1 side
    if FFormat=diAcornFS<<4+2 then //Level 3
-    disc_size[0]:=Read16b(afshead+$16)*secsize;
+    disc_size[0]:=Read24b(afshead+$16)*secsize;
    i:=0;
    if FFormat>>4=diAcornADFS then //Level 3/ADFS Hybrid
    begin
@@ -690,6 +690,7 @@ begin
   end;
   //Read the size of the bitmap
   szofbmp:=ReadByte(afshead+$1C)*secsize;
+  if szofbmp=0 then exit; //equals zero? There has been an error
   //Is it big enough to hold the entire disc?
   if szofbmp>=(((afsstart+Ldiscsize) div secsize)div 8)+1 then //Yes
   begin
@@ -1052,6 +1053,7 @@ begin
  Result:=False;
  if(afslevel=2)or(afslevel=3)then
  begin
+  UpdateProgress('Formatting...');
   //Blank everything
   ResetVariables;
   SetDataLength(0);
@@ -1060,10 +1062,16 @@ begin
   //Set the filename
   imagefilename:='Untitled.'+FormatExt;
   //Setup the data area
+  if(afslevel=2)and(harddrivesize>$0FFFFF)then
+   harddrivesize:=$0FFFFF;//Max size for a L2 is 1MB
+  if(afslevel=3)and(harddrivesize>$07FFFFFF)then
+   harddrivesize:=$07FFFFFF;//Temporary upper limit is 128MB-1
+{  if(afslevel=3)and(harddrivesize>$1FFFFFFF)then
+   harddrivesize:=$1FFFFFFF;//Max size for a L3 (and ADFS Old Map) is 512MB-1}
   disc_size[0]:=harddrivesize;
   SetDataLength(disc_size[0]);
   //Fill with zeros
-  for index:=0 to disc_size[0]-1 do WriteByte(0,index);
+  for index:=0 to disc_size[0]-1 do Fdata[index]:=0;
   //Set the boot option
   SetLength(bootoption,1);
   bootoption[0]:=0;
@@ -1075,7 +1083,8 @@ begin
   afsroot_size:=$200;
   //Interleave option
   if FForceInter=0 then
-   if afslevel=3 then Finterleave:=3 //MUX - Default for AFS L3
+   if(afslevel=3)and(harddrivesize=$A0000)then
+    Finterleave:=3 //MUX - Default for AFS L3 640KB images
    else Finterleave:=1 //SEQ - default for AFS L2
   else Finterleave:=FForceInter;
   //Level 2
@@ -1117,8 +1126,10 @@ begin
    //Copy the primary header to the copy
    for index:=0 to $FF do WriteByte(ReadByte(afshead+index),afshead2+index);
    //Write the directory object for $
+   UpdateProgress('Writing root directory');
    CreateAFSDirectory('$','$','DLR');
    //Write the image allocation map
+   UpdateProgress('Writing the image allocation map');
    for index:=0 to (harddrivesize>>8)-1 do   //Blank entries just reference the
     Write16b(index+1,allocmap1+5+(index*2)); //next sector.
    //AFS Headers
@@ -1168,6 +1179,7 @@ begin
    //Mark end of map
    Write16b(0,allocmap1+mapsize-2);
    WriteBits(1,allocmap1+mapsize-1,6,1);
+   UpdateProgress('Writing secondary allocation map');
    //Copy the primary allocation map to the copy
    for index:=0 to mapsize-1 do
     WriteByte(ReadByte(allocmap1+index),allocmap2+index);
@@ -1183,6 +1195,7 @@ begin
    afshead:=$200;
    afshead2:=afshead+$100;
    //Install a basic ADFS map
+   UpdateProgress('Writing ADFS map');
    Write24b($20,$000);//FreeStart
    Write24b(afshead>>8,$0F6);//AFS Header copy 1
    Write24b($20,$0FC);//Disc size
@@ -1196,7 +1209,11 @@ begin
    Result:=True;
   end;
   //Finalise the the variables by reading in the partition
-  if Result then ReadAFSPartition;
+  if Result then
+  begin
+   UpdateProgress('Reading in the newly created image');
+   ReadAFSPartition;
+  end;
  end;
 end;
 
@@ -1205,10 +1222,12 @@ Write a Level 3 partition
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteAFSPartition(afsdisctitle: String;harddrivesize: Cardinal);
 var
- mapsize: Cardinal;
- index  : Integer;
+ mapsize  : Cardinal; //Size of the allocation map(s)
+ index    : Integer;  //General use counter
+ singlemap: Boolean;  //Are we using a single map, or map per track
 begin
  //Write the AFS headers
+ UpdateProgress('Writing AFS Partition');
  //ID at $00
  WriteString('AFS0',afshead,0,0);
  //Title at $04
@@ -1222,15 +1241,20 @@ begin
  //Sectors per track at $1A
  Write16b(secspertrack,afshead+$1A);
  //Size of bitmap at $1C
- mapsize:=Ceil(((harddrivesize>>8)/8)/secsize);
- WriteByte(mapsize,afshead+$1C);
- mapsize:=mapsize<<8;
+ mapsize:=Ceil(((harddrivesize>>8)/8)/secsize); //Map size in sectors
+ if mapsize>$FF then singlemap:=False else singlemap:=True;
+ if singlemap then
+  WriteByte(mapsize,afshead+$1C) //Total size of map
+ else
+  WriteByte(1,afshead+$1C); //Size of each map at the start of each track
+ mapsize:=mapsize*secsize; //Map size in bytes
  //Next drive at $1D
  WriteByte($01,afshead+$1D);
  // $00 at $1E
  WriteByte($00,afshead+$1E);
  //Root SIN at $1F
- Fafsroot:=afshead2+$100+mapsize;
+ if singlemap then Fafsroot:=afshead2+$100+mapsize
+ else Fafsroot:=afshead2+$100;
  Write24b(Fafsroot>>8,afshead+$1F);
  //Creation Date at $22
  Write16b(AFSTimeToWord(Now),afshead+$22);
@@ -1259,11 +1283,57 @@ begin
  //Copy of map chain sequence number at $FF
  WriteByte(42,Fafsroot+$FF);
  //Write the directory object for $
+ UpdateProgress('Writing the root directory object');
  CreateAFSDirectory('$','$','DLR');
  //Write the image bitmap
- for index:=0 to mapsize-1 do WriteByte($FF,afshead2+$100+index);
- for index:=0 to (Fafsroot>>8)+(afsroot_size div secsize) do
-  WriteBits(0,afshead2+$100+(index div 8),index mod 8,1);
+ if singlemap then //Single map (with secondary copy)
+ begin
+  UpdateProgress('Writing the image bitmap');
+  for index:=0 to mapsize-1 do WriteByte($FF,afshead2+$100+index);
+  UpdateProgress('Writing the secondary image bitmap');
+  for index:=0 to (Fafsroot>>8)+(afsroot_size div secsize) do
+   WriteBits(0,afshead2+$100+(index div 8),index mod 8,1);
+ end
+ else
+ begin //Map per track
+  {
+   //Get the sector offset of each track
+   trackstrt:=Lsecspertrack*secsize;
+   //Our counter - first track after the ADFS part
+   bmploc:=(afsstart div trackstrt)*trackstrt;
+   if bmploc<afsstart then bmploc:=trackstrt;
+   while bmploc<afsstart+Ldiscsize do //Do the entire image, track by track
+   begin
+    //Every sector per track
+    for index:=0 to Lsecspertrack-1 do
+    begin
+     //Is the bit set? Yes - free
+     if(IsBitSet(ReadByte(bmploc+(index div 8)),index mod 8))and(not used)then
+     begin
+      SetLength(Result,Length(Result)+1);
+      Result[Length(Result)-1].Offset:=(bmploc+index*secsize)-afsstart;
+      Result[Length(Result)-1].Length:=secsize;
+      Result[Length(Result)-1].Zone  :=0;
+     end;
+     //Is the bit set? No - used
+     if(not IsBitSet(ReadByte(bmploc+(index div 8)),index mod 8))and(used)then
+     begin
+      SetLength(Result,Length(Result)+1);
+      Result[Length(Result)-1].Offset:=(bmploc+index*secsize)-afsstart;
+      Result[Length(Result)-1].Length:=secsize;
+      Result[Length(Result)-1].Zone  :=0;
+      //But is it system
+      if(bmploc+index*secsize=afshead)or(bmploc+index*secsize=afshead2)
+      or((bmploc+index*secsize>=Fafsroot*secsize)
+      and(bmploc+index*secsize<=Fafsroot*secsize+afsroot_size))
+      or(index*secsize<=szofbmp)then Result[Length(Result)-1].Zone:=1;
+     end;
+    end;
+    //Move on to the next track
+    inc(bmploc,trackstrt);
+   end;
+  }
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1339,7 +1409,7 @@ begin
    addr:=Fafsroot;
    if(FFormat>>4=diAcornADFS)or(FFormat=diAcornFS<<4+2)then addr:=Fafsroot+$100;
    for ptr:=0 to Length(buffer)-1 do
-    WriteByte(buffer[ptr],addr+ptr);
+    WriteByte(buffer[ptr],addr+ptr); //Replace with bulk copy function
    Result:=0;
   end
   else //Not writing the root, so just treat as a file

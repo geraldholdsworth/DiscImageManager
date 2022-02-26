@@ -5,7 +5,7 @@ TSpark class V1.04
 Decompress a Zip or PackDir archive, preserving the extra RISC OS information.
 Thank you to David Pilling for his assistance.
 
-Copyright (C) 2021 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2021-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free

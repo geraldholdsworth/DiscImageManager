@@ -6,9 +6,10 @@ Bugs
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
   + This appears to happen on Windows (and probably Linux), with single screen only (dual or more it does not do this), resolution of 1400 by anything (or more), and scaled to more than 100%. The icons in the Directory Listing grow as the mouse moves. - TO BE TESTED
   + In addition, the tiling under the graphic for the filetype in the File Details, when it is not big enough, leaves a horrible black edge to the right and bottom. - TO BE TESTED
-* File details tiling leaves empty areas after ejecting a disc while a file is selected.
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
 * Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
+* Access violation has been reported when creating an ADFS HDD image (default options) on Windows. - UNABLE TO REPLICATE
+* Does not work on Windows 11. - UNABLE TO REPLICATE
 
 General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform. This will need to be done using 'code-per-platform' directives.
@@ -20,11 +21,17 @@ General
 * Cancel button for progress display?
 * Side pane (left hand side) to allow separate images to be opened (REF:3).
 * Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
-* Add option for 'beyond disc edge check' to ID DFS images in the settings.
 * For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
 
 ADFS
 * Change the size of the ADFS partition or image.
+
+CFS (UEF)
+* Remember the last block read and compare with the next to get around some tape protection methods.
+
+AFS
+* AFS0 images do not get created correctly (in particular the free space allocation maps).
+* Add option to new Level 3 images for pre-1988 or post-1988 format.
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.

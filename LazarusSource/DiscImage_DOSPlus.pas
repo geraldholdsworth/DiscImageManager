@@ -7,54 +7,57 @@ function TDiscImage.ID_DOSPlus: Boolean;
 var
  idbyte: Byte;
 begin
- ResetVariables;
  Result:=False;
- //This will only identify a plain DOS Plus disc, not an ADFS Hybrid
- if Read16b($0001)=$FFFF then
+ if FFormat=diInvalidImg then
  begin
-  //Disc ID Byte
-  idbyte:=ReadByte($0000);
-  //Set the format based on this ID
-  if idbyte>$FB then
+  ResetVariables;
+  //This will only identify a plain DOS Plus disc, not an ADFS Hybrid
+  if Read16b($0001)=$FFFF then
   begin
-   FFormat:=diDOSPlus<<4;
-   //Sectors per track
-   secspertrack:=9;
-   if idbyte>$FD then secspertrack:=8;
-   //Sector size
-   secsize:=256;
-   doshead:=0;
-   //Set root address and root size
-   root:=$800;
-   root_size:=$C0*$20;
-   Fdosroot:=root;
-   dosroot_size:=root_size;
-   //Set the disc size
-   disc_size[0]:=GetDataLength;
-   //And cluster size
-   cluster_size:=$400;
-   dosalloc:=1;
-   DOSBlocks:=disc_size[0]div cluster_size;
-   //FAT Size and type
-   DOSFATSize:=1; //This is one less than the actual size
-   NumFATs:=1;
-   FATType:=diFAT12;
-   //Where is the FAT?
-   dosmap:=doshead;
-   dosmap2:=doshead;
-   //Attribute of the first entry of the root will indicate the volume name (bit 3)
-   if ReadByte(root+$B)<>$8 then FFormat:=diInvalidImg;
+   //Disc ID Byte
+   idbyte:=ReadByte($0000);
+   //Set the format based on this ID
+   if idbyte>$FB then
+   begin
+    FFormat:=diDOSPlus<<4;
+    //Sectors per track
+    secspertrack:=9;
+    if idbyte>$FD then secspertrack:=8;
+    //Sector size
+    secsize:=256;
+    doshead:=0;
+    //Set root address and root size
+    root:=$800;
+    root_size:=$C0*$20;
+    Fdosroot:=root;
+    dosroot_size:=root_size;
+    //Set the disc size
+    disc_size[0]:=GetDataLength;
+    //And cluster size
+    cluster_size:=$400;
+    dosalloc:=1;
+    DOSBlocks:=disc_size[0]div cluster_size;
+    //FAT Size and type
+    DOSFATSize:=1; //This is one less than the actual size
+    NumFATs:=1;
+    FATType:=diFAT12;
+    //Where is the FAT?
+    dosmap:=doshead;
+    dosmap2:=doshead;
+    //Attribute of the first entry of the root will indicate the volume name (bit 3)
+    if ReadByte(root+$B)<>$8 then FFormat:=diInvalidImg;
+   end;
   end;
+  //Normal DOS disc (i.e. has a header)?
+  if FFormat=diInvalidImg then //Only check if nothing found
+   if IDDOSPartition($0000) then
+   begin
+    ReadDOSHeader;
+    disc_size[0]:=DOSBlocks*cluster_size;
+    FFormat:=diDOSPlus<<4;
+   end;
+  Result:=FFormat>>4=diDOSPlus;
  end;
- //Normal DOS disc (i.e. has a header)?
- if FFormat=diInvalidImg then //Only check if nothing found
-  if IDDOSPartition($0000) then
-  begin
-   ReadDOSHeader;
-   disc_size[0]:=DOSBlocks*cluster_size;
-   FFormat:=diDOSPlus<<4;
-  end;
- Result:=FFormat>>4=diDOSPlus;
 end;
 
 {-------------------------------------------------------------------------------

@@ -9,7 +9,7 @@ has also grown from being just a reader to also a writer.
 Extra 'gimmicks' have been added over time, to utilise the code in the underlying
 class.
 
-Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -418,6 +418,12 @@ type
     Fdebug        :Boolean;
     //Allow DFS images with zero number of sectors
     FDFSZeroSecs  :Boolean;
+    //Check for files going beyond the disc edge on DFS
+    FDFSBeyondEdge:Boolean;
+    //Check for blank filenames
+    FDFSAllowBlank:Boolean;
+    //Compress UEF files
+    FUEFCompress  :Boolean;
     //View options (what is visible)
     ViewOptions   :Cardinal;
    const
@@ -508,7 +514,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.38.4';
+    ApplicationVersion = '1.38.5';
     //Current platform and architecture (compile time directive)
     {$IFDEF Darwin}
     platform = 'macOS';            //Apple Mac OS X
@@ -1064,24 +1070,25 @@ begin
      NewFile.Length:=Length(buffer);
      //Does the file already exist?
      ok:=True;
-     if Image.FileExists(NewFile.Parent+Image.DirSep+NewFile.Filename,ref) then
-     begin
-      ok:=AskConfirm('"'+NewFile.Filename+'" already exists in the directory "'
-                    +NewFile.Parent+'". Overwrite?','Yes','No','')=mrOK;
-      if ok then //Delete the original
+     if Image.FormatNumber>>4<>diAcornUEF then
+      if Image.FileExists(NewFile.Parent+Image.DirSep+NewFile.Filename,ref) then
       begin
-       //First save the selected Node
-       Node:=DirList.Selected;
-       //Select our node
-       SelectNode(NewFile.Parent+Image.DirSep+NewFile.Filename,False);
-       //Delete the file
-       DeleteFile(False);
-       //Reselect our node
-       DirList.ClearSelection;
-       Node.Selected:=True;
-       ok:=True;
+       ok:=AskConfirm('"'+NewFile.Filename+'" already exists in the directory "'
+                     +NewFile.Parent+'". Overwrite?','Yes','No','')=mrOK;
+       if ok then //Delete the original
+       begin
+        //First save the selected Node
+        Node:=DirList.Selected;
+        //Select our node
+        SelectNode(NewFile.Parent+Image.DirSep+NewFile.Filename,False);
+        //Delete the file
+        DeleteFile(False);
+        //Reselect our node
+        DirList.ClearSelection;
+        Node.Selected:=True;
+        ok:=True;
+       end;
       end;
-     end;
      //Write the File
      if ok then
      begin
@@ -1544,6 +1551,10 @@ begin
  Image.SparkAsFS:=SparkIsFS;
  //Allow DFS to have zero number of sectors
  Image.AllowDFSZeroSectors:=FDFSZeroSecs;
+ //Check for files going over the disc edge on DFS
+ Image.DFSBeyondEdge:=FDFSBeyondEdge;
+ //Check for blank filenames in DFS
+ Image.DFSAllowBlanks:=FDFSAllowBlank;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -2057,7 +2068,12 @@ begin
  //Change Interleave
  btn_ChangeInterleave.Enabled:=(Image.FormatNumber=diAcornADFS<<4+2) //ADFS L
                              or(Image.FormatNumber=diAcornADFS<<4+$E)//ADFS Hybrid
-                             or(Image.FormatNumber>>4=diAcornFS);    //Acorn FS
+                             or(Image.FormatNumber>>4=diAcornFS)     //Acorn FS
+                             or((Image.FormatNumber>>4=diAcornADFS)  //Acorn ADFS
+                             and(Image.InterleaveMethod>0));         //with non-auto interleave
+ {btn_ChangeInterleave.Enabled:=(Image.FormatNumber=diAcornADFS<<4+2) //ADFS L
+                             or(Image.FormatNumber=diAcornADFS<<4+$E)//ADFS Hybrid
+                             or(Image.FormatNumber>>4=diAcornFS);    //Acorn FS }
  menuChangeInterleave.Enabled:=btn_ChangeInterleave.Enabled;
  //Change the captions
  temp:='Partition';
@@ -2616,7 +2632,7 @@ begin
   //Save and close the application as there are commands
   if HasChanged then
   begin
-   Image.SaveToFile(Image.Filename);
+   Image.SaveToFile(Image.Filename,FUEFCompress);
    HasChanged:=False;
   end;
   //Close the application, unless otherwise specified
@@ -3030,7 +3046,13 @@ begin
  //Hide Commodore DEL files
  DoHideDEL:=GetRegValB('Hide_CDR_DEL',False);
  //Allow DFS images with zero sectors
- FDFSZeroSecs:=GetRegValB('DFS_Zero_Sectors',True);
+ FDFSZeroSecs:=GetRegValB('DFS_Zero_Sectors',False);
+ //Check for files going over the DFS disc edge
+ FDFSBeyondEdge:=GetRegValB('DFS_Beyond_Edge',False);
+ //Check for blank filenames in DFS
+ FDFSAllowBlank:=GetRegValB('DFS_Allow_Blanks',False);
+ //Compress UEF Files on save
+ FUEFCompress:=GetRegValB('UEF_Compress',True);
  //View menu options
  ViewOptions:=GetRegValI('View_Options',$FFFF);
  //Toolbar order - this doesn't work currently
@@ -3131,7 +3153,7 @@ begin
  If SaveImage.Execute then
  begin
   //Save the image
-  Image.SaveToFile(SaveImage.FileName);
+  Image.SaveToFile(SaveImage.FileName,FUEFCompress);
   Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
   HasChanged:=False;
   //Update the status bar
@@ -3180,6 +3202,8 @@ begin
  NewImage.InterleaveMethod:=ADFSInterleave;
  NewImage.SparkAsFS:=SparkIsFS;
  NewImage.AllowDFSZeroSectors:=FDFSZeroSecs;
+ NewImage.DFSBeyondEdge:=FDFSBeyondEdge;
+ NewImage.DFSAllowBlanks:=FDFSAllowBlank;
  for FileName in FileNames do
  begin
   //If it is not a directory
@@ -4514,6 +4538,9 @@ begin
  SettingsForm.CreateINF.Checked:=DoCreateInf;
  SettingsForm.WriteDebug.Checked:=Fdebug;
  SettingsForm.AllowDFSZeroSecs.Checked:=FDFSZeroSecs;
+ SettingsForm.DFSBeyondEdge.Checked:=FDFSBeyondEdge;
+ SettingsForm.AllowDFSBlankFilenames.Checked:=FDFSAllowBlank;
+ SettingsForm.CompressUEF.Checked:=FUEFCompress;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
@@ -4529,12 +4556,17 @@ begin
   DoCreateInf   :=SettingsForm.CreateINF.Checked;
   Fdebug        :=SettingsForm.WriteDebug.Checked;
   FDFSZeroSecs  :=SettingsForm.AllowDFSZeroSecs.Checked;
+  FDFSBeyondEdge:=SettingsForm.DFSBeyondEdge.Checked;
+  FDFSAllowBlank:=SettingsForm.AllowDFSBlankFilenames.Checked;
+  FUEFCompress  :=SettingsForm.CompressUEF.Checked;
   //Save the settings
   SetRegValI('Texture',TextureType);
   SetRegValI('ADFS_L_Interleave',ADFSInterleave);
   SetRegValB('CreateINF',DoCreateINF);
   SetRegValB('Debug_Mode',Fdebug);
   SetRegValB('DFS_Zero_Sectors',FDFSZeroSecs);
+  SetRegValB('DFS_Beyond_Edge',FDFSBeyondEdge);
+  SetRegValB('DFS_Allow_Blanks',FDFSAllowBlank);
   //Change the tile under the filetype
   if DirList.SelectionCount=1 then DirListChange(Sender,DirList.Selected);
   //Repaint the main form

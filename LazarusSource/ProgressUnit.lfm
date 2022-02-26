@@ -2,7 +2,7 @@ object ProgressForm: TProgressForm
   Cursor = crHourGlass
   Left = 454
   Height = 200
-  Top = 214
+  Top = 238
   Width = 597
   BorderIcons = []
   BorderStyle = bsNone
@@ -12,7 +12,7 @@ object ProgressForm: TProgressForm
   FormStyle = fsStayOnTop
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object MainPanel: TPanel
     Left = 0
     Height = 200
@@ -38,17 +38,15 @@ object ProgressForm: TProgressForm
       Font.Color = clBlue
       Font.Height = -16
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object WaitLabel: TLabel
       Left = 1
-      Height = 35
+      Height = 37
       Top = 1
       Width = 342
       Alignment = taCenter
       Caption = 'Please wait, working...'
-      ParentColor = False
     end
   end
 end

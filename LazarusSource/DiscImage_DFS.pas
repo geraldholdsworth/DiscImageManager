@@ -108,15 +108,16 @@ begin
       //And add the length to it
       inc(sec,Read16b($108+4+i*8)+((ReadByte($108+6+i*8)AND$30)<<12));
       //If the end of the file is over the end of the disc, fail it
-//      if sec>t0<<8 then chk:=False;
-      if sec>t0<<8 then t0:=((sec+$FF)>>8); //Temporary fix
-      //Check for blank filenames
+      if(sec>t0<<8)and(not FDFSBeyondEdge)then chk:=False;
+      if(sec>t0<<8)and(FDFSBeyondEdge)    then t0:=((sec+$FF)>>8); //Or fix it
+      //Check for blank filenames - no longer required
       temp:=ReadString($008+(i*8),-7);
       RemoveTopBit(temp); //Attributes are in the top bit
       RemoveSpaces(temp); //Remove extraneous spaces
-//      if temp='' then chk:=False;
-      WriteByte(t0 AND$FF,$107);   //Temporary fix
-      WriteByte((t0>>8AND$3)OR(ReadByte($106)AND$FC),$106); //Temporary fix
+      if(temp='')and(not FDFSAllowBlank)then chk:=False;
+      //Fixes the sector number, if needed
+      WriteByte(t0 AND$FF,$107);
+      WriteByte((t0>>8AND$3)OR(ReadByte($106)AND$FC),$106);
      end;
      //Side 2
      if(dbl)and(ReadByte($B05)>>3>0)then
@@ -129,13 +130,16 @@ begin
        //And add the length to it
        inc(sec,Read16b($B08+4+i*8)+((ReadByte($B08+6+i*8)AND$30)<<12));
        //If the end of the file is over the end of the disc, fail it as a double
-//       if sec>t1<<8 then dbl:=False;
-       if sec>t1<<8 then sec:=(t1+$FF)>>8; //Temporary fix
+       if(sec>t1<<8)and(not FDFSBeyondEdge)then dbl:=False;
+       if(sec>t1<<8)and(FDFSBeyondEdge)    then sec:=(t1+$FF)>>8; //Or fix it
        //Check for blank filenames
-       temp:=ReadString($A08+(i*8),-7);
-       RemoveTopBit(temp); //Attributes are in the top bit
-       RemoveSpaces(temp); //Remove extraneous spaces
-//       if temp='' then dbl:=False;
+       if not FDFSAllowBlank then
+       begin
+        temp:=ReadString($A08+(i*8),-7);
+        RemoveTopBit(temp); //Attributes are in the top bit
+        RemoveSpaces(temp); //Remove extraneous spaces
+        if temp='' then dbl:=False;
+       end;
       end;
       //Refresh the double sided flag
       //FDSD:=dbl;
@@ -143,7 +147,7 @@ begin
       WriteByte((t1>>8AND$3)OR(ReadByte($A06)AND$FC),$A06); //Temporary fix
      end;
      //If checks have failed, then reset the format
-//     if not chk then FFormat:=diInvalidImg;
+     if not chk then FFormat:=diInvalidImg;
     end;
    end;
    //Test for Watford DFS - we'll only test one side.
@@ -371,7 +375,7 @@ end;
 {-------------------------------------------------------------------------------
 Write Acorn DFS File
 -------------------------------------------------------------------------------}
-function TDiscImage.WriteDFSFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+function TDiscImage.WriteDFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
 var
  f      : Byte;
  i,l,
@@ -477,7 +481,7 @@ var
 const
   illegal = '#*:';
 begin
-  for i:=1 to Length(filename) do
+ for i:=1 to Length(filename) do
  begin
   //Remove top-bit set characters
   filename[i]:=chr(ord(filename[i]) AND $7F);

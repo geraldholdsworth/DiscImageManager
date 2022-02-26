@@ -1,7 +1,7 @@
 object NewImageForm: TNewImageForm
   Left = 431
   Height = 230
-  Top = 183
+  Top = 207
   Width = 532
   BorderIcons = []
   BorderStyle = bsDialog
@@ -12,7 +12,7 @@ object NewImageForm: TNewImageForm
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object MainFormat: TRadioGroup
     Left = 0
     Height = 181
@@ -270,7 +270,7 @@ object NewImageForm: TNewImageForm
     Visible = False
     object AFSImageSize: TTrackBar
       Left = 8
-      Height = 37
+      Height = 32
       Top = 8
       Width = 236
       Max = 52428
@@ -280,16 +280,6 @@ object NewImageForm: TNewImageForm
       TickStyle = tsNone
       TabOrder = 0
     end
-    object AFSImageSizeLabel: TLabel
-      Left = 8
-      Height = 24
-      Top = 32
-      Width = 232
-      Alignment = taCenter
-      AutoSize = False
-      Caption = 'AFSImageSizeLabel'
-      ParentColor = False
-    end
     object cb_AFScreatepword: TCheckBox
       Left = 8
       Height = 18
@@ -297,6 +287,15 @@ object NewImageForm: TNewImageForm
       Width = 138
       Caption = 'Create password file'
       TabOrder = 1
+    end
+    object AFSImageSizeLabel: TLabel
+      Left = 8
+      Height = 16
+      Top = 40
+      Width = 232
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'AFSImageSizeLabel'
     end
   end
   object DOS: TRadioGroup

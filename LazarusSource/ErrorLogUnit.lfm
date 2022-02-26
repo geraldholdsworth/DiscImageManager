@@ -1,12 +1,12 @@
 object ErrorLogForm: TErrorLogForm
   Left = 304
   Height = 64
-  Top = 137
+  Top = 161
   Width = 485
   Caption = 'Error Log'
   ClientHeight = 64
   ClientWidth = 485
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object ErrorLog: TMemo
     Left = 0
     Height = 64

@@ -1,7 +1,7 @@
 unit SettingsUnit;
 
 {
-Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -32,8 +32,11 @@ type
  { TSettingsForm }
 
  TSettingsForm = class(TForm)
-  CancelButton: TBitBtn;
   AllowDFSZeroSecs: TCheckBox;
+  AllowDFSBlankFilenames: TCheckBox;
+  CancelButton: TBitBtn;
+  DFSBeyondEdge: TCheckBox;
+  DFSGroup: TGroupBox;
   WriteDebug: TCheckBox;
   CreateINF: TCheckBox;
   MiscGroup: TGroupBox;
@@ -52,6 +55,7 @@ type
   TileRO4: TRadioButton;
   TilePictureRO3: TImage;
   TileIyonix: TRadioButton;
+  CompressUEF: TCheckBox;
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
   procedure TilePictureRO5Click(Sender: TObject);

@@ -1,7 +1,7 @@
 unit NewImageUnit;
 
 {
-Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -176,7 +176,11 @@ begin
  if AFSImageSize.Position<=409 then
   AFSImageSizeLabel.Caption:=IntToStr(AFSImageSize.Position*10)+'KB'
  else
+ begin
+  AFSImageSize.Position:=Round((Ceil((AFSImageSize.Position*10)/1024)*1024)/10);
   AFSImageSizeLabel.Caption:=IntToStr(Ceil((AFSImageSize.Position*10)/1024))+'MB';
+ end;
+ //Label is not updating on Windows
 end;
 
 {-------------------------------------------------------------------------------
@@ -184,8 +188,17 @@ The AFS Level has changed, change the minimum size
 -------------------------------------------------------------------------------}
 procedure TNewImageForm.AFSClick(Sender: TObject);
 begin
- if AFS.ItemIndex=0 then AFSImageSize.Min:=40; //Level 2 minimum size 400K
- if AFS.ItemIndex=1 then AFSImageSize.Min:=64; //Level 3 minimum size 640K
+ if AFS.ItemIndex=0 then
+ begin
+  AFSImageSize.Min:=40; //Level 2 minimum size 400K
+  AFSImageSize.Max:=102; //Level 2 maximum size is 1023K (1MB)
+ end;
+ if AFS.ItemIndex=1 then
+ begin
+  AFSImageSize.Min:=64; //Level 3 minimum size 640K
+  AFSImageSize.Max:=13107; //Level 3 temporary max is ~128MB
+  //AFSImageSize.Max:=52428; //Level 3 maximum size is 524280K (~512MB)
+ end;
  AFSImageSizeChange(Sender);
 end;
 

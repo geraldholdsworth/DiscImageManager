@@ -15,7 +15,11 @@ begin
  //Deal with Spark archives as a filing system (i.e. in this class)
  FSparkAsFS:=True;
  //Allow DFS images which report number of sectors as zero
- FDFSzerosecs:=True;
+ FDFSzerosecs:=False;
+ //Allow files to go beyond the edge of the disc
+ FDFSBeyondEdge:=False;
+ //Allow blank filenames in DFS
+ FDFSAllowBlank:=False;
 end;
 constructor TDiscImage.Create(Clone: TDiscImage);
 var
@@ -1365,9 +1369,10 @@ begin
  Result:=False;
  //Are we actually changing, and is it within range?
  if(NewMethod<>Finterleave)and(NewMethod>0)and(NewMethod<4)then
-  //Only works with ADFS L and Acorn FS
+  //Only works with ADFS L and Acorn FS, or ADFS with non-auto interleave
   if(FFormat=diAcornADFS<<4+2)
   or(FFormat=diAcornADFS<<4+$E)
+  or((FFormat>>4=diAcornADFS)and(FForceInter>0))
   or(FFormat>>4=diAcornFS) then
   begin
    //Set up the buffer

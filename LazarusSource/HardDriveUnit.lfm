@@ -1,7 +1,7 @@
 object HardDriveForm: THardDriveForm
   Left = 483
   Height = 118
-  Top = 285
+  Top = 309
   Width = 490
   BorderIcons = []
   BorderStyle = bsDialog
@@ -12,7 +12,7 @@ object HardDriveForm: THardDriveForm
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object OKBtnBack: TPanel
     Left = 382
     Height = 30
@@ -134,19 +134,17 @@ object HardDriveForm: THardDriveForm
   end
   object CapacityHeaderLabel: TLabel
     Left = 96
-    Height = 14
+    Height = 16
     Top = 8
     Width = 114
     Caption = 'Hard Disc Capacity:'
-    ParentColor = False
   end
   object CapacityLabel: TLabel
     Left = 416
-    Height = 14
+    Height = 16
     Top = 28
     Width = 37
     Caption = '10MB'
-    ParentColor = False
   end
   object cb_NewMap: TCheckBox
     Left = 88
@@ -165,6 +163,7 @@ object HardDriveForm: THardDriveForm
     Caption = 'Old'
     Checked = True
     TabOrder = 4
+    TabStop = True
   end
   object rb_NewDir: TRadioButton
     Left = 349
@@ -184,10 +183,9 @@ object HardDriveForm: THardDriveForm
   end
   object DirectoryLabel: TLabel
     Left = 216
-    Height = 14
+    Height = 16
     Top = 56
     Width = 59
     Caption = 'Directory:'
-    ParentColor = False
   end
 end

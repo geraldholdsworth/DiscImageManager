@@ -1,7 +1,7 @@
 object ChangeInterleaveForm: TChangeInterleaveForm
   Left = 549
   Height = 124
-  Top = 222
+  Top = 246
   Width = 234
   BorderIcons = []
   BorderStyle = bsDialog
@@ -11,7 +11,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   Color = 15527148
   OnPaint = FormPaint
   Position = poMainFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object CancelButton: TBitBtn
     Left = 8
     Height = 30
@@ -51,7 +51,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   end
   object CurrentLabel: TLabel
     Left = 0
-    Height = 14
+    Height = 16
     Top = 0
     Width = 234
     Align = alTop
@@ -59,38 +59,35 @@ object ChangeInterleaveForm: TChangeInterleaveForm
     Caption = 'Current Interleave Method'
     Font.Color = clBlue
     Font.Style = [fsBold]
-    ParentColor = False
     ParentFont = False
   end
   object lb_Current: TLabel
     Left = 0
-    Height = 15
-    Top = 14
+    Height = 16
+    Top = 16
     Width = 234
     Align = alTop
     Alignment = taCenter
     Caption = 'Interleave'
     Font.Name = 'Courier New'
-    ParentColor = False
     ParentFont = False
   end
   object NewLabel: TLabel
     Left = 0
-    Height = 14
-    Top = 29
+    Height = 16
+    Top = 32
     Width = 234
     Align = alTop
     Alignment = taCenter
     Caption = 'New Interleave Method'
     Font.Color = clBlue
     Font.Style = [fsBold]
-    ParentColor = False
     ParentFont = False
   end
   object cb_NewMethod: TComboBox
     Left = 0
     Height = 26
-    Top = 43
+    Top = 48
     Width = 234
     Align = alTop
     Color = 15527148

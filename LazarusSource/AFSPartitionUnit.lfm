@@ -1,7 +1,7 @@
 object AFSPartitionForm: TAFSPartitionForm
   Left = 436
   Height = 156
-  Top = 248
+  Top = 272
   Width = 320
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
@@ -11,7 +11,7 @@ object AFSPartitionForm: TAFSPartitionForm
   Color = 15527148
   OnPaint = FormPaint
   Position = poMainFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object PartitionSize: TTrackBar
     Left = 0
     Height = 37
@@ -32,7 +32,6 @@ object AFSPartitionForm: TAFSPartitionForm
     Align = alTop
     Alignment = taCenter
     Caption = 'PartitionSizeLabel'
-    ParentColor = False
   end
   object CancelButton: TBitBtn
     Left = 8
@@ -85,8 +84,8 @@ object AFSPartitionForm: TAFSPartitionForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 37
-    ClientWidth = 310
+    ClientHeight = 39
+    ClientWidth = 318
     ItemIndex = 0
     Items.Strings = (
       'Acorn File Server'

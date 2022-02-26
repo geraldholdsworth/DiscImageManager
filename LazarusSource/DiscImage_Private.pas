@@ -924,8 +924,9 @@ const
 begin
  Result:='';
  if(FFormat>>4=diAcornDFS)and(FDSD)then Result:=ints[1];
- if(FFormat=diAcornADFS<<4+2)
- or(FFormat=diAcornADFS<<4+$E)
+ {if(FFormat=diAcornADFS<<4+2)
+ or(FFormat=diAcornADFS<<4+$E)}
+ if(FFormat>>4=diAcornADFS)
  or(FFormat>>4=diAcornFS)then
   if FInterleave-1<=High(ints) then Result:=ints[FInterleave-1];
 end;

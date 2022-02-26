@@ -1,26 +1,26 @@
 object SettingsForm: TSettingsForm
   Left = 485
-  Height = 316
-  Top = 280
+  Height = 399
+  Top = 137
   Width = 448
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Preferences'
-  ClientHeight = 316
+  ClientHeight = 399
   ClientWidth = 448
   Color = 15527148
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object TextureGroup: TGroupBox
     Left = 0
     Height = 166
     Top = 0
     Width = 448
     Caption = 'Window Texture'
-    ClientHeight = 149
-    ClientWidth = 446
+    ClientHeight = 147
+    ClientWidth = 438
     TabOrder = 0
     object TilePictureRO5: TImage
       Left = 176
@@ -40,26 +40,27 @@ object SettingsForm: TSettingsForm
     end
     object TileRO5: TRadioButton
       Left = 176
-      Height = 23
+      Height = 18
       Top = 120
-      Width = 84
+      Width = 81
       Caption = 'RISC OS 5'
       Checked = True
       TabOrder = 0
+      TabStop = True
     end
     object TileRO4: TRadioButton
       Left = 92
-      Height = 23
+      Height = 18
       Top = 120
-      Width = 84
+      Width = 81
       Caption = 'RISC OS 4'
       TabOrder = 1
     end
     object NoTile: TRadioButton
       Left = 12
-      Height = 23
+      Height = 18
       Top = 8
-      Width = 59
+      Width = 52
       Caption = 'None'
       TabOrder = 2
     end
@@ -73,9 +74,9 @@ object SettingsForm: TSettingsForm
     end
     object TileRO3: TRadioButton
       Left = 8
-      Height = 23
+      Height = 18
       Top = 120
-      Width = 84
+      Width = 81
       Caption = 'RISC OS 3'
       TabOrder = 3
     end
@@ -89,9 +90,9 @@ object SettingsForm: TSettingsForm
     end
     object TileIyonix: TRadioButton
       Left = 260
-      Height = 23
+      Height = 18
       Top = 120
-      Width = 63
+      Width = 55
       Caption = 'Iyonix'
       TabOrder = 4
     end
@@ -105,9 +106,9 @@ object SettingsForm: TSettingsForm
     end
     object TileROPi: TRadioButton
       Left = 344
-      Height = 23
+      Height = 18
       Top = 120
-      Width = 87
+      Width = 84
       Caption = 'RISC OS Pi'
       TabOrder = 5
     end
@@ -115,7 +116,7 @@ object SettingsForm: TSettingsForm
   object CancelButton: TBitBtn
     Left = 224
     Height = 30
-    Top = 280
+    Top = 362
     Width = 100
     Cancel = True
     Caption = 'Cancel'
@@ -126,7 +127,7 @@ object SettingsForm: TSettingsForm
   object OKBtnBack: TPanel
     Left = 340
     Height = 30
-    Top = 280
+    Top = 362
     Width = 100
     BevelColor = clYellow
     BevelInner = bvLowered
@@ -163,8 +164,8 @@ object SettingsForm: TSettingsForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 87
-    ClientWidth = 222
+    ClientHeight = 85
+    ClientWidth = 214
     ItemIndex = 0
     Items.Strings = (
       'Automatic (recommended)'
@@ -175,19 +176,19 @@ object SettingsForm: TSettingsForm
     TabOrder = 3
   end
   object MiscGroup: TGroupBox
-    Left = 224
+    Left = 0
     Height = 104
-    Top = 176
+    Top = 288
     Width = 224
     Caption = 'Miscellaneous'
-    ClientHeight = 87
-    ClientWidth = 222
+    ClientHeight = 85
+    ClientWidth = 214
     TabOrder = 4
     object CreateINF: TCheckBox
       Left = 4
-      Height = 23
+      Height = 18
       Top = 8
-      Width = 205
+      Width = 188
       Caption = 'Create *.inf files on download'
       Checked = True
       State = cbChecked
@@ -195,18 +196,54 @@ object SettingsForm: TSettingsForm
     end
     object WriteDebug: TCheckBox
       Left = 4
-      Height = 23
+      Height = 18
       Top = 32
-      Width = 204
+      Width = 186
       Caption = 'Write Debugging Information'
       TabOrder = 1
     end
+    object CompressUEF: TCheckBox
+      Left = 4
+      Height = 18
+      Top = 56
+      Width = 150
+      Caption = 'Compress UEF Images'
+      Checked = True
+      State = cbChecked
+      TabOrder = 2
+    end
+  end
+  object DFSGroup: TGroupBox
+    Left = 224
+    Height = 104
+    Top = 176
+    Width = 224
+    Caption = 'DFS Validation'
+    ClientHeight = 85
+    ClientWidth = 214
+    TabOrder = 5
+    object DFSBeyondEdge: TCheckBox
+      Left = 4
+      Height = 18
+      Top = 8
+      Width = 197
+      Caption = 'Allow files goes over disc edge'
+      TabOrder = 0
+    end
     object AllowDFSZeroSecs: TCheckBox
       Left = 4
-      Height = 23
+      Height = 18
+      Top = 32
+      Width = 126
+      Caption = 'Allow zero sectors'
+      TabOrder = 1
+    end
+    object AllowDFSBlankFilenames: TCheckBox
+      Left = 4
+      Height = 18
       Top = 56
-      Width = 177
-      Caption = 'Allow zero sectors in DFS'
+      Width = 144
+      Caption = 'Allow blank filenames'
       TabOrder = 2
     end
   end

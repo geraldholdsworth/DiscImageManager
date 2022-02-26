@@ -6,7 +6,7 @@ Identifies a Spectrum disc
 function TDiscImage.ID_Sinclair: Boolean;
 begin
  Result:=False;
- if FFormat=$FF then
+ if FFormat=diInvalidImg then
  begin
   if GetDataLength>0 then
   begin

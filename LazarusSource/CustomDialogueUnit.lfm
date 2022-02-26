@@ -1,7 +1,7 @@
 object CustomDialogue: TCustomDialogue
   Left = 668
   Height = 195
-  Top = 257
+  Top = 281
   Width = 360
   BorderIcons = []
   BorderStyle = bsDialog
@@ -11,7 +11,7 @@ object CustomDialogue: TCustomDialogue
   Color = 15527148
   OnPaint = FormPaint
   Position = poMainFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object ErrorImg: TImage
     Left = 8
     Height = 42
@@ -213,13 +213,12 @@ object CustomDialogue: TCustomDialogue
     OnPaint = FormPaint
     object MessageLabel: TLabel
       Left = 0
-      Height = 42
+      Height = 48
       Top = 40
       Width = 286
       Alignment = taCenter
       Caption = 'The file has been detected as an image.'#10'Would you like to import the contents or add to the open image?'
       Constraints.MaxWidth = 288
-      ParentColor = False
       WordWrap = True
     end
   end

@@ -10,7 +10,7 @@ const
  uefstring = 'UEF File!';
 begin
  Result:=False;
- if FFormat<>diInvalidImg then
+ if FFormat=diInvalidImg then
   //Is there actually any data?
   if GetDataLength>0 then
   begin
@@ -41,12 +41,14 @@ var
  chunkid,
  chunklen,
  blocklen,
-// blocknum,
+ blocknum,
+ lastblock,
  headcrc,
  datacrc  : Cardinal;
  temp     : String;
 // tone     : Real;
  blockst  : Byte;
+ firstblck,
  crcok    : Boolean;
  dummy    : TDIByteArray;
 begin
@@ -68,6 +70,9 @@ begin
  blockst:=$00;
  //CRC Checks
  crcok:=True;
+ //Keep track of the last block's details
+ lastblock:=0;
+ firstblck:=False;
  //Loop through until we run out of bytes
  while pos<disc_size[0] do
  begin
@@ -115,15 +120,28 @@ begin
       Result[0].Entries[filenum].Parent  :=Result[0].Directory;
       Result[0].Entries[filenum].DirRef  :=-1;
       SetLength(CFSFiles,filenum+1);
+      firstblck:=True;
+      //Read in the load address
+      Result[0].Entries[filenum].LoadAddr:=Read32b(pos+i);
+      //Read in the execution address
+      Result[0].Entries[filenum].ExecAddr:=Read32b(pos+i+4);
       //CRC Checks
       crcok:=True;
      end;
-     //Read in the load address
-     Result[0].Entries[filenum].LoadAddr:=Read32b(pos+i);
-     //Read in the execution address
-     Result[0].Entries[filenum].ExecAddr:=Read32b(pos+i+4);
      //Read in the block number
-//     blocknum:=Read16b(pos+i+8);
+     blocknum:=Read16b(pos+i+8);
+     //Is it a new block, or copy protection?
+     if(blocknum>0)and(firstblck)and(Length(Result[0].Entries)>1)then
+      if (lastblock=blocknum-1)
+      and(Result[0].Entries[filenum-1].Filename=Result[0].Entries[filenum].Filename)
+       {and(files[filenum-1].LoadAddr=files[filenum].LoadAddr)
+       and(files[filenum-1].ExecAddr=files[filenum].ExecAddr)}then
+      begin
+       SetLength(Result[0].Entries,Length(Result[0].Entries)-1);
+       dec(filenum);
+       firstblck:=False;
+      end;
+     lastblock:=blocknum;
      //Take a note of where we are in the file's data, as we build it up
      ptr:=Result[0].Entries[filenum].Length;
      //Get the length of this block
@@ -356,7 +374,7 @@ begin
    try
     F:=TGZFileStream.Create(filename,gzOpenWrite);
     F.Seek(0,0);
-    F.Write(Fdata[0],Length(Fdata));
+    F.Write(Fdata[0],Length(Fdata)-1);
     F.Free;
    finally
    end;
@@ -366,7 +384,7 @@ begin
   begin
    try
     Func:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
-    Func.Write(Fdata[0],Length(Fdata));
+    Func.Write(Fdata[0],Length(Fdata)-1);
     Func.Free;
    finally
    end;
@@ -552,6 +570,8 @@ begin
  Result:=-5; //Unknown error
  if(Length(FDisc)=1)and(Length(buffer)>0)then //Make sure there is something
  begin
+  //Make sure the filename is not beyond max length
+  file_details.Filename:=LeftStr(file_details.Filename,10);
   //Increase the entries
   SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)+1);
   //and increase the data array

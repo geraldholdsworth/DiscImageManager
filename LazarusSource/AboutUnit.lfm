@@ -1,7 +1,7 @@
 object AboutForm: TAboutForm
   Left = 433
   Height = 306
-  Top = 203
+  Top = 227
   Width = 520
   AutoSize = True
   BorderIcons = [biSystemMenu]
@@ -13,7 +13,7 @@ object AboutForm: TAboutForm
   Font.Color = clWindowText
   Font.Name = 'Tahoma'
   Position = poMainFormCenter
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object CreditsPanel: TPanel
     Left = 0
     Height = 306
@@ -27,7 +27,7 @@ object AboutForm: TAboutForm
     OnPaint = CreditsPanelPaint
     object lb_Title: TLabel
       Left = 1
-      Height = 36
+      Height = 38
       Top = 1
       Width = 518
       Align = alTop
@@ -37,13 +37,12 @@ object AboutForm: TAboutForm
       Font.Height = -32
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object WrittenByLabel: TLabel
       Left = 1
       Height = 13
-      Top = 37
+      Top = 39
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -53,13 +52,12 @@ object AboutForm: TAboutForm
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object lb_Version: TLabel
       Left = 1
-      Height = 17
-      Top = 63
+      Height = 19
+      Top = 65
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -68,13 +66,12 @@ object AboutForm: TAboutForm
       Font.Height = -16
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object GHWebsiteLabel: TLabel
       Left = 1
-      Height = 17
-      Top = 80
+      Height = 19
+      Top = 84
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -84,13 +81,12 @@ object AboutForm: TAboutForm
       Font.Height = -16
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object GitHubWebsiteLabel: TLabel
       Left = 1
-      Height = 17
-      Top = 101
+      Height = 19
+      Top = 107
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -100,13 +96,12 @@ object AboutForm: TAboutForm
       Font.Height = -16
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object LicenceLabel: TLabel
       Left = 1
-      Height = 12
-      Top = 122
+      Height = 14
+      Top = 130
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -115,27 +110,25 @@ object AboutForm: TAboutForm
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object AckLabel: TLabel
       Left = 1
-      Height = 180
-      Top = 134
+      Height = 204
+      Top = 144
       Width = 518
       Align = alTop
       Alignment = taCenter
       Caption = 'Many thanks to the users and contributors of the Stardot forum whose feedback and advice has been greatly appreciated. Also a big thank you to Jasper Renow-Clark who helped me with the ADFS formats in the beginning, before this project started.'#10'This project was concieved as a module to the Repton Map Display application, with this application just being a demo (and for me to try the code out with). In December 2020, it became the Disc Image Manager.'#10'Additional thanks go to Robert Sprowson for his help with working out the parameters for ADFS Hard Drive images, and to David Pilling for his help with the Spark module.'#10'Suggestions, bug reports, or whatever please do not hesitate to email me on gerald@hollypops.co.uk, or contact via Stardot forum.'
       Font.Color = clWindowText
       Font.Name = 'Tahoma'
-      ParentColor = False
       ParentFont = False
       WordWrap = True
     end
     object GraphicsLabel: TLabel
       Left = 1
       Height = 13
-      Top = 50
+      Top = 52
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -145,7 +138,6 @@ object AboutForm: TAboutForm
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object IconImage: TImage

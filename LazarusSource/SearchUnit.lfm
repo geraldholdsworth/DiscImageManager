@@ -1,7 +1,7 @@
 object SearchForm: TSearchForm
   Left = 633
   Height = 335
-  Top = 319
+  Top = 343
   Width = 451
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
@@ -13,7 +13,7 @@ object SearchForm: TSearchForm
   OnShow = FormShow
   Position = poMainFormCenter
   ShowHint = True
-  LCLVersion = '2.0.12.0'
+  LCLVersion = '2.2.0.4'
   object SearchEntryPanel: TPanel
     Left = 0
     Height = 88
@@ -27,15 +27,14 @@ object SearchForm: TSearchForm
     OnPaint = FormPaint
     object SearchFiletypeLabel: TLabel
       Left = 16
-      Height = 16
+      Height = 17
       Top = 37
-      Width = 57
+      Width = 67
       Alignment = taRightJustify
       Caption = 'Filetype:'
       Font.Color = clWindowText
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object ed_filetypesearch: TEdit
@@ -64,15 +63,14 @@ object SearchForm: TSearchForm
     end
     object SearchFilenameLabel: TLabel
       Left = 8
-      Height = 16
+      Height = 17
       Top = 10
-      Width = 64
+      Width = 74
       Alignment = taRightJustify
       Caption = 'Filename:'
       Font.Color = clWindowText
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object searchresultscount: TLabel
@@ -87,7 +85,6 @@ object SearchForm: TSearchForm
       Font.Color = clWindowText
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
-      ParentColor = False
       ParentFont = False
     end
     object sb_SearchButton: TBitBtn
@@ -117,5 +114,6 @@ object SearchForm: TSearchForm
     ParentFont = False
     Sorted = True
     TabOrder = 1
+    TopIndex = -1
   end
 end

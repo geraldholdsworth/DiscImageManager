@@ -4,7 +4,7 @@ unit SpriteFile;
 TSpriteFile class V1.04 written by Gerald Holdsworth
 Class to load and convert RISC OS sprites into Windows Bitmap and PNG.
 
-Copyright (C) 2018-2021 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free

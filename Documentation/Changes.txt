@@ -749,18 +749,31 @@ Bug fixes
 * Writes to an Acorn FS or DOS Plus partition of an ADFS hybrid sometimes failed to work correctly.
 * At some point in a previous version, the root name 'dropped' off the parent property for ADFS files. This meant that the search results returned files with the root missing from the pathname and therefore unable to locate when clicked on.
 
-1.39 - 
---------------------------
+1.39 - 26th February 2022
+-------------------------
 New or improved features
 * When the root directory is selected, the 'Directory Title' field now reads 'Disc Title' and changing the text will update the disc title of the image, instead of failing with Acorn DFS.
 * The Display Free Space button's hint text has been changed to 'View/Edit Image Details' to more accurately reflect the dialogue box.
 * Extended the ADFS interleave options beyond ADFS 'L'. Forcing an interleave option will use that option for any ADFS format, not just 'L'.
+* Can now change the interleave method for any ADFS image, if the interleave is forced using the options (i.e., not automatic).
+* Compiled using Lazarus version 2.2 which should fix some bugs outside the control of the author.
+* Added option to stop DFS validation failing if there were files that went over the edge of the disc.
+* Added option whether to compress UEF files or not in the GUI.
+* Added option stop DFS validation failing on blank filenames.
+* Adjusted the Acorn FS Level 3 slider when creating new images to be more accurate.
+* Added in some extra code to read in copy protected Elite tape images, and others using a similar protection.
+* Restricted the maximum AFS L3 size to be 128MB-1, until I work out the different format introduced in 1988 by Acorn.
 
 Bug fixes
-* Temporarily removed the 'file goes over disc edge' checks as some valid images were not getting opened.
 * Creating a double sided DFS image failed to work.
 * Creating a Watford DFS image failed to work.
 * When the ADFS filename is shorter than the available characters required for the attributes, not all the attributes were read in. This manifested itself with a directory entry shorter than 4 characters.
+* Importing files with a filename longer than allowed were still getting added to DFS and UEF images.
+* An extra byte (NUL) was added to UEF files when saving, causing some emulators to get confused.
+* The ID process still checked images even if it had already been identified.
+* The maximum size for an Acorn FS Level 2 image is 1MB, not 512MB. The selector has been adjusted accordingly.
+* When reading the header for an Acorn FS Level 3 image, the incorrect disc size was read. Anything over 16.7MB was read incorrectly.
+* Some areas of the file details panel on the main window were not getting repainted correctly with the selected tile.
 
 Platform History
 ----------------
@@ -772,3 +785,4 @@ Version 1.05.3         : macOS 32 bit added
 Version 1.05.9         : Linux 32 bit added
 Version 1.05.10        : Raspbian OS 32 bit added
 Version 1.35           : No Raspbian OS 32 bit version
+Version 1.39           : macOS ARM added
