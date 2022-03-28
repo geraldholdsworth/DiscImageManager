@@ -25,9 +25,9 @@ interface
 
 uses
  Classes,SysUtils,Registry
- {$IFDEF Darwin}
+{ {$IFDEF Darwin}
  ,MacOSAll
- {$ENDIF}
+ {$ENDIF}}
  ;
 
 function ReadLine(var Stream: TFileStream;var Line: string): boolean;

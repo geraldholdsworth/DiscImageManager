@@ -2,12 +2,12 @@ object AFSPartitionForm: TAFSPartitionForm
   Left = 436
   Height = 156
   Top = 272
-  Width = 320
+  Width = 355
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'Partition Size'
   ClientHeight = 156
-  ClientWidth = 320
+  ClientWidth = 355
   Color = 15527148
   OnPaint = FormPaint
   Position = poMainFormCenter
@@ -16,7 +16,7 @@ object AFSPartitionForm: TAFSPartitionForm
     Left = 0
     Height = 37
     Top = 0
-    Width = 320
+    Width = 355
     OnChange = PartitionSizeChange
     Position = 0
     TickMarks = tmBoth
@@ -28,24 +28,23 @@ object AFSPartitionForm: TAFSPartitionForm
     Left = 0
     Height = 16
     Top = 37
-    Width = 320
+    Width = 355
     Align = alTop
     Alignment = taCenter
     Caption = 'PartitionSizeLabel'
   end
   object CancelButton: TBitBtn
-    Left = 8
+    Left = 128
     Height = 30
     Top = 120
     Width = 100
-    Cancel = True
     Caption = 'Cancel'
     Color = 15527148
     ModalResult = 2
     TabOrder = 1
   end
   object OKBtnBack: TPanel
-    Left = 124
+    Left = 244
     Height = 30
     Top = 120
     Width = 100
@@ -73,7 +72,7 @@ object AFSPartitionForm: TAFSPartitionForm
     Left = 0
     Height = 56
     Top = 53
-    Width = 320
+    Width = 355
     Align = alTop
     AutoFill = True
     Caption = 'Partition Type'
@@ -84,13 +83,24 @@ object AFSPartitionForm: TAFSPartitionForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 39
-    ClientWidth = 318
+    ClientHeight = 37
+    ClientWidth = 345
     ItemIndex = 0
     Items.Strings = (
       'Acorn File Server'
       'DOS Plus'
     )
+    OnClick = rad_typeClick
     TabOrder = 3
+  end
+  object FromFileButton: TBitBtn
+    Left = 8
+    Height = 30
+    Top = 120
+    Width = 100
+    Caption = 'From File...'
+    Color = 15527148
+    Enabled = False
+    TabOrder = 4
   end
 end

@@ -150,9 +150,12 @@ begin
      if not chk then FFormat:=diInvalidImg;
     end;
    end;
-   //Test for Watford DFS - we'll only test one side.
+   //Test for Watford DFS
    if chk then
    begin
+    t0:=0;//Side 1 - by default Acorn
+    t1:=0;//Side 2 - by default Acorn
+    //First we check side 1
     //Offset 0x0200 should have 8 bytes of 0xAA
     c:=0;
     for i:=0 to 7 do
@@ -160,10 +163,26 @@ begin
     //Offset 0x0300 should have 4 bytes of 0x00
     for i:=0 to 3 do
      if ReadByte($0300+i)=$00 then inc(c);
-    //Disc size should match also
-    if(c=12)and(Read16b($306)=Read16b($106))then
+    if c=12 then
      if FFormat>>4=diAcornDFS then
-      inc(FFormat,2);
+      t0:=1;//Set side 1 to Watford
+    //Now we check side 2
+    if dbl then
+    begin
+     //Offset 0x0C00 should have 8 bytes of 0xAA
+     c:=0;
+     for i:=0 to 7 do
+      if ReadByte($0C00+i)=$AA then inc(c);
+     //Offset 0x0D00 should have 4 bytes of 0x00
+     for i:=0 to 3 do
+      if ReadByte($0D00+i)=$00 then inc(c);
+     if c=12 then
+      if FFormat>>4=diAcornDFS then
+       t1:=1;//Set side 1 to Watford
+    end;
+    if(t0=1)and(t1=1)then inc(FFormat,2);
+    if(t0=0)and(t1=1)then inc(FFormat,4);
+    if(t0=1)and(t1=0)then inc(FFormat,6);
    end;
   end;
  end;
@@ -336,7 +355,7 @@ begin
  begin
   //Directory size
   free_space[s]:=$200;
-  if FFormat mod $10>1 then inc(free_space[s],$200); //Watford DFS
+  if IsWatford(s) then inc(free_space[s],$200); //Watford DFS
   //Free Space Map
   SetLength(free_space_map[s],disc_size[s]DIV$A00); //Number of tracks
   for f:=0 to Length(free_space_map[s])-1 do
@@ -348,7 +367,7 @@ begin
   //First two sectors are used
   free_space_map[s,0,0]:=$FE;
   free_space_map[s,0,1]:=$FE;
-  if FFormat mod $10>1 then //Watford DFS
+  if IsWatford(s) then //Watford DFS
   begin
    free_space_map[s,0,2]:=$FE;
    free_space_map[s,0,3]:=$FE;
@@ -373,11 +392,23 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Is it a Watford side?
+-------------------------------------------------------------------------------}
+function TDiscImage.IsWatford(s: Integer): Boolean;
+begin
+ Result:=False;
+ //This side a Watford DFS?
+ if (FFormat mod$10=2)
+ or (FFormat mod$10=3)
+ or((FFormat mod$10=5)and(s=1))
+ or((FFormat mod$10=7)and(s=0))then Result:=True;
+end;
+
+{-------------------------------------------------------------------------------
 Write Acorn DFS File
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteDFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
 var
- f      : Byte;
  i,l,
  pos,
  count,
@@ -390,7 +421,6 @@ var
 begin
  Result:=-3; //File already exists
  count:=file_details.Length;
- f:=FFormat MOD $10; //Minor format (sub format)
  //Ensure that Side is not beyond the array
  file_details.Side:=file_details.Side MOD 2;
  if file_details.Side>Length(FDisc)-1 then file_details.Side:=0;
@@ -404,8 +434,8 @@ begin
   Result:=-4;//Catalogue full
   //Can the catalogue be extended?
   l:=Length(FDisc[file_details.Side].Entries);
-  if ((l<31) and (f<2))         // Max 31 entries for Acorn DFS
-  or ((l<62) and (f>1)) then    // and 62 entries for Watford DFS
+  if((l<31)and(not IsWatford(file_details.Side))) // Max 31 entries for Acorn DFS
+  or((l<62)and(IsWatford(file_details.Side)))then // and 62 entries for Watford DFS
   begin
    //Extend the catalogue by 1
    SetLength(FDisc[file_details.Side].Entries,l+1);
@@ -435,8 +465,8 @@ begin
    end
    else
    begin //First sector for the data, if first entry
-    if f<2 then pos:=2; //Acorn DFS is sector 2
-    if f>1 then pos:=4; //Watford DFS is sector 4
+    if not IsWatford(file_details.Side) then pos:=2; //Acorn DFS is sector 2
+    if IsWatford(file_details.Side) then pos:=4; //Watford DFS is sector 4
    end;
    //Add the entry at the insert point
    FDisc[file_details.Side].Entries[filen]:=file_details;
@@ -511,14 +541,13 @@ procedure TDiscImage.UpdateDFSCat(side: Integer);
 var
  i,s,c : Integer;
  fn,dn : String;
- t,f   : Byte;
+ t     : Byte;
 begin
- f:=FFormat mod $10;//Subformat
  //Update the number of catalogue entries
  c:=Length(FDisc[side].Entries);
  if c<32 then
   WriteByte(c*8,ConvertDFSSector($105,side));
- if f>1 then //Extra files on Watford DFS
+ if IsWatford(side) then //Extra files on Watford DFS
   if c>31 then
    begin
     WriteByte( 31*8,   ConvertDFSSector($105,side));
@@ -530,7 +559,7 @@ begin
   //Catalogue sector
   s:=$000; //Acorn DFS
   c:=i;
-  if (f>1) and (i>30) then s:=$200; //Watford DFS
+  if(IsWatford(side))and(i>30)then s:=$200; //Watford DFS
   if s=$200 then c:=i-31;
   //Filename
   fn:=FDisc[side].Entries[i].Filename;

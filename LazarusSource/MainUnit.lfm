@@ -4313,7 +4313,7 @@ object MainForm: TMainForm
       Align = alTop
       Alignment = taCenter
       Caption = 'Image Contents'
-      Font.Color = clRed
+      Font.Color = clGreen
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
       ParentFont = False
@@ -4507,7 +4507,7 @@ object MainForm: TMainForm
       Align = alTop
       Alignment = taCenter
       Caption = 'File Details'
-      Font.Color = clRed
+      Font.Color = clGreen
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
       ParentFont = False

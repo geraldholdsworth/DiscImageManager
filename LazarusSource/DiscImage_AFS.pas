@@ -186,10 +186,11 @@ begin
         //Making room for it
         SetLength(FDisc,Length(FDisc)+1);
         //And now read it in
-        FDisc[Length(FDisc)-1]:=ReadAFSDirectory(GetParent(d)
-                                                +dir_sep
-                                                +FDisc[d].Entries[e].Filename,
-                                                FDisc[d].Entries[e].Sector*secsize);
+        if FScanSubDirs then
+         FDisc[Length(FDisc)-1]:=ReadAFSDirectory(GetParent(d)
+                                                 +dir_sep
+                                                 +FDisc[d].Entries[e].Filename,
+                                                 FDisc[d].Entries[e].Sector*secsize);
         FDisc[Length(FDisc)-1].Parent:=d;
         //Remember it
         SetLength(visited,Length(visited)+1);
@@ -347,6 +348,7 @@ begin
     //Next entry
     entry:=Read16b(entry+$00,buffer);
    end;
+  Result.BeenRead:=True;
  end;
 end;
 
@@ -1050,7 +1052,11 @@ var
  allocmap1,
  allocmap2 : Cardinal;
 begin
+ //Default return
  Result:=False;
+ //AFS Level 4 is actually ADFS, so here we are using it for Post 1988 format
+ if afslevel=4 then afslevel:=3;//Which currently is not implemented
+ //Only continue if valid level
  if(afslevel=2)or(afslevel=3)then
  begin
   UpdateProgress('Formatting...');
@@ -1764,6 +1770,8 @@ begin
     partition:=FDisc[pdir].Partition;
     sector:=FDisc[pdir].Entries[entry].Sector*secsize;
    end;
+   //Make sure the parent has been read in
+   if not FDisc[pdir].BeenRead then ReadDirectory(file_details.Parent);
    //Set the length
    file_details.Length:=Length(buffer);
    //Will if fit on the disc?
@@ -2127,6 +2135,9 @@ begin
    //Is this a directory being deleted?
    if FDisc[dir].Entries[entry].DirRef>=0 then
    begin
+    //Make sure it has been read in
+    if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then
+     ReadDirectory(filename);
     //Recursively delete the contents
     while(Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
       and(success)do
@@ -2265,7 +2276,10 @@ begin
   direntry:=FDisc[sdir].Entries[sentry];
   //Does the destination directory exist?
   if(FileExists(directory,ddir,dentry))or(directory='$')then
-  begin
+  begin 
+   //Make sure it has been read in
+   if not FDisc[FDisc[ddir].Entries[dentry].DirRef].BeenRead then
+    ReadDirectory(directory);
    Result:=-10;//Can't move to the same directory
    //Destination directory reference
    ddir:=0;//Root

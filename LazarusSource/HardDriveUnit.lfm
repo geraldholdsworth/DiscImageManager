@@ -136,56 +136,105 @@ object HardDriveForm: THardDriveForm
     Left = 96
     Height = 16
     Top = 8
-    Width = 114
+    Width = 120
     Caption = 'Hard Disc Capacity:'
   end
   object CapacityLabel: TLabel
     Left = 416
     Height = 16
     Top = 28
-    Width = 37
+    Width = 34
     Caption = '10MB'
   end
-  object cb_NewMap: TCheckBox
-    Left = 88
-    Height = 23
+  object ADFSControls: TPanel
+    Left = 80
+    Height = 20
     Top = 56
-    Width = 83
-    Caption = 'New Map'
-    OnChange = cb_NewMapChange
+    Width = 402
+    BevelOuter = bvNone
+    ClientHeight = 20
+    ClientWidth = 402
     TabOrder = 3
+    OnPaint = FormPaint
+    object cb_NewMap: TCheckBox
+      Left = 16
+      Height = 18
+      Top = 0
+      Width = 79
+      Caption = 'New Map'
+      OnChange = cb_NewMapChange
+      TabOrder = 0
+    end
+    object DirectoryLabel: TLabel
+      Left = 144
+      Height = 16
+      Top = 0
+      Width = 60
+      Caption = 'Directory:'
+    end
+    object rb_OldDir: TRadioButton
+      Left = 224
+      Height = 18
+      Top = 0
+      Width = 44
+      Caption = 'Old'
+      Checked = True
+      TabOrder = 1
+      TabStop = True
+    end
+    object rb_NewDir: TRadioButton
+      Left = 277
+      Height = 18
+      Top = 0
+      Width = 49
+      Caption = 'New'
+      TabOrder = 2
+    end
+    object rb_BigDir: TRadioButton
+      Left = 333
+      Height = 18
+      Top = 0
+      Width = 42
+      Caption = 'Big'
+      TabOrder = 3
+    end
   end
-  object rb_OldDir: TRadioButton
-    Left = 296
-    Height = 23
+  object DOSControls: TPanel
+    Left = 80
+    Height = 20
     Top = 56
-    Width = 48
-    Caption = 'Old'
-    Checked = True
+    Width = 402
+    BevelOuter = bvNone
+    ClientHeight = 20
+    ClientWidth = 402
     TabOrder = 4
-    TabStop = True
-  end
-  object rb_NewDir: TRadioButton
-    Left = 349
-    Height = 23
-    Top = 56
-    Width = 53
-    Caption = 'New'
-    TabOrder = 5
-  end
-  object rb_BigDir: TRadioButton
-    Left = 405
-    Height = 23
-    Top = 56
-    Width = 46
-    Caption = 'Big'
-    TabOrder = 6
-  end
-  object DirectoryLabel: TLabel
-    Left = 216
-    Height = 16
-    Top = 56
-    Width = 59
-    Caption = 'Directory:'
+    OnPaint = FormPaint
+    object rb_FAT12: TRadioButton
+      Left = 27
+      Height = 18
+      Top = 0
+      Width = 56
+      Caption = 'FAT12'
+      OnChange = rb_FAT12Change
+      TabOrder = 0
+    end
+    object rb_FAT16: TRadioButton
+      Left = 136
+      Height = 18
+      Top = 0
+      Width = 57
+      Caption = 'FAT16'
+      OnChange = rb_FAT16Change
+      TabOrder = 1
+    end
+    object rb_FAT32: TRadioButton
+      Left = 256
+      Height = 18
+      Top = 0
+      Width = 58
+      Caption = 'FAT32'
+      OnChange = rb_FAT32Change
+      TabOrder = 2
+    end
   end
 end

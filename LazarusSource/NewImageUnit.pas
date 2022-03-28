@@ -58,7 +58,8 @@ type
  public
   harddrivesize : Cardinal;
   newmap        : Boolean;
-  dirtype       : Byte;
+  dirtype,
+  fat           : Byte;
  end;
 
 var
@@ -95,14 +96,15 @@ begin
   7: AFS.Visible      :=True;
   8: DOS.Visible      :=True;
  end;
- DFSTracks.Visible:=DFS.Visible;
- AFSSize.Visible  :=AFS.Visible;
+ DFSTracks.Visible :=DFS.Visible;
+ AFSSize.Visible   :=AFS.Visible;
  //Currently, only certain types of format can be created
  btn_OK.Enabled:=(MainFormat.ItemIndex=0) //DFS
                OR(MainFormat.ItemIndex=1) //ADFS
                OR(MainFormat.ItemIndex=2) //C64
                OR(MainFormat.ItemIndex=5) //CFS
-               OR(MainFormat.ItemIndex=7);//AFS
+               OR(MainFormat.ItemIndex=7) //AFS
+               OR(MainFormat.ItemIndex=8);//DOS
 end;
 
 {-------------------------------------------------------------------------------
@@ -146,10 +148,11 @@ var
  ok: Boolean;
 begin
  ok:=True;
- //Are we creating a hard drive?
+ //Are we creating an ADFS hard drive?
  if(MainFormat.ItemIndex=1)AND(ADFS.ItemIndex=8)then
  begin
   //Then we need to open the additional dialogue to configure this
+  HardDriveForm.ADFSHDD:=True;
   HardDriveForm.ShowModal;
   ok:=HardDriveForm.ModalResult=mrOK;
   if ok then
@@ -162,6 +165,22 @@ begin
    dirtype:=diADFSOldDir;
    if HardDriveForm.rb_NewDir.Checked then dirtype:=diADFSNewDir;
    if HardDriveForm.rb_BigDir.Checked then dirtype:=diADFSBigDir;
+  end;
+ end;
+ //Are we creating a DOS hard drive?
+ if(MainFormat.ItemIndex=8)AND(DOS.ItemIndex=6)then
+ begin
+  //Then we need to open the additional dialogue to configure this
+  HardDriveForm.ADFSHDD:=False;
+  HardDriveForm.ShowModal;
+  ok:=HardDriveForm.ModalResult=mrOK;
+  if ok then
+  begin
+   //Selected hard drive size in MB
+   harddrivesize:=HardDriveForm.CapacitySlider.Position*10;
+   if HardDriveForm.rb_FAT12.Checked then fat:=diFAT12;
+   if HardDriveForm.rb_FAT16.Checked then fat:=diFAT16;
+   if HardDriveForm.rb_FAT32.Checked then fat:=diFAT32;
   end;
  end;
  //Return to the calling form
@@ -193,7 +212,7 @@ begin
   AFSImageSize.Min:=40; //Level 2 minimum size 400K
   AFSImageSize.Max:=102; //Level 2 maximum size is 1023K (1MB)
  end;
- if AFS.ItemIndex=1 then
+ if(AFS.ItemIndex=1)or(AFS.ItemIndex=2)then
  begin
   AFSImageSize.Min:=64; //Level 3 minimum size 640K
   AFSImageSize.Max:=13107; //Level 3 temporary max is ~128MB

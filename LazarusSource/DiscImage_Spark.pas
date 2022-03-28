@@ -8,7 +8,7 @@ begin
  Result:=False;
  if(FFormat=diInvalidImg)or(FSparkAsFS)then
  begin
-  if GetDataLength>0 then //Any data?
+  if(GetDataLength>0)and(FFilename<>'')then //Any data?
   begin
    //Open the file in TSpark
    SparkFile:=TSpark.Create(FFilename);

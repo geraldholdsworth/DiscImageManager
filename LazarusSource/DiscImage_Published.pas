@@ -20,6 +20,8 @@ begin
  FDFSBeyondEdge:=False;
  //Allow blank filenames in DFS
  FDFSAllowBlank:=False;
+ //Scan sub directories in ADFS, Amiga, DOS, Spark
+ FScanSubDirs:=True;
 end;
 constructor TDiscImage.Create(Clone: TDiscImage);
 var
@@ -90,7 +92,7 @@ begin
  //Save the current format
  currentformat:=FFormat;
  index:=0;
- for queryformat:=$00 to $8F do
+ for queryformat:=$00 to $AF do
  begin
   //Set the format
   FFormat:=queryformat;
@@ -254,13 +256,14 @@ end;
 {-------------------------------------------------------------------------------
 Create and format a new disc image
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatFDD(major,minor,tracks: Byte): Boolean;
+function TDiscImage.FormatFDD(major:Word;minor,tracks: Byte): Boolean;
 begin
  Result:=False;
  //Make sure the numbers are within bounds
- major :=major MOD $10;
- minor :=minor MOD $10;
- tracks:=tracks MOD 2;
+ major :=major AND $FFF;
+ minor :=minor AND $F;
+ if major<>diDOSPlus then
+  tracks:=tracks MOD 2;
  case major of
   diAcornDFS://Create DFS
    begin
@@ -294,7 +297,14 @@ begin
    end;
   diDOSPlus://Create DOS or DOS Plus
    begin
-    FDisc:=FormatDOS(minor);
+    case minor of
+     0: FDisc:=FormatDOS( 640*1024,diFAT12);// 640KB ADFS/DOS Plus
+     1: FDisc:=FormatDOS( 800*1024,diFAT12);// 800KB DOS Plus
+     2: FDisc:=FormatDOS( 360*1024,diFAT12);// 360KB DOS
+     3: FDisc:=FormatDOS( 720*1024,diFAT12);// 720KB DOS
+     4: FDisc:=FormatDOS(1440*1024,diFAT12);//1.44MB DOS
+     5: FDisc:=FormatDOS(2880*1024,diFAT12);//2.88MB DOS
+    end;
     Result:=Length(FDisc)>0;
    end;
  end;
@@ -303,10 +313,12 @@ end;
 {-------------------------------------------------------------------------------
 Create and format a new hard disc image
 -------------------------------------------------------------------------------}
-function TDiscimage.FormatHDD(major:Byte;harddrivesize:Cardinal;newmap:Boolean;
+function TDiscimage.FormatHDD(major:Word;harddrivesize:Cardinal;newmap:Boolean;
                                                           dirtype:Byte):Boolean;
 begin
  Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major AND $FFF;
  case major of
   diAcornADFS: //Create ADFS
    begin
@@ -314,6 +326,11 @@ begin
     Result:=Length(FDisc)>0;
    end;
   diAcornFS: Result:=FormatAFS(harddrivesize,dirtype);//Create Acorn FS
+  diDOSPlus: //Create DOS HDD
+   begin
+    FDisc:=FormatDOS(harddrivesize,dirtype);
+    Result:=Length(FDisc)>0;
+   end;
  end;
 end;
 
@@ -471,7 +488,17 @@ begin
   SetLength(Path,0);
   //Explode the pathname into an array, without the '.'
   if(FFormat>>4<>diAcornDFS)and(FFormat>>4<>diCommodore)then //Not DFS or Commodore
+  begin
    Path:=filename.Split(dir_sep);
+   //Is this on a DOS Partition of an ADFS?
+   if(FFormat>>4=diAcornADFS)and(FDOSPresent)
+   and(LeftStr(filename,Length(dosrootname))=dosrootname)then
+   begin
+    //Then we'll need to combine the filename and extension
+    Path[Length(Path)-2]:=Path[Length(Path)-2]+'.'+Path[Length(Path)-1];
+    SetLength(Path,Length(Path)-1);
+   end;
+  end;
   if FFormat>>4=diAcornDFS then //With DFS, we need the initial root name, including the '.'
   begin
    //So should only be 2 entries
@@ -1398,4 +1425,61 @@ begin
  begin
   if FDOSPresent then Result:='\';
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Read a directory, given the directory name
+-------------------------------------------------------------------------------}
+function TDiscImage.ReadDirectory(dirname: String): Integer;
+var
+ dir,
+ entry,
+ sector,
+ len,f  : Cardinal;
+ NewDir : TDir;
+begin
+ RemoveControl(dirname);
+ //This is only here to stop the hints that variables aren't intialised
+ Result:=-1;
+ NewDir.Directory:=dirname;
+ dir:=0;
+ entry:=0;
+ sector:=0;
+ len:=0;
+ //Reset the Result TDir to default values
+ ResetDir(NewDir);
+ //Is it a valid directory?
+ if FileExists(dirname,dir,entry) then //Does it exist? (and grab the references)
+  if FDisc[dir].Entries[entry].DirRef>-1 then //Valid directory
+   if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then //Hasn't already been read?
+   begin
+    sector:=FDisc[dir].Entries[entry].Sector;
+    //Divert to the appropriate function
+    case FFormat>>4 of
+     diAcornADFS: NewDir:=ReadADFSDir(dirname,sector);
+     diAcornFS  : NewDir:=ReadAFSDirectory(dirname,sector);
+     diAmiga    : NewDir:=ReadAmigaDir(dirname,sector);
+     diDOSPlus  : NewDir:=ReadDOSDirectory(dirname,sector,len);
+    end;
+    //Did it return something?
+    if NewDir.Directory<>'' then
+    begin
+     //Return an index (the previously saved directory reference
+     Result:=FDisc[dir].Entries[entry].DirRef;
+     //Then add it to the list
+     FDisc[Result]:=NewDir;
+     FDisc[Result].Parent:=dir;
+     FDisc[Result].BeenRead:=True;
+     //Now go through the entries and see if there are any sub dirs
+     if Length(FDisc[Result].Entries)>0 then //Make sure we have some entries
+      for f:=0 to Length(FDisc[Result].Entries)-1 do
+       if(Pos('D',FDisc[Result].Entries[f].Attributes)>0) //Found a directory
+       or(Pos('F',FDisc[Result].Entries[f].Attributes)>0)then
+       //D is for ADFS, AFS and DOS Plus, F is for Amiga
+       begin
+        SetLength(FDisc,Length(FDisc)+1); //Make space for it
+        FDisc[Result].Entries[f].DirRef:=Length(FDisc)-1; //And set the directory reference
+       end;
+    end;
+   end;
 end;

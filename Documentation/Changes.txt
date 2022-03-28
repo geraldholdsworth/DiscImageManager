@@ -775,6 +775,34 @@ Bug fixes
 * When reading the header for an Acorn FS Level 3 image, the incorrect disc size was read. Anything over 16.7MB was read incorrectly.
 * Some areas of the file details panel on the main window were not getting repainted correctly with the selected tile.
 
+1.40 - 28th March 2022
+----------------------
+New or improved features
+* macOS application package now tells the OS that it can accept certain extensions (i.e. become a 'Recommended App').
+* The OS and CPU description has been changed, slightly, in the About dialogue.
+* Added the ability to recognise, and use, a double sided hybrid DFS image (i.e. Acorn/Watford).
+* Added option in the preferences to either scan all sub directories in an image upon loading or not to, for ADFS, Acorn FS, Amiga, and DOS Plus.
+* Added colours to directories that are either not read in or broken (ADFS).
+* Image Contents and File Details header text changed colour to green.
+* Added the ability to create a blank DOS floppy image (360KB/720KB/1.44MB/2.88MB - all FAT12).
+* Added the ability to create a blank 800KB DOS Plus floppy image.
+* Added the ability to create a blank 640KB ADFS/DOS Plus Hybrid image.
+* Enabled the Add DOS Partition to an ADFS image.
+* Added limiter to the Add Partition dialogue box, which changes depending on which format.
+* Temporary limit applied to AFS partition size of 127MB.
+* Added the ability to create a blank DOS Hard Drive image (FAT12/FAT16/FAT32).
+* Improved the separation of the ADFS partition from a hybrid image.
+* Improved the separation of the DOS partition from a hybrid image. This will not result in a viable image when a DOS partition does not exist on the source partition.
+* Begun improving the separation of the AFS partition from a hybrid image. This is still under development and currently does not produce a viable image.
+
+Bug fixes
+* The incorrect OS and CPU where reported in the About dialogue for macOS ARM.
+* The incorrect keyboard shortcuts were used for macOS ARM.
+* A Watford DFS double sided image would get incorrectly IDed as an Acorn DFS double sided image if both sides were different sizes.
+* Sometimes the file info panel would not get fully repainted.
+* When saving an image, some filters where not added.
+* The DOS part of a 640KB ADFS/DOS partition was not getting read correctly.
+
 Platform History
 ----------------
 

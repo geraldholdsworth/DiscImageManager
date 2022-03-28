@@ -137,7 +137,7 @@ const
                                 'SJ Research MDFS',
                                 'DOS Plus');
  SUB : array[0..$A] of array[0..15] of String =
- (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','','','','','','','','','','',''),
+ (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','Acorn/Watford DSD','','Watford/Acorn DSD','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','Hybrid','Hard Disc'),
   ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
   ('','Extended','','','','','','','','','','','','','',''),
@@ -172,7 +172,7 @@ Convert a format byte to an extension
 function TDiscImage.FormatToExt: String;
 const
  EXT : array[0..$A] of array[0..15] of String =
- (('ssd','dsd','ssd','dsd','','','','','','','','','','','',''),//DFS
+ (('ssd','dsd','ssd','dsd','','dsd','','dsd','','','','','','','',''),//DFS
   ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','dat','hdf'),//ADFS
   ('d64','d71','d81','d64','d71','','','','','','','','','','',''),//Commodore 64
   ('','dsk','','','','','','','','','','','','','','hdf'),//Sinclair Spectrum
@@ -636,6 +636,7 @@ begin
   Partition   :=0;
   Sector      :=0;
   Parent      :=-1;
+  BeenRead    :=False;
  end;
 end;
 

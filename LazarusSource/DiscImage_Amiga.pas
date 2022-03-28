@@ -194,9 +194,10 @@ begin
        //Once found, list their entries
        SetLength(Result,Length(Result)+1);
        //Read in the contents of the directory
-       Result[Length(Result)-1]:=ReadAmigaDir(GetParent(d)+dir_sep
-                                         +Result[d].Entries[ptr].Filename,
-                                          Result[d].Entries[ptr].Sector);
+       if FScanSubDirs then
+        Result[Length(Result)-1]:=ReadAmigaDir(GetParent(d)+dir_sep
+                                          +Result[d].Entries[ptr].Filename,
+                                           Result[d].Entries[ptr].Sector);
        Result[Length(Result)-1].Parent:=d;
        //Update the directory reference
        Result[d].Entries[ptr].DirRef:=Length(Result)-1;
@@ -285,6 +286,7 @@ begin
     else link:=0;
    end;
   end;
+  Result.BeenRead:=True;
  end;
 end;
 

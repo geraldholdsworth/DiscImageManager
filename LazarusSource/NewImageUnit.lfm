@@ -233,31 +233,6 @@ object NewImageForm: TNewImageForm
     ModalResult = 2
     TabOrder = 8
   end
-  object AFS: TRadioGroup
-    Left = 268
-    Height = 55
-    Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'Acorn File Server'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 36
-    ClientWidth = 250
-    ItemIndex = 0
-    Items.Strings = (
-      'Level 2'
-      'Level 3'
-    )
-    OnClick = AFSClick
-    TabOrder = 9
-    Visible = False
-  end
   object AFSSize: TGroupBox
     Left = 268
     Height = 104
@@ -300,7 +275,7 @@ object NewImageForm: TNewImageForm
   end
   object DOS: TRadioGroup
     Left = 268
-    Height = 109
+    Height = 144
     Top = 0
     Width = 260
     AutoFill = True
@@ -312,17 +287,47 @@ object NewImageForm: TNewImageForm
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 90
+    ClientHeight = 125
     ClientWidth = 250
     ItemIndex = 0
     Items.Strings = (
-      '800K DOS Plus'
-      '360K DOS'
-      '720K DOS'
-      '1.44M DOS'
-      '2.88M DOS'
+      '640KB ADFS/DOS Plus'
+      '800KB DOS Plus'
+      '360KB'
+      '720KB'
+      '1.44MB'
+      '2.88MB'
+      'DOS Hard Drive'
     )
     TabOrder = 11
+    Visible = False
+  end
+  object AFS: TRadioGroup
+    Left = 268
+    Height = 55
+    Top = 0
+    Width = 260
+    AutoFill = True
+    Caption = 'Acorn File Server'
+    ChildSizing.LeftRightSpacing = 6
+    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
+    ChildSizing.EnlargeVertical = crsHomogenousChildResize
+    ChildSizing.ShrinkHorizontal = crsScaleChilds
+    ChildSizing.ShrinkVertical = crsScaleChilds
+    ChildSizing.Layout = cclTopToBottomThenLeftToRight
+    ChildSizing.ControlsPerLine = 2
+    ClientHeight = 36
+    ClientWidth = 250
+    ColumnLayout = clVerticalThenHorizontal
+    Columns = 2
+    ItemIndex = 0
+    Items.Strings = (
+      'Level 2'
+      'Level 3 (<1988)'
+      'Level 3 (>1988)'
+    )
+    OnClick = AFSClick
+    TabOrder = 9
     Visible = False
   end
 end

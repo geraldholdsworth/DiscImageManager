@@ -1,7 +1,7 @@
 unit DiscImageUtils;
 
 {
-DiscImageUtils V1.38.4 - part of TDiscImage class
+DiscImageUtils V1.40 - part of TDiscImage class
 
 Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
@@ -97,6 +97,7 @@ type
   diADFSNewMap = $01;
   diAmigaOFS   = $02;
   diAmigaFFS   = $03;
+  diMaster512  = $01;
   diFAT12      = $12;
   diFAT16      = $16;
   diFAT32      = $32;

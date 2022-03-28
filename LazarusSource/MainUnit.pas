@@ -44,11 +44,15 @@ type
   private
    FDirRef,
    FParentDir : Integer;
-   FIsDir     : Boolean;
+   FIsDir,
+   FBeenRead,
+   FBroken    : Boolean;
   public
    property ParentDir: Integer read FParentDir write FParentDir;//Parent directory reference
    property IsDir    : Boolean read FIsDir write FIsDir;        //Is it a directory
    property DirRef   : Integer read FDirRef write FDirRef;      //Reference into TDiscImage.Disc
+   property BeenRead : Boolean read FBeenRead write FBeenRead;  //Has the directory been read in
+   property Broken   : Boolean read FBroken write FBroken;      //Is the ADFS directory broken?
  end;
 
  //Form definition
@@ -337,13 +341,15 @@ type
    procedure DownLoadDirectory(dir,entry: Integer; path: String);
    procedure DownLoadFile(dir,entry: Integer; path: String;filename: String='');
    procedure ExtractFiles(ShowDialogue: Boolean);
+   function FindNode(filename: String;casesens:Boolean=True): TTreeNode;
    function FindPartitionRoot(filepath: String): Integer;
    function GetCopyMode(Shift: TShiftState): Boolean;
    function GetFilePath(Node: TTreeNode): String;
    function GetFileTypeGraphic(filetype: String;offset: Integer;
                                      const filetypes: array of String): Integer;
    function GetImageFilename(dir,entry: Integer): String;
-   procedure GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
+   function GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage): Integer;
+   procedure SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
    function GetNodeAt(Y: Integer): TTreeNode;
    function GetTextureTile(Ltile:Integer=-1): TBitmap;
    function GetWindowsFilename(dir,entry: Integer): String;
@@ -352,6 +358,7 @@ type
    procedure OpenImage(filename: String);
    procedure ParseCommandLine(cmd: String);
    function QueryUnsaved: Boolean;
+   procedure ReadInDirectory(Node: TTreeNode);
    procedure ReportError(error: String);
    procedure ResetFileFields;
    procedure SelectNode(filename: String;casesens:Boolean=True);
@@ -426,6 +433,11 @@ type
     FUEFCompress  :Boolean;
     //View options (what is visible)
     ViewOptions   :Cardinal;
+    //Scan sub-directories on opening
+    FScanSubDirs  :Boolean;
+    //What are we running on?
+    platform,
+    arch          :String;
    const
     //These point to certain icons used when no filetype is found, or non-ADFS
     //The numbers are indexes into the TImageList component 'FileImages'.
@@ -514,39 +526,10 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.38.5';
+    ApplicationVersion = '1.40';
     //Current platform and architecture (compile time directive)
-    {$IFDEF Darwin}
-    platform = 'macOS';            //Apple Mac OS X
-    {$ENDIF}
-    {$IFDEF Windows}
-    platform = 'Windows';          //Microsoft Windows
-    {$ENDIF}
-    {$IFDEF Linux}
-    platform = 'Linux';            //Linux
-    {$ENDIF}
-    {$IFNDEF Darwin}{$IFNDEF Windows}{$IFNDEF Linux}
-    platform = 'OS?';              //Unknown OS
-    {$ENDIF}{$ENDIF}{$ENDIF}
-    {$IFNDEF CPUARM}
-     {$IFDEF CPU32}
-     arch = '32 bit';               //32 bit CPU
-     {$ENDIF}
-     {$IFDEF CPU64}
-     arch = '64 bit';               //64 bit CPU
-     {$ENDIF}
-    {$ENDIF}
-    {$IFDEF CPUARM}
-     {$IFDEF CPU32}
-     arch = '32 bit ARM';          //32 bit ARM CPU
-     {$ENDIF}
-     {$IFDEF CPU64}
-     arch = '64 bit ARM';          //64 bit ARM CPU
-     {$ENDIF}
-    {$ENDIF}
-    {$IFNDEF CPU32}{$IFNDEF CPU64}
-     arch = 'CPU?';                //Unknown CPU
-    {$ENDIF}{$ENDIF}
+    TargetOS = {$I %FPCTARGETOS%};
+    TargetCPU = {$I %FPCTARGETCPU%};
    procedure AfterConstruction; override;
   end;
 
@@ -931,6 +914,9 @@ begin
    //And it is a directory
    if TMyTreeNode(DirList.Selected).IsDir then
    begin
+    //Make sure the directory has been read in
+    if not TMyTreeNode(DirList.Selected).BeenRead then
+     ReadInDirectory(DirList.Selected);
     //Find out which side of a DFS disc it is
     if (Image.DoubleSided)//FormatNumber mod 2=1)
     and(Image.FormatNumber>>4=diAcornDFS)then //Only for DFS double sided
@@ -1492,30 +1478,39 @@ var
  windowsfilename: String;
  ref            : Cardinal;
  c,s            : Integer;
+ Node           : TTreeNode;
 begin
  ref:=0;
  // Ensure path ends in a directory separator
  if path[Length(path)]<>PathDelim then path:=path+PathDelim;
  //Get the full path and filename
  imagefilename:=GetImageFilename(dir,entry);
- //Convert to Windows filename
- windowsfilename:=GetWindowsFilename(dir,entry);
- if Image.FileExists(imagefilename,ref) then
+ //Find the correct node
+ Node:=FindNode(imagefilename);
+ if Node<>nil then
  begin
-  //Create the directory
-  if not DirectoryExists(path+windowsfilename) then
+  //Need to ensure that the directory has been read in
+  if not TMyTreeNode(Node).BeenRead then
+   ReadInDirectory(Node);
+  //Convert to Windows filename
+  windowsfilename:=GetWindowsFilename(dir,entry);
+  if Image.FileExists(imagefilename,ref) then
   begin
-   CreateDir(path+windowsfilename);
-   CreateINFFile(dir,entry,path);
-  end;
-  //Navigate into the directory
-  s:=Image.Disc[dir].Entries[entry].DirRef;
-  //Iterate through the entries
-  for c:=0 to Length(Image.Disc[s].Entries)-1 do
-   DownLoadFile(s,c,path+windowsfilename);
- end
- //Happens if the file could not be located
- else ReportError('Could not locate directory "'+imagefilename+'"');
+   //Create the directory
+   if not DirectoryExists(path+windowsfilename) then
+   begin
+    CreateDir(path+windowsfilename);
+    CreateINFFile(dir,entry,path);
+   end;
+   //Navigate into the directory
+   s:=Image.Disc[dir].Entries[entry].DirRef;
+   //Iterate through the entries
+   for c:=0 to Length(Image.Disc[s].Entries)-1 do
+    DownLoadFile(s,c,path+windowsfilename);
+  end
+  //Happens if the file could not be located
+  else ReportError('Could not locate directory "'+imagefilename+'"');
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1555,6 +1550,8 @@ begin
  Image.DFSBeyondEdge:=FDFSBeyondEdge;
  //Check for blank filenames in DFS
  Image.DFSAllowBlanks:=FDFSAllowBlank;
+ //Scan sub directories
+ Image.ScanSubDirs:=FScanSubDirs;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -1629,8 +1626,10 @@ begin
  //Make a note of the dir ref, it is the highest
  if dir>highdir then highdir:=dir;
  //Set the 'IsDir' flag to true, as this is a directory
- TMyTreeNode(CurrDir).IsDir:=True;
- TMyTreeNode(CurrDir).DirRef:=dir;
+ TMyTreeNode(CurrDir).IsDir   :=True;
+ TMyTreeNode(CurrDir).DirRef  :=dir;
+ TMyTreeNode(CurrDir).BeenRead:=ImageToUse.Disc[dir].BeenRead;
+ TMyTreeNode(CurrDir).Broken  :=ImageToUse.Disc[dir].Broken;
  //Iterate though all the entries
  for entry:=0 to Length(ImageToUse.Disc[dir].Entries)-1 do
  begin
@@ -1970,6 +1969,7 @@ begin
    C64AttrPanel.Height:=cb_C64_l.Top+cb_C64_l.Height;
   end;
  end;
+ FileInfoPanel.Repaint;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2442,13 +2442,13 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
 begin
- GetImageIndex(Node,Image);
+ SetImageIndex(Node,Image);
 end;
 
 {------------------------------------------------------------------------------}
 //Called when the TreeView is updated, and it wants to know which icon to use
 {------------------------------------------------------------------------------}
-procedure TMainForm.GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
+function TMainForm.GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage): Integer;
 var
  ft,i,
  dir,
@@ -2551,7 +2551,18 @@ begin
    if RightStr(Node.Text,5)='empty' then ft:=mmbdiscempt;
   end;
  end;
+ Result:=ft;
+end;
+
+{------------------------------------------------------------------------------}
+//Called when the TreeView is updated, and it wants to know which icon to use
+{------------------------------------------------------------------------------}
+procedure TMainForm.SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
+var
+ ft: Integer;
+begin
  //Tell the system what the ImageList reference is
+ ft:=GetImageIndex(Node,ImageToUse);
  Node.ImageIndex:=ft;
  //And ensure it stays selected
  Node.SelectedIndex:=Node.ImageIndex;
@@ -2641,12 +2652,15 @@ begin
  //Create the dialogue boxes
  CreateFileTypeDialogue;
  //Create the copy and paste shortcuts
- CopyToClipboard.ShortCut   :=$4000 OR ord('C'); //Ctrl+C (WindowsLinux)
- PasteFromClipboard.ShortCut:=$4000 OR ord('V'); //Ctrl+V (Windows/Linux)
- {$IFDEF Darwin}
- CopyToClipboard.ShortCut   :=$1000 OR ord('C'); //Meta+C (Mac)
- PasteFromClipboard.ShortCut:=$1000 OR ord('V'); //Meta+V (Mac)
- {$ENDIF}
+ if TargetOS='Darwin' then
+ begin
+  CopyToClipboard.ShortCut   :=$1000 OR ord('C'); //Meta+C (Mac)
+  PasteFromClipboard.ShortCut:=$1000 OR ord('V'); //Meta+V (Mac)
+ end else
+ begin
+  CopyToClipboard.ShortCut   :=$4000 OR ord('C'); //Ctrl+C (WindowsLinux)
+  PasteFromClipboard.ShortCut:=$4000 OR ord('V'); //Ctrl+V (Windows/Linux)
+ end;
  //Meta/Cmd = $1000, Shift = $2000, Ctrl = $4000, Alt = $8000
 end;
 
@@ -3023,6 +3037,18 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
+ platform:='OS?';
+ arch:='CPU?';
+ //Platform details - OS
+ if TargetOS='Darwin'   then platform:= 'macOS';   //Apple Mac OS X
+ if(TargetOS='Win64')
+ or(TargetOS='Win32')   then platform:= 'Windows'; //Microsoft Windows
+ if TargetOS='Linux'    then platform:= 'Linux';   //Linux
+ //Platform details - CPU
+ if TargetCPU='aarch64' then arch    := 'ARM 64 bit';
+ if TargetCPU='arm'     then arch    := 'ARM 32 bit';
+ if TargetCPU='i386'    then arch    := 'Intel 32 bit';
+ if TargetCPU='x86_64'  then arch    := 'Intel 64 bit';
  //Just updates the title bar
  Caption:=ApplicationTitle;
  //Create the image instance
@@ -3053,6 +3079,8 @@ begin
  FDFSAllowBlank:=GetRegValB('DFS_Allow_Blanks',False);
  //Compress UEF Files on save
  FUEFCompress:=GetRegValB('UEF_Compress',True);
+ //Scan all sub directories on opening
+ FScanSubDirs:=GetRegValB('Scan_SubDirs',True);
  //View menu options
  ViewOptions:=GetRegValI('View_Options',$FFFF);
  //Toolbar order - this doesn't work currently
@@ -3076,14 +3104,29 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.SelectNode(filename: String;casesens:Boolean=True);
 var
+ Node   : TTreeNode;
+begin
+ //Unselect everything
+ DirList.ClearSelection;
+ //Find the node
+ Node:=FindNode(filename,casesens);
+ //Did it find anything, then select it
+ if Node<>nil then Node.Selected:=True;
+ //We'll need to give the tree focus, so it shows up
+ DirList.SetFocus;
+end;
+
+{------------------------------------------------------------------------------}
+//Find a node
+{------------------------------------------------------------------------------}
+function TMainForm.FindNode(filename: String;casesens:Boolean=True): TTreeNode;
+var
  i,
  found  : Integer;
  dirname: String;
  Node   : TTreeNode;
  Ldirsep: Char;
 begin
- //Unselect everything
- DirList.ClearSelection;
  //Marker for our found item
  found:=-1;
  //Go through each one
@@ -3109,9 +3152,9 @@ begin
   inc(i);
  end;
  if found>=0 then //and select it
-  DirList.Items[found].Selected:=True;
- //We'll need to give the tree focus, so it shows up
- DirList.SetFocus;
+  Result:=DirList.Items[found]
+ else
+  Result:=nil;
 end;
 
 {------------------------------------------------------------------------------}
@@ -3204,6 +3247,7 @@ begin
  NewImage.AllowDFSZeroSectors:=FDFSZeroSecs;
  NewImage.DFSBeyondEdge:=FDFSBeyondEdge;
  NewImage.DFSAllowBlanks:=FDFSAllowBlank;
+ NewImage.ScanSubDirs:=True;
  for FileName in FileNames do
  begin
   //If it is not a directory
@@ -3511,6 +3555,9 @@ begin
                      +'" when adding "'+newentry.Filename+'"')
         else
         begin
+         //Make sure it has been read in
+         if not TMyTreeNode(DirList.Selected).BeenRead then
+          ReadInDirectory(DirList.Selected);
          //Is it a directory we're adding? ADFS and Amiga only
          if(newentry.DirRef>=0)and((curformat=diAcornADFS)or(curformat=diAmiga))then
           if newentry.Filename<>'$' then //Create the directory
@@ -4201,9 +4248,9 @@ begin
   if(Image.FormatNumber>>4=diAcornADFS)
   and(Image.DOSPresent)
   and(side<>0)then targetformat:=diDOSPlus<<4;
-  //ADFS/AFS Hybrid, with ADFS partition selected, so target will be ADFS 'L'
+  //ADFS/AFS Hybrid, with ADFS partition selected, so target will be ADFS Hard Disc
   if(Image.FormatNumber>>4=diAcornADFS)
-  and(side=0)then targetformat:=diAcornADFS<<4+2;
+  and(side=0)then targetformat:=diAcornADFS<<4+$F;
   //Populate the filter part of the dialogue
   index:=0;
   SaveImage.Filter:=Image.SaveFilter(index,targetformat);
@@ -4215,7 +4262,17 @@ begin
   SaveImage.DefaultExt:='.'+Copy(exts[(index*2)-1],3);
   //Show the dialogue
   if SaveImage.Execute then
+  begin
+   //Show a progress message
+   ProgressForm.Show;
+   //Process the messages to close the file dialogue box
+   Application.ProcessMessages;
+   Image.ProgressIndicator:=@UpdateProgress;
+   //Separate the partitions
    Image.SeparatePartition(side,SaveImage.FileName);
+   //Close the progress message
+   ProgressForm.Hide;
+  end;
  end else ReportError('Invalid partition selected');
 end;
 
@@ -4348,8 +4405,14 @@ var
 begin
  //Set up the form
  AFSPartitionForm.PartitionSize.Min:=9; //Minimum partition size
- AFSPartitionForm.PartitionSize.Max:=Image.GetMaxLength div $100; //Max partition size
- AFSPartitionForm.PartitionSize.Position:=AFSPartitionForm.PartitionSize.Max; //Current size
+ AFSPartitionForm.maxAFSSize:=Image.GetMaxLength div $100;
+ if AFSPartitionForm.maxAFSSize>$7F000 then //   <----- TO BE REMOVED
+  AFSPartitionForm.maxAFSSize:=$7F000; //Max AFS is, currently, 127MB
+ AFSPartitionForm.maxDOSSize:=Image.GetMaxLength div $100;
+ if AFSPartitionForm.maxDOSSize>$1F4000 then
+  AFSPartitionForm.maxDOSSize:=$1F4000; //Max DOS FAT12 is 500MB
+ AFSPartitionForm.PartitionSize.Max     :=AFSPartitionForm.maxAFSSize; //Max partition size
+ AFSPartitionForm.PartitionSize.Position:=AFSPartitionForm.maxAFSSize; //Current size
  AFSPartitionForm.PartitionSizeChange(Sender); //Update the label
  AFSPartitionForm.rad_type.ItemIndex:=0; //Set to Acorn FS by default
  //Display the form
@@ -4541,6 +4604,7 @@ begin
  SettingsForm.DFSBeyondEdge.Checked:=FDFSBeyondEdge;
  SettingsForm.AllowDFSBlankFilenames.Checked:=FDFSAllowBlank;
  SettingsForm.CompressUEF.Checked:=FUEFCompress;
+ SettingsForm.ScanSubDirs.Checked:=FScanSubDirs;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
@@ -4559,6 +4623,7 @@ begin
   FDFSBeyondEdge:=SettingsForm.DFSBeyondEdge.Checked;
   FDFSAllowBlank:=SettingsForm.AllowDFSBlankFilenames.Checked;
   FUEFCompress  :=SettingsForm.CompressUEF.Checked;
+  FScanSubDirs  :=SettingsForm.ScanSubDirs.Checked;
   //Save the settings
   SetRegValI('Texture',TextureType);
   SetRegValI('ADFS_L_Interleave',ADFSInterleave);
@@ -4567,6 +4632,7 @@ begin
   SetRegValB('DFS_Zero_Sectors',FDFSZeroSecs);
   SetRegValB('DFS_Beyond_Edge',FDFSBeyondEdge);
   SetRegValB('DFS_Allow_Blanks',FDFSAllowBlank);
+  SetRegValB('Scan_SubDirs',FScanSubDirs);
   //Change the tile under the filetype
   if DirList.SelectionCount=1 then DirListChange(Sender,DirList.Selected);
   //Repaint the main form
@@ -4701,14 +4767,23 @@ var
  NodeRect : TRect;
  indent,
  arrowin,
- arrowsize: Integer;
+ arrowsize,
+ imgidx   : Integer;
  TV       : TTreeView;
 begin
  if Sender is TTreeView then
  begin
   TV:=TTreeView(Sender);
-  //Only concerned if it is selected
-  if cdsSelected in State then
+  //Default font style
+  TV.Font.Style:=[fsBold];
+  //If it is a directory that hasn't been read in yet
+  if(TMyTreeNode(Node).IsDir)and(not TMyTreeNode(Node).BeenRead)then
+   TV.Font.Style:=[fsBold,fsItalic];
+  //Only concerned if it is selected, or a directory not read in, or broken
+  if(cdsSelected in State)
+  or(((not TMyTreeNode(Node).BeenRead)
+  or(TMyTreeNode(Node).Broken))and(TMyTreeNode(Node).IsDir))then
+  begin
    with TV.Canvas do
    begin
     indent:=(Node.Level*TV.Indent)+TV.Indent+1;
@@ -4719,13 +4794,11 @@ begin
      NodeRect:=Node.DisplayRect(False);
      //Draw the button
      arrowsize:=DirList.ExpandSignSize;
-     {$IFDEF Darwin}
-     dec(arrowsize); //For some reason macOS size is 1px smaller
-     {$ENDIF}
+     if TargetOS='Darwin' then dec(arrowsize); //For some reason macOS size is 1px smaller
      //Centralise it
      arrowin:=(NodeRect.Height-arrowsize)div 2;
      //Adjust the lefthand position to accomodate the arrow
-     NodeRect.Left:=NodeRect.Left+indent+arrowin-NodeRect.Height-1;
+     NodeRect.Left:=NodeRect.Left+indent+arrowin-NodeRect.Height;
      //And the top
      NodeRect.Top:=NodeRect.Top+arrowin;
      //Set the size
@@ -4737,18 +4810,42 @@ begin
     //Draw the Image
     NodeRect:=Node.DisplayRect(False);
     NodeRect.Left:=NodeRect.Left+indent;
-    NodeRect.Top:=NodeRect.Top+1;
+    NodeRect.Top:=NodeRect.Top+2;
     NodeRect.Width:=TV.ImagesWidth;
     NodeRect.Height:=NodeRect.Width;
-    TImageList(TV.Images).StretchDraw(TV.Canvas,Node.ImageIndex,NodeRect);
+    //Get the correct image
+    imgidx:=Node.ImageIndex;
+    if imgidx=-1 then imgidx:=GetImageIndex(Node,Image);
+    TImageList(TV.Images).StretchDraw(TV.Canvas,imgidx,NodeRect);
     //Write out the text
     NodeRect:=Node.DisplayRect(False);
-    NodeRect.Left:=NodeRect.Left+indent+TV.ImagesWidth+7;
+    NodeRect.Left:=NodeRect.Left+indent+TV.ImagesWidth+4;
     NodeRect.Top:=NodeRect.Top+2;
-    Brush.Color:=TV.SelectionColor; //Background
-    Font.Color:=TV.SelectionFontColor; //Foreground
+    //Change the colour - directory not been read in
+    if(not TMyTreeNode(Node).BeenRead)and(TMyTreeNode(Node).IsDir)then
+    begin
+     //Directories not read in
+     Brush.Style:=bsClear;
+     Font.Color:=clBlue;
+    end;
+    //Change the colour - directory broken
+    if(TMyTreeNode(Node).Broken)and(TMyTreeNode(Node).IsDir)then
+    begin
+     //Directories not read in
+     Brush.Style:=bsClear;
+     Font.Color:=clRed;
+    end;
+    //Change the colour - selected item
+    if cdsSelected in State then
+    begin
+     //Selected items
+     Brush.Style:=bsSolid; //Solid background
+     Brush.Color:=TV.SelectionColor; //Background
+     Font.Color:=TV.SelectionFontColor; //Foreground
+    end;
     TextOut(NodeRect.Left,NodeRect.Top,Node.Text);
    end;
+  end;
  end;
 end;
 
@@ -4806,6 +4903,9 @@ begin
                                            DirList.Selections[0].Index)
   else
    parentdir:=GetImageFilename(TMyTreeNode(DirList.Selections[0]).DirRef,-1);
+  //Ensure that the directory has been read in
+  if not TMyTreeNode(DirList.Selections[0]).BeenRead then
+   ReadInDirectory(DirList.Selections[0]);
   //Add it
   index:=Image.CreateDirectory(dirname,parentdir,attr);
   //Function returns pointer to next item (or parent if no children)
@@ -4818,6 +4918,8 @@ begin
    //Update the directory reference and the directory flag
    TMyTreeNode(Node).DirRef:=Length(Image.Disc)-1;
    TMyTreeNode(Node).IsDir:=True;
+   TMyTreeNode(Node).BeenRead:=True; //It'll be empty anyway
+   TMyTreeNode(NOde).Broken:=False;
    //Update the image
    UpdateImageInfo;
    //Select the new node
@@ -5080,13 +5182,15 @@ begin
  //Default result
  Result:=True;
  //Look at the key modifiers
- {$IFDEF Darwin}   //For the Mac
- if ssMeta in Shift then Result:=False; //Move
- if ssAlt in Shift  then Result:=True;  //Copy
- {$ELSE}           //For Windows or Linux
- if ssShift in Shift then Result:=False; //Move
- if ssCtrl in Shift  then Result:=True;  //Copy
- {$ENDIF}
+ if TargetOS='Darwin' then   //For the Mac
+ begin
+  if ssMeta in Shift then Result:=False; //Move
+  if ssAlt in Shift  then Result:=True;  //Copy
+ end else
+ begin //For Windows or Linux
+  if ssShift in Shift then Result:=False; //Move
+  if ssCtrl in Shift  then Result:=True;  //Copy
+ end;
  //If the destination is the same as the source, copy only (not UEF)
  if(DraggedItem<>nil)and(Dst<>nil)then
   if(DraggedItem.Parent=Dst)and(Image.FormatNumber>>4<>diAcornUEF)then
@@ -5161,6 +5265,9 @@ begin
   //Only allow moving/copying if it is not within itself
   if(DraggedItem<>Dst)or(Image.FormatNumber>>4=diAcornUEF)then
   begin
+   //Read in the destination, if necessary
+   if(TMyTreeNode(Dst).IsDir)and(not TMyTreeNode(Dst).BeenRead)then
+    ReadInDirectory(Dst);
    //Take a copy of the filename
    newfn:=DraggedItem.Text;
    //Do the copy/move
@@ -5291,10 +5398,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
 var
- major : Word;
+ major  : Word;
  minor,
- tracks: Byte;
- ok    : Boolean;
+ tracks : Byte;
+ ok     : Boolean;
 begin
  if QueryUnsaved then
  begin
@@ -5328,8 +5435,8 @@ begin
     7: minor:=NewImageForm.AFS.ItemIndex;
     8: minor:=NewImageForm.DOS.ItemIndex;
    end;
-   //Number of tracks (DFS only)
    tracks:=0; //Default
+   //Number of tracks (DFS only)
    if major=diAcornDFS then
     tracks:=NewImageForm.DFSTracks.ItemIndex;
    //Now create the image
@@ -5343,17 +5450,24 @@ begin
    else //AFS
     if major=diAcornFS then
     begin
+     //Create the format
      ok:=Image.FormatHDD(diAcornFS,
                          NewImageForm.AFSImageSize.Position*10*1024,
                          False,
-                         NewImageForm.AFS.ItemIndex+2);
+                         minor+2);
      if(ok)and(NewImageForm.cb_AFScreatepword.Checked)then
       //Create blank password file for AFS
       if Image.CreatePasswordFile(nil)<0 then //If fails, report an error
        ReportError('Failed to create a password file');
     end
-    else //Floppy Drive
-     ok:=Image.FormatFDD(major,minor,tracks);
+    else //DOS Hard Drive
+     if(major=diDOSPlus)and(minor=6)then
+      ok:=Image.FormatHDD(major,
+                          NewImageForm.harddrivesize,
+                          False,
+                          NewImageForm.fat)
+     else //Floppy Drive
+      ok:=Image.FormatFDD(major,minor,tracks);
    if ok then
    begin
     CloseAllHexDumps;
@@ -5636,7 +5750,48 @@ begin
       HexDump[index].DisplaySpriteFile;
     end;
    end;
+  end
+  else //User double clicked on a directory
+  begin
+   ReadInDirectory(Node);
+   //Need to open the directory
+   Node.Expand(False);
   end;
+end;
+
+{------------------------------------------------------------------------------}
+//Read a directory onto the tree
+{------------------------------------------------------------------------------}
+procedure TMainForm.ReadInDirectory(Node: TTreeNode);
+var
+ dir,
+ entry,
+ index   : Integer;
+ filename: String;
+begin
+ if not TMyTreeNode(Node).BeenRead then //If it hasn't been read
+ begin
+  entry:=Node.Index;
+  dir:=-1;
+  //dir variable, as above
+  if Node.Parent<>nil then //We will only act on this if not the root
+  begin
+   dir:=TMyTreeNode(Node).ParentDir;
+   //Get the full filename with path
+   filename:=Image.GetParent(dir)+Image.DirSep+
+             Image.Disc[dir].Entries[entry].Filename;
+   //And read in the directory
+   index:=Image.ReadDirectory(filename);
+   if index<>-1 then
+   begin
+    //Add the entire directory contents
+    AddDirectoryToTree(Node,index,Image,index);
+    //Mark this directory as having been read
+    TMyTreeNode(Node).BeenRead:=True;
+    TMyTreeNode(Node).Broken:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken;
+   end;
+  end;
+ end;
 end;
 
 {------------------------------------------------------------------------------}

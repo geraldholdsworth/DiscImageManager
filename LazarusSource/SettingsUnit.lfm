@@ -1,12 +1,12 @@
 object SettingsForm: TSettingsForm
   Left = 485
-  Height = 399
+  Height = 412
   Top = 137
   Width = 448
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Preferences'
-  ClientHeight = 399
+  ClientHeight = 412
   ClientWidth = 448
   Color = 15527148
   OnPaint = FormPaint
@@ -116,7 +116,7 @@ object SettingsForm: TSettingsForm
   object CancelButton: TBitBtn
     Left = 224
     Height = 30
-    Top = 362
+    Top = 376
     Width = 100
     Cancel = True
     Caption = 'Cancel'
@@ -127,7 +127,7 @@ object SettingsForm: TSettingsForm
   object OKBtnBack: TPanel
     Left = 340
     Height = 30
-    Top = 362
+    Top = 376
     Width = 100
     BevelColor = clYellow
     BevelInner = bvLowered
@@ -177,12 +177,12 @@ object SettingsForm: TSettingsForm
   end
   object MiscGroup: TGroupBox
     Left = 0
-    Height = 104
+    Height = 72
     Top = 288
-    Width = 224
+    Width = 440
     Caption = 'Miscellaneous'
-    ClientHeight = 85
-    ClientWidth = 214
+    ClientHeight = 53
+    ClientWidth = 430
     TabOrder = 4
     object CreateINF: TCheckBox
       Left = 4
@@ -203,14 +203,24 @@ object SettingsForm: TSettingsForm
       TabOrder = 1
     end
     object CompressUEF: TCheckBox
-      Left = 4
+      Left = 228
       Height = 18
-      Top = 56
+      Top = 8
       Width = 150
       Caption = 'Compress UEF Images'
       Checked = True
       State = cbChecked
       TabOrder = 2
+    end
+    object ScanSubDirs: TCheckBox
+      Left = 228
+      Height = 18
+      Top = 32
+      Width = 190
+      Caption = 'Scan sub-directories on open'
+      Checked = True
+      State = cbChecked
+      TabOrder = 3
     end
   end
   object DFSGroup: TGroupBox

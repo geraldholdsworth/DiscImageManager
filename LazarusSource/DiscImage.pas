@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.38.5
+TDiscImage class V1.40
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -45,10 +45,11 @@ type
   TDir          = record
    Directory,                       //Directory name (ALL)
    Title       : String;            //Directory title (DFS/ADFS)
-   Entries     : array of TDirEntry;//Entries (above)
+   Entries     : array of TDirEntry;//Entries (see DiscImageUtils unit)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
    Broken,                          //Flag if directory is broken (ADFS)
    Locked,                          //Flag if disc is locked (MMFS)
+   BeenRead,                        //Flag if directory has been reed in
    DOSPartition,                    //Is this in the DOS Plus partition? (ADFS/DOS Plus)
    AFSPartition: Boolean;           //Is this in the AFS partition? (ADFS/AFS)
    Sector,                          //Where is this directory located (same as TDirEntry)
@@ -79,7 +80,8 @@ type
   FSparkAsFS,                   //Deal with Spark archives as a filing system
   FDFSzerosecs,                 //Allow zero length disc images for DFS?
   FDFSAllowBlank,               //Allow blank filenames
-  FDFSBeyondEdge: Boolean;      //Check for files going beyond the DFS disc edge
+  FDFSBeyondEdge,               //Check for files going beyond the DFS disc edge
+  FScanSubDirs  : Boolean;      //Scan sub directories on opening (ADFS/Amiga/DOS/Spark)
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   dosalloc,                     //Allocation Unit (DOS Plus)
@@ -287,6 +289,7 @@ type
   function ID_DFS: Boolean;
   function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
   procedure DFSFreeSpaceMap(LDisc: TDisc);
+  function IsWatford(s: Integer): Boolean;
   function ConvertDFSSector(address,side: Integer): Integer;
   function WriteDFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   procedure UpdateDFSCat(side: Integer);
@@ -397,15 +400,18 @@ type
   function WriteDOSObject(buffer:TDIByteArray;fragments:TFragmentArray):Boolean;
   function WriteDOSFile(var file_details: TDirEntry;
                                               var buffer: TDIByteArray):Integer;
+  function InsertDOSEntry(dir: Cardinal;direntry: TDirEntry): Integer;
   function CreateDOSDirectory(dirname,parent,attributes: String): Integer;
   function DeleteDOSFile(filename: String): Boolean;
+  procedure RemoveDOSEntry(dir, entry: Cardinal);
   function UpdateDOSAttributes(filename,attributes: String): Boolean;
   function UpdateDOSDiscTitle(title: String): Boolean;
   function UpdateDOSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
   function AddDOSPartition(size: Cardinal): Boolean;
-  function FormatDOS(shape: Byte): TDisc;
-  procedure WriteDOSPartition;
-  procedure WriteDOSHeader;
+  function FormatDOS(size: Cardinal;fat: Byte): TDisc;
+  procedure WriteDOSHeader(offset, size: Cardinal;fat: Byte;bootable: Boolean);
+  procedure WriteDOSHeader(offset, size: Cardinal;fat: Byte;bootable: Boolean;
+                                              buffer:TDIByteArray);overload;
   function MoveDOSFile(filename,directory: String): Integer;
   //Private constants
   const
@@ -433,8 +439,8 @@ type
   procedure ReadImage;
   procedure SaveToFile(filename: String;uncompress: Boolean=False);
   procedure Close;
-  function FormatFDD(major,minor,tracks: Byte): Boolean;
-  function FormatHDD(major:Byte;harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):Boolean;
+  function FormatFDD(major:Word;minor,tracks: Byte): Boolean;
+  function FormatHDD(major:Word;harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):Boolean;
   function ExtractFile(filename:String;var buffer:TDIByteArray;entry:Cardinal=0): Boolean;
   function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
   function FileExists(filename: String;var Ref: Cardinal): Boolean;
@@ -480,6 +486,7 @@ type
   function AddPartition(filename: String): Boolean; overload;
   function ChangeInterleaveMethod(NewMethod: Byte): Boolean;
   function GetDirSep(partition: Byte): Char;
+  function ReadDirectory(dirname: String): Integer;
   //Published properties
   property AFSPresent:          Boolean       read FAFSPresent;
   property AFSRoot:             Cardinal      read Fafsroot;
@@ -509,6 +516,7 @@ type
   property ProgressIndicator:   TProgressProc write FProgress;
   property RAWData:             TDIByteArray  read Fdata;
   property RootAddress:         Cardinal      read GetRootAddress;
+  property ScanSubDirs:         Boolean       read FScanSubDirs write FScanSubDirs;
   property SparkAsFS:           Boolean       read FSparkAsFS write FSparkAsFS;
  public
   destructor Destroy; override;
@@ -518,7 +526,8 @@ implementation
 
 uses
  SysUtils,DateUtils;
-
+{This unit is split into sub units. Some code is replicated in the different
+sub units. This is so each filing system can have it's own methods.}
 {$INCLUDE 'DiscImage_Private.pas'}  //Module for private methods
 {$INCLUDE 'DiscImage_Published.pas'}//Module for published methods
 {$INCLUDE 'DiscImage_ADFS.pas'}     //Module for Acorn ADFS

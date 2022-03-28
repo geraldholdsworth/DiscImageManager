@@ -162,11 +162,12 @@ begin
        //Making room for it
        SetLength(FDisc,Length(FDisc)+1);
        //And now read it in
-       FDisc[Length(FDisc)-1]:=ReadDOSDirectory(GetParent(d)
-                                               +GetDirSep(part)
-                                               +FDisc[d].Entries[e].Filename,
-                                               FDisc[d].Entries[e].Sector,
-                                               lenctr);
+       if FScanSubDirs then
+        FDisc[Length(FDisc)-1]:=ReadDOSDirectory(GetParent(d)
+                                                +GetDirSep(part)
+                                                +FDisc[d].Entries[e].Filename,
+                                                FDisc[d].Entries[e].Sector,
+                                                lenctr);
        FDisc[Length(FDisc)-1].Parent:=d;
        //Set the length of the directory
        FDisc[d].Entries[e].Length:=lenctr;
@@ -193,8 +194,9 @@ begin
  if DOSBlocks=0 then
   DOSBlocks:=Read32b(doshead+$20);    //Disc Size (if >65535 blocks)
  FATType:=diFAT12;
- if(DOSBlocks>4086)and(DOSBlocks<65526)then FATType:=diFAT16;
- if DOSBlocks>65525 then FATType:=diFAT32;
+ if(DOSBlocks div dosalloc>4086)
+ and(DOSBlocks div dosalloc<65526)then FATType:=diFAT16;
+ if DOSBlocks div dosalloc>65525 then FATType:=diFAT32;
  //Where the FAT(s) is(are)
  dosmap:=doshead+cluster_size;
  if NumFATs>1 then dosmap2:=dosmap+DOSFATSize*cluster_size else dosmap2:=dosmap;
@@ -267,8 +269,9 @@ begin
    //Read in the details
    Result.Entries[entry].Filename:=ReadString($00+index*32,-8,buffer); //Filename
    //Replace 0x05 with 0xE5
-   if Ord(Result.Entries[entry].Filename[1])=$05 then
-    Result.Entries[entry].Filename[5]:=Chr($E5);
+   if Result.Entries[entry].Filename<>'' then
+    if Ord(Result.Entries[entry].Filename[1])=$05 then
+     Result.Entries[entry].Filename[1]:=Chr($E5);
    //Remove the trailing spaces
    RemoveSpaces(Result.Entries[entry].Filename);
    ext:=ReadString($08+index*32,-3,buffer); //Extension
@@ -294,6 +297,7 @@ begin
   inc(index);
   status:=ReadByte(index*32,buffer);
  end;
+ Result.BeenRead:=True;
 end;
 
 {-------------------------------------------------------------------------------
@@ -573,6 +577,7 @@ var
  entry : Cardinal;
 begin
  Result:=False;
+ //if filename[Length(dosrootname)+1]='.' then filename[Length(dosrootname)+1]:='\';
  if FileExists(filename,dir,entry) then //Does the file actually exist?
  begin
   //Reset the buffer
@@ -1197,11 +1202,7 @@ begin
       if WriteDOSObject(buffer,fragments) then
       begin
        //Insert it into the directory
-       Result:=Length(FDisc[dir].Entries);
-       SetLength(FDisc[dir].Entries,Result+1);
-       FDisc[dir].Entries[Result]:=file_details;
-       //Update the parent
-       UpdateDOSDirectory(file_details.Parent);
+       Result:=InsertDOSEntry(dir,file_details);
        //And refresh the free space map
        ReadDOSFSM;
       end;
@@ -1209,6 +1210,18 @@ begin
     end;
    end;
   end;
+end;
+
+{-------------------------------------------------------------------------------
+Insert a file into a directory
+-------------------------------------------------------------------------------}
+function TDiscImage.InsertDOSEntry(dir: Cardinal;direntry: TDirEntry): Integer;
+begin
+ Result:=Length(FDisc[dir].Entries);
+ SetLength(FDisc[dir].Entries,Result+1);
+ FDisc[dir].Entries[Result]:=direntry;
+ //Update the parent
+ UpdateDOSDirectory(direntry.Parent);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1304,6 +1317,8 @@ begin
    if FDisc[dir].Entries[entry].DirRef>=0 then
    begin
     index:=FDisc[dir].Entries[entry].DirRef;
+    //Make sure it has been read in
+    if not FDisc[index].BeenRead then ReadDirectory(filename);
     //Recursively delete the contents
     while(Length(FDisc[index].Entries)>0)and(success)do
      success:=DeleteDOSFile(filename+GetDirSep(side)+FDisc[index].Entries[0].Filename);
@@ -1314,17 +1329,28 @@ begin
     //Update the FSM
     clusters:=GetClusterChain(FDisc[dir].Entries[entry].Sector);
     DeAllocateDOSClusters(0,clusters);
-    //Remove the entry from the local copy
-    if entry<Length(FDisc[dir].Entries)-2 then
-     for index:=entry to Length(FDisc[dir].Entries)-2 do
-      FDisc[dir].Entries[index]:=FDisc[dir].Entries[index+1];
-    SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);
-    //Update the directory
-    UpdateDOSDirectory(GetParent(dir));
+    //Remove the entry
+    RemoveDOSEntry(dir,entry);
    end;
    //Return a result
    Result:=success;
   end;
+end;
+
+{-------------------------------------------------------------------------------
+Remove an entry from a directory
+-------------------------------------------------------------------------------}
+procedure TDiscImage.RemoveDOSEntry(dir, entry: Cardinal);
+var
+ index: Integer;
+begin
+ //Remove the entry from the local copy
+ if entry<Length(FDisc[dir].Entries)-2 then
+  for index:=entry to Length(FDisc[dir].Entries)-2 do
+   FDisc[dir].Entries[index]:=FDisc[dir].Entries[index+1];
+ SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);
+ //Update the directory
+ UpdateDOSDirectory(GetParent(dir));
 end;
 
 {-------------------------------------------------------------------------------
@@ -1400,48 +1426,42 @@ var
  oldfilename: String;
 begin
  Result:=False;
- exit; //Not fully tested yet
  if size<9*secsize then exit; //Minimum size is 9 sectors
  //Only for adding DOS partition to 8 bit ADFS
  if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
  begin
   fsed:=GetADFSMaxLength(False);
   //Is there enough free space?
-  if fsed>=size div secsize then
+  if fsed>=size then
   begin
    //Work out the start
    fsst:=GetDataLength-size;
    //Adjust the ADFS free space map
    fsptr:=GetADFSMaxLength(True);
    Write24b(Read24b($100+fsptr)-(size div secsize),$100+fsptr); //Just adjust the length
-   //Adjust the ADFS disc size
-   if GetDataLength=640*1024 then Write24b($000AA0,$FC);
    //Update our disc sizes
    disc_size[0]:=fsst;
    SetLength(disc_size,2);
    disc_size[1]:=size;
    SetLength(free_space,2);
-   if FFormat AND $F<>$F then //Not for hard disc partitions
-   begin
-    doshead   :=disc_size[0];
-    //Set the DOS root parameters
-    dosmap:=doshead;
-    dosmap2:=doshead;
-    dosroot_size:=$70*$20;
-    //And cluster size
-    cluster_size:=$100;
-    dosalloc:=8;
-    //FAT Size and type
-    DOSFATSize:=1; //This is one less than the actual size
-    NumFATs:=1;    //Number of FATs present
-    FATType:=diFAT12;//FAT type
-    DOSBlocks:=disc_size[1]div cluster_size; //Number of blocks on disc
-    Fdosroot:=doshead+((NumFATs*DOSFATSize)+1)*cluster_size; //Where the root is
-   end;
+   doshead   :=disc_size[0];
+   //Set the DOS root parameters
+   dosmap:=doshead;
+   dosmap2:=doshead;
+   dosroot_size:=$70*$20;
+   //And cluster size
+   cluster_size:=$100;
+   dosalloc:=8;
+   //FAT Size and type
+   DOSFATSize:=1; //This is one less than the actual size
+   NumFATs:=1;    //Number of FATs present
+   FATType:=diFAT12;//FAT type
+   DOSBlocks:=disc_size[1]div cluster_size; //Number of blocks on disc
+   Fdosroot:=doshead+((NumFATs*DOSFATSize)+1)*cluster_size; //Where the root is
    //Clear the partition of any left over data
    for index:=doshead to GetDataLength-1 do WriteByte(0,index);
    //Create the partition
-   WriteDOSPartition;
+   WriteDOSHeader(doshead,size,diMaster512,False);
    //Update the checksums
    WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
    WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
@@ -1459,46 +1479,259 @@ end;
 {-------------------------------------------------------------------------------
 Create a new DOS Plus or DOS image
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatDOS(shape: Byte): TDisc;
+function TDiscImage.FormatDOS(size: Cardinal;fat: Byte): TDisc;
+var
+ index: Cardinal;
 begin
  //Default return value
  Result:=nil;
- //Reset everything
- ResetVariables;
- SetDataLength(0);
- //Set the format
- FFormat:=diDOSPlus<<4;
- //Set the data size
- case shape of
-  0: SetDataLength( 800*1024);// 800KB DOS Plus
-  1: SetDataLength( 360*1024);// 360KB DOS
-  2: SetDataLength( 720*1024);// 720KB DOS
-  3: SetDataLength(1440*1024);//1.44MB DOS
-  4: SetDataLength(2880*1024);//2.88MB DOS
+ if fat=diFAT32 then exit; //Not supported yet, so just exit
+ if size>=180*1024 then
+ begin
+  //Reset everything
+  ResetVariables;
+  SetDataLength(0);
+  //Reset the format (it'll get set later when we ID and Read the new image)
+  FFormat:=diInvalidImg;
+  disc_size[0]:=size;
+  SetDataLength(size);
+  //Empty the area
+  for index:=0 to size-1 do WriteByte(0,index);
+  //Master 512 DOS Plus or Standard DOS?
+  if(size<>800*1024)and(size<>640*1024)then //Standard DOS
+   WriteDOSHeader(0,size,fat,True)
+  else
+  begin //Master 512
+   //BBC Master DOS Plus images do not have a DOS header, which makes them easier.
+   if size=640*1024 then //Master 512 hybrid image
+   begin
+    //Create the ADFS image (ADFS 'L')
+    Result:=FormatADFSFloppy(2);
+    //Create the 636K DOS partition
+    for index:=0 to $1FA do WriteByte(0,index);//Most of the ADFS header needs blanked
+    Write24b($000AA0,$FC);  //Signature for 640K DOS Plus
+    Write24b($FFFFFF,$1000);//FAT signature
+    WriteByte(0,$1FE);//Blank off the free space count
+    //Update the checksums
+    WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
+    WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
+   end;
+   if size=800*1024 then //Master 512 800K image
+   begin
+    //Very simplistic this format.
+    WriteByte($FD,0); //Media descriptor byte
+    WriteByte($FF,1); //Start of FAT
+    WriteByte($FF,2);
+    WriteByte($8,$80B); //Indicates volume name in the root
+   end;
+  end;
+  //ID the image to set up all the variables
+  if IDImage then
+  begin
+   //And read it in
+   ReadImage;
+   //Returning a result
+   Result:=FDisc;
+   //Set the filename
+   imagefilename:='Untitled.'+FormatExt;
+  end;
  end;
- disc_size[0]:=GetDataLength;
-end;
-
-{-------------------------------------------------------------------------------
-Write a DOS Partition
--------------------------------------------------------------------------------}
-procedure TDiscImage.WriteDOSPartition;
-begin
- //
 end;
 
 {-------------------------------------------------------------------------------
 Write a DOS Header
 -------------------------------------------------------------------------------}
-procedure TDiscImage.WriteDOSHeader;
+procedure TDiscImage.WriteDOSHeader(offset, size: Cardinal;fat: Byte;bootable: Boolean);
+var
+ buffer: TDIByteArray;
 begin
- //
+ SetLength(buffer,0);
+ WriteDOSHeader(offset,size,fat,bootable,buffer);
+end;
+procedure TDiscImage.WriteDOSHeader(offset, size: Cardinal;fat: Byte;
+                                        bootable: Boolean;buffer: TDIByteArray);
+var
+ maxCluster,
+ totBlocks,
+ FATloc,
+ FATsize,
+ Lrootsize  : Cardinal;
+ sectorSize : Word;
+ LnumFATs,
+ allocSize,
+ mdb        : Byte;
+ index      : Integer;
+ master512  : Boolean;
+const
+  //Boot code - this is actual code which'll get run on boot
+  bootCode : array[0..40] of Byte = ($FA,$31,$C0,$8E,$D0,$BC,$00,$7C,$FB,$8E,
+                                     $D8,$E8,$00,$00,$5E,$83,$C6,$19,$BB,$07,
+                                     $00,$FC,$AC,$84,$C0,$74,$06,$B4,$0E,$CD,
+                                     $10,$EB,$F5,$30,$E4,$CD,$16,$CD,$19,$0D,
+                                     $0A);
+begin
+ //Clear the area
+ for index:=0 to $1FF do WriteByte(0,offset+index,buffer);
+ //BBC Master 512 image?
+ master512:=False;
+ sectorSize:=$200; //Sector size. $200 is most DOS. M512 is $400
+ LnumFATs:=2; //Number of FATs. Most DOS is 2. M512 is 1
+ mdb:=$F0; //Media descriptor byte
+ Lrootsize:=$200; //Root size
+ maxCluster:=1;
+ //Maximum number of clusters
+ if fat=diFAT12 then maxCluster:=$FF6;      //FAT12
+ if fat=diFAT16 then maxCluster:=$FFF6;     //FAT16
+ if fat=diFAT32 then maxCluster:=$10000000; //FAT32
+ if fat=diMaster512 then                    //BBC Master 512 DOS Plus (FAT12)
+ begin //These have different values to standard DOS
+  maxCluster:=$FF6;
+  sectorSize:=$200;
+  Lrootsize :=$70;
+  LnumFATs  :=1;
+  mdb       :=$FF;
+  bootable  :=False;
+  master512 :=True;
+ end;
+ //Not a valid FAT type, so exit
+ if maxCluster=1 then exit; //Error
+ //Total Blocks
+ totBlocks:=size div sectorSize;
+ //JMP Instruction for Boot sector
+ WriteByte($EB,offset+$00,buffer);
+ if master512 then
+ begin
+  WriteByte($FE,offset+$01,buffer);
+  WriteByte($91,offset+$02,buffer);
+ end
+ else
+ begin
+  WriteByte($3C,offset+$01,buffer);
+  WriteByte($90,offset+$02,buffer);
+ end;
+ //OEM Name
+ WriteString('DIM',offset+$03,8,32,buffer);
+ //Block Size
+ Write16b(sectorSize,offset+$0B,buffer);
+ //Cluster size
+ if not master512 then
+  allocSize:=(totBlocks div maxCluster)+1
+ else
+  allocSize:=4;
+ WriteByte(allocSize,offset+$0D,buffer);
+ //Reserved sectors
+ Write16b($0001,offset+$0E,buffer);
+ //Number of FATs
+ WriteByte(LnumFATs,offset+$10,buffer);
+ //Size of root : maximum number of entries
+ Write16b(Lrootsize,offset+$11,buffer);
+ //Total number of blocks
+ if totBlocks<=$FFFF then
+ begin
+  //If it'll fit in the original BIOS block
+  Write16b(totBlocks,offset+$13,buffer);
+  Write32b(0,offset+$20,buffer);
+ end
+ else
+ begin
+  //Otherwise it'll need to go in the extended block - only for FAT16 & FAT32
+  Write16b($0000,offset+$13,buffer);
+  Write32b(totBlocks,offset+$20,buffer);
+ end;
+ //Media descriptor byte
+ WriteByte(mdb,offset+$15,buffer);
+ //FAT Size
+ if not master512 then
+  FATsize:=((((totBlocks DIV allocSize)*12)DIV 8)+sectorSize)DIV sectorSize
+ else
+  FATsize:=1;
+ Write16b(FATsize,offset+$16,buffer);
+ //Extended BIOS block
+ if not master512 then //The rest of this is not applicable to Master 512 images
+ begin
+  //Sectors per track
+  Write16b($0020,offset+$18,buffer);
+  //Number of heads
+  Write16b($0010,offset+$1C,buffer);
+  //Extended Boot Signature
+  WriteByte($29,offset+$26,buffer);
+  //Volume Serial Number
+  Write32b($D68D00EC,offset+$27,buffer);
+  //Volume Label
+  WriteString('NO NAME',offset+$2B,11,32,buffer);
+  //File System Type
+  if fat=diFAT12 then WriteString('FAT12',offset+$36,8,32,buffer);
+  if fat=diFAT16 then WriteString('FAT16',offset+$36,8,32,buffer);
+  if fat=diFAT32 then WriteString('FAT32',offset+$36,8,32,buffer);
+  //Boot code
+  if bootable then
+  begin
+   //Write the boot code
+   for index:=0 to Length(bootCode)-1 do
+    WriteByte(bootCode[index],offset+$3E+index,buffer);
+   //And the text
+   WriteString('Non-system disk'#$0D#$0A'Press any key to reboot'#$0D#$0A,
+               offset+$67,0,0,buffer);
+   //Boot block signature - indicates it is bootable
+   WriteByte($55,offset+$1FE,buffer);
+   WriteByte($AA,offset+$1FF,buffer);
+  end;
+ end;
+ //Write the FAT(s)
+ for index:=0 to LnumFATs-1 do
+ begin
+  //Calculate this FAT's location
+  FATloc:=sectorSize+FATsize*sectorSize*index;
+  //Media descriptor byte, repeated on each FAT
+  WriteByte(mdb,offset+FATloc,buffer);
+  //Then the 0xFFFF which follows
+  Write16b($FFFF,offset+FATloc+1,buffer);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
 Move a file/directory
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveDOSFile(filename,directory: String): Integer;
+var
+ direntry : TDirEntry;
+ sdir,
+ sentry,
+ ddir,
+ dentry,
+ ptr      : Cardinal;
 begin
- Result:=-12;
+ Result:=-11;//Source file not found
+ //Does the file exist?
+ if FileExists(filename,sdir,sentry) then
+ begin
+  Result:=-6;//Destination directory not found
+  //Take a copy
+  direntry:=FDisc[sdir].Entries[sentry];
+  //Does the destination directory exist?
+  if(FileExists(directory,ddir,dentry))or(directory=dosrootname)then
+  begin
+   //Make sure it has been read in
+   if not FDisc[FDisc[ddir].Entries[dentry].DirRef].BeenRead then
+    ReadDirectory(directory);
+   Result:=-10;//Can't move to the same directory
+   //Destination directory reference
+   ddir:=0;//Root
+   if directory<>dosrootname then ddir:=FDisc[ddir].Entries[dentry].DirRef;
+   if ddir<>sdir then //Can't move into the same directory
+   begin
+    Result:=-3; //File already exists in destination directory
+    //Alter for the new parent
+    direntry.Parent:=directory;
+    //Does the filename already exist in the new location?
+    if not FileExists(directory+Dir_Sep+direntry.Filename,ptr) then
+    begin
+     //Insert into the new directory
+     Result:=InsertDOSEntry(ddir,direntry);
+     //Now remove from the original directory
+     RemoveDOSEntry(sdir,sentry);
+    end;
+   end;
+  end;
+ end;
 end;

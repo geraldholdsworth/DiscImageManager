@@ -90,13 +90,15 @@ begin
       if FForceInter=0 then
       begin
        //If this is not as expected, then change the interleave
-       if(ReadByte($1000)<>$FF)or(Read24b($1001)<>$FFFFFF)then
-        if FInterleave=2 then FInterleave:=1 else FInterleave:=2;
-       //Still not as expected? Change back and clear the flag
-       if(ReadByte($1000)<>$FF)or(Read24b($1001)<>$FFFFFF)then
+       if(ReadByte($1000)<>$FF)or(Read16b($1001)<>$FFFF)then
        begin
         if FInterleave=2 then FInterleave:=1 else FInterleave:=2;
-        FDOSPresent:=False;
+        //Still not as expected? Change back and clear the flag
+        if(ReadByte($1000)<>$FF)or(Read16b($1001)<>$FFFF)then
+        begin
+         if FInterleave=2 then FInterleave:=1 else FInterleave:=2;
+         FDOSPresent:=False;
+        end;
        end;
       end;
       //If, at this stage, the flag is set, reset the disc size to 4K.
@@ -555,6 +557,7 @@ begin
      Result.ErrorCode:=Result.ErrorCode OR $08;
     end;
    end;
+   Result.BeenRead:=True;
   end;
  end;
  if Result.Broken then inc(brokendircount);
@@ -1024,10 +1027,11 @@ function TDiscImage.ReadADFSDisc: TDisc;
         //Once found, list their entries
         SetLength(Result,Length(Result)+1);
         //Read in the contents of the directory
-        Result[Length(Result)-1]:=ReadADFSDir(GetParent(d)
-                                             +dir_sep
-                                             +Result[d].Entries[ptr].Filename,
-                                              Result[d].Entries[ptr].Sector);
+        if FScanSubDirs then
+         Result[Length(Result)-1]:=ReadADFSDir(GetParent(d)
+                                              +dir_sep
+                                              +Result[d].Entries[ptr].Filename,
+                                               Result[d].Entries[ptr].Sector);
         Result[Length(Result)-1].Parent:=d;
         //Remember it
         SetLength(visited,Length(visited)+1);
@@ -1837,6 +1841,8 @@ begin
      dir  :=0
     else
      dir  :=FDisc[ref div $10000].Entries[ref mod $10000].DirRef;
+    //Has it been read in?
+    if not FDisc[dir].BeenRead then ReadDirectory(file_details.Parent);
     //Big Dir - Verify directory is big enough or if it needs extending and moved.
     if(FDirType=diADFSBigDir)and(extend)then //This will extend/contract the directory
      if not ExtendADFSBigDir(dir,Length(file_details.Filename),True) then
@@ -2316,6 +2322,8 @@ begin
  begin
   FileExists(parent,dir,entry);
   parentaddr:=FDisc[dir].Entries[entry].Sector;
+  //Has it been read in?
+  if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then ReadDirectory(parent);
  end;
  if dirname<>'$' then
   //Validate the name
@@ -2493,6 +2501,8 @@ begin
   begin
    dir  :=FDisc[ref div $10000].Entries[ref mod $10000].DirRef;
    diraddr:=FDisc[ref div $10000].Entries[ref mod $10000].Sector;
+   //Has it been read in?
+   if not FDisc[dir].BeenRead then ReadDirectory(directory);
   end;
   //Make the sector address a disc address
   if not FMap then
@@ -2737,6 +2747,9 @@ begin
   end
   else
   begin
+   //Has it been read in?
+   if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then
+    ReadDirectory(filename);
    //Re-title the directory, limiting it to 19 characters
    FDisc[FDisc[dir].Entries[entry].DirRef].Title:=LeftStr(newtitle,19);
    //Update the catalogue, which will update the title
@@ -3098,6 +3111,10 @@ begin
   if filename<>'$' then
    //If directory, delete contents first
    if(FDisc[dir].Entries[entry].DirRef>0)and(not TreatAsFile)then
+   begin
+    //Has it been read in?
+    if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then
+     ReadDirectory(filename);
     //We'll do a bit of recursion to remove each entry one by one. If it
     //encounters a directory, that will get it's contents deleted, then itself.
     while(Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
@@ -3107,6 +3124,7 @@ begin
              filename
             +dir_sep
             +FDisc[FDisc[dir].Entries[entry].DirRef].Entries[0].Filename);
+   end;
   //Only continue if we are successful
   if success then
   begin
@@ -3443,6 +3461,8 @@ begin
    if directory<>'$' then ddir:=FDisc[ddir].Entries[dentry].DirRef;
    if ddir<>sdir then //Can't move into the same directory
    begin
+    //Has it been read in?
+    if not FDisc[ddir].BeenRead then ReadDirectory(directory);
     Result:=-3; //File already exists in destination directory
     //Alter for the new parent
     direntry.Parent:=directory;
@@ -3772,96 +3792,100 @@ begin
   dirref:=0; //Root
  //What is the error?
  error:=FDisc[dirref].ErrorCode;
- //Where is the directory, and how big?
- len:=0;
- //We need to resolve the actual disc offset and length
- if(dir>=0)and(entry>=0) then
+ if error>0 then //Only act if there is an error
  begin
-  if FMap then //New Map
+  //Where is the directory, and how big?
+  len:=0;
+  //We need to resolve the actual disc offset and length
+  if(dir>=0)and(entry>=0) then
   begin
-   //Get the fragments for the directory (should only be one)
-   fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
+   if FMap then //New Map
+   begin
+    //Get the fragments for the directory (should only be one)
+    fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
+    len:=0;
+    //Work out the total length
+    if Length(fragments)>0 then
+     for i:=0 to Length(fragments)-1 do inc(len,fragments[i].Length);
+   end;
+   if not FMap then //Old Map
+   begin
+    SetLength(fragments,1);
+    fragments[0].Offset:=FDisc[dir].Entries[entry].Sector*$100;
+    len:=FDisc[dir].Entries[entry].Length;
+    fragments[0].Length:=len;
+   end;
+  end
+  else //Root
+  begin
+   //As above
+   fragments:=NewDiscAddrToOffset(rootfrag);
    len:=0;
    //Work out the total length
    if Length(fragments)>0 then
     for i:=0 to Length(fragments)-1 do inc(len,fragments[i].Length);
   end;
-  if not FMap then //Old Map
-  begin
-   SetLength(fragments,1);
-   fragments[0].Offset:=FDisc[dir].Entries[entry].Sector*$100;
-   len:=FDisc[dir].Entries[entry].Length;
-   fragments[0].Length:=len;
-  end;
- end
- else //Root
- begin
-  //As above
-  fragments:=NewDiscAddrToOffset(rootfrag);
-  len:=0;
-  //Work out the total length
   if Length(fragments)>0 then
-   for i:=0 to Length(fragments)-1 do inc(len,fragments[i].Length);
- end;
- if Length(fragments)>0 then
- begin
-  //Retrieve the directory into a cache
-  if ExtractFragmentedData(fragments,len,dircache) then
   begin
-   //Tail length
-   if FDirType=diADFSOldDir then tail:=$35;
-   if FDirType=diADFSNewDir then tail:=$29;
-   if FDirType=diADFSBigDir then tail:=$08;
-   //First basic check to see if the directory structure is where it should be
-   Result:=True; //This can happen for interleaved images
-   if(FDirType=diADFSOldDir)and(Length(FDisc[dirref].Entries)=0)
-   and(ReadString(1,-4,dircache)<>'Hugo')
-   and(ReadString((len-6),-4,dircache)<>'Hugo')then
-    Result:=False; //We will assume that if neither are Hugo, then the dir is somewhere else
-   if Result then //So we will only fix if we can
+   //Retrieve the directory into a cache
+   if ExtractFragmentedData(fragments,len,dircache) then
    begin
-    //Start the fixes
-    if (error AND $01=$01) then //StartSeq<>EndSeq
+    //Tail length
+    if FDirType=diADFSOldDir then tail:=$35;
+    if FDirType=diADFSNewDir then tail:=$29;
+    if FDirType=diADFSBigDir then tail:=$08;
+    //First basic check to see if the directory structure is where it should be
+    Result:=True; //This can happen for interleaved images
+    if(FDirType=diADFSOldDir)and(Length(FDisc[dirref].Entries)=0)
+    and(ReadString(1,-4,dircache)<>'Hugo')
+    and(ReadString((len-6),-4,dircache)<>'Hugo')
+    and(error AND $02<>$02)then //Only if this is not the reason why it is broken
+     Result:=False; //We will assume that if neither are Hugo, then the dir is somewhere else
+    if Result then //So we will only fix if we can
     begin
-     //Quite simple - just pick up StartSeq and write it to EndSeq
-     if FDirType=diADFSOldDir then WriteByte(ReadByte(0,dircache),(len-tail)+$2F,dircache);
-     if FDirType=diADFSNewDir then WriteByte(ReadByte(0,dircache),(len-tail)+$23,dircache);
-     if FDirType=diADFSBigDir then WriteByte(ReadByte(0,dircache),(len-tail)+$04,dircache);
-    end;
-    if (error AND $02=$02) then //StartName<>EndName (Old/New Dirs)
-    begin
-     //Almost as simple - just re-write what they should be
-     if FDirType=diADFSOldDir then StartName:='Hugo';
-     if FDirType=diADFSNewDir then StartName:='Nick';
-     for i:=1 to 4 do
+     //Start the fixes
+     if (error AND $01=$01) then //StartSeq<>EndSeq
      begin
-      WriteByte(Ord(StartName[i]),i,dircache);        //Header
-      WriteByte(Ord(StartName[i]),(len-6)+i,dircache);//Tail
+      //Quite simple - just pick up StartSeq and write it to EndSeq
+      if FDirType=diADFSOldDir then WriteByte(ReadByte(0,dircache),(len-tail)+$2F,dircache);
+      if FDirType=diADFSNewDir then WriteByte(ReadByte(0,dircache),(len-tail)+$23,dircache);
+      if FDirType=diADFSBigDir then WriteByte(ReadByte(0,dircache),(len-tail)+$04,dircache);
      end;
-    end;
-    if (error AND $04=$04) then //StartName<>'SBPr' or EndName<>'oven' (Big)
-    begin
-     //The same as previously, except start and end do not match
-     StartName:='SBPr';
-     EndName  :='oven';
-     for i:=1 to 4 do
+     if (error AND $02=$02) then //StartName<>EndName (Old/New Dirs)
      begin
-      WriteByte(Ord(StartName[i]),3+i,dircache);             //Header
-      WriteByte(Ord(EndName[i])  ,(len-tail)+(i-1),dircache);//Tail
+      //Almost as simple - just re-write what they should be
+      if FDirType=diADFSOldDir then StartName:='Hugo';
+      if FDirType=diADFSNewDir then StartName:='Nick';
+      for i:=1 to 4 do
+      begin
+       WriteByte(Ord(StartName[i]),i,dircache);        //Header
+       WriteByte(Ord(StartName[i]),(len-6)+i,dircache);//Tail
+      end;
      end;
-    end;
-    //Bit 3 indicates invalid checksum - but we'll update anyway
-    //The above changes could alter it
-    if FDirType=diADFSOldDir then //Old - can be zero
-     WriteByte($00,$4FF,dircache)
-    else               //New
-     WriteByte(CalculateADFSDirCheck(0,dircache),len-1,dircache);
-    //Write the directory back
-    if WriteFragmentedData(fragments,dircache) then
-    begin
-     //Reset the flags
-     FDisc[dirref].Broken:=False;
-     FDisc[dirref].ErrorCode:=$00;
+     if (error AND $04=$04) then //StartName<>'SBPr' or EndName<>'oven' (Big)
+     begin
+      //The same as previously, except start and end do not match
+      StartName:='SBPr';
+      EndName  :='oven';
+      for i:=1 to 4 do
+      begin
+       WriteByte(Ord(StartName[i]),3+i,dircache);             //Header
+       WriteByte(Ord(EndName[i])  ,(len-tail)+(i-1),dircache);//Tail
+      end;
+     end;
+     //Bit 3 indicates invalid checksum - but we'll update anyway
+     //The above changes could alter it
+     if FDirType=diADFSOldDir then //Old - can be zero
+      WriteByte($00,$4FF,dircache)
+     else               //New
+      WriteByte(CalculateADFSDirCheck(0,dircache),len-1,dircache);
+     //Write the directory back
+     if WriteFragmentedData(fragments,dircache) then
+     begin
+      //Reset the flags
+      FDisc[dirref].Broken:=False;
+      FDisc[dirref].ErrorCode:=$00;
+     end;
     end;
    end;
   end;
@@ -4120,18 +4144,28 @@ Extract an ADFS, AFS or DOS partition
 function TDiscImage.ExtractADFSPartition(side: Cardinal): TDIByteArray;
 var
  index,
- diff     : Integer;
- start    : Cardinal;
+ diff       : Integer;
+ start,
+ new1,
+ new2       : Cardinal;
+ JesMapList : Array of Cardinal;
+ JesMap     : String;
+ buffer     : TDIByteArray;
 begin
  Result:=nil;
  if(FAFSPresent)or(FDOSPresent)then //Make sure it is a hybrid
  begin
-  //Copy the original data
-  Result:=Fdata;
-  //Extracting the ADFS part is simply just blanking the AFS partition, and the
-  //ADFS disc title (so that $0F6 and $1F6 do not point to anything).
+  //Side 0 : must be ADFS
   if side=0 then
   begin
+   //Extracting the ADFS part is simply just blanking the AFS partition, and the
+   //ADFS disc title (so that $0F6 and $1F6 do not point to anything).
+   new1:=GetDataLength;
+   SetLength(Result,new1);
+   //Copy the data across - this will de-interleave it
+   UpdateProgress('Extracting Partition');
+   for index:=0 to new1-1 do Result[index]:=ReadByte(index);
+   UpdateProgress('Extending ADFS Partition');
    //Blank off the addresses
    if FAFSPresent then //AFS Only
    begin
@@ -4151,18 +4185,132 @@ begin
     Write24b((Length(Result)>>8)-start,$100+index,Result);
     //Pointer
     inc(index,3);
-    WriteByte(index,$1FE);
+    WriteByte(index,$1FE,Result);
    end;
    //Expand the image size
    Write24b(Length(Result)>>8,$0FC,Result);
+   //Blank off the other partition
+   for index:=disc_size[0] to new1-1 do Result[index]:=$00;
    //Update the checksums
    WriteByte(ByteCheckSum($0000,$100,Result),$0FF,Result);
    WriteByte(ByteCheckSum($0100,$100,Result),$1FF,Result);
+   //Change interleave on 640KB images
+   if new1=$A0000 then
+   begin
+    //Set up the temporary store
+    SetLength(buffer,$A0000);
+    //Copy the data across - direct read from one array to a interleave write in the other
+    for index:=0 to $9FFFF do WriteByte(Result[index],index,buffer);
+    //Write over the result with the new temporary store
+    for index:=0 to $9FFFF do Result[index]:=buffer[index];
+   end;
   end;
-  //Extracting the AFS part - as ADFS, just blank off the ADFS part, making sure
-  //that the ADFS root is unreadable.
+  //Side 1 : Partition is AFS
   if(side=1)and(FAFSPresent)then
   begin
+   //Setup the buffer to accomodate the AFS partition and the ADFS dummy header
+   SetLength(Result,disc_size[1]+$700);//Header + Root = $200+$500
+   //Copy the ADFS dummy header across to the top of the buffer
+   UpdateProgress('Copying the ADFS header');
+   for index:=0 to $6FF do Result[index]:=ReadByte(index);
+   //Copy the AFS partition to just after this
+   UpdateProgress('Extracting the Acorn File Server partition');
+   SetLength(JesMapList,0); //We'll look for objects while we're at it
+   JesMap:='';
+   for index:=0 to disc_size[1]-1 do
+   begin
+    //Copy across, byte by byte
+    Result[$700+index]:=ReadByte(disc_size[0]+index);
+    //Make a note of the character
+    JesMap:=JesMap+chr(Result[index]);
+    //Make sure it is no longer than 6 characters
+    if Length(JesMap)>6 then JesMap:=RightStr(JesMap,6);
+    //Have we found an object?
+    if JesMap='JesMap' then
+    begin
+     //Make a note of the location
+     SetLength(JesMapList,Length(JesMapList)+1);
+     JesMapList[Length(JesMapList)-1]:=index-5;
+    end;
+   end;
+   //Adjust the disc addresses in the ADFS dummy header
+   UpdateProgress('Updating the header');
+   diff:=disc_size[0]-$700; //Difference between the original and the AFS
+   new1:=(afshead-diff)>>8;
+   new2:=(afshead2-diff)>>8;
+   Result[$0F6]:= new1 AND $FF;
+   Result[$0F7]:=(new1 AND $FF00)>>8;
+   Result[$0F8]:=(new1 AND $FF0000)>>16;
+   Result[$1F6]:= new2 AND $FF;
+   Result[$1F7]:=(new2 AND $FF00)>>8;
+   Result[$1F8]:=(new2 AND $FF0000)>>16;
+   //Adjust the root SIN in the AFS header
+   start:=afsroot-(diff>>8);
+   Result[(new1<<8)+$1F]:= start AND $FF;
+   Result[(new1<<8)+$20]:=(start AND $FF00)>>8;
+   Result[(new2<<8)+$1F]:= start AND $FF;
+   Result[(new2<<8)+$20]:=(start AND $FF00)>>8;
+   //Adjust all the allocated sectors in all the objects from positions $0A-$0E to $FA-$FE
+   //We also need to update each directory entry to point to where the object is now.
+   UpdateProgress('Updating object addresses');
+   if Length(JesMapList)>0 then
+    for index:=0 to Length(JesMapList)-1 do
+    begin
+     //First we'll update the chain of pointers
+     new1:=$0A;
+     start:=$FFFFFF;
+     while(start<>0)and(new1<$FF)do //We repeat until the end or we find a zero
+     begin
+      //Grab the current pointer
+      start:=Result[JesMapList[index]+new1  ]
+            +Result[JesMapList[index]+new1+1]<<8
+            +Result[JesMapList[index]+new1+2]<<16;
+      //If it isn't zero
+      if start<>0 then
+      begin
+       //Then adjust
+       start:=start-(diff>>8);
+       //And save it back
+       Result[JesMapList[index]+new1  ]:= start AND $FF;
+       Result[JesMapList[index]+new1+1]:=(start AND $FF00)>>8;
+       Result[JesMapList[index]+new1+2]:=(start AND $FF0000)>>16;
+      end;
+      //Next pointer
+      inc(new1,5);
+     end;
+     //Is this JesMap a directory? Need to adjust all the object pointers
+    end;
+   //Blank out the ADFS Free Space Map
+   for index:=0 to $F5 do
+   begin
+    Result[index]:=$00;
+    Result[index+$100]:=$00;
+   end;
+   Result[$1FE]:=$00;
+   //Update the disc size
+   start:=disc_size[1]>>8;
+   Result[$0FC]:= start AND $FF;
+   Result[$0FD]:=(start AND $FF00)>>8;
+   Result[$0FE]:=(start AND $FF0000)>>16;
+   //Update the checksums
+   WriteByte(ByteCheckSum($0000,$100,Result),$0FF,Result);
+   WriteByte(ByteCheckSum($0100,$100,Result),$1FF,Result);
+   //Blank off the last 32 bytes of the 'root'
+   for index:=0 to 31 do Result[$6E0+index]:=$00;
+   //Write 'Hug' to the last 3 bytes
+   Result[$6FD]:=$48;
+   Result[$6FE]:=$75;
+   Result[$6FF]:=$67;
+  end;
+{  //Extracting the AFS part - as ADFS, just blank off the ADFS part, making sure
+  //that the ADFS root is unreadable.
+  //This is the old method - quick and easy.
+  if(side=1)and(FAFSPresent)then
+  begin
+   //Copy the data across
+   UpdateProgress('Extracting Partition');
+   SetLength(Result,GetDataLength);
+   for index:=0 to GetDataLength-1 do Result[index]:=ReadByte(index);
    //Blank the ADFS section (we'll use the WriteByte method to take account of interleave)
    for index:=$200 to (Read24b($FC,Result)<<8)-1 do WriteByte($00,index,Result);
    //Blank the ADFS free space map lengths
@@ -4177,21 +4325,21 @@ begin
    //Update the checksums
    WriteByte(ByteCheckSum($0000,$100,Result),$0FF,Result);
    WriteByte(ByteCheckSum($0100,$100,Result),$1FF,Result);
-  end;
+  end;}
   //Extracting the DOS part - this is literally extracting the DOS Plus part
   if(side=1)and(FDOSPresent)then
   begin
-   //How much are we needing to shift the root up by?
-   diff:=$800-(Fdosroot-doshead);
-   //Reset the length of the outgoing buffer to the size of the DOS partition
-   SetLength(Result,disc_size[side]+diff);
-   //Then copy the data from the live array to the outgoing buffer.
-   for index:=doshead to Fdosroot-1 do //First the FAT
-    Result[index-doshead]:=ReadByte(index);
-   for index:=Fdosroot-doshead to $800 do //Blank off the rest of the FAT
-    Result[index]:=0;
-   for index:=Fdosroot to (doshead+disc_size[side])-1 do //Now the rest of the disc
-    Result[(index-doshead)+diff]:=ReadByte(index);
+   //Copy the data across
+   UpdateProgress('Extracting Partition');
+   //Do we have a DOS header? If not, then make room for it
+   if doshead=dosmap then start:=$200 else start:=$0;
+   //Allocate some space
+   SetLength(Result,disc_size[1]+start);
+   //If no header, then install one
+   if doshead=dosmap then //Usually 640KB ADFS hybrid
+    WriteDOSHeader(0,disc_size[1]+start,diMaster512,False,Result);
+   //Write the DOS partition
+   for index:=0 to disc_size[1]-1 do Result[start+index]:=ReadByte(index+doshead);
   end;
  end;
 end;

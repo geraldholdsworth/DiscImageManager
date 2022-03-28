@@ -5,7 +5,6 @@ In no particular order
 Bugs
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
   + This appears to happen on Windows (and probably Linux), with single screen only (dual or more it does not do this), resolution of 1400 by anything (or more), and scaled to more than 100%. The icons in the Directory Listing grow as the mouse moves. - TO BE TESTED
-  + In addition, the tiling under the graphic for the filetype in the File Details, when it is not big enough, leaves a horrible black edge to the right and bottom. - TO BE TESTED
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
 * Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
 * Access violation has been reported when creating an ADFS HDD image (default options) on Windows. - UNABLE TO REPLICATE
@@ -20,18 +19,20 @@ General
 * Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
 * Cancel button for progress display?
 * Side pane (left hand side) to allow separate images to be opened (REF:3).
-* Use side pane for opening MMFS images and remove the code from TDiscImage (REF:3).
+* Use side panel for opening MMFS images and remove the code from TDiscImage (REF:3).
 * For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
+* Import an existing AFS or DOS image into ADFS as a new partition.
+
+DFS
 
 ADFS
 * Change the size of the ADFS partition or image.
-
-CFS (UEF)
-* Remember the last block read and compare with the next to get around some tape protection methods.
+* Change the interleave on extracted ADFS 640K images.
 
 AFS
-* AFS0 images do not get created correctly (in particular the free space allocation maps).
-* Add option to new Level 3 images for pre-1988 or post-1988 format.
+* AFS0 images do not get created correctly (in particular the free space allocation maps) - AWAITING MORE INFO ON AFS FORMATS.
+* Add option to new Level 3 images for pre-1988 or post-1988 format - AWAITING MORE INFO ON AFS FORMATS.
+* When extracting the AFS partition, remove the ADFS partition and re-address all the objects, instead of just blanking out the ADFS part - IN PROGRESS.
 
 Amiga
 * Write/Delete/Rename files/directories to Amiga images.
@@ -40,7 +41,7 @@ Amiga
 * Show file attributes in the File Details panel.
 
 Spectrum/Amstrad
-* Write entire module.
+* Write entire module - REQUIRE MORE INFO ON SPECTRUM FORMAT.
 
 MMFS
 * Remove from TDiscImage and incorporate into GUI (REF:3).
@@ -54,6 +55,6 @@ Spark
 * Move file.
 
 DOS Plus
-* Create new image
-* Add partition to an ADFS image.
-* Move file - this just changes a file/directory's parent.
+* There is a bug where if a filename begins with a '.' then this character does not get displayed.
+* On ADFS/DOS hybrids, the directory separator is a '.', not a '\'.
+* Support FAT32
