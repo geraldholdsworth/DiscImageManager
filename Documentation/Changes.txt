@@ -817,7 +817,6 @@ New or improved features
 * Added Long FileName support for DOS FAT12, FAT16 and FAT32 volumes, but not Master 512 DOS Plus.
 * Changed the method of downloading (extracting) files from an image in that it will now fail if the requested file takes the pointer beyond the end of the image file.
 * Changed the error reported on failure to download.
-* Added extra command line options for creating new images: DOSFAT12, DOSFAT16 and DOSFAT32.
 * Improved the detection of FAT12, FAT16 or FAT32, based on Microsoft spec.
 * Added new filetypes, and extra filters on the Open Image dialogue box, for FAT12, FAT16 and FAT32.
 
