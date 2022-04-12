@@ -5,7 +5,8 @@ Disc Image Manager is an application used to load a retro disc image, read the c
 • Acorn Cassette Filing System (CFS) - Read and Write<br>
 • !SparkFS and !PackDir - Read only<br>
 • Acorn File Server Level 2 and 3, including ADFS Hybrids - Read and Write<br>
-• DOS Plus, as used by BBC Master 512, and standard DOS - Read and Write, but no creation of blank images or partitions.<br>
+• DOS Plus (BBC Master 512) - Read and Write.<br>
+• MS-DOS FAT12, FAT16 and FAT32 - Read and Write, including Long FileName support<br>
 • Commodore 1541 (not 40 track) - Read and Write<br>
 • Commodore 1571 - Read and Write<br>
 • Commodore 1581 - Read and Write<br>
