@@ -1,13 +1,13 @@
 object AboutForm: TAboutForm
   Left = 433
-  Height = 306
+  Height = 294
   Top = 227
   Width = 520
   AutoSize = True
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About'
-  ClientHeight = 306
+  ClientHeight = 294
   ClientWidth = 520
   Color = 15527148
   Font.Color = clWindowText
@@ -16,18 +16,18 @@ object AboutForm: TAboutForm
   LCLVersion = '2.2.0.4'
   object CreditsPanel: TPanel
     Left = 0
-    Height = 306
+    Height = 294
     Top = 0
     Width = 520
     Align = alClient
     AutoSize = True
-    ClientHeight = 306
+    ClientHeight = 294
     ClientWidth = 520
     TabOrder = 0
     OnPaint = CreditsPanelPaint
     object lb_Title: TLabel
       Left = 1
-      Height = 38
+      Height = 39
       Top = 1
       Width = 518
       Align = alTop
@@ -42,7 +42,7 @@ object AboutForm: TAboutForm
     object WrittenByLabel: TLabel
       Left = 1
       Height = 13
-      Top = 39
+      Top = 40
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -57,7 +57,7 @@ object AboutForm: TAboutForm
     object lb_Version: TLabel
       Left = 1
       Height = 19
-      Top = 65
+      Top = 66
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -71,7 +71,7 @@ object AboutForm: TAboutForm
     object GHWebsiteLabel: TLabel
       Left = 1
       Height = 19
-      Top = 84
+      Top = 85
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -86,7 +86,7 @@ object AboutForm: TAboutForm
     object GitHubWebsiteLabel: TLabel
       Left = 1
       Height = 19
-      Top = 107
+      Top = 108
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -100,8 +100,8 @@ object AboutForm: TAboutForm
     end
     object LicenceLabel: TLabel
       Left = 1
-      Height = 14
-      Top = 130
+      Height = 13
+      Top = 131
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -114,12 +114,12 @@ object AboutForm: TAboutForm
     end
     object AckLabel: TLabel
       Left = 1
-      Height = 204
+      Height = 208
       Top = 144
       Width = 518
       Align = alTop
       Alignment = taCenter
-      Caption = 'Many thanks to the users and contributors of the Stardot forum whose feedback and advice has been greatly appreciated. Also a big thank you to Jasper Renow-Clark who helped me with the ADFS formats in the beginning, before this project started.'#10'This project was concieved as a module to the Repton Map Display application, with this application just being a demo (and for me to try the code out with). In December 2020, it became the Disc Image Manager.'#10'Additional thanks go to Robert Sprowson for his help with working out the parameters for ADFS Hard Drive images, and to David Pilling for his help with the Spark module.'#10'Suggestions, bug reports, or whatever please do not hesitate to email me on gerald@hollypops.co.uk, or contact via Stardot forum.'
+      Caption = 'Liability Disclaimer: While I, Gerald Holdsworth, make every effort to deliver high quality products, I do not guarantee that my software is free from defects. My software is provided "as is," and you use my software at your own risk.'#10#10'I make no warranties as to performance, merchantability, fitness for a particular purpose, or any other warranties whether expressed or implied.'#10#10'No oral or written communication from or information provided by myself, Gerald Holdsworth, shall create a warranty.'#10#10'Under no circumstances shall I, Gerald Holdsworth, be liable for direct, indirect, special, incidental, or consequential damages resulting from the use, misuse, or inability to use this software, even if I have been advised of the possibility of such damages.'
       Font.Color = clWindowText
       Font.Name = 'Tahoma'
       ParentFont = False
@@ -128,7 +128,7 @@ object AboutForm: TAboutForm
     object GraphicsLabel: TLabel
       Left = 1
       Height = 13
-      Top = 52
+      Top = 53
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -143,7 +143,7 @@ object AboutForm: TAboutForm
     object IconImage: TImage
       Left = 8
       Height = 32
-      Top = 8
+      Top = 7
       Width = 32
       Anchors = []
       Center = True

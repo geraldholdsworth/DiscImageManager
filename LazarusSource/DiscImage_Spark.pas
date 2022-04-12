@@ -49,6 +49,7 @@ begin
  SetLength(FDisc,1);
  ResetDir(FDisc[0]);
  FDisc[0].Directory:='$';
+ FDisc[0].BeenRead:=True;
  //Now go through all the entries i the spark and add them
  for index:=0 to Length(SparkFile.FileList)-1 do
  begin
@@ -75,11 +76,13 @@ begin
     begin
      FDisc[ref].Parent:=FDisc[d].Entries[e].DirRef;
      FDisc[ref].Sector:=FDisc[d].Entries[e].Sector;
+     FDisc[ref].BeenRead:=True;
     end
     else
     begin
      FDisc[ref].Parent:=0;
      FDisc[ref].Sector:=root;
+     FDisc[ref].BeenRead:=True;
     end;
    end;
    //FileExists returns pointers to what it found

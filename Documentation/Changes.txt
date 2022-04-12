@@ -803,6 +803,30 @@ Bug fixes
 * When saving an image, some filters where not added.
 * The DOS part of a 640KB ADFS/DOS partition was not getting read correctly.
 
+1.41 - 12th April 2022
+----------------------
+New or improved features
+* Can now read and write FAT32 images.
+* Changed the parameters put into the header for a 640KB DOS image extracted from a Master 512 hybrid image, and moved the image further along the image.
+* Can now create FAT32 images.
+* Improved the function to format DOS images to be closer to Microsoft's specification.
+* Changed the format number and text for plain DOS images.
+* Changed the logo appearing next to the DOS text in the status bar when plain DOS images are open.
+* Changed the logo in the Image Details dialogue for plain DOS image to the Microsoft logo.
+* Changed the DOS Filename validation to match the Microsoft specification of illegal characters.
+* Added Long FileName support for DOS FAT12, FAT16 and FAT32 volumes, but not Master 512 DOS Plus.
+* Changed the method of downloading (extracting) files from an image in that it will now fail if the requested file takes the pointer beyond the end of the image file.
+* Changed the error reported on failure to download.
+* Added extra command line options for creating new images: DOSFAT12, DOSFAT16 and DOSFAT32.
+* Improved the detection of FAT12, FAT16 or FAT32, based on Microsoft spec.
+* Added new filetypes, and extra filters on the Open Image dialogue box, for FAT12, FAT16 and FAT32.
+
+Bug fixes
+* The Hard Drive image creator dialogue box would not always produce an exact sized image. E.g., a 64MB image would not always be exactly 64MB in size.
+* The correct directory separator is now used with ADFS/DOS hybrid images.
+* Acorn/Watford DFS, Commodore 64, Acorn CFS and Spark images were being opened with the 'directory been read' flag not set, so appeared as if the directories were unread.
+* DFS images were still not correctly being IDed.
+
 Platform History
 ----------------
 

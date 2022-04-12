@@ -12,6 +12,7 @@ begin
  FBootBlock    :=True;
  FAFSPresent   :=False;
  FDOSPresent   :=False;
+ FDOSVolInRoot :=False;
  secsize       :=$0100;
  bpmb          :=$0000;
  nzones        :=$0000;
@@ -47,6 +48,17 @@ begin
  dir_sep       :='.';
  root_name     :='$';
  imagefilename :='';
+ doshead       :=0;
+ doshead2      :=0;
+ dosmap        :=0;
+ dosmap2       :=0;
+ FATType       :=0;
+ DOSVersion    :=0;
+ NumFATs       :=0;
+ DOSFATSize    :=0;
+ DOSResSecs    :=0;
+ cluster_size  :=0;
+ DOSBlocks     :=0;
  SetLength(free_space_map,0);
  Fupdating     :=False;
 end;
@@ -135,7 +147,7 @@ const
                                 'Acorn FS',
                                 'Spark Archive',
                                 'SJ Research MDFS',
-                                'DOS Plus');
+                                'DOS');
  SUB : array[0..$A] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','Acorn/Watford DSD','','Watford/Acorn DSD','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','Hybrid','Hard Disc'),
@@ -147,7 +159,7 @@ const
   ('Level 1','Level 2','Level 3','Level 4','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''),
-  ('','','','','','','','','','','','','','','',''));
+  ('Plus','FAT12','FAT16','FAT32','','','','','','','','','','','',''));
 begin
  Result:='';
  if FFormat>>4<=High(FS) then
@@ -182,7 +194,7 @@ const
   ('afs','afs','afs','afs','','','','','','','','','','','','afs'),//Acorn File Server
   ('zip','','','','','','','','','','','','','','',''),//!Spark
   ('dat','','','','','','','','','','','','','','',''),//SJ MDFS
-  ('img','','','','','','','','','','','','','','',''));//DOS and DOS Plus
+  ('img','fat12','fat16','fat32','','','','','','','','','','','',''));//DOS and DOS Plus
 begin
  Result:='img';
  if FFormat>>4<=High(EXT) then
@@ -656,6 +668,8 @@ begin
   Result:=diAmigaOFS;                // AmigaDOS OFS
   if FMap then Result:=diAmigaFFS;   // AmigaDOS FFS
  end;
+ if FFormat>>4=diDOSPlus then   //Is it DOS
+  Result:=FATType;
 end;
 
 {-------------------------------------------------------------------------------
@@ -930,4 +944,23 @@ begin
  if(FFormat>>4=diAcornADFS)
  or(FFormat>>4=diAcornFS)then
   if FInterleave-1<=High(ints) then Result:=ints[FInterleave-1];
+end;
+
+{-------------------------------------------------------------------------------
+Volume Serial Number Calculation
+-------------------------------------------------------------------------------}
+function TDiscImage.VolumeSerialNumber: Cardinal;
+var
+ year,
+ month,
+ day,
+ hour,
+ minute,
+ second,
+ ms     : Word;
+ time   : TDateTime;
+begin
+ time:=Now; //Based on the current time
+ DecodeDateTime(time,year,month,day,hour,minute,second,ms);
+ Result:=(month+second)<<24+(day+ms)<<16+hour<<8+minute+year;
 end;

@@ -1,7 +1,7 @@
 unit DiscImageUtils;
 
 {
-DiscImageUtils V1.40 - part of TDiscImage class
+DiscImageUtils V1.41 - part of TDiscImage class
 
 Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
@@ -35,6 +35,7 @@ type
  TDirEntry     = record     //Not all fields are used on all formats
   Parent,                   //Complete path for parent directory (ALL)
   Filename,                 //Filename (ALL)
+  ShortFilename,            //Long Filename (DOS)
   Attributes,               //File attributes (ADFS/DFS/D64/D71/D81/AmigaDOS)
   Filetype,                 //Full name filetype (ADFS/D64/D71/D81)
   ShortFileType: String;    //Filetype shortname (ADFS/D64/D71/D81)
@@ -118,6 +119,7 @@ begin
  begin
   Parent       :='';
   Filename     :='';
+  ShortFilename:='';
   Attributes   :='';
   Filetype     :='';
   ShortFiletype:='';

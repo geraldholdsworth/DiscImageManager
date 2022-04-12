@@ -32,6 +32,7 @@ type
  { TImageDetailForm }
 
  TImageDetailForm = class(TForm)
+  MicrosoftLogo: TImage;
   btn_Cancel: TBitBtn;
   btn_OK: TBitBtn;
   cbBootOption0: TComboBox;

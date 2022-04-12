@@ -1,11 +1,12 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.40
+TDiscImage class V1.41
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
-1541, Commodore 1571, Commodore 1581, and Commodore AmigaDOS.
+1541, Commodore 1571, Commodore 1581, Commodore AmigaDOS, Acorn File Server,
+SparkFS, PackDir, MS-DOS, and Acorn DOS Plus.
 
 Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
 
@@ -81,7 +82,9 @@ type
   FDFSzerosecs,                 //Allow zero length disc images for DFS?
   FDFSAllowBlank,               //Allow blank filenames
   FDFSBeyondEdge,               //Check for files going beyond the DFS disc edge
-  FScanSubDirs  : Boolean;      //Scan sub directories on opening (ADFS/Amiga/DOS/Spark)
+  FDOSVolInRoot,                //Volume name is stored in the root (DOS)
+  FScanSubDirs,                 //Scan sub directories on opening (ADFS/Amiga/DOS/Spark)
+  FDOSUseSFN    : Boolean;      //Use short filenames, even if there are long filenames (DOS)
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   dosalloc,                     //Allocation Unit (DOS Plus)
@@ -93,6 +96,7 @@ type
   afshead,                      //Address of the AFS header             
   afshead2,                     //Address of the AFS header copy
   doshead,                      //Address of the DOS Plus header, if exists
+  doshead2,                     //Address of the backup DOS header, if exists (FAT32)
   dosmap,                       //Address of the DOS Plus FAT
   dosmap2,                      //Address of the second DOS Plus FAT (if applicable)
   bootmap,                      //Offset of the map (Acorn ADFS)
@@ -109,6 +113,7 @@ type
   brokendircount,               //Number of broken directories (ADFS)
   FMaxDirEnt    : Cardinal;     //Maximum number of directory entries in image
   DOSFATSize,                   //Size of DOS Plus FAT in blocks
+  DOSResSecs,                   //Number of reserved blocks
   FFormat       : Word;         //Format of the image
   FForceInter,                  //What to do about ADFS L/AFS Interleaving
   Finterleave,                  //Interleave method (1=seq,2=int,3=mux)
@@ -123,6 +128,7 @@ type
   share_size,                   //Share size (Acorn ADFS New)
   big_flag,                     //Big flag (Acorn ADFS New)
   FATType,                      //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
+  DOSVersion,                   //Version of DOS being used (0, $28 or $29)
   NumFATs       : Byte;         //Number of FATs in a DOS Plus image
   root_name,                    //Root title
   dosrootname,                  //DOS Plus root name
@@ -131,7 +137,7 @@ type
   dir_sep       : Char;         //Directory Separator
   free_space_map: TSide;        //Free Space Map
   disc_size,                    //Disc size per partition
-  free_space    : array of Int64;//Free space per partition
+  free_space    : array of QWord;//Free space per partition
   disc_name     : array of String;//Disc title(s)
   bootoption    : TDIByteArray; //Boot Option(s)
   CFSFiles      : array of TDIByteArray;//All the data for the CFS files
@@ -190,6 +196,7 @@ type
   function GetRootAddress: Cardinal;
   function Inflate(filename: String): TDIByteArray;
   function InterleaveString: String;
+  function VolumeSerialNumber: Cardinal;
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
@@ -393,7 +400,7 @@ type
   procedure ReadDOSFSM;
   function DOSGetFreeSectors(used: Boolean=False): TFragmentArray;
   function RenameDOSFile(oldname:String;var newname: String): Integer;
-  function ValidateDOSFilename(filename: String): String;
+  function ValidateDOSFilename(filename: String;long: Boolean=False): String;
   procedure UpdateDOSDirectory(dirname: String);
   procedure AllocateDOSClusters(len:Cardinal;var fragments:TFragmentArray);
   procedure DeAllocateDOSClusters(len:Cardinal;var fragments:TFragmentArray);
@@ -408,11 +415,13 @@ type
   function UpdateDOSDiscTitle(title: String): Boolean;
   function UpdateDOSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
   function AddDOSPartition(size: Cardinal): Boolean;
-  function FormatDOS(size: Cardinal;fat: Byte): TDisc;
-  procedure WriteDOSHeader(offset, size: Cardinal;fat: Byte;bootable: Boolean);
-  procedure WriteDOSHeader(offset, size: Cardinal;fat: Byte;bootable: Boolean;
-                                              buffer:TDIByteArray);overload;
+  function FormatDOS(size: QWord;fat: Byte): TDisc;
+  procedure WriteDOSHeader(offset, size: QWord;fat: Byte;bootable: Boolean);
+  procedure WriteDOSHeader(offset, size: QWord;fat: Byte;bootable: Boolean;
+                                              var buffer:TDIByteArray);overload;
   function MoveDOSFile(filename,directory: String): Integer;
+  function DOSShortFilename(path,LFN: String;SFN :String=''): String;
+  function BuildDOSFilename(f,e: String): String;
   //Private constants
   const
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
@@ -443,8 +452,8 @@ type
   function FormatHDD(major:Word;harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):Boolean;
   function ExtractFile(filename:String;var buffer:TDIByteArray;entry:Cardinal=0): Boolean;
   function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
-  function FileExists(filename: String;var Ref: Cardinal): Boolean;
-  function FileExists(filename: String;var dir,entry: Cardinal): Boolean; overload;
+  function FileExists(filename: String;var Ref: Cardinal;sfn: Boolean=False): Boolean;
+  function FileExists(filename: String;var dir,entry: Cardinal;sfn: Boolean=False): Boolean; overload;
   function ReadDiscData(addr,count,side,offset: Cardinal;
                                              var buffer: TDIByteArray): Boolean;
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
@@ -474,8 +483,8 @@ type
   procedure BeginUpdate;
   procedure EndUpdate;
   function ValidateFilename(parent:String;var filename:String): Boolean;
-  function DiscSize(partition: Cardinal):Int64;
-  function FreeSpace(partition: Cardinal):Int64;
+  function DiscSize(partition: QWord):QWord;
+  function FreeSpace(partition: QWord):QWord;
   function Title(partition: Cardinal):String;
   function CreatePasswordFile(Accounts: TUserAccounts): Integer;
   function ReadPasswordFile: TUserAccounts;

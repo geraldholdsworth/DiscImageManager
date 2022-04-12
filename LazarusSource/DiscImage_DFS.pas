@@ -180,9 +180,25 @@ begin
       if FFormat>>4=diAcornDFS then
        t1:=1;//Set side 1 to Watford
     end;
-    if(t0=1)and(t1=1)then inc(FFormat,2);
-    if(t0=0)and(t1=1)then inc(FFormat,4);
-    if(t0=1)and(t1=0)then inc(FFormat,6);
+    //Determine the format
+    if not dbl then //Single sided
+    begin
+     if t0=0 then FFormat:=diAcornDFS<<4+0; //Acorn SSD
+     if t0=1 then FFormat:=diAcornDFS<<4+2; //Watford SSD
+    end
+    else            //Double sided
+    begin
+     if t0=0 then
+     begin
+      if t1=0 then FFormat:=diAcornDFS<<4+1; //Acorn DSD
+      if t1=1 then FFormat:=diAcornDFS<<4+5; //Acorn/Watford DSD
+     end;
+     if t0=1 then
+     begin
+      if t1=0 then FFormat:=diAcornDFS<<4+7; //Watford/Acorn DSD
+      if t1=1 then FFormat:=diAcornDFS<<4+3; //Watford DSD
+     end;
+    end;
    end;
   end;
  end;
@@ -257,6 +273,7 @@ begin
   //Directory name - as DFS only has $, this will be the drive number + '$'
   Result[s-mmbdisc].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
   Result[s-mmbdisc].Partition:=s;
+  Result[s-mmbdisc].BeenRead :=True;
   //Get the disc title(s)
   Result[s-mmbdisc].Title:=ReadString(ConvertDFSSector($000,s),-8)
                           +ReadString(ConvertDFSSector($100,s),-4);
@@ -821,17 +838,13 @@ function TDiscImage.ExtractDFSFile(filename: String;
 var
  source,side   : Integer;
  entry,dir,
- fragptr,
  filelen       : Cardinal;
 begin
  Result:=False;
- if FileExists(filename,fragptr) then //Does the file actually exist? 
+ if FileExists(filename,dir,entry) then //Does the file actually exist?
  //Yes, so load it - there is nothing to stop a directory header being extracted
  //if passed in the filename parameter.
  begin
-  //FileExists returns a pointer to the file
-  entry:=fragptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=fragptr div $10000;  //Top 16 bits - directory reference
   //Make space to receive the file
   filelen:=FDisc[dir].Entries[entry].Length;
   SetLength(buffer,filelen);
@@ -839,10 +852,7 @@ begin
   source:=FDisc[dir].Entries[entry].Sector*$100;
   side:=FDisc[dir].Entries[entry].Side;
   //Read the data into the buffer
-  if filelen>0 then
-   ReadDiscData(source,filelen,side,0,buffer);
-  //Return positive
-  Result:=True;
+  if filelen>0 then Result:=ReadDiscData(source,filelen,side,0,buffer);
  end;
 end;
 

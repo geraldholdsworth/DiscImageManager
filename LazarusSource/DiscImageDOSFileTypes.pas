@@ -22,3 +22,8 @@ DOSFileTypes: array[1..23] of String = (
 'iniWindows Initialisation',
 'binBinary',
 'cfgConfiguration');
+DOSSFNtoLFN: array[1..3] of string = (
+'jpgjpeg',
+'docdocx',
+'icnicon'
+);

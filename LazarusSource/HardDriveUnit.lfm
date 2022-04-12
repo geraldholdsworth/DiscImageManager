@@ -160,7 +160,7 @@ object HardDriveForm: THardDriveForm
       Left = 16
       Height = 18
       Top = 0
-      Width = 79
+      Width = 75
       Caption = 'New Map'
       OnChange = cb_NewMapChange
       TabOrder = 0
@@ -176,7 +176,7 @@ object HardDriveForm: THardDriveForm
       Left = 224
       Height = 18
       Top = 0
-      Width = 44
+      Width = 42
       Caption = 'Old'
       Checked = True
       TabOrder = 1
@@ -186,7 +186,7 @@ object HardDriveForm: THardDriveForm
       Left = 277
       Height = 18
       Top = 0
-      Width = 49
+      Width = 48
       Caption = 'New'
       TabOrder = 2
     end
@@ -194,7 +194,7 @@ object HardDriveForm: THardDriveForm
       Left = 333
       Height = 18
       Top = 0
-      Width = 42
+      Width = 41
       Caption = 'Big'
       TabOrder = 3
     end

@@ -24,8 +24,8 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Buttons,ExtCtrls,Math,
- ComCtrls, StdCtrls;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Buttons,ExtCtrls,ComCtrls,
+ StdCtrls;
 
 type
 
@@ -59,7 +59,6 @@ type
  private
   const
    OldMapLimit=512*1024*1024; //Old map drive limit = 512MB
-   Multiplier =63*16*512;     //Capacity multiplier = sectors*heads*secsize
    MB         =1024*1024;     //MegaByte
  public
   ADFSHDD: Boolean;
@@ -96,8 +95,8 @@ begin
  if not cb_NewMap.Checked then
  begin
   //Ensure the hard drive capactiy is <512MB
-  if CapacitySlider.Position*10*Multiplier>OldMapLimit then
-   CapacitySlider.Position:=OldMapLimit div(Multiplier*10);
+  if CapacitySlider.Position*MB>OldMapLimit then
+   CapacitySlider.Position:=OldMapLimit div MB;
   //And Big Dir is not selected
   if rb_BigDir.Checked then rb_NewDir.Checked:=True;
  end;
@@ -110,21 +109,11 @@ Hard drive capacity is changing
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.CapacitySliderChange(Sender: TObject);
 begin
+ //Update the label
+ CapacityLabel.Caption:=IntToStr(CapacitySlider.Position)+'MB';
  if ADFSHDD then
- begin
-  //Update the label
-  CapacityLabel.Caption:=
-        IntToStr(Ceil((CapacitySlider.Position*10*Multiplier)/MB))+'MB';
-  //If it goes over 512MB, ensure it is a New map
-  if CapacitySlider.Position*10*Multiplier>OldMapLimit then
+  if CapacitySlider.Position*MB>OldMapLimit then
    cb_NewMap.Checked:=True;
- end
- else
- begin
-  //Update the label
-  CapacityLabel.Caption:=
-        IntToStr(Ceil((CapacitySlider.Position*10)/MB))+'MB';
- end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -135,8 +124,9 @@ begin
  if ADFSHDD then
  begin
   //Set capacity to 40MB
-  CapacitySlider.Position:=8;
-  CapacitySlider.Min:=4;
+  CapacitySlider.Position:=40;
+  CapacitySlider.Min:=20;  //Minimum 20MB
+  CapacitySlider.Max:=1024;//Maximum 1GB
   CapacitySliderChange(Sender);
   ADFSControls.Visible:=True;
   DOSControls.Visible:=False;
@@ -153,10 +143,10 @@ begin
  else
  begin
   //Set capacity to 40MB
-  CapacitySlider.Position:=(40*1024*1024)div 10;
+  CapacitySlider.Position:=40;
   //Set max to 500MB for FAT12
-  CapacitySlider.Max:=(500*1024*1024)div 10;
-  CapacitySlider.Min:=(20*1024*1024)div 10;
+  CapacitySlider.Max:=500;//Maximum 500MB
+  CapacitySlider.Min:=20; //Minimum 20MB
   CapacitySliderChange(Sender);
   ADFSControls.Visible:=False;
   DOSControls.Visible:=True;
@@ -164,7 +154,6 @@ begin
   rb_FAT12.Checked:=True;
   rb_FAT16.Checked:=False;
   rb_FAT32.Checked:=False;
-
  end;
 end;
 
@@ -174,8 +163,8 @@ FAT12 has been selected
 procedure THardDriveForm.rb_FAT12Change(Sender: TObject);
 begin
  //Set max to 500MB for FAT12
- CapacitySlider.Max:=(500*1024*1024)div 10;
- CapacitySlider.Min:=(20*1024*1024)div 10;
+ CapacitySlider.Max:=500;//Max 500MB
+ CapacitySlider.Min:=20; //Min 20MB
  CapacitySliderChange(Sender);
 end;
 
@@ -185,8 +174,8 @@ FAT16 has been selected
 procedure THardDriveForm.rb_FAT16Change(Sender: TObject);
 begin
  //Set max to 1000MB for FAT16
- CapacitySlider.Max:=(1000*1024*1024)div 10;
- CapacitySlider.Min:=(20*1024*1024)div 10;
+ CapacitySlider.Max:=1000;//Max 1000MB
+ CapacitySlider.Min:=20;  //Min 20MB
  CapacitySliderChange(Sender);
 end;
 
@@ -196,8 +185,8 @@ FAT32 has been selected
 procedure THardDriveForm.rb_FAT32Change(Sender: TObject);
 begin
  //Set max to 1024MB for FAT32
- CapacitySlider.Max:=(1024*1024*1024)div 10;
- CapacitySlider.Min:=(20*1024*1024)div 10;
+ CapacitySlider.Max:=1024;//Max 1GB
+ CapacitySlider.Min:=33;  //Min 33MB
  CapacitySliderChange(Sender);
 end;
 

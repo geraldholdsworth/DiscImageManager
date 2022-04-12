@@ -181,6 +181,7 @@ begin
  //Set the root directory name
  Result[0].Directory:=root_name;
  Result[0].Sector:=root;
+ Result[0].BeenRead:=True;
  repeat
   //Track/Sector for next link or 00/FF for end
   t:=ReadByte(ptr);

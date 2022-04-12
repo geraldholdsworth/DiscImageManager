@@ -11,17 +11,19 @@ begin
  SetDataLength(0);
 // SetLength(Fpartitions,0);
  //ADFS Interleaving option
- FForceInter:=0;
+ FForceInter   :=0;
  //Deal with Spark archives as a filing system (i.e. in this class)
- FSparkAsFS:=True;
+ FSparkAsFS    :=True;
  //Allow DFS images which report number of sectors as zero
- FDFSzerosecs:=False;
+ FDFSzerosecs  :=False;
  //Allow files to go beyond the edge of the disc
  FDFSBeyondEdge:=False;
  //Allow blank filenames in DFS
  FDFSAllowBlank:=False;
  //Scan sub directories in ADFS, Amiga, DOS, Spark
- FScanSubDirs:=True;
+ FScanSubDirs  :=True;
+ //Use short filenames in DOS even if long filenames exist
+ FDOSUseSFN    :=False;
 end;
 constructor TDiscImage.Create(Clone: TDiscImage);
 var
@@ -438,7 +440,7 @@ end;
 {-------------------------------------------------------------------------------
 Does a file exist?
 -------------------------------------------------------------------------------}
-function TDiscImage.FileExists(filename: String;var Ref: Cardinal): Boolean;
+function TDiscImage.FileExists(filename: String;var Ref: Cardinal;sfn: Boolean=False): Boolean;
 var
  dir,entry: Cardinal;
 begin
@@ -447,7 +449,7 @@ begin
  Result:=FileExists(filename,dir,entry);
  Ref:=dir*$10000+entry;
 end;
-function TDiscImage.FileExists(filename: String;var dir,entry: Cardinal): Boolean;
+function TDiscImage.FileExists(filename: String;var dir,entry: Cardinal;sfn: Boolean=False): Boolean;
 var
  Path   : array of String;
  i,j,l,
@@ -470,18 +472,25 @@ begin
  //AFS or DOS Root
  if(filename=afsrootname)or(filename=dosrootname)then
   if Length(FDisc)>0 then
-  begin
-   i:=0;
-   //Just look for the root
-   while(i<Length(FDisc))and(FDisc[i].Directory<>filename)do inc(i);
-   if FDisc[i].Directory=filename then
+   if Length(FDisc)>1 then
    begin
-    dir:=i;
+    i:=0;
+    //Just look for the root
+    while(i<Length(FDisc))and(FDisc[i].Directory<>filename)do inc(i);
+    if FDisc[i].Directory=filename then
+    begin
+     dir:=i;
+     entry:=$FFFF;
+     Result:=True;
+     exit;
+    end;
+   end else
+   begin
+    dir:=0;
     entry:=$FFFF;
     Result:=True;
     exit;
    end;
-  end;
  //Not going to search if there is no tree to search in
  if(Length(FDisc)>0)and(filename<>'')then//or if there is nothing being searched for
  begin
@@ -489,15 +498,10 @@ begin
   //Explode the pathname into an array, without the '.'
   if(FFormat>>4<>diAcornDFS)and(FFormat>>4<>diCommodore)then //Not DFS or Commodore
   begin
-   Path:=filename.Split(dir_sep);
-   //Is this on a DOS Partition of an ADFS?
-   if(FFormat>>4=diAcornADFS)and(FDOSPresent)
-   and(LeftStr(filename,Length(dosrootname))=dosrootname)then
-   begin
-    //Then we'll need to combine the filename and extension
-    Path[Length(Path)-2]:=Path[Length(Path)-2]+'.'+Path[Length(Path)-1];
-    SetLength(Path,Length(Path)-1);
-   end;
+   if(FFormat>>4=diAcornADFS)and(FDOSPresent)then//Is this on a DOS Partition of an ADFS?
+    Path:=filename.Split('\')
+   else
+    Path:=filename.Split(dir_sep);
   end;
   if FFormat>>4=diAcornDFS then //With DFS, we need the initial root name, including the '.'
   begin
@@ -581,7 +585,8 @@ begin
       if (i>=0) and (i<Length(FDisc)) then
       begin
        if j<Length(FDisc[i].Entries) then
-        test:=UpperCase(AddTopBit(FDisc[i].Entries[j].Filename));
+        if sfn then test:=UpperCase(AddTopBit(FDisc[i].Entries[j].ShortFilename))
+        else test:=UpperCase(AddTopBit(FDisc[i].Entries[j].Filename));
        l:=Length(FDisc[i].Entries)-1;
       end;
      until (test2=test) or (j>=l);
@@ -594,7 +599,8 @@ begin
       if (i>=0) and (i<Length(FDisc)) then
        if j<Length(FDisc[i].Entries) then
        begin
-        test2:=UpperCase(AddTopBit(FDisc[i].Entries[j].Filename));
+        if sfn then test2:=UpperCase(AddTopBit(FDisc[i].Entries[j].ShortFilename))
+        else test2:=UpperCase(AddTopBit(FDisc[i].Entries[j].Filename));
         i:=FDisc[i].Entries[j].DirRef;
         //Unless we are looking for a directory
         if level=Length(Path)-1 then
@@ -621,24 +627,28 @@ Direct access to disc data
 function TDiscImage.ReadDiscData(addr,count,side,offset: Cardinal;
                                              var buffer: TDIByteArray): Boolean;
 var
- i   : Cardinal;
+ i      : Cardinal;
 begin
  Result:=False;
  if count>0 then //Make sure there is something to read
  begin
+  //Return a success if we didn't go out of range
+  Result:=offset+count<=Length(buffer);
   //Simply copy from source to destination
   for i:=0 to count-1 do
   begin
    if offset+i<Length(buffer) then //Bit of range checking
    begin
     if FFormat>>4<>diAcornDFS then //All but DFS
-     buffer[offset+i]:=ReadByte(addr+i);
+     if addr+i<GetDataLength then        //If the data is within bounds
+      buffer[offset+i]:=ReadByte(addr+i) //Read it
+     else Result:=False;                 //Otherwise return a fail
     if FFormat>>4=diAcornDFS then  //DFS only
-     buffer[offset+i]:=ReadByte(ConvertDFSSector(addr+i,side));
+     if ConvertDFSSector(addr+i,side)<GetDataLength then
+      buffer[offset+i]:=ReadByte(ConvertDFSSector(addr+i,side))
+     else Result:=False;                 //Fail if outside the image
    end;
   end;
-  //Return a success if we didn't go out of range
-  Result:=offset+count<=Length(buffer);
  end;
 end;
 
@@ -1148,11 +1158,18 @@ Makes sure that a copied/moved filename does not clash with one already there
 -------------------------------------------------------------------------------}
 function TDiscImage.ValidateFilename(parent:String;var filename:String): Boolean;
 var
- ptr  : Cardinal;
+ ptr,
+ part : Cardinal;
  len,
  ctr  : Byte;
  newfn: String;
 begin
+ //Which partition, and hence, which file system?
+ if(FFormat=diAcornADFS)and((AFSPresent)or(DOSPresent))then
+ begin
+  if(AFSPresent)and(Copy(parent,1,Length(afsrootname))=afsrootname)then part:=1;
+  if(DOSPresent)and(Copy(parent,1,Length(dosrootname))=dosrootname)then part:=1;
+ end;
  //Default return result
  Result:=False;
  len:=0; //Maximum file length
@@ -1160,22 +1177,32 @@ begin
  case FFormat>>4 of
   diAcornDFS : len:=7;
   diAcornADFS:
+  begin
    case FDirType of
-    0,1: len:=10;
-    2  : len:=255;
+    diADFSOldDir,
+    diADFSNewDir : len:=10;
+    diADFSBigDir : len:=255;
    end;
+   //Is it on the second partition?
+   if(AFSPresent)and(Copy(parent,1,Length(afsrootname))=afsrootname)then len:=10;
+   if(DOSPresent)and(Copy(parent,1,Length(dosrootname))=dosrootname)then len:=12;
+  end;
   diCommodore: len:=16;
   diSinclair : exit;
   diAmiga    : len:=30;
   diAcornUEF : len:=10;
   diMMFS     : len:=7;
   diAcornFS  : len:=10;
-  diDOSPlus  : len:=12; //Filename+'.'+extension
+  diDOSPlus  :
+  begin
+   if FFormat mod$10=0 then len:=12 //Filename+'.'+extension - Master 512 DOS Plus
+   else len:=255; //FAT12, 16, and 32
+  end;
  end;
  if len=0 then exit; //Unsupported
  //Extract the filename
- while Pos(dir_sep,filename)>0 do
-  filename:=Copy(filename,Pos(dir_sep,filename)+1);
+ while Pos(GetDirSep(part),filename)>0 do
+  filename:=Copy(filename,Pos(GetDirSep(part),filename)+1);
  //CFS files can have multiple files with the same name
  if FFormat>>4=diAcornUEF then
  begin
@@ -1183,7 +1210,7 @@ begin
   exit;
  end;
  //Validate it
- if FileExists(parent+dir_sep+filename,ptr) then
+ if FileExists(parent+GetDirSep(part)+filename,ptr) then
  begin
   newfn:=filename;
   ctr:=0;
@@ -1191,7 +1218,7 @@ begin
    inc(ctr);
    while Length(newfn+IntToStr(ctr))>len do
     newfn:=LeftStr(newfn,Length(newfn)-1);
-  until(not FileExists(parent+dir_sep+newfn+IntToStr(ctr),ptr))or(ctr=0);
+  until(not FileExists(parent+GetDirSep(part)+newfn+IntToStr(ctr),ptr))or(ctr=0);
   if ctr>0 then
   begin
    filename:=newfn+IntToStr(ctr);
@@ -1203,7 +1230,7 @@ end;
 {-------------------------------------------------------------------------------
 Returns the disc size for a partition
 -------------------------------------------------------------------------------}
-function TDiscImage.DiscSize(partition: Cardinal):Int64;
+function TDiscImage.DiscSize(partition: QWord):QWord;
 begin
  Result:=0;
  if partition<Length(disc_size) then Result:=disc_size[partition];
@@ -1212,7 +1239,7 @@ end;
 {-------------------------------------------------------------------------------
 Returns the free space for a partition
 -------------------------------------------------------------------------------}
-function TDiscImage.FreeSpace(partition: Cardinal):Int64;
+function TDiscImage.FreeSpace(partition: QWord):QWord;
 begin
  Result:=0;
  if partition<Length(free_space) then Result:=free_space[partition];

@@ -148,39 +148,33 @@ var
  ok: Boolean;
 begin
  ok:=True;
- //Are we creating an ADFS hard drive?
- if(MainFormat.ItemIndex=1)AND(ADFS.ItemIndex=8)then
+ //Are we creating a hard drive?
+ if((MainFormat.ItemIndex=1)AND(ADFS.ItemIndex=8))    //ADFS
+ or((MainFormat.ItemIndex=8)AND(DOS.ItemIndex=6))then //DOS
  begin
   //Then we need to open the additional dialogue to configure this
-  HardDriveForm.ADFSHDD:=True;
+  HardDriveForm.ADFSHDD:=MainFormat.ItemIndex=1; //Set to ADFS or DOS
   HardDriveForm.ShowModal;
   ok:=HardDriveForm.ModalResult=mrOK;
   if ok then
   begin
    //Selected hard drive size in MB
-   harddrivesize:=HardDriveForm.CapacitySlider.Position*10*63*16*512;
-   //New or old map
-   newmap:=HardDriveForm.cb_NewMap.Checked;
-   //Directory type
-   dirtype:=diADFSOldDir;
-   if HardDriveForm.rb_NewDir.Checked then dirtype:=diADFSNewDir;
-   if HardDriveForm.rb_BigDir.Checked then dirtype:=diADFSBigDir;
-  end;
- end;
- //Are we creating a DOS hard drive?
- if(MainFormat.ItemIndex=8)AND(DOS.ItemIndex=6)then
- begin
-  //Then we need to open the additional dialogue to configure this
-  HardDriveForm.ADFSHDD:=False;
-  HardDriveForm.ShowModal;
-  ok:=HardDriveForm.ModalResult=mrOK;
-  if ok then
-  begin
-   //Selected hard drive size in MB
-   harddrivesize:=HardDriveForm.CapacitySlider.Position*10;
-   if HardDriveForm.rb_FAT12.Checked then fat:=diFAT12;
-   if HardDriveForm.rb_FAT16.Checked then fat:=diFAT16;
-   if HardDriveForm.rb_FAT32.Checked then fat:=diFAT32;
+   harddrivesize:=HardDriveForm.CapacitySlider.Position*1024*1024;
+   if MainFormat.ItemIndex=1 then //ADFS Specific
+   begin
+    //New or old map
+    newmap:=HardDriveForm.cb_NewMap.Checked;
+    //Directory type
+    dirtype:=diADFSOldDir;
+    if HardDriveForm.rb_NewDir.Checked then dirtype:=diADFSNewDir;
+    if HardDriveForm.rb_BigDir.Checked then dirtype:=diADFSBigDir;
+   end
+   else                           //DOS Specific
+   begin
+    fat:=diFAT12;
+    if HardDriveForm.rb_FAT16.Checked then fat:=diFAT16;
+    if HardDriveForm.rb_FAT32.Checked then fat:=diFAT32;
+   end;
   end;
  end;
  //Return to the calling form
@@ -209,12 +203,12 @@ procedure TNewImageForm.AFSClick(Sender: TObject);
 begin
  if AFS.ItemIndex=0 then
  begin
-  AFSImageSize.Min:=40; //Level 2 minimum size 400K
+  AFSImageSize.Min:=40;  //Level 2 minimum size 400K
   AFSImageSize.Max:=102; //Level 2 maximum size is 1023K (1MB)
  end;
  if(AFS.ItemIndex=1)or(AFS.ItemIndex=2)then
  begin
-  AFSImageSize.Min:=64; //Level 3 minimum size 640K
+  AFSImageSize.Min:=64;    //Level 3 minimum size 640K
   AFSImageSize.Max:=13107; //Level 3 temporary max is ~128MB
   //AFSImageSize.Max:=52428; //Level 3 maximum size is 524280K (~512MB)
  end;

@@ -514,6 +514,7 @@ type
     sinclairlogo  = 6;
     sparklogo     = 7;
     bbcmasterlogo = 8;
+    msdoslogo     = 9;
     //Time and Date format
     TimeDateFormat = 'hh:nn:ss dd mmm yyyy';
   public
@@ -526,7 +527,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.40';
+    ApplicationVersion = '1.41';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -859,10 +860,7 @@ function TMainForm.AddFileToImage(filename: String):Integer;
 var
  filedetails: TDirEntry;
 begin
- filedetails.Attributes:='';
- filedetails.LoadAddr:=0;
- filedetails.ExecAddr:=0;
- filedetails.Filename:='';
+ ResetDirEntry(filedetails);
  Result:=AddFileToImage(filename,filedetails);
 end;
 function TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry;
@@ -1326,7 +1324,7 @@ begin
   if(Length(Image.Disc[dir].Entries)=0)or(entry=-1)then
    Result:=Image.Disc[dir].Directory
   else
-   Result:=Image.GetParent(dir)+Image.DirSep
+   Result:=Image.GetParent(dir)+Image.GetDirSep(Image.Disc[dir].Partition)
           +Image.Disc[dir].Entries[entry].Filename;
 end;
 
@@ -1398,7 +1396,7 @@ begin
    end;
   end
   //Happens if the file could not be located
-  else ReportError('Could not locate file "'+imagefilename+'"');
+  else ReportError('Could not download file "'+imagefilename+'"');
  end
  else DownLoadDirectory(dir,entry,path+windowsfilename);
 end;
@@ -1453,7 +1451,8 @@ begin
       if Pos(adfsattr[t+1],Image.Disc[dir].Entries[entry].Attributes)>0 then
        inc(attributes,1<<t);
     inffile:=inffile+' '+IntToHex(attributes,2)
-            +' CRC32='+Image.GetFileCRC(Image.GetParent(dir)+Image.DirSep+
+            +' CRC32='+Image.GetFileCRC(Image.GetParent(dir)+
+                                        Image.GetDirSep(Image.Disc[dir].Partition)+
                                         Image.Disc[dir].Entries[entry].Filename,
                                         entry);
     //Create the inf file
@@ -2151,7 +2150,9 @@ begin
    if rt>=0 then
    begin
     //Does the password file exist on the root?
-    if Image.FileExists(Image.Disc[rt].Directory+Image.DirSep+'Passwords',ptr) then
+    if Image.FileExists(Image.Disc[rt].Directory
+                       +Image.GetDirSep(Image.Disc[rt].Partition)
+                       +'Passwords',ptr) then
     begin
      //Yes, so enable the edit button
      btn_EditPassword.Enabled:=True;
@@ -2356,7 +2357,9 @@ begin
    //Status bar
    UpdateImageInfo(Image.Disc[dir].Entries[entry].Side);
    //CRC32
-   lb_CRC32.Caption:=Image.GetFileCRC(temp+Image.DirSep+filename,entry);
+   lb_CRC32.Caption:=Image.GetFileCRC(temp
+                                     +Image.GetDirSep(Image.Disc[dir].Partition)
+                                     +filename,entry);
    //Parent
    RemoveTopBit(temp);
    lb_parent.Caption:=temp;
@@ -2422,10 +2425,12 @@ begin
    //ADFS Old map and Acorn File Server - Sector is an offset
    if(Image.MapType=diADFSOldMap)
    or(Image.FormatNumber>>4=diAcornFS)
-   or(Image.FormatNumber>>4=diDOSPlus)
+   or((Image.FormatNumber>>4=diDOSPlus)and(Image.MapType<>diFAT32))
    or(Image.Disc[dr].AFSPartition)
    or(Image.Disc[dr].DOSPartition)then
     location:='Sector Offset: 0x'+IntToHex(Image.Disc[dr].Sector,8);
+   if(Image.FormatNumber>>4=diDOSPlus)and(Image.MapType=diFAT32)then
+    location:='Starting Cluster: 0x'+IntToHex(Image.Disc[dr].Sector,8);
    //ADFS New map - Sector is an indirect address (fragment and sector)
    if Image.MapType=diADFSNewMap then
     location:='Indirect address: 0x'+IntToHex(Image.Disc[dr].Sector,8);
@@ -2734,11 +2739,11 @@ var
 const DiscFormats = //Accepted format strings
  'DFSS    DFSS40  DFSD    DFSD40  WDFSS   WDFSS40 WDFSD   WDFSD40 ADFSS   ADFSM   '+
  'ADFSL   ADFSD   ADFSE   ADFSE+  ADFSF   ADFSF+  C1541   C1571   C1581   AMIGADD '+
- 'AMIGAHD CFS';
+ 'AMIGAHD CFS     ';
  const DiscNumber : array[1..22] of Integer = //Accepted format numbers
  ($001   ,$000   ,$011   ,$010   ,$021   ,$020   ,$031   ,$030   ,$100   ,$110,
   $120   ,$130   ,$140   ,$150   ,$160   ,$170   ,$200   ,$210   ,$220   ,$400,
-  $410   ,$500);
+  $410   ,$500   );
 begin
  SetLength(fields,0);
  //Collate the parameters
@@ -3506,7 +3511,9 @@ begin
         newentry:=NewImage.Disc[dir].Entries[entry];
         //Set the parent, as this may be different
         newentry.Parent:=NewImage.GetParent(dir);
-        UpdateProgress(method+' '+newentry.Parent+NewImage.DirSep+newentry.Filename);
+        UpdateProgress(method+' '+newentry.Parent
+                      +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                      +newentry.Filename);
         //Validate the filename, as it could be different across file systems
         if newformat<>diAcornDFS then WinToBBC(newentry.Filename); //Not DFS
         //DFS and C64 don't have directories, so the parent is the selected node
@@ -3521,7 +3528,8 @@ begin
          and(newentry.Parent<>NewImage.Disc[0].Directory)then
          begin
           index:=Length(newentry.Parent);
-          while(newentry.Parent[index]<>NewImage.DirSep)and(index>1)do dec(index);
+          while(newentry.Parent[index]<>NewImage.GetDirSep(NewImage.Disc[index].Partition))
+            and(index>1)do dec(index);
           if index=Length(newentry.Parent) then index:=0;
           newentry.Filename:=newentry.Parent[index+1]+'.'+newentry.Filename;
          end;
@@ -3567,7 +3575,7 @@ begin
          begin
           //Read the file in
           if NewImage.ExtractFile(NewImage.GetParent(dir)
-                                 +NewImage.DirSep
+                                 +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
                                  +NewImage.Disc[dir].Entries[entry].Filename,
                                   buffer,entry) then
           begin
@@ -3585,7 +3593,7 @@ begin
           end
           else //Failed to read the file
            ReportError('Failed to read '+NewImage.GetParent(dir)
-                                        +NewImage.DirSep
+                                        +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
                                         +NewImage.Disc[dir].Entries[entry].Filename);
          end;
         end;
@@ -3662,7 +3670,7 @@ begin
    if entry<Length(Image.Disc[dir].Entries)then
     //Change the filetype
     if Image.ChangeFileType(Image.GetParent(dir)
-                           +Image.DirSep
+                           +Image.GetDirSep(Image.Disc[dir].Partition)
                            +Image.Disc[dir].Entries[entry].Filename
                            ,IntToHex(ft,3))then
     begin
@@ -3815,7 +3823,7 @@ begin
   if entry<Length(Image.Disc[dir].Entries)then
    if newtimedate<>Image.Disc[dir].Entries[entry].TimeStamp then //And different
     if Image.TimeStampFile(Image.GetParent(dir)
-                          +Image.DirSep
+                          +Image.GetDirSep(Image.Disc[dir].Partition)
                           +Image.Disc[dir].Entries[entry].Filename
                           ,newtimedate) then //So send to the class
     begin
@@ -3984,6 +3992,10 @@ begin
  ImageDetailForm.lbImgFormat.Caption:=Image.FormatString;
  //Map type
  ImageDetailForm.lbMap.Caption      :=Image.MapTypeString;
+ if Image.FormatNumber>>4<>diDOSPlus then
+  ImageDetailForm.MapLabel.Caption:='Map Type'
+ else
+  ImageDetailForm.MapLabel.Caption:='FAT Type';
  ImageDetailForm.MapPanel.Visible   :=ImageDetailForm.lbMap.Caption<>'';
  //Directory type
  ImageDetailForm.lbDirType.Caption  :=Image.DirectoryTypeString;
@@ -4011,6 +4023,7 @@ begin
  ImageDetailForm.AmigaLogo.Top    :=ImageDetailForm.AcornLogo.Top;
  ImageDetailForm.SinclairLogo.Top :=ImageDetailForm.AcornLogo.Top;
  ImageDetailForm.BBCMasterLogo.Top:=ImageDetailForm.AcornLogo.Top;
+ ImageDetailForm.MicrosoftLogo.Top:=ImageDetailForm.AcornLogo.Top;
  //Centralise horizontal
  s:=ImageDetailForm.Legend.Width;
  ImageDetailForm.AcornLogo.Left    :=(s-ImageDetailForm.AcornLogo.Width)div 2;
@@ -4018,12 +4031,14 @@ begin
  ImageDetailForm.AmigaLogo.Left    :=ImageDetailForm.AcornLogo.Left;
  ImageDetailForm.SinclairLogo.Left :=ImageDetailForm.AcornLogo.Left;
  ImageDetailForm.BBCMasterLogo.Left:=ImageDetailForm.AcornLogo.Left;
+ ImageDetailForm.MicrosoftLogo.Left:=ImageDetailForm.AcornLogo.Left;
  //Hide them all
  ImageDetailForm.AcornLogo.Visible    :=False;
  ImageDetailForm.CommodoreLogo.Visible:=False;
  ImageDetailForm.AmigaLogo.Visible    :=False;
  ImageDetailForm.SinclairLogo.Visible :=False;
  ImageDetailForm.BBCMasterLogo.Visible:=False;
+ ImageDetailForm.MicrosoftLogo.Visible:=False;
  //Now display the appropriate one
  case Image.FormatNumber>>4 of
   diAcornDFS,
@@ -4033,7 +4048,11 @@ begin
   diCommodore : ImageDetailForm.CommodoreLogo.Visible:=True;
   diAmiga     : ImageDetailForm.AmigaLogo.Visible    :=True;
   diSinclair  : ImageDetailForm.SinclairLogo.Visible :=True;
-  diDOSPlus   : ImageDetailForm.BBCMasterLogo.Visible:=True;
+  diDOSPlus   :
+   if Image.FormatNumber mod $10<>0 then
+    ImageDetailForm.MicrosoftLogo.Visible:=True
+   else
+    ImageDetailForm.BBCMasterLogo.Visible:=True;
  end;
  //Should we label the top box?
  if Image.DoubleSided then
@@ -4369,7 +4388,7 @@ begin
   while Length(Image.Disc[root].Entries)>0 do
   begin
    SelectNode(Image.Disc[root].Entries[0].Parent
-             +Image.DirSep
+             +Image.GetDirSep(Image.Disc[root].Partition)
              +Image.Disc[root].Entries[0].Filename);
    DeleteFile(False);
   end;
@@ -4566,7 +4585,7 @@ begin
                    +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen)+'","'
                    +Image.Disc[dir].Entries[entry].Attributes+'","'
                    +Image.GetFileCRC(Image.GetParent(dir)
-                                    +Image.DirSep
+                                    +Image.GetDirSep(Image.Disc[dir].Partition)
                                     +Image.Disc[dir].Entries[entry].Filename)+'"');
   //Finally free up the file stream
   F.Free;
@@ -4715,7 +4734,7 @@ begin
    if entry<Length(Image.Disc[dir].Entries)then
     //Change the filetype
     if Image.ChangeFileType(Image.GetParent(dir)
-                           +Image.DirSep
+                           +Image.GetDirSep(Image.Disc[dir].Partition)
                            +Image.Disc[dir].Entries[entry].Filename
                            ,ft)then
     begin
@@ -5291,6 +5310,7 @@ begin
    begin
     //index is only a reliable indicator of a success, so we need the file's
     //new reference
+    ref:=0;
     if(Image.FileExists(GetFilePath(Dst)+Image.DirSep+newfn,ref))
     or(Image.FormatNumber>>4=diAcornUEF)then
     begin
@@ -5321,12 +5341,14 @@ begin
        begin
         //Update the window title
         if HexDump[i].Caption=GetFilePath(DraggedItem) then
-         HexDump[i].Caption:=GetFilePath(Dst)+Image.DirSep
+         HexDump[i].Caption:=GetFilePath(Dst)
+                            +Image.GetDirSep(Image.Disc[dir].Partition)
                             +Image.Disc[dir].Entries[entry].Filename;
         //Update the menu item
         if HexDumpMenu.Count>i then
          if HexDumpMenu.Items[i].Caption=GetFilePath(DraggedItem) then
-          HexDumpMenu.Items[i].Caption:=GetFilePath(Dst)+Image.DirSep
+          HexDumpMenu.Items[i].Caption:=GetFilePath(Dst)
+                              +Image.GetDirSep(Image.Disc[dir].Partition)
                               +Image.Disc[dir].Entries[entry].Filename;
        end;
      end;
@@ -5410,6 +5432,9 @@ begin
   //If Create was clicked, then create a new image
   if NewImageForm.ModalResult=mrOK then
   begin
+   ProgressForm.Show;
+   Application.ProcessMessages;
+   Image.ProgressIndicator:=@UpdateProgress;
    //Get the main format
    major:=$FFF;
    case NewImageForm.MainFormat.ItemIndex of
@@ -5476,6 +5501,7 @@ begin
    end
    else
     ReportError('Failed to create image');
+   ProgressForm.Hide;
   end;
  end;
 end;
@@ -5700,7 +5726,8 @@ begin
    begin
     dir  :=TMyTreeNode(Node).ParentDir;
     //Get the full filename with path
-    filename:=Image.GetParent(dir)+Image.DirSep+
+    filename:=Image.GetParent(dir)+
+              Image.GetDirSep(Image.Disc[dir].Partition)+
               Image.Disc[dir].Entries[entry].Filename;
     //Load the file
     if Image.ExtractFile(filename,buffer,entry) then
@@ -5778,7 +5805,8 @@ begin
   begin
    dir:=TMyTreeNode(Node).ParentDir;
    //Get the full filename with path
-   filename:=Image.GetParent(dir)+Image.DirSep+
+   filename:=Image.GetParent(dir)+
+             Image.GetDirSep(Image.Disc[dir].Partition)+
              Image.Disc[dir].Entries[entry].Filename;
    //And read in the directory
    index:=Image.ReadDirectory(filename);
@@ -6117,7 +6145,9 @@ begin
    diMMFS     : png:=bbclogo;       //BBC Micro logo for MMFS
    diSpark    : png:=sparklogo;     //!SparkFS logo for Spark
    diAcornFS  : png:=bbclogo;       //BBC Micro logo for Acorn FS
-   diDOSPlus  : png:=bbcmasterlogo; //BBC Master logo for DOS Plus
+   diDOSPlus  :
+    if Image.FormatNumber mod $10<>0 then png:=msdoslogo //MS DOS logo for DOS
+    else png:=bbcmasterlogo; //BBC Master logo for DOS Plus
   end;
   Rect.Height:=Rect.Height-2;
   //Draw the icon
@@ -6145,18 +6175,12 @@ end;
 procedure TMainForm.ValidateFilename(var f: String);
 var
  i: Integer;
+const
+  illegal = '\/:*?"<>|';
 begin
- for i:=1 to Length(f) do
-  if (f[i]='\')
-  or (f[i]='/')
-  or (f[i]=':')
-  or (f[i]='*')
-  or (f[i]='?')
-  or (f[i]='"')
-  or (f[i]='<')
-  or (f[i]='>')
-  or (f[i]='|') then
-   f[i]:=' ';
+ if Length(f)>0 then
+  for i:=1 to Length(f) do
+   if Pos(f[i],illegal)>0 then f[i]:=' ';
 end;
 
 {------------------------------------------------------------------------------}

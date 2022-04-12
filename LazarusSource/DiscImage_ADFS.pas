@@ -2705,7 +2705,7 @@ const
   illegalOld = '#* .:$&@';
   illegalBig = '$&%@\^:.#*"|';
 begin
-  for i:=1 to Length(filename) do
+ for i:=1 to Length(filename) do
  begin
   //Remove top-bit set characters
   if FDirType=diADFSOldDir then filename[i]:=chr(ord(filename[i])AND$7F);
@@ -4332,7 +4332,7 @@ begin
    //Copy the data across
    UpdateProgress('Extracting Partition');
    //Do we have a DOS header? If not, then make room for it
-   if doshead=dosmap then start:=$200 else start:=$0;
+   if doshead=dosmap then start:=$1000 else start:=$0;
    //Allocate some space
    SetLength(Result,disc_size[1]+start);
    //If no header, then install one

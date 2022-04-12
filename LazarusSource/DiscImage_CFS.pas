@@ -404,6 +404,7 @@ begin
  //Set the root directory name
  root_name:='tape';
  Result[0].Directory:=root_name;
+ Result[0].BeenRead:=True;
  //Set the format
  FFormat:=diAcornUEF<<4;
  //Set the filename

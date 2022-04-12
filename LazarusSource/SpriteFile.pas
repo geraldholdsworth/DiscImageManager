@@ -247,6 +247,9 @@ begin
   Result:=RightStr(Result,Length(Result)-1);
 end;
 
+{-------------------------------------------------------------------------------
+Read the header from an individual sprite, given the pointer into the pool
+-------------------------------------------------------------------------------}
 function TSpriteFile.ReadSpriteHeaderFromPool(ptr: Cardinal): TSprite;
 var
  t,p,t2: Cardinal;
@@ -403,10 +406,8 @@ begin
     else
      Result.TransFormat:=1;
   end
-  else
-  begin //No mask
+  else //No mask
    Result.TransFormat:=0;
-  end;
  end;
 end;
 
@@ -651,9 +652,9 @@ begin
     //Write the pixel for PNG
     img.Colors[sx,sy]:=col;
    end;
- end;
- Result.PNG.LoadFromIntfImage(img);
- img.Free;
+  end;
+  Result.PNG.LoadFromIntfImage(img);
+  img.Free;
   Result.Image.Assign(Result.PNG);
  end;
  //Move onto the next sprite

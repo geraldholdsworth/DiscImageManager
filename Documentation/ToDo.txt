@@ -5,8 +5,8 @@ In no particular order
 Bugs
 * Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
   + This appears to happen on Windows (and probably Linux), with single screen only (dual or more it does not do this), resolution of 1400 by anything (or more), and scaled to more than 100%. The icons in the Directory Listing grow as the mouse moves. - TO BE TESTED
-* 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. Unable to reproduce.
-* Some SS DFS images are IDed as DS images when 'zero length images' is selected in the preferences.
+* 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. - UNABLE TO REPLICATE
+* Some SS DFS images are IDed as DS images when 'Allow zero sectors' is selected in the preferences.
 * Access violation has been reported when creating an ADFS HDD image (default options) on Windows. - UNABLE TO REPLICATE
 * Does not work on Windows 11. - UNABLE TO REPLICATE
 
@@ -18,16 +18,14 @@ General
 * Ask to force overwrite if many files are getting written.
 * Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
 * Cancel button for progress display?
-* Side pane (left hand side) to allow separate images to be opened (REF:3).
-* Use side panel for opening MMFS images and remove the code from TDiscImage (REF:3).
+* Open multiple images at the same time and allow interaction between them (e.g. copying files from one to another).
 * For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
-* Import an existing AFS or DOS image into ADFS as a new partition.
+* Ablity to add/remove/delete partitions using the command line.
 
 DFS
 
 ADFS
-* Change the size of the ADFS partition or image.
-* Change the interleave on extracted ADFS 640K images.
+* Import an existing AFS or DOS image into ADFS as a new partition.
 
 AFS
 * AFS0 images do not get created correctly (in particular the free space allocation maps) - AWAITING MORE INFO ON AFS FORMATS.
@@ -44,7 +42,7 @@ Spectrum/Amstrad
 * Write entire module - REQUIRE MORE INFO ON SPECTRUM FORMAT.
 
 MMFS
-* Remove from TDiscImage and incorporate into GUI (REF:3).
+* Rewrite/rethink entire MMFS idea. Possibly remove from Disc Image Manager.
 
 Spark
 * Create new archive.
@@ -55,6 +53,3 @@ Spark
 * Move file.
 
 DOS Plus
-* There is a bug where if a filename begins with a '.' then this character does not get displayed.
-* On ADFS/DOS hybrids, the directory separator is a '.', not a '\'.
-* Support FAT32
