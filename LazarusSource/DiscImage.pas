@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.41
+TDiscImage class V1.42
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -140,7 +140,7 @@ type
   free_space    : array of QWord;//Free space per partition
   disc_name     : array of String;//Disc title(s)
   bootoption    : TDIByteArray; //Boot Option(s)
-  CFSFiles      : array of TDIByteArray;//All the data for the CFS files
+  FilesData     : array of TDIByteArray;//All the data for CFS or Spark files
   FProgress     : TProgressProc;//Used for feedback
   SparkFile     : TSpark;       //For reading in Spark archives
   //Private methods
@@ -377,6 +377,16 @@ type
   function ID_Spark: Boolean;
   function ReadSparkArchive: TDisc;
   function ExtractSparkFile(filename: String;var buffer: TDIByteArray): Boolean;
+  function FormatSpark(Zipfilename: String): TDisc;
+  function DeleteSparkFile(filename: String): Boolean;
+  function UpdateSparkAttributes(filename,attributes: String): Boolean;
+  function MoveSparkFile(filename, dest: String): Integer;
+  function WriteSparkFile(var file_details:TDirEntry;var buffer:TDIByteArray):Integer;
+  function RenameSparkFile(filename, newfilename: String): Integer;
+  function UpdateSparkFileType(filename: String; newtype: String): Boolean;
+  function UpdateSparkTimeStamp(filename: String;newtimedate:TDateTime): Boolean;
+  function UpdateSparkFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+  function CreateSparkDirectory(filename, parent, attributes: String): Integer;
   //DOS Plus Routines
   function ID_DOSPlus: Boolean;
   function IDDOSPartition(ctr: Cardinal): Boolean;
@@ -448,7 +458,7 @@ type
   procedure ReadImage;
   procedure SaveToFile(filename: String;uncompress: Boolean=False);
   procedure Close;
-  function FormatFDD(major:Word;minor,tracks: Byte): Boolean;
+  function FormatFDD(major:Word;minor:Byte=0;tracks: Byte=0;filename: String=''): Boolean;
   function FormatHDD(major:Word;harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):Boolean;
   function ExtractFile(filename:String;var buffer:TDIByteArray;entry:Cardinal=0): Boolean;
   function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;

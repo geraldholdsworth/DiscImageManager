@@ -527,7 +527,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.41';
+    ApplicationVersion = '1.42';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -942,7 +942,8 @@ begin
      if ((Pos(',',importfilename)>0)
      or  (Pos('.',importfilename)>0))
      and((Image.FormatNumber>>4=diAcornADFS)      //ADFS
-     or  (Image.FormatNumber>>4=diCommodore))then //Commodore
+     or  (Image.FormatNumber>>4=diCommodore)      //Commodore
+     or  (Image.FormatNumber>>4=diSpark))then     //!Spark
      begin
       i:=Length(importfilename);
       while (importfilename[i]<>'.')and(importfilename[i]<>',')do dec(i);
@@ -954,17 +955,19 @@ begin
       for index:=1 to Length(Extensions) do
        if Copy(Extensions[index],4)=LowerCase(filetype) then
         filetype:=LeftStr(Extensions[index],3);
-      //ADFS
-      if Image.FormatNumber>>4=diAcornADFS then
+      //ADFS and Spark
+      if(Image.FormatNumber>>4=diAcornADFS)
+      or(Image.FormatNumber>>4=diSpark)then
       begin
        filetype:=IntToHex(StrToIntDef('$'+filetype,0),3);
        if filetype='000' then filetype:='';//None, so reset
       end;
      end;
-     //ADFS, AFS, DFS & CFS only stuff
+     //ADFS, AFS, DFS, Spark & CFS only stuff
      if((Image.FormatNumber>>4=diAcornDFS)
       or(Image.FormatNumber>>4=diAcornADFS)
       or(Image.FormatNumber>>4=diAcornUEF)
+      or(Image.FormatNumber>>4=diSpark)
       or(Image.FormatNumber>>4=diAcornFS))
      and(filename<>'')then
      begin
@@ -1001,28 +1004,31 @@ begin
      attributes:=''; //Default
      if attr1='' then
      begin
-      if Image.FormatNumber>>4=diAcornADFS then attributes:='WR';//Default for ADFS
+      if(Image.FormatNumber>>4=diAcornADFS)
+      or(Image.FormatNumber>>4=diSpark)    then attributes:='WR';//Default for ADFS and Spark
       if Image.FormatNumber>>4=diCommodore then attributes:='C' ;//Default for Commodore
      end;
      attributes:=attributes+GetAttributes(attr1,Image.FormatNumber>>4);
      if importfilename='' then importfilename:='NewFile';
-     //Validate the filename (ADFS, AFS, DFS & CFS only)
+     //Validate the filename (ADFS, AFS, DFS, Spark & CFS only)
      if(Image.FormatNumber>>4=diAcornDFS)
      or(Image.FormatNumber>>4=diAcornADFS)
      or(Image.FormatNumber>>4=diAcornUEF)
+     or(Image.FormatNumber>>4=diSpark)
      or(Image.FormatNumber>>4=diAcornFS)then
      begin
       //Remove any extraenous specifiers
       while (importfilename[4]=Image.DirSep) do
        importfilename:=RightStr(importfilename,Length(importfilename)-2);
       //If root, remove the directory specifier
-      if (importfilename[2]=Image.DirSep) and (importfilename[1]='$') then
+      if(importfilename[2]=Image.DirSep)and(importfilename[1]='$')then
        importfilename:=RightStr(importfilename,Length(importfilename)-2);
       //Convert a Windows filename to a BBC filename
       WinToBBC(importfilename);
       //Check to make sure that a DFS directory hasn't been changed
       if((Image.FormatNumber>>4=diAcornDFS)
        or(Image.FormatNumber>>4=diAcornADFS)
+       or(Image.FormatNumber>>4=diSpark)
        or(Image.FormatNumber>>4=diAcornFS))
       and(importfilename[2]='/')then
        importfilename[2]:=Image.DirSep;
@@ -1039,6 +1045,7 @@ begin
      NewFile.DirRef       :=-1; //Not a directory
      NewFile.ShortFileType:=filetype;
      if(Image.FormatNumber>>4=diAcornADFS) //Need the selected directory for ADFS
+     or(Image.FormatNumber>>4=diSpark)     //And Spark
      or(Image.FormatNumber>>4=diAcornFS)   //And Acorn FS
      or(Image.FormatNumber>>4=diDOSPlus)then//And DOS Plus
       if(DirList.Selected.Text='$')
@@ -1080,7 +1087,7 @@ begin
       //Function returns pointer to next item (or parent if no children)
       if Result>-1 then //File added OK
       begin
-       HasChanged:=True;
+       if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
        AddFileToTree(DirList.Selected,NewFile.Filename,Result,False,DirList);
        UpdateImageInfo(side);
       end
@@ -2070,9 +2077,6 @@ begin
                              or(Image.FormatNumber>>4=diAcornFS)     //Acorn FS
                              or((Image.FormatNumber>>4=diAcornADFS)  //Acorn ADFS
                              and(Image.InterleaveMethod>0));         //with non-auto interleave
- {btn_ChangeInterleave.Enabled:=(Image.FormatNumber=diAcornADFS<<4+2) //ADFS L
-                             or(Image.FormatNumber=diAcornADFS<<4+$E)//ADFS Hybrid
-                             or(Image.FormatNumber>>4=diAcornFS);    //Acorn FS }
  menuChangeInterleave.Enabled:=btn_ChangeInterleave.Enabled;
  //Change the captions
  temp:='Partition';
@@ -2111,7 +2115,8 @@ begin
   if(Image.FormatNumber>>4=diAcornADFS)
   OR(Image.FormatNumber>>4=diAmiga)
   or(Image.FormatNumber>>4=diAcornFS)
-  or(Image.FormatNumber>>4=diDOSPlus)then //ADFS, Amiga, Acorn FS and DOS Plus
+  or(Image.FormatNumber>>4=diSpark)
+  or(Image.FormatNumber>>4=diDOSPlus)then //ADFS, Amiga, Acorn FS, Spark and DOS Plus
   begin
    NewDirectory1.Enabled   :=True;
    btn_NewDirectory.Enabled:=True;
@@ -3618,8 +3623,9 @@ var
  dir,
  entry: Integer;
 begin
- //ADFS non directories only
- if (Image.FormatNumber>>4=diAcornADFS)
+ //ADFS or Spark non directories only
+ if((Image.FormatNumber>>4=diAcornADFS)
+  or(Image.FormatNumber>>4=diSpark))
  and(not TMyTreeNode(DirList.Selected).IsDir)then
  begin
   //Get the references
@@ -3634,8 +3640,9 @@ begin
     //Reset all the buttons to up
     FTDummyBtn.Down:=True;
     //Now set the one for our filetype, if it is there, to down
-    for i:=0 to Length(FTButtons)-1 do
-     if FTButtons[i].Tag=ft then FTButtons[i].Down:=True;
+    if Length(FTButtons)>0 then
+     for i:=0 to Length(FTButtons)-1 do
+      if FTButtons[i].Tag=ft then FTButtons[i].Down:=True;
     //Set the custom filetype to this filetype
     FTEdit.Text:=IntToHex(ft,3);
     //Show the dialogue modally
@@ -3677,7 +3684,7 @@ begin
      //If all went OK, update the display
      DirListChange(Sender,DirList.Selected);
      //And mark as changed
-     HasChanged:=True;
+     if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
     end;
  end;
 end;
@@ -3781,7 +3788,8 @@ begin
  //ADFS and AFS only
  if(Image.FormatNumber>>4=diAcornADFS)
  or(Image.FormatNumber>>4=diAcornFS)
- or(Image.FormatNumber>>4=diDOSPlus)then
+ or(Image.FormatNumber>>4=diDOSPlus)
+ or(Image.FormatNumber>>4=diSpark)then
  begin
   //Get the references
   entry:=DirList.Selected.Index;
@@ -3830,7 +3838,7 @@ begin
      //Display the new details
      lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
                                        Image.Disc[dir].Entries[entry].TimeStamp);
-     HasChanged:=True;
+     if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
     end;
 end;
 
@@ -3936,7 +3944,7 @@ begin
       //If success, then change the text
       lb_execaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
       lb_loadaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
-      HasChanged:=True;
+      if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
      end;
     end;
    end;
@@ -4931,7 +4939,7 @@ begin
   if index>-1 then //Directory added OK
   begin
    //Mark as changed
-   HasChanged:=True;
+   if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
    //Create the node as a file
    Node:=AddFileToTree(DirList.Selected,dirname,index,True,DirList);
    //Update the directory reference and the directory flag
@@ -5332,7 +5340,7 @@ begin
       end;
      end;
      //Mark as changed
-     HasChanged:=True;
+     if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
      if not copymode then //If moving
      begin
       //Update any open hexdumps
@@ -5420,10 +5428,12 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
 var
- major  : Word;
+ major    : Word;
  minor,
- tracks : Byte;
- ok     : Boolean;
+ tracks   : Byte;
+ ok       : Boolean;
+ index    : Integer;
+ filename : String;
 begin
  if QueryUnsaved then
  begin
@@ -5432,9 +5442,6 @@ begin
   //If Create was clicked, then create a new image
   if NewImageForm.ModalResult=mrOK then
   begin
-   ProgressForm.Show;
-   Application.ProcessMessages;
-   Image.ProgressIndicator:=@UpdateProgress;
    //Get the main format
    major:=$FFF;
    case NewImageForm.MainFormat.ItemIndex of
@@ -5466,6 +5473,25 @@ begin
     tracks:=NewImageForm.DFSTracks.ItemIndex;
    //Now create the image
    ok:=False;
+   //Get the filename for a new Spark
+   filename:='';
+   if major=diSpark then
+   begin
+    SaveImage.Title:='Create New !Spark Image As';
+    //Populate the filter part of the dialogue
+    index:=0;
+    SaveImage.Filter:=Image.SaveFilter(index,diSpark<<4);
+    if index=0 then index:=1;
+    SaveImage.FilterIndex:=index;
+    //Populate the filename part of the dialogue
+    SaveImage.FileName:='Untitled.zip';
+    SaveImage.DefaultExt:='.zip';
+    //Show the dialogue and set the filename
+    if SaveImage.Execute then filename:=SaveImage.FileName else exit;
+   end;
+   ProgressForm.Show;
+   Application.ProcessMessages;
+   Image.ProgressIndicator:=@UpdateProgress;
    //ADFS Hard Drive
    if(major=diAcornADFS)and(minor=8)then
     ok:=Image.FormatHDD(diAcornADFS,
@@ -5492,11 +5518,11 @@ begin
                           False,
                           NewImageForm.fat)
      else //Floppy Drive
-      ok:=Image.FormatFDD(major,minor,tracks);
+      ok:=Image.FormatFDD(major,minor,tracks,filename);
    if ok then
    begin
     CloseAllHexDumps;
-    HasChanged:=True;
+    if major<>diSpark then HasChanged:=True;
     ShowNewImage(Image.Filename);  //This updates the status bar
    end
    else
@@ -5541,7 +5567,9 @@ begin
   or(Image.FormatNumber>>4=diAcornUEF)then
    if cb_DFS_l.Checked then att:=att+'L';
   //Attributes - ADFS
-  if(Image.FormatNumber>>4=diAcornADFS)and(not afs)and(not dos)then
+  if((Image.FormatNumber>>4=diAcornADFS)
+  or(Image.FormatNumber>>4=diSpark))
+  and(not afs)and(not dos)then
   begin
    if cb_ADFS_ownw.Checked then att:=att+'W';
    if cb_ADFS_ownr.Checked then att:=att+'R';
@@ -5583,7 +5611,7 @@ begin
   //Update the attributes for the file
   if Image.UpdateAttributes(filepath,att,DirList.Selected.Index) then
   begin
-   HasChanged:=True;
+   if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
    //Update the status bar
    UpdateImageInfo;
   end
@@ -5661,7 +5689,7 @@ begin
    if R then
     if Image.DeleteFile(filepath) then
     begin
-     HasChanged:=True;
+     if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
      //Update the status bar
      UpdateImageInfo;
      //Now update the node and filedetails panel
@@ -5889,12 +5917,24 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListEditing(Sender: TObject; Node: TTreeNode;
   var AllowEdit: Boolean);
+var
+ ctrl: TControl;
+ pt  : TPoint;
 begin
- //Set the node to edit mode, if not the root
- AllowEdit:=Node.Parent<>nil;
- //Save the path and name before they get edited
- PathBeforeEdit:=GetFilePath(Node);
- NameBeforeEdit:=Node.Text;
+ AllowEdit:=False;
+ //Get the control under the mouse cursor
+ pt:=ScreenToClient(Mouse.CursorPos);
+ ctrl:=ControlAtPos(pt,[capfRecursive,capfAllowWinControls]);
+ //Make sure it is indeed over the directory tree
+ if Assigned(ctrl) then
+  if ctrl.Name=DirList.Name then
+  begin
+   //Set the node to edit mode, if not the root
+   AllowEdit:=Node.Parent<>nil;
+   //Save the path and name before they get edited
+   PathBeforeEdit:=GetFilePath(Node);
+   NameBeforeEdit:=Node.Text;
+  end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -5927,7 +5967,7 @@ begin
   end
   else
   begin
-   HasChanged:=True;
+   if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
    //Update the status bar
    UpdateImageInfo;
    //Otherwise change the text on the tree and the file details panel
@@ -6298,7 +6338,8 @@ begin
  sc.BorderStyle:=bsSingle;
  sc.OnPaint:=@FileInfoPanelPaint;
  //Controls
- SetLength(FTButtons,High(RISCOSFileTypes)-2);
+ SetLength(FTButtons,High(RISCOSFileTypes)-Low(RISCOSFileTypes));
+ i:=Length(FTButtons);
  x:=Low(RISCOSFileTypes);
  for i:=x to High(RISCOSFileTypes) do
  begin

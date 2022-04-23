@@ -103,6 +103,7 @@ begin
                OR(MainFormat.ItemIndex=1) //ADFS
                OR(MainFormat.ItemIndex=2) //C64
                OR(MainFormat.ItemIndex=5) //CFS
+               OR(MainFormat.ItemIndex=6) //Spark
                OR(MainFormat.ItemIndex=7) //AFS
                OR(MainFormat.ItemIndex=8);//DOS
 end;

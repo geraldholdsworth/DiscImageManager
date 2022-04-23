@@ -881,6 +881,7 @@ begin
  except
  end;
  F.Free;
+ if Length(buffer)<10 then exit;
  //First, is it actually a GZip file?
  if(buffer[$00]=$1F)and(buffer[$01]=$8B)and(buffer[$02]=$08)then
  begin

@@ -3119,7 +3119,7 @@ begin
     //encounters a directory, that will get it's contents deleted, then itself.
     while(Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
       and(success)do
-      //If any fail for some reason, the whole thing fails
+     //If any fail for some reason, the whole thing fails
      success:=DeleteADFSFile(
              filename
             +dir_sep

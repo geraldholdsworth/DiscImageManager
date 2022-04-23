@@ -44,12 +44,6 @@ Spectrum/Amstrad
 MMFS
 * Rewrite/rethink entire MMFS idea. Possibly remove from Disc Image Manager.
 
-Spark
-* Create new archive.
-* Create directory.
-* Write file.
-* Rename file/directory.
-* Delete file/directory.
-* Move file.
+SparkFS
 
 DOS Plus

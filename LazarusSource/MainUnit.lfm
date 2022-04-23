@@ -1,7 +1,7 @@
 object MainForm: TMainForm
-  Left = 369
+  Left = 393
   Height = 599
-  Top = 158
+  Top = 185
   Width = 751
   AllowDropFiles = True
   ClientHeight = 599

@@ -826,6 +826,28 @@ Bug fixes
 * Acorn/Watford DFS, Commodore 64, Acorn CFS and Spark images were being opened with the 'directory been read' flag not set, so appeared as if the directories were unread.
 * DFS images were still not correctly being IDed.
 
+1.42 - 23rd April 2022
+----------------------
+New or improved features
+* SparkFS images are now fully writable:
+* Can now write files to a SparkFS image.
+* Can now create a blank directory on a SparkFS image.
+* Can now rename files and directories on a SparkFS image.
+* Can now move and copy files and directories on a SparkFS image.
+* Can now change the timestamp on files and directories on a SparkFS image.
+* Can now change the filetype on files on a SparkFS image.
+* Can now change the load and execution addresses on files on a SparkFS image.
+* Can now change file and directory attibutes on a SparkFS image.
+* Can now delete files/directories from a SparkFS image.
+
+Bug fixes
+* SparkFS failed to extract the file data if it was the first file in the archive.
+* If a ZIP file is read in where the reported number of entries does not match the actual number of entries, this would crash the application.
+* If the directory entry, in a SparkFS archive, appeared after any of it's child entries, then these child entries would not get shown in the directory tree.
+* A bug had crept in, at some earlier version, that crashed the application when the filetype was clicked on.
+* When editing the date/time stamp, clicking on a field during editing would instead commence editing the selected node on the directory tree for renaming.
+
+
 Platform History
 ----------------
 

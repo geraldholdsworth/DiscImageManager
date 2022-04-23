@@ -109,8 +109,8 @@ begin
      if filenum>=Length(Result[0].Entries) then
      begin
       //If the last file failed CRC checks on any block, clear the data
-      if (not crcok) and (Length(CFSFiles)>0) then
-       SetLength(CFSFiles[filenum],0);
+      if (not crcok) and (Length(FilesData)>0) then
+       SetLength(FilesData[filenum],0);
       //Now create the entry for this file
       SetLength(Result[0].Entries,filenum+1);
       ResetDirEntry(Result[0].Entries[filenum]);
@@ -119,7 +119,7 @@ begin
       Result[0].Entries[filenum].Sector  :=pos-6;  //Where to find it (first block)
       Result[0].Entries[filenum].Parent  :=Result[0].Directory;
       Result[0].Entries[filenum].DirRef  :=-1;
-      SetLength(CFSFiles,filenum+1);
+      SetLength(FilesData,filenum+1);
       firstblck:=True;
       //Read in the load address
       Result[0].Entries[filenum].LoadAddr:=Read32b(pos+i);
@@ -161,15 +161,15 @@ begin
      //Move our chunk pointer onto the data
      inc(i,19);//Points to the data
      //Increase the file's data length to match the total length, so far
-     SetLength(CFSFiles[filenum],Result[0].Entries[filenum].Length);
+     SetLength(FilesData[filenum],Result[0].Entries[filenum].Length);
      //And copy in the data in this block
-     for j:=0 to blocklen-1 do CFSFiles[filenum][ptr+j]:=ReadByte(pos+i+j);
+     for j:=0 to blocklen-1 do FilesData[filenum][ptr+j]:=ReadByte(pos+i+j);
      //Move to after the data
      inc(i,blocklen);
      //So we can read in the data's CRC
      datacrc:=Read16b(pos+i);
      //Check it is valid
-     if datacrc<>GetCRC16(ptr,blocklen,CFSFiles[filenum]) then crcok:=False;
+     if datacrc<>GetCRC16(ptr,blocklen,FilesData[filenum]) then crcok:=False;
     end;
 {   $0110 : //High Tone ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //Work out the length of the tone
@@ -218,14 +218,14 @@ var
 begin
  //As UEFs can have many files with the same name, we need to use the direct
  //access into the array - entry is the index of FDisc{x].Entries
- Result:=Length(CFSFiles[entry])>0; //Return a false result if no data
+ Result:=Length(FilesData[entry])>0; //Return a false result if no data
  //If the CRC check failed, there will be no data
  if Result then
  begin
   //Set the buffer
-  SetLength(buffer,Length(CFSFiles[entry]));
+  SetLength(buffer,Length(FilesData[entry]));
   //Copy the data across
-  for i:=0 to Length(CFSFiles[entry])-1 do buffer[i]:=CFSFiles[entry][i];
+  for i:=0 to Length(FilesData[entry])-1 do buffer[i]:=FilesData[entry][i];
  end;
 end;
 
@@ -293,14 +293,14 @@ begin
     fileptr:=0;
     //Block counter
     blocknum:=0;
-    while fileptr<Length(CFSFiles[entry]) do
+    while fileptr<Length(FilesData[entry]) do
     begin
      //Data block
      SetDataLength(ptr+6);
      Write16b($100,ptr);
      //We need to know the length of this block
-     if fileptr+$100>Length(CFSFiles[entry]) then
-      len:=Length(CFSFiles[entry])-fileptr
+     if fileptr+$100>Length(FilesData[entry]) then
+      len:=Length(FilesData[entry])-fileptr
      else
       len:=$100;
      //And the length of the filename
@@ -328,7 +328,7 @@ begin
      Write16b(len,ptr+10);
      //Block status
      blockst:=$00;
-     if fileptr+len>=Length(CFSFiles[entry]) then
+     if fileptr+len>=Length(FilesData[entry]) then
       blockst:=blockst OR $80; //Final block
      if Pos('L',FDisc[0].Entries[entry].Attributes)>0 then
       blockst:=blockst OR $01; //Locked
@@ -339,7 +339,7 @@ begin
      Write16b(GetCRC16(ptr-Length(temp),Length(temp)+17,dummy),ptr+17);
      //Data
      SetDataLength(GetDataLength+len+3);
-     for j:=0 to len do WriteByte(CFSFiles[entry][fileptr+j],ptr+19+j);
+     for j:=0 to len do WriteByte(FilesData[entry][fileptr+j],ptr+19+j);
      //Data CRC-16
      Write16b(GetCRC16(ptr+19,len,dummy),ptr+19+len);
      //Move data pointer on
@@ -348,7 +348,7 @@ begin
      SetDataLength(GetDataLength+8);
      Write16b($110,ptr);
      Write32b(2,ptr+2);
-     if fileptr+len>=Length(CFSFiles[entry]) then
+     if fileptr+len>=Length(FilesData[entry]) then
       Write16b($07D0,ptr+6)  //Final block, so longer tone
      else
       Write16b($0258,ptr+6); //Short tone as not at the end
@@ -431,13 +431,13 @@ begin
     for i:=entry+1 to Length(FDisc[0].Entries)-1 do
     begin
      FDisc[0].Entries[i-1]:=FDisc[0].Entries[i];
-     CFSFiles[i-1]:=CFSFiles[i];
+     FilesData[i-1]:=FilesData[i];
     end;
    end;
    //Reduce the length by one
    SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)-1);
    //And the data files
-   SetLength(CFSFiles,Length(CFSFiles)-1);
+   SetLength(FilesData,Length(FilesData)-1);
    //And signal a success
    Result:=True;
   end;
@@ -491,7 +491,7 @@ begin
       for i:=entry downto dest+2 do
       begin
        FDisc[0].Entries[i]:=FDisc[0].Entries[i-1];
-       CFSFiles[i]:=CFSFiles[i-1];
+       FilesData[i]:=FilesData[i-1];
       end;
       inc(dest);
      end;
@@ -500,7 +500,7 @@ begin
       for i:=entry+1 to dest do
       begin
        FDisc[0].Entries[i-1]:=FDisc[0].Entries[i];
-       CFSFiles[i-1]:=CFSFiles[i];
+       FilesData[i-1]:=FilesData[i];
       end;
     end;
     //Is the destination -1? This means insert at the front
@@ -509,13 +509,13 @@ begin
      for i:=entry-1 downto 0 do
      begin
       FDisc[0].Entries[i+1]:=FDisc[0].Entries[i];
-      CFSFiles[i+1]:=CFSFiles[i];
+      FilesData[i+1]:=FilesData[i];
      end;
      dest:=0; //Where we are moving to
     end;
     //Then insert it after the one specified
     FDisc[0].Entries[dest]:=file_details;
-    CFSFiles[dest]:=buffer;
+    FilesData[dest]:=buffer;
     Result:=dest;
    end;
   end;
@@ -545,17 +545,17 @@ begin
     file_details:=FDisc[0].Entries[entry];
     //Increase the list length
     SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)+1);
-    SetLength(CFSFiles,Length(CFSFiles)+1);
+    SetLength(FilesData,Length(FilesData)+1);
     if dest+1<Length(FDisc[0].Entries)-1 then
      for i:=Length(FDisc[0].Entries)-2 downto dest+1 do
      begin
       //Move them all up by one
       FDisc[0].Entries[i+1]:=FDisc[0].Entries[i];
-      CFSFiles[i+1]:=CFSFiles[i];
+      FilesData[i+1]:=FilesData[i];
      end;
     //Then insert it after the one specified
     FDisc[0].Entries[dest+1]:=file_details;
-    CFSFiles[dest+1]:=buffer;
+    FilesData[dest+1]:=buffer;
     Result:=dest+1;
    end;
   end;
@@ -576,7 +576,7 @@ begin
   //Increase the entries
   SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)+1);
   //and increase the data array
-  SetLength(CFSFiles,Length(CFSFiles)+1);
+  SetLength(FilesData,Length(FilesData)+1);
   //Return the new pointer
   Result:=Length(FDisc[0].Entries)-1;
   //Update the entry
@@ -588,8 +588,8 @@ begin
   FDisc[0].Entries[Result].Parent  :=FDisc[0].Directory;//Parent
   FDisc[0].Entries[Result].DirRef  :=-1;//Not a directory
   //Copy from the buffer into the data array
-  SetLength(CFSFiles[Result],Length(buffer));
-  for i:=0 to Length(buffer)-1 do CFSFiles[Result][i]:=buffer[i];
+  SetLength(FilesData[Result],Length(buffer));
+  for i:=0 to Length(buffer)-1 do FilesData[Result][i]:=buffer[i];
   inc(disc_size[0],Length(buffer));
  end;
  if Length(buffer)=0 then Result:=-8; //Nothing to write

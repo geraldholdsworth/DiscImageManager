@@ -258,7 +258,7 @@ end;
 {-------------------------------------------------------------------------------
 Create and format a new disc image
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatFDD(major:Word;minor,tracks: Byte): Boolean;
+function TDiscImage.FormatFDD(major:Word;minor:Byte=0;tracks: Byte=0;filename: String=''): Boolean;
 begin
  Result:=False;
  //Make sure the numbers are within bounds
@@ -295,6 +295,11 @@ begin
   diAcornUEF://Create CFS
    begin
     FDisc:=FormatCFS;
+    Result:=Length(FDisc)>0;
+   end;
+  diSpark://Create Spark
+   begin
+    FDisc:=FormatSpark(filename);
     Result:=Length(FDisc)>0;
    end;
   diDOSPlus://Create DOS or DOS Plus
@@ -369,11 +374,14 @@ begin
  //Get the length of data to be written
  count:=file_details.Length;
  //Only write a file if there is actually any data to be written
- if(count>0)and(Length(free_space)>0)then
+ if(count>0)and((Length(free_space)>0)or(FFormat>>4=diSpark))then
  begin
-  file_details.Side:=file_details.Side mod Length(free_space);
+  if FFormat>>4<>diSpark then
+   file_details.Side:=file_details.Side mod Length(free_space);
   //Can only write a file that will fit on the disc, or CFS
-  if(count<=free_space[file_details.Side])or(FFormat>>4=diAcornUEF)then
+  if(count<=free_space[file_details.Side])
+  or(FFormat>>4=diAcornUEF)
+  or(FFormat>>4=diSpark)then
    case FFormat>>4 of
     diAcornDFS :Result:=WriteDFSFile(file_details,buffer);     //Write DFS
     diAcornADFS:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
@@ -381,6 +389,7 @@ begin
     diSinclair :Result:=WriteSpectrumFile(file_details,buffer);//Write Sinclair/Amstrad
     diAmiga    :Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
     diAcornUEF :Result:=WriteCFSFile(file_details,buffer);     //Write CFS
+    diSpark    :Result:=WriteSparkFile(file_details,buffer);   //Write !Spark
     diAcornFS  :Result:=WriteAFSFile(file_details,buffer);     //Write Acorn FS
     diDOSPlus  :Result:=WriteDOSFile(file_details,buffer);     //Write DOS Plus
    end;
@@ -406,6 +415,8 @@ begin
   diAcornUEF : exit;//Can't create directories on CFS
   diAcornFS  :      //Create directory on Acorn FS
     Result:=CreateAFSDirectory(filename,parent,attributes);
+  diSpark    :      //Create directory on !SparkFS
+    Result:=CreateSparkDirectory(filename,parent,attributes);
   diDOSPlus  :      //Create directory on DOS Plus
     Result:=CreateDOSDirectory(filename,parent,attributes);
  end;
@@ -832,6 +843,7 @@ begin
   diAmiga    : Result:=RenameAmigaFile(oldfilename,newfilename);   //Rename AmigaDOS
   diAcornUEF : Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
   diAcornFS  : Result:=RenameAFSFile(oldfilename,newfilename);     //Rename AFS
+  diSpark    : Result:=RenameSparkFile(oldfilename,newfilename);   //Rename Spark
   diDOSPlus  : Result:=RenameDOSFile(oldfilename,newfilename);     //Rename DOS Plus
  end;
 end;
@@ -850,6 +862,7 @@ begin
   diAmiga    : Result:=DeleteAmigaFile(filename);   //Delete AmigaDOS
   diAcornUEF : Result:=DeleteCFSFile(entry);        //Delete CFS
   diAcornFS  : Result:=DeleteAFSFile(filename);     //Delete Acorn FS
+  diSpark    : Result:=DeleteSparkFile(filename);   //Delete SparkFS
   diDOSPlus  : Result:=DeleteDOSFile(filename);     //Delete DOS Plus
  end;
 end;
@@ -865,6 +878,7 @@ begin
   diAcornADFS: Result:=MoveADFSFile(filename,directory); //Move ADFS File
   diAmiga    : Result:=MoveAmigaFile(filename,directory);//Move Amiga File
   diAcornFS  : Result:=MoveAFSFile(filename,directory);  //Move AFS File
+  diSpark    : Result:=MoveSparkFile(filename,directory);//Move Spark File
   diDOSPlus  : Result:=MoveDOSFile(filename,directory);  //Move DOS File
  end;
 end;
@@ -976,6 +990,7 @@ begin
    diAmiga    : Result:=UpdateAmigaFileAttributes(filename,attributes);   //Update AmigaDOS attributes
    diAcornUEF : Result:=UpdateCFSAttributes(entry,attributes);            //Update CFS attributes
    diAcornFS  : Result:=UpdateAFSAttributes(filename,attributes);         //Update AFS attributes
+   diSpark    : Result:=UpdateSparkAttributes(filename,attributes);       //Update Spark attributes
    diDOSPlus  : Result:=UpdateDOSAttributes(filename,attributes);         //Update DOS Plus attributes
   end;
 end;
@@ -1036,6 +1051,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Load Address
   diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,True);    //Update CFS Load Address
   diAcornFS  : Result:=UpdateAFSFileAddr(filename,newaddr,True); //Update AFS Load Address
+  diSpark    : Result:=UpdateSparkFileAddr(filename,newaddr,True);//Update Spark Load Address
   diDOSPlus  : exit;//No Load address on DOS Plus
  end;
 end;
@@ -1054,6 +1070,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Execution Address
   diAcornUEF : Result:=UpdateCFSFileAddr(entry,newaddr,False);    //Update CFS Execution Address
   diAcornFS  : Result:=UpdateAFSFileAddr(filename,newaddr,False); //Update AFS Execution Address
+  diSpark    : Result:=UpdateSparkFileAddr(filename,newaddr,False);//Update Spark Load Address
   diDOSPlus  : exit;//No Execution address on DOS Plus
  end;
 end;
@@ -1072,6 +1089,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Timestamp
   diAcornUEF : exit;//Update CFS Timestamp
   diAcornFS  : Result:=UpdateAFSTimeStamp(filename,newtimedate);//Update AFS Timestamp
+  diSpark    : Result:=UpdateSparkTimeStamp(filename,newtimedate);//Update Spark Timestamp
   diDOSPlus  : Result:=UpdateDOSTimeStamp(filename,newtimedate);//Update DOS Timestamp
  end;
 end;
@@ -1090,6 +1108,7 @@ begin
   diAmiga    : exit;//Update AmigaDOS Filetype
   diAcornUEF : exit;//Update CFS Filetype
   diAcornFS  : exit;//Update AFS Filetype
+  diSpark    : Result:=UpdateSparkFileType(filename,newtype);
   diDOSPlus  : exit;//Update DOS Filetype - done through renaming
  end;
 end;
