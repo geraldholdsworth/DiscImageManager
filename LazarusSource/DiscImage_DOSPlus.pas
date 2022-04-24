@@ -52,7 +52,7 @@ begin
   if FFormat=diInvalidImg then //Only check if nothing found
    if IDDOSPartition($0000) then
    begin
-    ReadDOSHeader;
+    //ReadDOSHeader;
     disc_size[0]:=DOSBlocks*cluster_size;
     //Set the format
     FFormat:=diDOSPlus<<4;
@@ -72,6 +72,7 @@ function TDiscImage.IDDOSPartition(ctr: Cardinal): Boolean;
 var
  ds,
  rs : Word;
+ md : Byte;
 begin
  Result:=False;
  //Is there E9 or EB stored here
@@ -81,15 +82,20 @@ begin
   ds:=Read16b(ctr+$B);
   //And the reserved sectors size
   rs:=Read16b(ctr+$E);
-  //Is there a FAT partition?
-  if Read16b(ctr+(ds*rs)+1)=$FFFF then
-  begin
-   //Mark as DOS Partition present
-   FDOSPresent:=True;
-   //DOS Header
-   doshead:=ctr;
-   Result:=True;
-  end;
+  //Media Descriptor Byte - should be repeated at the start of the FAT
+  md:=ReadByte(ctr+$15);
+  //Are they within range?
+  if ds*rs<GetDataLength then
+   //Is there a FAT partition at the location pointed to by above?
+   if(Read16b(ctr+(ds*rs)+1)=$FFFF)and(ReadByte(ctr+(ds*rs))=md)then
+   begin
+    //DOS Header location
+    doshead:=ctr;
+    Result:=ReadDOSHeader;
+    //Mark as DOS Partition present, if the checks return OK
+    FDOSPresent:=Result;
+    if not Result then doshead:=0; //Reset the header location on failure
+   end;
  end;
 end;
 
@@ -137,8 +143,8 @@ begin
    end;
    if FFormat AND $F=$F then //Hard disc partition - will have a DOS Header
    begin
-    doshead:=disc_size[0]; //Where the DOS header is
-    ReadDOSHeader; //Read the DOS Header
+    //doshead:=disc_size[0]; //Where the DOS header is
+    //ReadDOSHeader; //Read the DOS Header
     disc_size[1]:=DOSBlocks*cluster_size;//Disc size in bytes
    end;
    i:=1;
@@ -192,7 +198,7 @@ end;
 {-------------------------------------------------------------------------------
 Reads a DOS Header. doshead must be set prior to calling this
 -------------------------------------------------------------------------------}
-procedure TDiscImage.ReadDOSHeader;
+function TDiscImage.ReadDOSHeader: Boolean;
 var
  RootFrags      : TFragmentArray;
  index          : Integer;
@@ -200,16 +206,33 @@ var
  DataSec,
  ClusterCount   : Cardinal;
 begin
- //Total number of blocks
- DOSBlocks   :=Read16b(doshead+$13);     //if <65536 blocks
- if DOSBlocks=0 then DOSBlocks:=Read32b(doshead+$20);//if >65535 blocks
- dosalloc    :=ReadByte(doshead+$D);     //Allocation unit in blocks 
+ Result:=False;                                                     
  cluster_size:=Read16b(doshead+$B);      //Block (cluster) size
+ if (cluster_size<>$0200)
+ and(cluster_size<>$0400)
+ and(cluster_size<>$0800)
+ and(cluster_size<>$1000)then exit; //Must be one of these values
+ dosalloc    :=ReadByte(doshead+$D);     //Allocation unit in blocks
+ if (dosalloc<>  1)
+ and(dosalloc<>  2)
+ and(dosalloc<>  4)
+ and(dosalloc<>  8)
+ and(dosalloc<> 16)
+ and(dosalloc<> 32)
+ and(dosalloc<> 64)
+ and(dosalloc<>128)then exit; //Must be one of these values
+ if dosalloc*cluster_size>32*1024 then exit; //Cannot be greater than 32K
+ DOSResSecs  :=Read16b(doshead+$E);     //Reserved sectors
+ if DOSResSecs=0 then exit; //Cannot be zero
  NumFATs     :=ReadByte(doshead+$10);    //Number of FATs
- DOSResSecs  :=Read16b(doshead+$0E);     //Reserved sectors
+ if NumFATs=0 then exit; //Can't have zero FATs
  dosroot_size:=Read16b(doshead+$11)*$20; //Size of the root
+ DOSBlocks   :=Read16b(doshead+$13);     //Total number of blocks
+ if DOSBlocks=0 then DOSBlocks:=Read32b(doshead+$20);//if >65535 blocks
+ if DOSBlocks=0 then exit; //Still zero? then fail
  DOSFATSize  :=Read16b(doshead+$16);     //FAT size in blocks
  if DOSFATSize=0 then DOSFATSize:=Read32b(doshead+$24);//FAT size in blocks
+ if DOSFATSize=0 then exit; //Still zero? then fail
  //Determine the FAT type, as per Microsoft spec
  RootDirSectors:=(dosroot_size+(cluster_size-1))div cluster_size;
  DataSec:=DOSBlocks-(DOSResSecs+(NumFATs*DOSFATSize)+RootDirSectors);
@@ -217,6 +240,18 @@ begin
  if ClusterCount<4085 then FATType:=diFAT12
  else if ClusterCount<65525 then FATType:=diFAT16
  else FATType:=diFAT32;
+ //Sanity checks now we know the FAT
+ if(dosroot_size=0)and(FATType<>diFAT32)then exit; //Can't be zero, unless FAT32
+ if(dosroot_size<>0)and(FATType=diFAT32)then exit; //But, must be zero if FAT32
+ if FATType<>diFAT32 then
+  if dosroot_size mod cluster_size<>0 then exit;//Must be a multiple
+ if FATType=diFAT32 then
+ begin
+  if(Read16b(doshead+$13)<>0)          //This must be zero for FAT32
+  or(Read32b(doshead+$20)=0)then exit; //This must be non-zero for FAT32
+  if(Read16b(doshead+$16)<>0)          //This must be zero for FAT32
+  or(Read32b(doshead+$24)=0)then exit; //This must be non-zero for FAT32
+ end;
  //Read in the specific parts, dependant on FATType
  if(FATType=diFAT12)or(FATType=diFAT16)then
   DOSVersion  :=ReadByte(doshead+$26);    //DOS Version - $28 or $29 (or 0)
@@ -244,6 +279,8 @@ begin
    for index:=0 to Length(RootFrags)-1 do
     inc(dosroot_size,RootFrags[index].Length);
  end;
+ //Got this far? Then it must be a success
+ Result:=True;
 end;
 
 {-------------------------------------------------------------------------------

@@ -239,14 +239,16 @@ begin
     end;
    end;
    //Check for DOS Plus partition on ADFS Hard drives
-   if FFormat=diAcornADFS<<4+$F then
+   if(FFormat=diAcornADFS<<4+$F)and(not FAFSPresent)and(not FDOSPresent)then
    begin
-    //Start after the root
-    ctr:=((root+root_size)div$100)*$100;
-    while(ctr<=GetDataLength)and(not FDOSPresent)do
+    //Start at the root
+    ctr:=root;
+    ds:=GetDataLength;
+    while(ctr<=ds)and(not FDOSPresent)do
     begin
-     if IDDOSPartition(ctr) then disc_size[0]:=ctr;
-     //Next marker
+     //Is there one here?
+     IDDOSPartition(ctr);
+     //Next sector
      inc(ctr,$100);
     end;
    end;
@@ -571,17 +573,20 @@ var
  temp: String;
  rotd: Int64;
 begin
- if(Entry.LoadAddr>>20=$FFF)and(FFormat>diAcornADFS<<4+$02)then
- begin
-  //Get the 12 bit filetype
-  temp:=IntToHex((Entry.LoadAddr AND$000FFF00)>>8,3);
-  Entry.Filetype:=GetFiletypeFromNumber(StrToInt('$'+temp));
-  Entry.ShortFiletype:=temp;
-  //Now sort the timestamp
-  rotd:=Entry.LoadAddr AND$FF; //Convert to 64 bit integer
-  rotd:=(rotd<<32)OR Entry.ExecAddr; //Shift to the left and add the rest
-  Entry.TimeStamp:=RISCOSToTimeDate(rotd);
- end;
+ //Only valid for New and Big directories in ADFS or SparkFS
+ if((FFormat>>4=diAcornADFS)and((FDirType=diADFSNewDir)or(FDirType=diADFSBigDir)))
+ or(FFormat>>4=diSpark)then
+  if Entry.LoadAddr>>20=$FFF then //Only if the top 12 bits are set
+  begin
+   //Get the 12 bit filetype
+   temp:=IntToHex((Entry.LoadAddr AND$000FFF00)>>8,3);
+   Entry.Filetype:=GetFiletypeFromNumber(StrToInt('$'+temp));
+   Entry.ShortFiletype:=temp;
+   //Now sort the timestamp
+   rotd:=Entry.LoadAddr AND$FF; //Convert to 64 bit integer
+   rotd:=(rotd<<32)OR Entry.ExecAddr; //Shift to the left and add the rest
+   Entry.TimeStamp:=RISCOSToTimeDate(rotd);
+  end;
 end;
 
 {-------------------------------------------------------------------------------

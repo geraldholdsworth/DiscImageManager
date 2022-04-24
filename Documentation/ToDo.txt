@@ -21,6 +21,7 @@ General
 * Open multiple images at the same time and allow interaction between them (e.g. copying files from one to another).
 * For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
 * Ablity to add/remove/delete partitions using the command line.
+* Allow for multiple (>2) partitions - i.e. two or more DOS partitions on an ADFS structure, or ADFS/AFS/DOS hybrid.
 
 DFS
 

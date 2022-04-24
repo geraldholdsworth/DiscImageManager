@@ -161,16 +161,16 @@ begin
   if not ID_AFS      then //AFS
   if not ID_CDR      then //Commodore
   if not ID_Amiga    then //Amiga
-  if not ID_DFS      then //Acorn DFS
+  if not ID_DOSPlus  then //DOS plus
   if not ID_Sinclair then //Sinclair/Amstrad
   if not ID_CFS      then //Acorn CFS
   if not ID_MMB      then //MMFS
   if not ID_Spark    then //Spark archive
-  if not ID_DOSPlus  then //DOS plus
+  if not ID_DFS      then //Acorn DFS
    ResetVariables;        //Reset everything
   //Just by the ID process:
   //ADFS 'F' can get mistaken for Commodore
-  //Commodore and Amiga can be mistaken for DFS
+  //Commodore, Amiga and blank DOS can be mistaken for DFS
  end;
  //Return a true or false result
  Result:=FFormat<>diInvalidImg;
@@ -509,7 +509,8 @@ begin
   //Explode the pathname into an array, without the '.'
   if(FFormat>>4<>diAcornDFS)and(FFormat>>4<>diCommodore)then //Not DFS or Commodore
   begin
-   if(FFormat>>4=diAcornADFS)and(FDOSPresent)then//Is this on a DOS Partition of an ADFS?
+   if(FFormat>>4=diAcornADFS)and(FDOSPresent)
+   and(LeftStr(filename,Length(dosrootname))=dosrootname)then//Is this on a DOS Partition of an ADFS?
     Path:=filename.Split('\')
    else
     Path:=filename.Split(dir_sep);

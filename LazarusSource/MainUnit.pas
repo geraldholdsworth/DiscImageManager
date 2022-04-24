@@ -527,7 +527,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.42';
+    ApplicationVersion = '1.42.1';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -2388,8 +2388,15 @@ begin
      ed_execaddr.Enabled:=True; //Allow editing
     end;
    //Length
-   lb_length.Caption:=ConvertToKMG(Image.Disc[dir].Entries[entry].Length)+
-                   ' (0x'+IntToHex(Image.Disc[dir].Entries[entry].Length,8)+')';
+   if Image.Disc[dir].Entries[entry].DirRef=-1 then
+    lb_length.Caption:=ConvertToKMG(Image.Disc[dir].Entries[entry].Length)+
+                    ' (0x'+IntToHex(Image.Disc[dir].Entries[entry].Length,8)+')'
+   else //Number of entries in a directory
+   begin
+    ptr:=Length(Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Entries);
+    lb_length.Caption:=IntToStr(ptr)+' item';
+    if ptr<>1 then lb_length.Caption:=lb_length.Caption+'s';
+   end;
    //Location of object - varies between formats
    //ADFS Old map and Acorn FS - Sector is an offset
    if(Image.MapType=diADFSOldMap)
@@ -2436,6 +2443,10 @@ begin
     location:='Sector Offset: 0x'+IntToHex(Image.Disc[dr].Sector,8);
    if(Image.FormatNumber>>4=diDOSPlus)and(Image.MapType=diFAT32)then
     location:='Starting Cluster: 0x'+IntToHex(Image.Disc[dr].Sector,8);
+   //Number of entries in a directory
+   ptr:=Length(Image.Disc[dr].Entries);
+   lb_length.Caption:=IntToStr(ptr)+' item';
+   if ptr<>1 then lb_length.Caption:=lb_length.Caption+'s';
    //ADFS New map - Sector is an indirect address (fragment and sector)
    if Image.MapType=diADFSNewMap then
     location:='Indirect address: 0x'+IntToHex(Image.Disc[dr].Sector,8);
@@ -6372,8 +6383,8 @@ begin
  FTEdit.Font.Name:='Courier New';
  FTEdit.Alignment:=taCenter;
  i:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
- FTEdit.Top:=(((High(RISCOSFileTypes)-2)div 5)*i)+Round((i-FTEdit.Height)/2);
- FTEdit.Left:=((High(RISCOSFileTypes)-2)mod 5)*FTEdit.Width;
+ FTEdit.Top:=(((Length(FTButtons)+1)div 5)*i)+Round((i-FTEdit.Height)/2);
+ FTEdit.Left:=((Length(FTButtons)+1)mod 5)*FTEdit.Width;
  FTEdit.OnKeyPress:=@FileTypeKeyPress;
 end;
 

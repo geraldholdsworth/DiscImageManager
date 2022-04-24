@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.42
+TDiscImage class V1.43
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -391,7 +391,7 @@ type
   function ID_DOSPlus: Boolean;
   function IDDOSPartition(ctr: Cardinal): Boolean;
   procedure ReadDOSPartition;
-  procedure ReadDOSHeader;
+  function ReadDOSHeader: Boolean;
   function ReadDOSDirectory(dirname:String;addr:Cardinal;var len:Cardinal):TDir;
   function DOSExtToFileType(ext: String): String;
   function ConvertDOSTimeDate(time,date: Word): TDateTime;
