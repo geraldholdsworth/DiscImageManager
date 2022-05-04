@@ -18,16 +18,16 @@ Currently working on:<br>
 • SJ Research MDFS<br>
 • Multiple images open simultaenously<br>
 <br>
-Full instructions, in PDF format, are provided within the documentation folder (https://github.com/geraldholdsworth/DiscImageManager/blob/main/Documentation/Disc%20Image%20Manager%20User%20Guide.pdf).
+<a href="https://github.com/geraldholdsworth/DiscImageManager/blob/main/Documentation/Disc%20Image%20Manager%20User%20Guide.pdf">Full instructions, in PDF format</a>, are provided within the documentation folder.
 <br>
-For images in HFE format, I recommend you use HxC Floppy Emulator (https://sourceforge.net/projects/hxcfloppyemu/) to export the file in a format that Disc Image Manager understands.<br>
+For images in HFE format, I recommend you use <a href="https://sourceforge.net/projects/hxcfloppyemu/">HxC Floppy Emulator</a> to export the file in a format that Disc Image Manager understands.<br>
 <br>
-Another project that may interest users of Disc Image Manager is a test tool I wrote for UEF files - UEF Reader (https://github.com/geraldholdsworth/UEFReader). The results of this project paved the way for UEF files to be read by Disc Image Manager.<br>
+Another project that may interest users of Disc Image Manager is a test tool I wrote for UEF files - <a href="https://github.com/geraldholdsworth/UEFReader">UEF Reader</a>. The results of this project paved the way for UEF files to be read by Disc Image Manager.<br>
 <br>
-In addition, I've developed a RISC OS sprite to bitmap/PNG converter here (https://github.com/geraldholdsworth/SpriteToBitmap), which, as a cut down version, has been incorporated into Disc Image Manager. Another project that has made it into Disc Image Manager, as a cut down version, is here (https://github.com/geraldholdsworth/FileDump).<br>
+In addition, I've developed a <a href="https://github.com/geraldholdsworth/SpriteToBitmap">RISC OS sprite to bitmap/PNG converter here<a>, which, as a cut down version, has been incorporated into Disc Image Manager. Another project that has made it into Disc Image Manager, as a cut down version, is <a href="https://github.com/geraldholdsworth/FileDump">here</a>.<br>
 <br>
-Project was written in Lazarus (https://www.lazarus-ide.org). Binaries are available for macOS 32 and 64 bit, Windows 32 and 64 bit, Linux 32 and 64 bit, and Raspbian 32 bit (Linux ARM 32 bit). Full source is available if you wish to compile for other systems.<br>
+  Project was written in <a href="https://www.lazarus-ide.org">Lazarus</a>. Binaries are available for macOS 32 bit, 64 bit and ARM, Windows 32 and 64 bit, Linux 32 and 64 bit, and Raspbian 32 bit (Linux ARM 32 bit). Full source is available if you wish to compile for other systems.<br>
 <br>
-You might like to also check out the thread on Stardot (https://stardot.org.uk/forums/viewtopic.php?f=12&t=21252) concerning this project. I have also put this onto the English Amiga Board (http://eab.abime.net/index.php).<br>
+You might like to also check out the thread on <a href="https://stardot.org.uk/forums/viewtopic.php?f=12&t=21252">Stardot</a> concerning this project. I have also put this onto the <a href="http://eab.abime.net/index.php">English Amiga Board</a>.<br>
 <br>
 If you want, you can support this project, and others, by buying me a coffee (or a tea/beer/rum/etc.): https://ko-fi.com/geraldholdsworth<br>
