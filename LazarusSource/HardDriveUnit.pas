@@ -61,7 +61,9 @@ type
    OldMapLimit=512*1024*1024; //Old map drive limit = 512MB
    MB         =1024*1024;     //MegaByte
  public
-  ADFSHDD: Boolean;
+  ADFSHDD,
+  DOSHDD,
+  AmigaHDD: Boolean;
  end;
 
 var
@@ -139,8 +141,20 @@ begin
   rb_OldDir.Enabled:=True;
   rb_BigDir.Enabled:=False;
   cb_NewMap.Checked:=False;
- end
- else
+ end;
+ if AmigaHDD then
+ begin
+  //Set capacity to 40MB
+  CapacitySlider.Position:=40;
+  //Set max to 1024MB
+  CapacitySlider.Max:=1024;//Maximum 500MB
+  CapacitySlider.Min:=20;  //Minimum 20MB
+  CapacitySliderChange(Sender);
+  ADFSControls.Visible:=False;
+  DOSControls.Visible:=False;
+  Caption:='Create Amiga Hard Drive';
+ end;
+ if DOSHDD then
  begin
   //Set capacity to 40MB
   CapacitySlider.Position:=40;

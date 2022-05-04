@@ -101,7 +101,8 @@ begin
  //Currently, only certain types of format can be created
  btn_OK.Enabled:=(MainFormat.ItemIndex=0) //DFS
                OR(MainFormat.ItemIndex=1) //ADFS
-               OR(MainFormat.ItemIndex=2) //C64
+               OR(MainFormat.ItemIndex=2) //C64 
+               OR(MainFormat.ItemIndex=4) //Amiga
                OR(MainFormat.ItemIndex=5) //CFS
                OR(MainFormat.ItemIndex=6) //Spark
                OR(MainFormat.ItemIndex=7) //AFS
@@ -150,11 +151,14 @@ var
 begin
  ok:=True;
  //Are we creating a hard drive?
- if((MainFormat.ItemIndex=1)AND(ADFS.ItemIndex=8))    //ADFS
- or((MainFormat.ItemIndex=8)AND(DOS.ItemIndex=6))then //DOS
+ if((MainFormat.ItemIndex=1)AND(ADFS.ItemIndex=8))     //ADFS
+ or((MainFormat.ItemIndex=8)AND(DOS.ItemIndex=6))      //DOS
+ or((MainFormat.ItemIndex=4)AND(Amiga.ItemIndex=2))then//Amiga
  begin
   //Then we need to open the additional dialogue to configure this
-  HardDriveForm.ADFSHDD:=MainFormat.ItemIndex=1; //Set to ADFS or DOS
+  HardDriveForm.ADFSHDD :=MainFormat.ItemIndex=1; //Set to ADFS
+  HardDriveForm.DOSHDD  :=MainFormat.ItemIndex=8; //Set to DOS
+  HardDriveForm.AmigaHDD:=MainFormat.ItemIndex=4; //Set to Amiga
   HardDriveForm.ShowModal;
   ok:=HardDriveForm.ModalResult=mrOK;
   if ok then
@@ -169,8 +173,14 @@ begin
     dirtype:=diADFSOldDir;
     if HardDriveForm.rb_NewDir.Checked then dirtype:=diADFSNewDir;
     if HardDriveForm.rb_BigDir.Checked then dirtype:=diADFSBigDir;
-   end
-   else                           //DOS Specific
+   end;
+   if MainFormat.ItemIndex=4 then //Amiga Specific
+   begin
+    {fat:=diFAT12;
+    if HardDriveForm.rb_FAT16.Checked then fat:=diFAT16;
+    if HardDriveForm.rb_FAT32.Checked then fat:=diFAT32;}
+   end;
+   if MainFormat.ItemIndex=8 then //DOS Specific
    begin
     fat:=diFAT12;
     if HardDriveForm.rb_FAT16.Checked then fat:=diFAT16;
@@ -194,7 +204,6 @@ begin
   AFSImageSize.Position:=Round((Ceil((AFSImageSize.Position*10)/1024)*1024)/10);
   AFSImageSizeLabel.Caption:=IntToStr(Ceil((AFSImageSize.Position*10)/1024))+'MB';
  end;
- //Label is not updating on Windows
 end;
 
 {-------------------------------------------------------------------------------

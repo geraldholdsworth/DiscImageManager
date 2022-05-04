@@ -4699,7 +4699,7 @@ object MainForm: TMainForm
     object C64AttrPanel: TPanel
       Left = 1
       Height = 50
-      Top = 480
+      Top = 504
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5256,7 +5256,7 @@ object MainForm: TMainForm
     object AFSAttrPanel: TPanel
       Left = 1
       Height = 88
-      Top = 392
+      Top = 504
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5360,7 +5360,7 @@ object MainForm: TMainForm
     object DOSAttrPanel: TPanel
       Left = 1
       Height = 21
-      Top = 371
+      Top = 504
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5428,6 +5428,279 @@ object MainForm: TMainForm
         Width = 66
         Alignment = taRightJustify
         Caption = 'Attributes'
+        Font.Color = clBlue
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+    end
+    object AmigaAttrPanel: TPanel
+      Left = 1
+      Height = 150
+      Top = 371
+      Width = 353
+      Align = alTop
+      BevelOuter = bvNone
+      ClientHeight = 150
+      ClientWidth = 353
+      TabOrder = 15
+      Visible = False
+      OnPaint = FileInfoPanelPaint
+      object cb_Amiga_ownd: TCheckBox
+        Left = 128
+        Height = 20
+        Top = 16
+        Width = 65
+        Caption = 'Delete'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 0
+      end
+      object cb_Amiga_owne: TCheckBox
+        Left = 190
+        Height = 20
+        Top = 16
+        Width = 74
+        Caption = 'Execute'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 1
+      end
+      object cb_Amiga_ownw: TCheckBox
+        Left = 253
+        Height = 20
+        Top = 16
+        Width = 59
+        Caption = 'Write'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 2
+      end
+      object cb_Amiga_ownr: TCheckBox
+        Left = 324
+        Height = 20
+        Top = 16
+        Width = 56
+        Caption = 'Read'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 3
+      end
+      object cb_Amiga_pubd: TCheckBox
+        Tag = 1
+        Left = 190
+        Height = 20
+        Top = 56
+        Width = 65
+        Caption = 'Delete'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 4
+      end
+      object cb_Amiga_pube: TCheckBox
+        Tag = 1
+        Left = 128
+        Height = 20
+        Top = 56
+        Width = 74
+        Caption = 'Execute'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 5
+      end
+      object cb_Amiga_pubw: TCheckBox
+        Tag = 1
+        Left = 253
+        Height = 20
+        Top = 56
+        Width = 59
+        Caption = 'Write'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 6
+      end
+      object OAAttrLabelAmiga: TLabel
+        Left = 4
+        Height = 16
+        Top = 2
+        Width = 170
+        Alignment = taRightJustify
+        Caption = 'Attributes - Owner Access'
+        Font.Color = clBlue
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object PubAttrLabelAmiga: TLabel
+        Left = 6
+        Height = 16
+        Top = 32
+        Width = 166
+        Alignment = taRightJustify
+        Caption = 'Attributes - Public Access'
+        Font.Color = clBlue
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object cb_Amiga_pubr: TCheckBox
+        Tag = 2
+        Left = 324
+        Height = 20
+        Top = 56
+        Width = 56
+        Caption = 'Read'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 7
+      end
+      object OthAttrLabelAmiga: TLabel
+        Left = 15
+        Height = 16
+        Top = 78
+        Width = 163
+        Alignment = taRightJustify
+        Caption = 'Attributes - Other Access'
+        Font.Color = clBlue
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object cb_Amiga_othd: TCheckBox
+        Left = 48
+        Height = 20
+        Top = 92
+        Width = 65
+        Caption = 'Delete'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 8
+      end
+      object cb_Amiga_othe: TCheckBox
+        Left = 110
+        Height = 20
+        Top = 92
+        Width = 74
+        Caption = 'Execute'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 9
+      end
+      object cb_Amiga_othw: TCheckBox
+        Left = 196
+        Height = 20
+        Top = 92
+        Width = 59
+        Caption = 'Write'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 10
+      end
+      object cb_Amiga_othr: TCheckBox
+        Left = 264
+        Height = 20
+        Top = 92
+        Width = 56
+        Caption = 'Read'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 11
+      end
+      object cb_Amiga_hold: TCheckBox
+        Left = 280
+        Height = 20
+        Top = 128
+        Width = 53
+        Caption = 'Hold'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 12
+      end
+      object cb_Amiga_scri: TCheckBox
+        Left = 213
+        Height = 20
+        Top = 128
+        Width = 61
+        Caption = 'Script'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 13
+      end
+      object cb_Amiga_pure: TCheckBox
+        Left = 126
+        Height = 20
+        Top = 128
+        Width = 53
+        Caption = 'Pure'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 14
+      end
+      object cb_Amiga_arch: TCheckBox
+        Left = 44
+        Height = 20
+        Top = 128
+        Width = 80
+        Caption = 'Archived'
+        Font.Color = clBlack
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        OnClick = AttributeChangeClick
+        ParentFont = False
+        TabOrder = 15
+      end
+      object MiscAttrLabelAmiga: TLabel
+        Left = 4
+        Height = 16
+        Top = 112
+        Width = 170
+        Alignment = taRightJustify
+        Caption = 'Attributes - Miscallaenous'
         Font.Color = clBlue
         Font.Name = 'Tahoma'
         Font.Style = [fsBold]
@@ -32202,5 +32475,11 @@ object MainForm: TMainForm
       OnExecute = CancelDragDropExecute
       ShortCut = 27
     end
+  end
+  object HoverTimer: TTimer
+    Enabled = False
+    OnTimer = HoverTimerTimer
+    Left = 152
+    Top = 344
   end
 end

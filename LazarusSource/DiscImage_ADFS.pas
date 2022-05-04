@@ -238,8 +238,9 @@ begin
      end;
     end;
    end;
-   //Check for DOS Plus partition on ADFS Hard drives
-   if(FFormat=diAcornADFS<<4+$F)and(not FAFSPresent)and(not FDOSPresent)then
+   //Check for DOS partition on ADFS Hard drives
+   if(FFormat=diAcornADFS<<4+$F)and(not FAFSPresent)and(not FDOSPresent)
+   and(FDirType=diADFSOldDir)and(FOpenDOSPart)then
    begin
     //Start at the root
     ctr:=root;
@@ -255,6 +256,7 @@ begin
   end;
   //Return a true or false
   Result:=FFormat>>4=diAcornADFS;
+  if Result then root_name:='$';
  end;
 end;
 
@@ -538,6 +540,8 @@ begin
      ADFSCalcFileDate(Entry);
      //Not a directory - default. Will be determined later
      Entry.DirRef:=-1;
+     //Is this entry the DOS partition?
+     if doshead=Entry.Sector*secsize then Entry.IsDOSPart:=True;
      //Add to the result
      SetLength(Result.Entries,Length(Result.Entries)+1);
      Result.Entries[Length(Result.Entries)-1]:=Entry;
@@ -1247,6 +1251,7 @@ begin
  //Blank everything
  ResetVariables;
  SetDataLength(0);
+ root_name:='$';
  //Set the format
  FFormat:=diAcornADFS<<4+minor;
  //Interleave option
@@ -1567,6 +1572,7 @@ begin
   //Blank everything
   ResetVariables;
   SetDataLength(0);
+  root_name:='$';
   //Set the format
   FFormat:=diAcornADFS<<4+$0F;
   //Set the map and directory
@@ -1610,7 +1616,7 @@ begin
    FormatNewMapADFS(disctitle);
   end;
   //Now write the root
-  dirid:='$';
+  dirid:=root_name;
   att:='DLR';
   CreateADFSDirectory(dirid,dirid,att);
   //Finalise all the variables by reading the data in again
@@ -1830,19 +1836,19 @@ begin
  Result:=-3;//File already exists
  success:=False;
  //Validate the proposed filename
- if not((file_details.Filename='$')and(FDirType=diADFSBigDir))then
+ if not((file_details.Filename=root_name)and(FDirType=diADFSBigDir))then
   file_details.Filename:=ValidateADFSFilename(file_details.Filename);
  //First make sure it doesn't exist already
  if(not FileExists(file_details.Parent+dir_sep+file_details.Filename,ref))
- or((file_details.Filename='$')and(FDirType=diADFSBigDir))then
+ or((file_details.Filename=root_name)and(FDirType=diADFSBigDir))then
   //Get the directory where we are adding it to, and make sure it exists
-  if(FileExists(file_details.Parent,ref))OR(file_details.Parent='$')then
+  if(FileExists(file_details.Parent,ref))OR(file_details.Parent=root_name)then
   begin
-   if file_details.filename<>'$' then
+   if file_details.filename<>root_name then
    begin
     file_details.ImageAddress:=0;
     //Where we are inserting this into
-    if file_details.Parent='$' then
+    if file_details.Parent=root_name then
      dir  :=0
     else
      dir  :=FDisc[ref div $10000].Entries[ref mod $10000].DirRef;
@@ -1910,7 +1916,7 @@ begin
        ADFSAllocateFreeSpace(file_details.Length,fragid,fragments);
       end;
       //Now update the directory (local copy)
-      if file_details.filename<>'$' then
+      if file_details.filename<>root_name then
       begin
        //Get the number of entries in the directory
        ref:=Length(FDisc[dir].Entries);
@@ -2321,7 +2327,7 @@ begin
   end;
  SetLength(buffer,0);
  Result:=-3;//Directory already exists
- if(dirname='$')OR(parent='$')then //Creating the root
+ if(dirname=root_name)OR(parent=root_name)then //Creating the root
   parentaddr:=rootfrag
  else
  begin
@@ -2330,11 +2336,11 @@ begin
   //Has it been read in?
   if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then ReadDirectory(parent);
  end;
- if dirname<>'$' then
+ if dirname<>root_name then
   //Validate the name
   dirname:=ValidateADFSFilename(dirname);
  //Make sure it does not already exist
- if(not FileExists(parent+dir_sep+dirname,ref))OR(dirname='$')then
+ if(not FileExists(parent+dir_sep+dirname,ref))OR(dirname=root_name)then
  begin
   Result:=-5;//Unknown error
   //Set as 'D' so it gets added as a directory
@@ -2437,7 +2443,7 @@ begin
    buffer[$1B+Length(dirname)+1]:=$0D; //CR for end of directory name
   end;
   //Write the directory
-  if dirname='$' then //Root - used when formatting an image
+  if dirname=root_name then //Root - used when formatting an image
   begin
    for t:=0 to Length(buffer)-1 do
     WriteByte(buffer[t],root+t);
@@ -2493,10 +2499,10 @@ begin
    UpdateDOSDirectory(directory);
    exit;
   end;
- if(FileExists(directory,ref))or(directory='$')then
+ if(FileExists(directory,ref))or(directory=root_name)then
  begin
   //Get the directory reference and sector address
-  if directory='$' then
+  if directory=root_name then
   begin
    dir  :=0;
    if FMap then diraddr:=rootfrag
@@ -2741,14 +2747,14 @@ begin
  //ADFS Big Directories do not have titles
  if FDirType=diADFSBigDir then exit;
  //Check that the file exists, or is the root
- if(FileExists(filename,dir,entry))OR(filename='$')then
+ if(FileExists(filename,dir,entry))OR(filename=root_name)then
  begin
-  if filename='$' then
+  if filename=root_name then
   begin
    //Re-title the directory, limiting it to 19 characters
    FDisc[0].Title:=LeftStr(newtitle,19);
    //Update the catalogue, which will update the title
-   UpdateADFSCat('$');
+   UpdateADFSCat(root_name);
   end
   else
   begin
@@ -2810,7 +2816,7 @@ begin
    if FDirType=diADFSBigDir then
     if not ExtendADFSBigDir(dir,space,False) then
     begin
-     Result:=-9; //Cannot extend
+     Result:=-4; //Cannot extend
      exit;
     end;
    //Are we renaming a directory?
@@ -3104,16 +3110,19 @@ begin
    exit;
   end;
  //Check that the file exists
- if(FileExists(filename,dir,entry))or((filename='$')and(FDirType=diADFSBigDir))then
+ if(FileExists(filename,dir,entry))or((filename=root_name)and(FDirType=diADFSBigDir))then
  begin
   //If we are deleting the root (usually only when extending/contracting)
-  if(filename='$')and(FDirType=diADFSBigDir)then
+  if(filename=root_name)and(FDirType=diADFSBigDir)then
   begin
    entry:=$FFFF;
    dir  :=$FFFF;
   end;
   success:=True;
-  if filename<>'$' then
+  if filename<>root_name then
+  begin
+   //Is this file the currently open DOS Partition?
+   if FDisc[dir].Entries[entry].isDOSPart then exit(False); //Then fail
    //If directory, delete contents first
    if(FDisc[dir].Entries[entry].DirRef>0)and(not TreatAsFile)then
    begin
@@ -3130,10 +3139,11 @@ begin
             +dir_sep
             +FDisc[FDisc[dir].Entries[entry].DirRef].Entries[0].Filename);
    end;
+  end;
   //Only continue if we are successful
   if success then
   begin
-   if filename<>'$' then
+   if filename<>root_name then
    begin
     //Make a note of the parent - these will become invalid soon
     fileparent:=GetParent(dir);
@@ -3150,7 +3160,7 @@ begin
     //Remove from the catalogue
     UpdateADFSCat(fileparent);
    end;
-   if filename='$' then
+   if filename=root_name then
     addr:=rootfrag;//Read32b(bootmap+$0C+4); //ID of the root
    //Add to the free space map
    if not FMap then ADFSDeAllocateFreeSpace(addr,len); //Old map
@@ -3458,12 +3468,13 @@ begin
   direntry:=FDisc[sdir].Entries[sentry];
   //Remember the original parent
   sparent:=GetParent(sdir);
-  if(FileExists(directory,ddir,dentry))or(directory='$')then
+  if(FileExists(directory,ddir,dentry))or(directory=root_name)then
   begin
    Result:=-10;//Can't move to the same directory
    //Destination directory reference
-   ddir:=0;//Root
-   if directory<>'$' then ddir:=FDisc[ddir].Entries[dentry].DirRef;
+   if directory=root_name then ddir:=0//Root
+   else ddir:=FDisc[ddir].Entries[dentry].DirRef;
+   if ddir>=Length(FDisc) then exit(-12);
    if ddir<>sdir then //Can't move into the same directory
    begin
     //Has it been read in?

@@ -1,12 +1,12 @@
 object SettingsForm: TSettingsForm
   Left = 485
-  Height = 412
+  Height = 429
   Top = 137
   Width = 448
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Preferences'
-  ClientHeight = 412
+  ClientHeight = 429
   ClientWidth = 448
   Color = 15527148
   OnPaint = FormPaint
@@ -45,7 +45,7 @@ object SettingsForm: TSettingsForm
       Width = 81
       Caption = 'RISC OS 5'
       Checked = True
-      TabOrder = 0
+      TabOrder = 3
       TabStop = True
     end
     object TileRO4: TRadioButton
@@ -54,7 +54,7 @@ object SettingsForm: TSettingsForm
       Top = 120
       Width = 81
       Caption = 'RISC OS 4'
-      TabOrder = 1
+      TabOrder = 2
     end
     object NoTile: TRadioButton
       Left = 12
@@ -62,7 +62,7 @@ object SettingsForm: TSettingsForm
       Top = 8
       Width = 52
       Caption = 'None'
-      TabOrder = 2
+      TabOrder = 0
     end
     object TilePictureRO3: TImage
       Left = 8
@@ -78,7 +78,7 @@ object SettingsForm: TSettingsForm
       Top = 120
       Width = 81
       Caption = 'RISC OS 3'
-      TabOrder = 3
+      TabOrder = 1
     end
     object TilePictureIyonix: TImage
       Left = 260
@@ -116,18 +116,18 @@ object SettingsForm: TSettingsForm
   object CancelButton: TBitBtn
     Left = 224
     Height = 30
-    Top = 376
+    Top = 392
     Width = 100
     Cancel = True
     Caption = 'Cancel'
     Color = 15527148
     ModalResult = 2
-    TabOrder = 1
+    TabOrder = 5
   end
   object OKBtnBack: TPanel
     Left = 340
     Height = 30
-    Top = 376
+    Top = 392
     Width = 100
     BevelColor = clYellow
     BevelInner = bvLowered
@@ -137,7 +137,7 @@ object SettingsForm: TSettingsForm
     ClientWidth = 100
     Color = clYellow
     ParentColor = False
-    TabOrder = 2
+    TabOrder = 4
     object OKButton: TBitBtn
       Left = 0
       Height = 30
@@ -173,17 +173,17 @@ object SettingsForm: TSettingsForm
       'Interleaved (0,80,1,81,2,82,...)'
       'Multiplexed (0,2,4,...1,3,5,...)'
     )
-    TabOrder = 3
+    TabOrder = 1
   end
   object MiscGroup: TGroupBox
     Left = 0
-    Height = 72
+    Height = 96
     Top = 288
     Width = 440
     Caption = 'Miscellaneous'
-    ClientHeight = 53
+    ClientHeight = 77
     ClientWidth = 430
-    TabOrder = 4
+    TabOrder = 3
     object CreateINF: TCheckBox
       Left = 4
       Height = 18
@@ -200,7 +200,7 @@ object SettingsForm: TSettingsForm
       Top = 32
       Width = 186
       Caption = 'Write Debugging Information'
-      TabOrder = 1
+      TabOrder = 2
     end
     object CompressUEF: TCheckBox
       Left = 228
@@ -210,7 +210,7 @@ object SettingsForm: TSettingsForm
       Caption = 'Compress UEF Images'
       Checked = True
       State = cbChecked
-      TabOrder = 2
+      TabOrder = 1
     end
     object ScanSubDirs: TCheckBox
       Left = 228
@@ -222,6 +222,16 @@ object SettingsForm: TSettingsForm
       State = cbChecked
       TabOrder = 3
     end
+    object OpenDOS: TCheckBox
+      Left = 4
+      Height = 18
+      Top = 56
+      Width = 191
+      Caption = 'Open DOS Partitions on ADFS'
+      Checked = True
+      State = cbChecked
+      TabOrder = 4
+    end
   end
   object DFSGroup: TGroupBox
     Left = 224
@@ -231,7 +241,7 @@ object SettingsForm: TSettingsForm
     Caption = 'DFS Validation'
     ClientHeight = 85
     ClientWidth = 214
-    TabOrder = 5
+    TabOrder = 2
     object DFSBeyondEdge: TCheckBox
       Left = 4
       Height = 18

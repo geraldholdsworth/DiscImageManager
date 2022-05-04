@@ -35,6 +35,7 @@ type
   AllowDFSZeroSecs: TCheckBox;
   AllowDFSBlankFilenames: TCheckBox;
   CancelButton: TBitBtn;
+  OpenDOS: TCheckBox;
   ScanSubDirs: TCheckBox;
   DFSBeyondEdge: TCheckBox;
   DFSGroup: TGroupBox;

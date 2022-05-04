@@ -24,6 +24,8 @@ begin
  FScanSubDirs  :=True;
  //Use short filenames in DOS even if long filenames exist
  FDOSUseSFN    :=False;
+ //Open DOS Partitions on ADFS
+ FOpenDOSPart  :=True;
 end;
 constructor TDiscImage.Create(Clone: TDiscImage);
 var
@@ -289,7 +291,7 @@ begin
    end;
   diAmiga://Create AmigaDOS
    begin
-    FDisc:=FormatAmiga(minor);
+    FDisc:=FormatAmigaFDD(minor);
     Result:=Length(FDisc)>0;
    end;
   diAcornUEF://Create CFS
@@ -336,6 +338,11 @@ begin
   diDOSPlus: //Create DOS HDD
    begin
     FDisc:=FormatDOS(harddrivesize,dirtype);
+    Result:=Length(FDisc)>0;
+   end;
+  diAmiga  : //Create Amiga HDD
+   begin
+    FDisc:=FormatAmigaHDD(harddrivesize);
     Result:=Length(FDisc)>0;
    end;
  end;
@@ -440,8 +447,7 @@ begin
     Result:=RetitleADFSDirectory(filename,newtitle);
   diCommodore: exit;//Commodore doesn't have directories
   diSinclair : exit;//Sinclair/Amstrad doesn't have directories
-  diAmiga    :      //Retitle AmigaDOS directory
-    Result:=RetitleAmigaDirectory(filename,newtitle);
+  diAmiga    : exit;//AmigaDOS does not have directory titles
   diAcornUEF : exit;//CFS doesn't have directories
   diAcornFS  : exit;//Can't retitle AFS directories
   diDOSPlus  : exit;//Can't retitle DOS directories
@@ -1087,7 +1093,7 @@ begin
   diAcornADFS: Result:=UpdateADFSTimeStamp(filename,newtimedate);//Update ADFS Timestamp
   diCommodore: exit;//Update Commodore 64/128 Timestamp
   diSinclair : exit;//Update Sinclair/Amstrad Timestamp
-  diAmiga    : exit;//Update AmigaDOS Timestamp
+  diAmiga    : Result:=UpdateAmigaTimeStamp(filename,newtimedate);//Update AmigaDOS Timestamp
   diAcornUEF : exit;//Update CFS Timestamp
   diAcornFS  : Result:=UpdateAFSTimeStamp(filename,newtimedate);//Update AFS Timestamp
   diSpark    : Result:=UpdateSparkTimeStamp(filename,newtimedate);//Update Spark Timestamp

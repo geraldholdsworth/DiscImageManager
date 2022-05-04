@@ -9,6 +9,7 @@ Bugs
 * Some SS DFS images are IDed as DS images when 'Allow zero sectors' is selected in the preferences.
 * Access violation has been reported when creating an ADFS HDD image (default options) on Windows. - UNABLE TO REPLICATE
 * Does not work on Windows 11. - UNABLE TO REPLICATE
+* Changing time/date on a file does not update the 'unsaved' icon in the status bar.
 
 General
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform. This will need to be done using 'code-per-platform' directives.
@@ -26,7 +27,7 @@ General
 DFS
 
 ADFS
-* Import an existing AFS or DOS image into ADFS as a new partition.
+* Import an existing AFS or DOS image into ADFS as a new partition (importing DOS image as parition is as easy as just adding a DOS Image file).
 
 AFS
 * AFS0 images do not get created correctly (in particular the free space allocation maps) - AWAITING MORE INFO ON AFS FORMATS.
@@ -34,10 +35,6 @@ AFS
 * When extracting the AFS partition, remove the ADFS partition and re-address all the objects, instead of just blanking out the ADFS part - IN PROGRESS.
 
 Amiga
-* Write/Delete/Rename files/directories to Amiga images.
-* Create blank Amiga images.
-* Create Free Space Map for Amiga.
-* Show file attributes in the File Details panel.
 
 Spectrum/Amstrad
 * Write entire module - REQUIRE MORE INFO ON SPECTRUM FORMAT.

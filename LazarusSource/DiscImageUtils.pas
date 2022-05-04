@@ -53,6 +53,7 @@ type
   DirRef      : Integer;    //Reference to directory, if directory (ADFS/AmigaDOS)
   TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
   EOR         : Byte;       //Reserved for use by Repton Map Display
+  isDOSPart   : Boolean;    //This file is the DOS partition
  end;
  type
 //Define the records for an Acorn File Server password file
@@ -134,6 +135,7 @@ begin
   DirRef       :=$0000;
   TimeStamp    :=0;
   EOR          :=$00;
+  isDOSPart    :=False;
  end;
 end;
 

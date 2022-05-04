@@ -46,13 +46,15 @@ type
    FParentDir : Integer;
    FIsDir,
    FBeenRead,
-   FBroken    : Boolean;
+   FBroken,
+   FIsDOSPart : Boolean;
   public
    property ParentDir: Integer read FParentDir write FParentDir;//Parent directory reference
    property IsDir    : Boolean read FIsDir write FIsDir;        //Is it a directory
    property DirRef   : Integer read FDirRef write FDirRef;      //Reference into TDiscImage.Disc
    property BeenRead : Boolean read FBeenRead write FBeenRead;  //Has the directory been read in
    property Broken   : Boolean read FBroken write FBroken;      //Is the ADFS directory broken?
+   property IsDOSPart: Boolean read FIsDOSPart write FIsDOSPart;//This is the DOS Partition file
  end;
 
  //Form definition
@@ -60,7 +62,24 @@ type
   { TMainForm }
 type
   TMainForm = class(TForm)
+   AmigaAttrPanel: TPanel;
    AFSAttrPanel: TPanel;
+   cb_Amiga_othd: TCheckBox;
+   cb_Amiga_arch: TCheckBox;
+   cb_Amiga_othe: TCheckBox;
+   cb_Amiga_pure: TCheckBox;
+   cb_Amiga_hold: TCheckBox;
+   cb_Amiga_scri: TCheckBox;
+   cb_Amiga_ownr: TCheckBox;
+   cb_Amiga_othr: TCheckBox;
+   cb_Amiga_ownw: TCheckBox;
+   cb_Amiga_owne: TCheckBox;
+   cb_Amiga_ownd: TCheckBox;
+   cb_Amiga_othw: TCheckBox;
+   cb_Amiga_pubw: TCheckBox;
+   cb_Amiga_pubr: TCheckBox;
+   cb_Amiga_pubd: TCheckBox;
+   cb_Amiga_pube: TCheckBox;
    DOSAttributeLabel: TLabel;
    cb_DOS_archive: TCheckBox;
    DOSAttrPanel: TPanel;
@@ -76,6 +95,11 @@ type
    menuFixADFS: TMenuItem;
    menuDefrag: TMenuItem;
    menuChangeInterleave: TMenuItem;
+   OAAttrLabelAmiga: TLabel;
+   OthAttrLabelAmiga: TLabel;
+   MiscAttrLabelAmiga: TLabel;
+   PubAttrLabelAmiga: TLabel;
+   HoverTimer: TTimer;
    ToolBarContainer: TCoolBar;
    FilesToolBar: TToolBar;
    menuImage: TMenuItem;
@@ -315,6 +339,7 @@ type
    procedure CopyToClipboardExecute(Sender: TObject);
    procedure PasteFromClipboardExecute(Sender: TObject);
    procedure ToolBarContainerChange(Sender: TObject);
+   procedure HoverTimerTimer(Sender: TObject);
    //Misc
    procedure AddDirectoryToImage(dirname: String);
    procedure AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer;
@@ -324,7 +349,7 @@ type
    function AddFileToImage(filename: String;filedetails: TDirEntry;
            buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer; overload;
    function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
-      index:Integer;dir:Boolean;Tree:TTreeView):TTreeNode;
+      index:Integer;dir:Boolean;Tree:TTreeView;IsDOSPart:Boolean):TTreeNode;
    procedure AddImageToTree(Tree: TTreeView;ImageToUse: TDiscImage);
    procedure AddSparkToImage(filename: String);
    procedure ArrangeFileDetails;
@@ -361,6 +386,7 @@ type
    procedure ReadInDirectory(Node: TTreeNode);
    procedure ReportError(error: String);
    procedure ResetFileFields;
+   procedure SaveConfigSettings;
    procedure SelectNode(filename: String;casesens:Boolean=True);
    procedure ShowErrorLog;
    procedure ShowInfo(info: String);
@@ -435,6 +461,8 @@ type
     ViewOptions   :Cardinal;
     //Scan sub-directories on opening
     FScanSubDirs  :Boolean;
+    //Open DOS Partitions on ADFS
+    FOpenDOS      :Boolean;
     //What are we running on?
     platform,
     arch          :String;
@@ -527,7 +555,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.42.1';
+    ApplicationVersion = '1.43';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -1047,9 +1075,11 @@ begin
      if(Image.FormatNumber>>4=diAcornADFS) //Need the selected directory for ADFS
      or(Image.FormatNumber>>4=diSpark)     //And Spark
      or(Image.FormatNumber>>4=diAcornFS)   //And Acorn FS
+     or(Image.FormatNumber>>4=diAmiga)     //And Amiga
      or(Image.FormatNumber>>4=diDOSPlus)then//And DOS Plus
       if(DirList.Selected.Text='$')
       or(DirList.Selected.Text='AFS$')
+      or(DirList.Selected.Text='DF0:')
       or(DirList.Selected.Text='A:')
       or(DirList.Selected.Text='C:')then NewFile.Parent:=DirList.Selected.Text
       else
@@ -1088,7 +1118,7 @@ begin
       if Result>-1 then //File added OK
       begin
        if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
-       AddFileToTree(DirList.Selected,NewFile.Filename,Result,False,DirList);
+       AddFileToTree(DirList.Selected,NewFile.Filename,Result,False,DirList,False);
        UpdateImageInfo(side);
       end
       else
@@ -1137,7 +1167,7 @@ end;
 //Add a file or directory to the TTreeView, under ParentNode
 {------------------------------------------------------------------------------}
 function TMainForm.AddFileToTree(ParentNode: TTreeNode;importfilename: String;
-   index: Integer;dir: Boolean;Tree:TTreeView): TTreeNode;
+   index: Integer;dir: Boolean;Tree:TTreeView;IsDOSPart:Boolean): TTreeNode;
 begin
  Result:=nil;
  if(ParentNode=nil)or(index<0)then exit;
@@ -1160,6 +1190,8 @@ begin
   TMyTreeNode(Result).IsDir:=dir;
   //If this is not a directory, it will have no reference
   if not dir then TMyTreeNode(Result).DirRef:=-1;
+  //Set the DOS Partition flag
+  TMyTreeNode(Result).IsDOSPart:=IsDOSPart;
   Tree.Repaint;
  end;
 end;
@@ -1545,19 +1577,21 @@ begin
  Application.ProcessMessages;
  //Close any open hex dump windows
  CloseAllHexDumps;
- Image.ProgressIndicator:=@UpdateProgress;
+ Image.ProgressIndicator  :=@UpdateProgress;
  //Update the interleave when loading
- Image.InterleaveMethod:=ADFSInterleave;
+ Image.InterleaveMethod   :=ADFSInterleave;
  //Treat Sparks as a filing system
- Image.SparkAsFS:=SparkIsFS;
+ Image.SparkAsFS          :=SparkIsFS;
  //Allow DFS to have zero number of sectors
  Image.AllowDFSZeroSectors:=FDFSZeroSecs;
  //Check for files going over the disc edge on DFS
- Image.DFSBeyondEdge:=FDFSBeyondEdge;
+ Image.DFSBeyondEdge      :=FDFSBeyondEdge;
  //Check for blank filenames in DFS
- Image.DFSAllowBlanks:=FDFSAllowBlank;
+ Image.DFSAllowBlanks     :=FDFSAllowBlank;
  //Scan sub directories
- Image.ScanSubDirs:=FScanSubDirs;
+ Image.ScanSubDirs        :=FScanSubDirs;
+ //Open DOS Partitions
+ Image.OpenDOSPartitions  :=FOpenDOS;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -1632,16 +1666,18 @@ begin
  //Make a note of the dir ref, it is the highest
  if dir>highdir then highdir:=dir;
  //Set the 'IsDir' flag to true, as this is a directory
- TMyTreeNode(CurrDir).IsDir   :=True;
- TMyTreeNode(CurrDir).DirRef  :=dir;
- TMyTreeNode(CurrDir).BeenRead:=ImageToUse.Disc[dir].BeenRead;
- TMyTreeNode(CurrDir).Broken  :=ImageToUse.Disc[dir].Broken;
+ TMyTreeNode(CurrDir).IsDir    :=True;
+ TMyTreeNode(CurrDir).DirRef   :=dir;
+ TMyTreeNode(CurrDir).BeenRead :=ImageToUse.Disc[dir].BeenRead;
+ TMyTreeNode(CurrDir).Broken   :=ImageToUse.Disc[dir].Broken;
+ TMyTreeNode(CurrDir).IsDOSPart:=False;
  //Iterate though all the entries
  for entry:=0 to Length(ImageToUse.Disc[dir].Entries)-1 do
  begin
   //Adding new nodes for each one
   Node:=AddFileToTree(CurrDir,ImageToUse.Disc[dir].Entries[entry].Filename,
-                      entry,false,Tree{,ImageToUse});
+                      entry,false,Tree,
+                      ImageToUse.Disc[dir].Entries[entry].isDOSPart);
   //If it is, indeed, a direcotry, the dir ref will point to the sub-dir
   if ImageToUse.Disc[dir].Entries[entry].DirRef>=0 then
    //and we'll recursively call ourself to add these entries
@@ -1974,6 +2010,64 @@ begin
    //And change the panel height to accomodate
    C64AttrPanel.Height:=cb_C64_l.Top+cb_C64_l.Height;
   end;
+  //Commodore Amiga
+  if Image.FormatNumber>>4=diAmiga then
+  begin
+   //Make it visible
+   AmigaAttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   AmigaAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside - Owner Access
+   OAAttrLabelAmiga.Top:=0;
+   OAAttrLabelAmiga.Left:=(AmigaAttrPanel.Width-OAAttrLabelAmiga.Width)div 2;
+   cb_Amiga_ownd.Top:=OAAttrLabelAmiga.Top+OAAttrLabelAmiga.Height;
+   cb_Amiga_owne.Top:=cb_Amiga_ownd.Top;
+   cb_Amiga_ownw.Top:=cb_Amiga_ownd.Top;
+   cb_Amiga_ownr.Top:=cb_Amiga_ownd.Top;
+   cbpos:=AmigaAttrPanel.Width div 4; //Equally space them
+   cb_Amiga_ownd.Left:=cbpos*0;
+   cb_Amiga_owne.Left:=cbpos*1;
+   cb_Amiga_ownw.Left:=cbpos*2;
+   cb_Amiga_ownr.Left:=cbpos*3;
+   //Position the ticks box inside - Public Access
+   PubAttrLabelAmiga.Top:=cb_Amiga_ownd.Top+cb_Amiga_ownd.Height;
+   PubAttrLabelAmiga.Left:=(AmigaAttrPanel.Width-PubAttrLabelAmiga.Width)div 2;
+   cb_Amiga_pubd.Top:=PubAttrLabelAmiga.Top+PubAttrLabelAmiga.Height;
+   cb_Amiga_pube.Top:=cb_Amiga_pubd.Top;
+   cb_Amiga_pubw.Top:=cb_Amiga_pubd.Top;
+   cb_Amiga_pubr.Top:=cb_Amiga_pubd.Top;
+   cbpos:=AmigaAttrPanel.Width div 4; //Equally space them
+   cb_Amiga_pubd.Left:=cbpos*0;
+   cb_Amiga_pube.Left:=cbpos*1;
+   cb_Amiga_pubw.Left:=cbpos*2;
+   cb_Amiga_pubr.Left:=cbpos*3;
+   //Position the ticks box inside - Other access
+   OthAttrLabelAmiga.Top:=cb_Amiga_pubd.Top+cb_Amiga_pubd.Height;
+   OthAttrLabelAmiga.Left:=(AmigaAttrPanel.Width-OthAttrLabelAmiga.Width)div 2;
+   cb_Amiga_othd.Top:=OthAttrLabelAmiga.Top+OthAttrLabelAmiga.Height;
+   cb_Amiga_othe.Top:=cb_Amiga_othd.Top;
+   cb_Amiga_othw.Top:=cb_Amiga_othd.Top;
+   cb_Amiga_othr.Top:=cb_Amiga_othd.Top;
+   cbpos:=AmigaAttrPanel.Width div 4; //Equally space them
+   cb_Amiga_othd.Left:=cbpos*0;
+   cb_Amiga_othe.Left:=cbpos*1;
+   cb_Amiga_othw.Left:=cbpos*2;
+   cb_Amiga_othr.Left:=cbpos*3;
+   //Position the ticks box inside - Misc
+   MiscAttrLabelAmiga.Top:=cb_Amiga_othd.Top+cb_Amiga_othd.Height;
+   MiscAttrLabelAmiga.Left:=(AmigaAttrPanel.Width-MiscAttrLabelAmiga.Width)div 2;
+   cb_Amiga_hold.Top:=MiscAttrLabelAmiga.Top+MiscAttrLabelAmiga.Height;
+   cb_Amiga_scri.Top:=cb_Amiga_hold.Top;
+   cb_Amiga_pure.Top:=cb_Amiga_hold.Top;
+   cb_Amiga_arch.Top:=cb_Amiga_hold.Top;
+   cbpos:=AmigaAttrPanel.Width div 4; //Equally space them
+   cb_Amiga_hold.Left:=cbpos*0;
+   cb_Amiga_scri.Left:=cbpos*1;
+   cb_Amiga_pure.Left:=cbpos*2;
+   cb_Amiga_arch.Left:=cbpos*3;
+   //And change the panel height to accomodate
+   AmigaAttrPanel.Height:=cb_Amiga_hold.Top+cb_Amiga_hold.Height;
+  end;
  end;
  FileInfoPanel.Repaint;
 end;
@@ -2227,6 +2321,27 @@ begin
     cb_C64_l.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
     cb_C64_c.Checked:=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
+   //Amiga
+   if Image.FormatNumber>>4=diAmiga then
+   begin
+    //Tick/untick them
+    cb_Amiga_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_ownr.Checked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_ownd.Checked:=Pos('D',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_owne.Checked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_pubw.Checked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_pubr.Checked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_pubd.Checked:=Pos('d',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_pube.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_othw.Checked:=Pos('i',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_othr.Checked:=Pos('a',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_othd.Checked:=Pos('l',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_othe.Checked:=Pos('x',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_arch.Checked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_pure.Checked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_scri.Checked:=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_hold.Checked:=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
+   end;
    DoNotUpdate   :=False;  //Re-enable the event firing
    //Filetype
    filetype:=Image.Disc[dir].Entries[entry].Filetype;
@@ -2362,17 +2477,19 @@ begin
    //Status bar
    UpdateImageInfo(Image.Disc[dir].Entries[entry].Side);
    //CRC32
-   lb_CRC32.Caption:=Image.GetFileCRC(temp
-                                     +Image.GetDirSep(Image.Disc[dir].Partition)
-                                     +filename,entry);
+   if Image.Disc[dir].Entries[entry].DirRef=-1 then
+    lb_CRC32.Caption:=Image.GetFileCRC(temp
+                                      +Image.GetDirSep(Image.Disc[dir].Partition)
+                                      +filename,entry);
    //Parent
    RemoveTopBit(temp);
    lb_parent.Caption:=temp;
-   //Timestamp - ADFS, Spark, FileStore and DOS only
+   //Timestamp - ADFS, Spark, FileStore, Amiga and DOS only
    if  (Image.Disc[dir].Entries[entry].TimeStamp>0)
    and((Image.FormatNumber>>4=diAcornADFS)
    or  (Image.FormatNumber>>4=diSpark)
    or  (Image.FormatNumber>>4=diAcornFS)
+   or  (Image.FormatNumber>>4=diAmiga)
    or  (Image.FormatNumber>>4=diDOSPlus))then
     lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
                                        Image.Disc[dir].Entries[entry].TimeStamp);
@@ -2755,11 +2872,11 @@ var
 const DiscFormats = //Accepted format strings
  'DFSS    DFSS40  DFSD    DFSD40  WDFSS   WDFSS40 WDFSD   WDFSD40 ADFSS   ADFSM   '+
  'ADFSL   ADFSD   ADFSE   ADFSE+  ADFSF   ADFSF+  C1541   C1571   C1581   AMIGADD '+
- 'AMIGAHD CFS     ';
- const DiscNumber : array[1..22] of Integer = //Accepted format numbers
+ 'AMIGAHD CFS     DOS+640 DOS+800 DOS360  DOS720  DOS1440 DOS2880 ';
+ const DiscNumber : array[1..28] of Integer = //Accepted format numbers
  ($001   ,$000   ,$011   ,$010   ,$021   ,$020   ,$031   ,$030   ,$100   ,$110,
   $120   ,$130   ,$140   ,$150   ,$160   ,$170   ,$200   ,$210   ,$220   ,$400,
-  $410   ,$500   );
+  $410   ,$500   ,$A00   ,$A01   ,$A02   ,$A03   ,$A04   ,$A05);
 begin
  SetLength(fields,0);
  //Collate the parameters
@@ -2841,7 +2958,7 @@ begin
      end;
     end;
    end;
-   if LeftStr(UpperCase(param),4)='AFSL' then //Create AFS
+   if LeftStr(UpperCase(param),4)='AFSL' then //Create AFS HDD
     if StrToIntDef(param2,0)>0 then //Need a second parameter
     begin
      //Get the image size
@@ -2862,6 +2979,42 @@ begin
       ShowNewImage(Image.Filename);
      end;
     end;
+   if UpperCase(param)='DOSHDD' then //Create DOS HDD
+   begin
+    //Get the image size
+    harddrivesize:=StrToIntDef(param2,0);
+    //Has it been specified in Megabytes?
+    if UpperCase(RightStr(param2,1))='M' then harddrivesize:=harddrivesize*1024;
+    //Work the most appropriate FAT
+    if harddrivesize<33300 then dirtype:=diFAT16 else dirtype:=diFAT32;
+    //Is the specified image size big enough
+    if harddrivesize<20*1024 then harddrivesize:=20*1024;
+    //But not too big
+    if harddrivesize>1024*1024 then harddrivesize:=512*1024;
+    //Create it
+    if Image.FormatHDD(diDOSPlus,harddrivesize*1024,False,dirtype) then
+    begin
+     HasChanged:=True;
+     ShowNewImage(Image.Filename);
+    end;
+   end;
+   if UpperCase(param)='AMIGAHDD' then //Create Amiga HDD
+   begin
+    //Get the image size
+    harddrivesize:=StrToIntDef(param2,0);
+    //Has it been specified in Megabytes?
+    if UpperCase(RightStr(param2,1))='M' then harddrivesize:=harddrivesize*1024;
+    //Is the specified image size big enough
+    if harddrivesize<20*1024 then harddrivesize:=20*1024;
+    //But not too big
+    if harddrivesize>1024*1024 then harddrivesize:=512*1024;
+    //Create it
+    if Image.FormatHDD(diAmiga,harddrivesize*1024,False,0) then
+    begin
+     HasChanged:=True;
+     ShowNewImage(Image.Filename);
+    end;
+   end;
    if Pos(UpperCase(param),DiscFormats)>0 then //Create other
    begin
     index:=(Pos(UpperCase(param),DiscFormats) DIV 8)+1;
@@ -3023,6 +3176,39 @@ begin
      HasChanged:=HasChanged OR r;
     end;
    end;
+   //Change configure option +++++++++++++++++++++++++++++++++++++++++++++++++++
+   if(option='--config')or(option='-cf')then
+   begin
+    //Are there more options in the second parameter?
+    if Pos('|',param2)>0 then fields:=param2.Split('|');
+    if Length(fields)>0 then param2:=fields[0];
+    if Length(fields)>1 then
+    begin
+     param2:=LowerCase(param2);
+     fields[1]:=LowerCase(fields[1]);
+     if param2='trackorder' then //ADFS/AFS track order
+     begin
+      if fields[1]='auto' then ADFSInterleave:=0;
+      if fields[1]='seq'  then ADFSInterleave:=1;
+      if fields[1]='int'  then ADFSInterleave:=2;
+      if fields[1]='mux'  then ADFSInterleave:=3;
+     end;
+     if(param2='dfs')and(Length(fields)>2)then //DFS Validation
+     begin
+      fields[2]:=LowerCase(fields[2]);
+      if fields[1]='over'  then FDFSBeyondEdge:=fields[2]='true';
+      if fields[1]='zero'  then FDFSZeroSecs  :=fields[2]='true';
+      if fields[1]='blank' then FDFSAllowBlank:=fields[2]='true';
+     end;
+     //Misc
+     if param2='inf'      then DoCreateINF :=fields[1]='true';
+     if param2='debug'    then Fdebug      :=fields[1]='true';
+     if param2='compress' then FUEFCompress:=fields[1]='true';
+     if param2='scan'     then FScanSubDirs:=fields[1]='true';
+     if param2='open'     then FOpenDOS    :=fields[1]='true';
+     SaveConfigSettings;
+    end;
+   end;
   end;
  end;
  //Commands that do not require any parameters ---------------------------------
@@ -3081,29 +3267,31 @@ begin
  //Reset the form shift state
  FormShiftState:=[];
  //Texture style - get from the registry
- TextureType:=GetRegValI('Texture',1);
+ TextureType   :=GetRegValI('Texture',1);
  //ADFS L Interleaved type - get from the registry
  ADFSInterleave:=GetRegValI('ADFS_L_Interleave',0);
  //Treat Spark as FS?
- SparkIsFS:=GetRegValB('Spark_Is_FS',True);
+ SparkIsFS     :=GetRegValB('Spark_Is_FS',True);
  //Threshold of when to bypass the GUI (during import) - get from registry
  bypassGUIThres:={GetRegValI('bypass_GUI_Threshold',}100;//);
  //Create INF Files?
- DoCreateINF:=GetRegValB('CreateINF',True);
+ DoCreateINF   :=GetRegValB('CreateINF',True);
  //Hide Commodore DEL files
- DoHideDEL:=GetRegValB('Hide_CDR_DEL',False);
+ DoHideDEL     :=GetRegValB('Hide_CDR_DEL',False);
  //Allow DFS images with zero sectors
- FDFSZeroSecs:=GetRegValB('DFS_Zero_Sectors',False);
+ FDFSZeroSecs  :=GetRegValB('DFS_Zero_Sectors',False);
  //Check for files going over the DFS disc edge
  FDFSBeyondEdge:=GetRegValB('DFS_Beyond_Edge',False);
  //Check for blank filenames in DFS
  FDFSAllowBlank:=GetRegValB('DFS_Allow_Blanks',False);
  //Compress UEF Files on save
- FUEFCompress:=GetRegValB('UEF_Compress',True);
+ FUEFCompress  :=GetRegValB('UEF_Compress',True);
  //Scan all sub directories on opening
- FScanSubDirs:=GetRegValB('Scan_SubDirs',True);
+ FScanSubDirs  :=GetRegValB('Scan_SubDirs',True);
+ //Open DOS Partitions on ADFS
+ FOpenDOS      :=GetRegValB('Open_DOS',True);
  //View menu options
- ViewOptions:=GetRegValI('View_Options',$FFFF);
+ ViewOptions   :=GetRegValI('View_Options',$FFFF);
  //Toolbar order - this doesn't work currently
 { ToolBarContainer.Bands.Items[0]:=GetRegValS('ToolBar0','ImageToolBar');
  ToolBarContainer.Bands.Items[1].Text:=GetRegValS('ToolBar1','FilesToolBar');
@@ -3600,7 +3788,7 @@ begin
            //Then add it to the tree, if successful
            if index>=0 then
             AddFileToTree(DirList.Selected,newentry.Filename,index,False,
-                          DirList)
+                          DirList,False)
            else //Failed to write the file
             ReportError('Failed when '+method+' '+newentry.Parent+NewImage.DirSep
                                                  +newentry.Filename
@@ -3800,6 +3988,7 @@ begin
  if(Image.FormatNumber>>4=diAcornADFS)
  or(Image.FormatNumber>>4=diAcornFS)
  or(Image.FormatNumber>>4=diDOSPlus)
+ or(Image.FormatNumber>>4=diAmiga)
  or(Image.FormatNumber>>4=diSpark)then
  begin
   //Get the references
@@ -4325,7 +4514,7 @@ begin
  if index>=0 then
  begin
   HasChanged:=True;
-  AddFileToTree(DirList.Selected,'Passwords',index,False,DirList);
+  AddFileToTree(DirList.Selected,'Passwords',index,False,DirList,False);
   UpdateImageInfo;
  end
  else
@@ -4551,7 +4740,10 @@ begin
   inc(x);
  dirname:=dirname+IntToStr(x);
  //Create the directory
- CreateDirectory(dirname,'DLR');
+ if Image.FormatNumber>>4<>diAmiga then
+  CreateDirectory(dirname,'DLR')
+ else
+  CreateDirectory(dirname,''); //Create with no protection flags for Amiga
 end;
 
 {------------------------------------------------------------------------------}
@@ -4597,15 +4789,16 @@ begin
    //And each entry in that directory
    for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
     //write out each entry
-    WriteLine(F,'"'+Image.GetParent(dir)+'","'
-                   +Image.Disc[dir].Entries[entry].Filename+'","'
-                   +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+'","'
-                   +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+'","'
-                   +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen)+'","'
-                   +Image.Disc[dir].Entries[entry].Attributes+'","'
-                   +Image.GetFileCRC(Image.GetParent(dir)
-                                    +Image.GetDirSep(Image.Disc[dir].Partition)
-                                    +Image.Disc[dir].Entries[entry].Filename)+'"');
+    if Image.Disc[dir].Entries[entry].DirRef=-1 then
+     WriteLine(F,'"'+Image.GetParent(dir)+'","'
+                    +Image.Disc[dir].Entries[entry].Filename+'","'
+                    +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+'","'
+                    +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+'","'
+                    +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen)+'","'
+                    +Image.Disc[dir].Entries[entry].Attributes+'","'
+                    +Image.GetFileCRC(Image.GetParent(dir)
+                                     +Image.GetDirSep(Image.Disc[dir].Partition)
+                                     +Image.Disc[dir].Entries[entry].Filename)+'"');
   //Finally free up the file stream
   F.Free;
   //Close the progress window
@@ -4636,13 +4829,14 @@ begin
  //ADFS Interleaving
  SettingsForm.InterleaveGroup.ItemIndex:=ADFSInterleave;
  //Miscellaneous
- SettingsForm.CreateINF.Checked:=DoCreateInf;
- SettingsForm.WriteDebug.Checked:=Fdebug;
- SettingsForm.AllowDFSZeroSecs.Checked:=FDFSZeroSecs;
- SettingsForm.DFSBeyondEdge.Checked:=FDFSBeyondEdge;
+ SettingsForm.CreateINF.Checked             :=DoCreateInf;
+ SettingsForm.WriteDebug.Checked            :=Fdebug;
+ SettingsForm.AllowDFSZeroSecs.Checked      :=FDFSZeroSecs;
+ SettingsForm.DFSBeyondEdge.Checked         :=FDFSBeyondEdge;
  SettingsForm.AllowDFSBlankFilenames.Checked:=FDFSAllowBlank;
- SettingsForm.CompressUEF.Checked:=FUEFCompress;
- SettingsForm.ScanSubDirs.Checked:=FScanSubDirs;
+ SettingsForm.CompressUEF.Checked           :=FUEFCompress;
+ SettingsForm.ScanSubDirs.Checked           :=FScanSubDirs;
+ SettingsForm.OpenDOS.Checked               :=FOpenDOS;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
@@ -4662,20 +4856,31 @@ begin
   FDFSAllowBlank:=SettingsForm.AllowDFSBlankFilenames.Checked;
   FUEFCompress  :=SettingsForm.CompressUEF.Checked;
   FScanSubDirs  :=SettingsForm.ScanSubDirs.Checked;
+  FOpenDOS      :=SettingsForm.OpenDOS.Checked;
   //Save the settings
-  SetRegValI('Texture',TextureType);
-  SetRegValI('ADFS_L_Interleave',ADFSInterleave);
-  SetRegValB('CreateINF',DoCreateINF);
-  SetRegValB('Debug_Mode',Fdebug);
-  SetRegValB('DFS_Zero_Sectors',FDFSZeroSecs);
-  SetRegValB('DFS_Beyond_Edge',FDFSBeyondEdge);
-  SetRegValB('DFS_Allow_Blanks',FDFSAllowBlank);
-  SetRegValB('Scan_SubDirs',FScanSubDirs);
+  SaveConfigSettings;
   //Change the tile under the filetype
   if DirList.SelectionCount=1 then DirListChange(Sender,DirList.Selected);
   //Repaint the main form
   Repaint;
  end;
+end;
+
+{------------------------------------------------------------------------------}
+//Saves the configuration settings to the registry
+{------------------------------------------------------------------------------}
+procedure TMainForm.SaveConfigSettings;
+begin
+ SetRegValI('Texture',          TextureType);
+ SetRegValI('ADFS_L_Interleave',ADFSInterleave);
+ SetRegValB('CreateINF',        DoCreateINF);
+ SetRegValB('Debug_Mode',       Fdebug);
+ SetRegValB('DFS_Zero_Sectors', FDFSZeroSecs);
+ SetRegValB('DFS_Beyond_Edge',  FDFSBeyondEdge);
+ SetRegValB('DFS_Allow_Blanks', FDFSAllowBlank);
+ SetRegValB('Scan_SubDirs',     FScanSubDirs);
+ SetRegValB('Open_DOS',         FOpenDOS);
+ SetRegValB('UEF_Compress',     FUEFCompress);
 end;
 
 {------------------------------------------------------------------------------}
@@ -4819,6 +5024,7 @@ begin
    TV.Font.Style:=[fsBold,fsItalic];
   //Only concerned if it is selected, or a directory not read in, or broken
   if(cdsSelected in State)
+  or(TMyTreeNode(Node).IsDOSPart)
   or(((not TMyTreeNode(Node).BeenRead)
   or(TMyTreeNode(Node).Broken))and(TMyTreeNode(Node).IsDir))then
   begin
@@ -4865,6 +5071,13 @@ begin
      //Directories not read in
      Brush.Style:=bsClear;
      Font.Color:=clBlue;
+    end;
+    //Change the colour - file is the DOS Partition
+    if TMyTreeNode(Node).isDOSPart then
+    begin
+     //Directories not read in
+     Brush.Style:=bsClear;
+     Font.Color:=clGreen;
     end;
     //Change the colour - directory broken
     if(TMyTreeNode(Node).Broken)and(TMyTreeNode(Node).IsDir)then
@@ -4952,12 +5165,13 @@ begin
    //Mark as changed
    if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
    //Create the node as a file
-   Node:=AddFileToTree(DirList.Selected,dirname,index,True,DirList);
+   Node:=AddFileToTree(DirList.Selected,dirname,index,True,DirList,False);
    //Update the directory reference and the directory flag
    TMyTreeNode(Node).DirRef:=Length(Image.Disc)-1;
    TMyTreeNode(Node).IsDir:=True;
    TMyTreeNode(Node).BeenRead:=True; //It'll be empty anyway
-   TMyTreeNode(NOde).Broken:=False;
+   TMyTreeNode(Node).Broken:=False;
+   TMyTreeNode(Node).IsDOSPart:=False;
    //Update the image
    UpdateImageInfo;
    //Select the new node
@@ -5117,8 +5331,10 @@ begin
     begin
      //Highlight it
      Dst.Selected:=True;
-     //Expand the folder tree
-     Dst.Expand(False);
+     //Reset the timer
+     HoverTimer.Enabled:=False;
+     //And start it off again, so that there is a delay before expanding the node
+     HoverTimer.Enabled:=True;
     end;
    end;
    //See if we have created an image to move, if not then do so
@@ -5210,6 +5426,17 @@ begin
    end;
   end;
  end;
+end;
+
+{------------------------------------------------------------------------------}
+//User has hovered over item, so expand
+{------------------------------------------------------------------------------}
+procedure TMainForm.HoverTimerTimer(Sender: TObject);
+begin
+ if Dst<>nil then
+  if Dst.Selected then
+   Dst.Expand(False);
+ HoverTimer.Enabled:=False;
 end;
 
 {------------------------------------------------------------------------------}
@@ -5372,7 +5599,7 @@ begin
        end;
      end;
      NewNode:=AddFileToTree(Dst,Image.Disc[dir].Entries[entry].Filename,
-                            index,TMyTreeNode(DraggedItem).IsDir,DirList{,Image});
+                            index,TMyTreeNode(DraggedItem).IsDir,DirList,False);
      //Did we just copy a directory?
      if TMyTreeNode(DraggedItem).IsDir then
      begin
@@ -5442,7 +5669,7 @@ var
  major    : Word;
  minor,
  tracks   : Byte;
- ok       : Boolean;
+ ok,hdd   : Boolean;
  index    : Integer;
  filename : String;
 begin
@@ -5453,6 +5680,7 @@ begin
   //If Create was clicked, then create a new image
   if NewImageForm.ModalResult=mrOK then
   begin
+   CloseAllHexDumps; //From this point, all loaded data will be dumped
    //Get the main format
    major:=$FFF;
    case NewImageForm.MainFormat.ItemIndex of
@@ -5503,36 +5731,48 @@ begin
    ProgressForm.Show;
    Application.ProcessMessages;
    Image.ProgressIndicator:=@UpdateProgress;
+   hdd:=False;
    //ADFS Hard Drive
    if(major=diAcornADFS)and(minor=8)then
+   begin
     ok:=Image.FormatHDD(diAcornADFS,
                         NewImageForm.harddrivesize,
                         NewImageForm.newmap,
-                        NewImageForm.dirtype)
-   else //AFS
-    if major=diAcornFS then
-    begin
-     //Create the format
-     ok:=Image.FormatHDD(diAcornFS,
-                         NewImageForm.AFSImageSize.Position*10*1024,
-                         False,
-                         minor+2);
-     if(ok)and(NewImageForm.cb_AFScreatepword.Checked)then
-      //Create blank password file for AFS
-      if Image.CreatePasswordFile(nil)<0 then //If fails, report an error
-       ReportError('Failed to create a password file');
-    end
-    else //DOS Hard Drive
-     if(major=diDOSPlus)and(minor=6)then
-      ok:=Image.FormatHDD(major,
-                          NewImageForm.harddrivesize,
-                          False,
-                          NewImageForm.fat)
-     else //Floppy Drive
-      ok:=Image.FormatFDD(major,minor,tracks,filename);
+                        NewImageForm.dirtype);
+    hdd:=True;
+   end;
+   //AFS HardDrive
+   if major=diAcornFS then
+   begin
+    //Create the format
+    ok:=Image.FormatHDD(diAcornFS,
+                        NewImageForm.AFSImageSize.Position*10*1024,
+                        False,minor+2);
+    if(ok)and(NewImageForm.cb_AFScreatepword.Checked)then
+     //Create blank password file for AFS
+     if Image.CreatePasswordFile(nil)<0 then //If fails, report an error
+      ReportError('Failed to create a password file');
+    hdd:=True;
+   end;
+   //DOS Hard Drive
+   if(major=diDOSPlus)and(minor=6)then
+   begin
+    ok:=Image.FormatHDD(major,NewImageForm.harddrivesize,False,
+                        NewImageForm.fat);
+    hdd:=True;
+   end;
+   //Amiga Hard Drive
+   if(major=diAmiga)and(minor=2)then
+   begin
+    ok:=Image.FormatHDD(major,NewImageForm.harddrivesize,False,0);
+    hdd:=True;
+   end;
+   //Floppy Drive
+   if not hdd then
+    ok:=Image.FormatFDD(major,minor,tracks,filename);
+   //All OK, so load the new image
    if ok then
    begin
-    CloseAllHexDumps;
     if major<>diSpark then HasChanged:=True;
     ShowNewImage(Image.Filename);  //This updates the status bar
    end
@@ -5616,7 +5856,29 @@ begin
    if cb_DOS_system.Checked  then att:=att+'S';
    if cb_DOS_archive.Checked then att:=att+'A';
   end;
-  if TMyTreeNode(DirList.Selected).IsDir then att:=att+'D';
+  //Attributes - Amiga
+  if Image.FormatNumber>>4=diAmiga then
+  begin
+   if not cb_Amiga_ownd.Checked  then att:=att+'D';
+   if not cb_Amiga_owne.Checked  then att:=att+'E';
+   if not cb_Amiga_ownw.Checked  then att:=att+'W';
+   if not cb_Amiga_ownr.Checked  then att:=att+'R';
+   if cb_Amiga_arch.Checked  then att:=att+'A';
+   if cb_Amiga_pure.Checked  then att:=att+'P';
+   if cb_Amiga_scri.Checked  then att:=att+'S';
+   if cb_Amiga_hold.Checked  then att:=att+'H';
+   if not cb_Amiga_pubd.Checked  then att:=att+'d';
+   if cb_Amiga_pube.Checked  then att:=att+'e';
+   if cb_Amiga_pubw.Checked  then att:=att+'w';
+   if cb_Amiga_pubr.Checked  then att:=att+'r';
+   if not cb_Amiga_othd.Checked  then att:=att+'l';
+   if cb_Amiga_othe.Checked  then att:=att+'x';
+   if cb_Amiga_othw.Checked  then att:=att+'i';
+   if cb_Amiga_othr.Checked  then att:=att+'a';
+  end;
+  //Add the directory attribute
+  if TMyTreeNode(DirList.Selected).IsDir then
+   if Image.FormatNumber>>4<>diAmiga then att:=att+'D' else att:=att+'F';
   //Get the file path
   filepath:=GetFilePath(DirList.Selected);
   //Update the attributes for the file
@@ -5680,7 +5942,7 @@ procedure TMainForm.DeleteFile(confirm: Boolean);
 var
  j,
  nodes   : Integer;
- R       : Boolean;
+ R,ok    : Boolean;
  filepath: String;
 begin
  if DirList.SelectionCount>0 then
@@ -5688,7 +5950,8 @@ begin
   //Take a note of the number of selections
   nodes:=DirList.SelectionCount;
   //Go through all the selections (or the only one)
-  while DirList.SelectionCount>0 do
+  ok:=True;
+  while(DirList.SelectionCount>0)and(ok)do
   begin
    //Get the full path to the file
    filepath:=GetFilePath(DirList.Selections[0]);
@@ -5698,7 +5961,9 @@ begin
    else R:=True;
    //If so, then delete
    if R then
-    if Image.DeleteFile(filepath) then
+   begin
+    ok:=Image.DeleteFile(filepath);
+    if ok then
     begin
      if Image.FormatNumber>>4<>diSpark then HasChanged:=True;
      //Update the status bar
@@ -5724,6 +5989,7 @@ begin
          HexDumpMenu.Items[j].Free;
       end;
     end;
+   end else ok:=False;
   end;
  end;
 end;
@@ -6063,6 +6329,7 @@ begin
  DFSAttrPanel.Visible :=False;
  C64AttrPanel.Visible :=False;
  DOSAttrPanel.Visible :=False;
+ AmigaAttrPanel.Visible:=False;
  //And untick them
  cb_ADFS_ownw.Checked:=False;
  cb_ADFS_ownr.Checked:=False;

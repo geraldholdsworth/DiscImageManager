@@ -84,6 +84,7 @@ type
   FDFSBeyondEdge,               //Check for files going beyond the DFS disc edge
   FDOSVolInRoot,                //Volume name is stored in the root (DOS)
   FScanSubDirs,                 //Scan sub directories on opening (ADFS/Amiga/DOS/Spark)
+  FOpenDOSPart,                 //Open DOS Partitions on ADFS
   FDOSUseSFN    : Boolean;      //Use short filenames, even if there are long filenames (DOS)
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
@@ -346,15 +347,35 @@ type
   function AmigaBootChecksum(offset: Cardinal): Cardinal;
   function AmigaChecksum(offset: Cardinal): Cardinal;
   function ExtractAmigaFile(filename:String;var buffer:TDIByteArray):Boolean;
-  function FormatAmiga(minor: Byte): TDisc;
+  function ExtractAmigaData(sector,filelen: Cardinal;
+                                             var buffer: TDIByteArray): Boolean;
+  function FormatAmigaFDD(minor: Byte): TDisc;
+  function FormatAmigaHDD(harddrivesize: Cardinal): TDisc;
+  procedure FormatAmiga(size: Cardinal);
   function WriteAmigaFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
   function CreateAmigaDirectory(var dirname,parent,attributes: String): Integer;
-  function RetitleAmigaDirectory(filename, newtitle: String): Boolean;
   function RenameAmigaFile(oldfilename: String;var newfilename: String):Integer;
   function DeleteAmigaFile(filename: String):Boolean;
   function UpdateAmigaFileAttributes(filename,attributes: String): Boolean;
   function UpdateAmigaDiscTitle(title: String): Boolean;
   function MoveAmigaFile(filename,directory: String): Integer;
+  procedure ReadAmigaFSM;
+  procedure AmigaFillFreeSpaceMap(address: Cardinal;usage: Byte);
+  procedure ToAmigaTime(time: TDateTime;var days,mins,ticks: Cardinal);
+  function FromAmigaTime(days, mins, ticks: Cardinal): TDateTime;
+  function AmigaIntToStrAttr(attr: Cardinal): String;
+  function AmigaStrToIntAttr(attr: String): Cardinal;
+  function AmigaCalculateHashValue(filename: String): Cardinal;
+  procedure AmigaAllocateFSMBlock(addr:Cardinal;used:Boolean;var fsm:TDIByteArray);
+  function GetAmigaFSMOffset(addr: Cardinal;var bit: Byte): Cardinal;
+  function AmigaReadBitmap(var fsm: TDIByteArray): TFragmentArray;
+  procedure AmigaWriteBitmap(fsmlist: TFragmentArray;var fsm: TDIByteArray);
+  function AmigaFindFreeSpace(filelen: Cardinal): TFragmentArray;
+  function UpdateAmigaTimeStamp(filename: String;newtimedate: TDateTime): Boolean;
+  function GetAmigaChain(sector: Cardinal): TFragmentArray;
+  procedure AmigaAddToChain(filename: String;paraddr,sector: Cardinal);
+  function AmigaRemoveFromChain(filename: String;paraddr,sector: Cardinal):Boolean;
+  procedure ValidateAmigaFile(var filename: String);
   //Acorn CFS Routines
   function ID_CFS: Boolean;
   function ReadUEFFile: TDisc;
@@ -443,8 +464,9 @@ type
                                    'DELDeleted'  ,'SEQSequence' ,'PRGProgram'  ,
                                    'USRUser File','RELRelative' ,'CBMCBM'      );
    //Disc title for new images
-   disctitle    = 'DiscImgMgr';
-   afsdisctitle = 'DiscImageManager'; //AFS has longer titles
+   disctitle     = 'DiscImgMgr';
+   afsdisctitle  = 'DiscImageManager'; //AFS has longer titles
+   amigadisctitle= 'Disc Image Manager';//Amiga has even longer titles
    //Root name to use when AFS is partition on ADFS
    afsrootname  = ':AFS$';
    {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
@@ -532,6 +554,7 @@ type
   property MapType:             Byte          read MapFlagToByte;
   property MapTypeString:       String        read MapTypeToString;
   property MaxDirectoryEntries: Cardinal      read FMaxDirEnt;
+  property OpenDOSPartitions:   Boolean       read FOpenDOSPart write FOpenDOSPart;
   property ProgressIndicator:   TProgressProc write FProgress;
   property RAWData:             TDIByteArray  read Fdata;
   property RootAddress:         Cardinal      read GetRootAddress;

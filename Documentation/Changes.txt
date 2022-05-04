@@ -830,15 +830,15 @@ Bug fixes
 ----------------------
 New or improved features
 * SparkFS images are now fully writable:
-* Can now write files to a SparkFS image.
-* Can now create a blank directory on a SparkFS image.
-* Can now rename files and directories on a SparkFS image.
-* Can now move and copy files and directories on a SparkFS image.
-* Can now change the timestamp on files and directories on a SparkFS image.
-* Can now change the filetype on files on a SparkFS image.
-* Can now change the load and execution addresses on files on a SparkFS image.
-* Can now change file and directory attibutes on a SparkFS image.
-* Can now delete files/directories from a SparkFS image.
+* Can write files to a SparkFS image.
+* Can create a blank directory on a SparkFS image.
+* Can rename files and directories on a SparkFS image.
+* Can move and copy files and directories on a SparkFS image.
+* Can change the timestamp on files and directories on a SparkFS image.
+* Can change the filetype on files on a SparkFS image.
+* Can change the load and execution addresses on files on a SparkFS image.
+* Can change file and directory attibutes on a SparkFS image.
+* Can delete files/directories from a SparkFS image.
 
 Bug fixes
 * SparkFS failed to extract the file data if it was the first file in the archive.
@@ -847,17 +847,42 @@ Bug fixes
 * A bug had crept in, at some earlier version, that crashed the application when the filetype was clicked on.
 * When editing the date/time stamp, clicking on a field during editing would instead commence editing the selected node on the directory tree for renaming.
 
-1.43
-----------------------
+1.43 - 4th May 2022
+-------------------
 New or improved features
 * Reports number of items in a directory in the File Details pane.
 * Added more sanity checks on ID-ing a DOS or DOS+ image.
 * Changed the order of ID-ing a format and moved DFS to the end.
+* The Image Details dialogue now opens, with Free Space Map display, for AmigaDOS images.
+* Attributes are now shown for files on an AmigaDOS image.
+* Can now retitle an AmigaDOS image.
+* CRC32 is no longer reported for directories.
+* Improved the file extraction function for AmigaDOS images, and made it FFS compatible.
+* TimeDate stamp is now reported for Amiga files and directories.
+* Can create blank Amiga DD and HD floppy images, and blank hard drive images.
+* Can create new directories on AmigaDOS images.
+* Can write files to an AmigaDOS image.
+* Can update the protect attributes on an AmigaDOS file/directory.
+* Can date/time stamp an AmigaDOS file/directory.
+* Can delete files/directories from an AmigaDOS image.
+* Can move files/directories around an AmigaDOS image.
+* Can rename files/directories in an AmigaDOS image.
+* The file relating to the currently open DOS partition is now marked in green in the directory tree, and cannot be deleted.
+* DOS Partitions will now only be searched for on Old Directory ADFS hard drives.
+* Added an option to specify whether to automatically open DOS partitions on ADFS hard drives.
+* Added an extra command line parameter to create DOS hard drive: DOSHDD|<size>
+* Added an extra command line parameter to create Amiga hard drive: AmigaHDD|<size>
+* Added extra command line parameters for creating DOS floppies: DOS+640, DOS+800, DOS360, DOS720, DOS1440, and DOS2880.
+* Added a command line option to change the configuration options: --config or -cf.
 
 Bug fixes
 * When looking for a DOS partition on an ADFS hard drive, the drive was split as two separate drives. However, the DOS partition is a file held within the ADFS file structure and not a separate partition.
 * The custom filetype entry box was not positioned correctly in the filetype dialogue.
 * ADFS Filetypes and timestamps were getting reported for non ADFS formats and ADFS Old Directories.
+* Sometimes reading a file off an AmigaDOS image would hang the application.
+* During copy/move operations, the directory being hovered over expanded instantly which could cause issues. There is now a 1 sec hover delay before expanding.
+* A failed delete, or the user clicking on 'No' to confirm a deletion, would leave the confirmation window open until it was a successful delete, or the user clicked 'Yes'.
+* The configuration option to compress UEF images did not get saved to the registry.
 
 
 Platform History

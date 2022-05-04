@@ -11,7 +11,7 @@ Disc Image Manager is an application used to load a retro disc image, read the c
 • Commodore 1541 (not 40 track) - Read and Write<br>
 • Commodore 1571 - Read and Write<br>
 • Commodore 1581 - Read and Write<br>
-• Commodore AmigaDOS floppy and hard discs - Read Only<br>
+• Commodore AmigaDOS floppy and hard discs - OFS and FFS: Read and Write (not fully tested with FFS). No Directory cache or international character support as yet, and no support for rigid disk stuctures.<br>
 Currently working on:<br>
 • Making Commodore AmigaDOS writable<br>
 • Sinclair Spectrum +3 and Amstrad images<br>
@@ -28,6 +28,6 @@ In addition, I've developed a RISC OS sprite to bitmap/PNG converter here (https
 <br>
 Project was written in Lazarus (https://www.lazarus-ide.org). Binaries are available for macOS 32 and 64 bit, Windows 32 and 64 bit, Linux 32 and 64 bit, and Raspbian 32 bit (Linux ARM 32 bit). Full source is available if you wish to compile for other systems.<br>
 <br>
-You might like to also check out the thread on Stardot (https://stardot.org.uk/forums/viewtopic.php?f=12&t=21252) concerning this project.<br>
+You might like to also check out the thread on Stardot (https://stardot.org.uk/forums/viewtopic.php?f=12&t=21252) concerning this project. I have also put this onto the English Amiga Board (http://eab.abime.net/index.php).<br>
 <br>
 If you want, you can support this project, and others, by buying me a coffee (or a tea/beer/rum/etc.): https://ko-fi.com/geraldholdsworth<br>
