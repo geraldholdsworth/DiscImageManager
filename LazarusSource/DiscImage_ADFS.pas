@@ -887,12 +887,17 @@ Read ADFS Disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadADFSDisc: TDisc;
  function ReadTheADFSDisc: TDisc;
+ type
+   TVisit = record
+     Sector : Cardinal;
+     Name   : String;
+   end;
  var
   d,ptr,i  : Cardinal;
   OldName0,
   OldName1 : String;
   addr     : TFragmentArray;
-  visited  : array of Cardinal;
+  visited  : array of TVisit;
  begin
   //Initialise some variables
   root   :=$00; //Root address (set to zero so we can id the disc)
@@ -1013,7 +1018,8 @@ function TDiscImage.ReadADFSDisc: TDisc;
    d:=0;
    //Add the root as a visited directory
    SetLength(visited,1);
-   visited[0]:=root;
+   visited[0].Sector:=root;
+   visited[0].Name:=root_name;
    repeat
     //If there are actually any entries
     if Length(Result[d].Entries)>0 then
@@ -1025,7 +1031,8 @@ function TDiscImage.ReadADFSDisc: TDisc;
       //directory we will end up in an infinite loop.
       if Length(visited)>0 then
        for i:=0 to Length(visited)-1 do
-        if visited[i]=Result[d].Entries[ptr].Sector then
+        if(visited[i].Sector=Result[d].Entries[ptr].Sector)
+        and(visited[i].Name=Result[d].Entries[ptr].Filename)then
          Result[d].Entries[ptr].Filename:='';//Blank off the filename so we can remove it later
       //And add them if they are valid
       if Result[d].Entries[ptr].Filename<>'' then
@@ -1044,7 +1051,8 @@ function TDiscImage.ReadADFSDisc: TDisc;
         Result[Length(Result)-1].Parent:=d;
         //Remember it
         SetLength(visited,Length(visited)+1);
-        visited[Length(visited)-1]:=Result[d].Entries[ptr].Sector;
+        visited[Length(visited)-1].Sector:=Result[d].Entries[ptr].Sector;
+        visited[Length(visited)-1].Name:=Result[d].Entries[ptr].Filename;
         //Update the directory reference
         Result[d].Entries[ptr].DirRef:=Length(Result)-1;
        end;
