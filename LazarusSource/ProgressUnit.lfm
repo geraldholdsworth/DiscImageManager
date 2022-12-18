@@ -31,8 +31,7 @@ object ProgressForm: TProgressForm
       Height = 18
       Top = 181
       Width = 595
-      Align = alBottom
-      Alignment = taRightJustify
+      Alignment = taCenter
       AutoSize = False
       Caption = 'UpdateProgress'
       Font.Color = clBlue
@@ -42,9 +41,9 @@ object ProgressForm: TProgressForm
     end
     object WaitLabel: TLabel
       Left = 1
-      Height = 37
+      Height = 38
       Top = 1
-      Width = 342
+      Width = 331
       Alignment = taCenter
       Caption = 'Please wait, working...'
     end

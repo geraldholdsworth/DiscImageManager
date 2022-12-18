@@ -20,9 +20,9 @@ end;
 {-------------------------------------------------------------------------------
 Read Spectrum Disc
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadSinclairDisc: TDisc;
+function TDiscImage.ReadSinclairDisc: Boolean;
 begin
- Result:=nil;
+ Result:=False;
  {This functionality is not written yet}
 end;
 
@@ -30,7 +30,7 @@ end;
 Write a file to Spectrum image
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteSpectrumFile(file_details: TDirEntry;
-                             var buffer: TDIByteArray): Integer;
+                                             var buffer: TDIByteArray): Integer;
 begin
  Result:=-1;
 end;
@@ -38,9 +38,9 @@ end;
 {-------------------------------------------------------------------------------
 Create a new Spectrum image
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatSpectrum(minor: Byte): TDisc;
+function TDiscImage.FormatSpectrum(minor: Byte): Boolean;
 begin
- Result:=nil;
+ Result:=False;
 end;
 
 {-------------------------------------------------------------------------------

@@ -57,7 +57,9 @@ type
 
  public
   harddrivesize : Cardinal;
-  newmap        : Boolean;
+  newmap,
+  addheader,
+  ide           : Boolean;
   dirtype,
   fat           : Byte;
  end;
@@ -165,6 +167,8 @@ begin
   begin
    //Selected hard drive size in MB
    harddrivesize:=HardDriveForm.CapacitySlider.Position*1024*1024;
+   addheader:=HardDriveForm.cb_AddHeader.Checked;
+   ide:=HardDriveForm.cb_IDE.Checked;
    if MainFormat.ItemIndex=1 then //ADFS Specific
    begin
     //New or old map

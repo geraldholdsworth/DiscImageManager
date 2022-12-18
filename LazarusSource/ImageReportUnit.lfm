@@ -1,0 +1,26 @@
+object ImageReportForm: TImageReportForm
+  Left = 304
+  Height = 401
+  Top = 113
+  Width = 518
+  Caption = 'Image Report'
+  ClientHeight = 401
+  ClientWidth = 518
+  Position = poMainFormCenter
+  LCLVersion = '2.2.0.4'
+  object Report: TMemo
+    Left = 0
+    Height = 401
+    Top = 0
+    Width = 518
+    Align = alClient
+    Font.Name = 'Courier New'
+    Lines.Strings = (
+      'Report'
+    )
+    ParentFont = False
+    ReadOnly = True
+    ScrollBars = ssAutoBoth
+    TabOrder = 0
+  end
+end

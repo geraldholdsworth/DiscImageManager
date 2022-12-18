@@ -146,59 +146,6 @@ object HardDriveForm: THardDriveForm
     Width = 34
     Caption = '10MB'
   end
-  object ADFSControls: TPanel
-    Left = 80
-    Height = 20
-    Top = 56
-    Width = 402
-    BevelOuter = bvNone
-    ClientHeight = 20
-    ClientWidth = 402
-    TabOrder = 3
-    OnPaint = FormPaint
-    object cb_NewMap: TCheckBox
-      Left = 16
-      Height = 18
-      Top = 0
-      Width = 75
-      Caption = 'New Map'
-      OnChange = cb_NewMapChange
-      TabOrder = 0
-    end
-    object DirectoryLabel: TLabel
-      Left = 144
-      Height = 16
-      Top = 0
-      Width = 60
-      Caption = 'Directory:'
-    end
-    object rb_OldDir: TRadioButton
-      Left = 224
-      Height = 18
-      Top = 0
-      Width = 42
-      Caption = 'Old'
-      Checked = True
-      TabOrder = 1
-      TabStop = True
-    end
-    object rb_NewDir: TRadioButton
-      Left = 277
-      Height = 18
-      Top = 0
-      Width = 48
-      Caption = 'New'
-      TabOrder = 2
-    end
-    object rb_BigDir: TRadioButton
-      Left = 333
-      Height = 18
-      Top = 0
-      Width = 41
-      Caption = 'Big'
-      TabOrder = 3
-    end
-  end
   object DOSControls: TPanel
     Left = 80
     Height = 20
@@ -235,6 +182,77 @@ object HardDriveForm: THardDriveForm
       Caption = 'FAT32'
       OnChange = rb_FAT32Change
       TabOrder = 2
+    end
+  end
+  object ADFSControls: TPanel
+    Left = 80
+    Height = 20
+    Top = 56
+    Width = 402
+    BevelOuter = bvNone
+    ClientHeight = 20
+    ClientWidth = 402
+    TabOrder = 3
+    OnPaint = FormPaint
+    object cb_NewMap: TCheckBox
+      Left = 0
+      Height = 18
+      Top = 0
+      Width = 75
+      Caption = 'New Map'
+      OnChange = cb_NewMapChange
+      TabOrder = 0
+    end
+    object DirectoryLabel: TLabel
+      Left = 216
+      Height = 16
+      Top = 1
+      Width = 60
+      Caption = 'Directory:'
+    end
+    object rb_OldDir: TRadioButton
+      Left = 276
+      Height = 18
+      Top = 0
+      Width = 42
+      Caption = 'Old'
+      Checked = True
+      TabOrder = 1
+      TabStop = True
+    end
+    object rb_NewDir: TRadioButton
+      Left = 318
+      Height = 18
+      Top = 0
+      Width = 48
+      Caption = 'New'
+      TabOrder = 2
+    end
+    object rb_BigDir: TRadioButton
+      Left = 365
+      Height = 18
+      Top = 0
+      Width = 41
+      Caption = 'Big'
+      TabOrder = 3
+    end
+    object cb_IDE: TCheckBox
+      Left = 76
+      Height = 18
+      Top = 0
+      Width = 42
+      Caption = 'IDE'
+      Checked = True
+      State = cbChecked
+      TabOrder = 4
+    end
+    object cb_AddHeader: TCheckBox
+      Left = 120
+      Height = 18
+      Top = 0
+      Width = 76
+      Caption = 'Emulator'
+      TabOrder = 5
     end
   end
 end

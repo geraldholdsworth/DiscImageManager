@@ -4,12 +4,12 @@
     <Version Value="12"/>
     <ManyBuildModesSelection Value="&quot;Release platform native&quot;,&quot;Release Windows 64 bit&quot;,&quot;Release Windows 32 bit&quot;,&quot;Release macOS 32 bit&quot;,&quot;Release macOS ARM&quot;,&quot;Release Linux 64 bit&quot;,&quot;Release Linux 32 bit&quot;,&quot;Release Linux ARM&quot;"/>
     <BuildModes Active="Default"/>
-    <Units Count="37">
+    <Units Count="39">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
-        <TopLine Value="23"/>
-        <CursorPos X="42" Y="32"/>
+        <TopLine Value="27"/>
+        <CursorPos X="43" Y="28"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit0>
@@ -20,8 +20,8 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="543"/>
-        <CursorPos X="31" Y="558"/>
+        <TopLine Value="555"/>
+        <CursorPos X="31" Y="563"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -29,9 +29,9 @@
       <Unit2>
         <Filename Value="DiscImage.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="11"/>
-        <TopLine Value="61"/>
-        <CursorPos X="23" Y="4"/>
+        <EditorIndex Value="13"/>
+        <TopLine Value="251"/>
+        <CursorPos X="12" Y="266"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit2>
@@ -41,9 +41,8 @@
         <ComponentName Value="AboutForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="10"/>
-        <TopLine Value="51"/>
-        <CursorPos X="24" Y="4"/>
+        <EditorIndex Value="12"/>
+        <CursorPos X="19" Y="3"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -54,9 +53,9 @@
         <ComponentName Value="NewImageForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="27"/>
-        <TopLine Value="144"/>
-        <CursorPos X="2" Y="152"/>
+        <EditorIndex Value="31"/>
+        <TopLine Value="56"/>
+        <CursorPos X="17" Y="62"/>
         <UsageCount Value="215"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -67,7 +66,7 @@
         <ComponentName Value="ImageDetailForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="26"/>
+        <EditorIndex Value="30"/>
         <TopLine Value="76"/>
         <CursorPos Y="102"/>
         <UsageCount Value="204"/>
@@ -77,17 +76,17 @@
       <Unit6>
         <Filename Value="DiscImageUtils.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="22"/>
-        <CursorPos X="21" Y="4"/>
+        <EditorIndex Value="25"/>
+        <TopLine Value="114"/>
+        <CursorPos X="2" Y="119"/>
         <UsageCount Value="205"/>
         <Loaded Value="True"/>
       </Unit6>
       <Unit7>
         <Filename Value="Global.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="23"/>
-        <TopLine Value="17"/>
-        <CursorPos X="2" Y="30"/>
+        <EditorIndex Value="26"/>
+        <CursorPos X="67" Y="29"/>
         <UsageCount Value="216"/>
         <Loaded Value="True"/>
       </Unit7>
@@ -97,9 +96,9 @@
         <ComponentName Value="ProgressForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="29"/>
-        <TopLine Value="4"/>
-        <CursorPos X="24" Y="4"/>
+        <EditorIndex Value="33"/>
+        <TopLine Value="48"/>
+        <CursorPos X="47" Y="67"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -110,9 +109,9 @@
         <ComponentName Value="HexDumpForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="24"/>
-        <TopLine Value="40"/>
-        <CursorPos X="24" Y="4"/>
+        <EditorIndex Value="28"/>
+        <TopLine Value="2"/>
+        <CursorPos X="49" Y="28"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -131,7 +130,7 @@
       <Unit11>
         <Filename Value="Spark.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="15"/>
+        <EditorIndex Value="17"/>
         <TopLine Value="524"/>
         <CursorPos X="60" Y="543"/>
         <UsageCount Value="200"/>
@@ -143,7 +142,7 @@
         <ComponentName Value="SearchForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="9"/>
+        <EditorIndex Value="11"/>
         <TopLine Value="128"/>
         <CursorPos X="24" Y="4"/>
         <UsageCount Value="217"/>
@@ -153,9 +152,7 @@
       <Unit13>
         <Filename Value="SpriteFile.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="25"/>
-        <TopLine Value="647"/>
-        <CursorPos X="3" Y="495"/>
+        <EditorIndex Value="29"/>
         <UsageCount Value="213"/>
         <Loaded Value="True"/>
       </Unit13>
@@ -165,7 +162,7 @@
         <ComponentName Value="CustomDialogue"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="8"/>
+        <EditorIndex Value="10"/>
         <TopLine Value="130"/>
         <CursorPos X="24" Y="152"/>
         <UsageCount Value="200"/>
@@ -178,9 +175,9 @@
         <ComponentName Value="HardDriveForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="28"/>
-        <TopLine Value="151"/>
-        <CursorPos X="38" Y="155"/>
+        <EditorIndex Value="32"/>
+        <TopLine Value="89"/>
+        <CursorPos X="36" Y="98"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -191,7 +188,7 @@
         <ComponentName Value="ErrorLogForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="7"/>
+        <EditorIndex Value="9"/>
         <TopLine Value="22"/>
         <CursorPos X="24" Y="4"/>
         <UsageCount Value="201"/>
@@ -204,7 +201,7 @@
         <ComponentName Value="SettingsForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="6"/>
+        <EditorIndex Value="8"/>
         <TopLine Value="91"/>
         <CursorPos X="53" Y="96"/>
         <UsageCount Value="212"/>
@@ -217,7 +214,7 @@
         <ComponentName Value="ImportSelectorForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="5"/>
+        <EditorIndex Value="7"/>
         <TopLine Value="249"/>
         <CursorPos X="2" Y="28"/>
         <UsageCount Value="206"/>
@@ -230,7 +227,7 @@
         <ComponentName Value="PwordEditorForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="4"/>
+        <EditorIndex Value="6"/>
         <TopLine Value="224"/>
         <CursorPos X="24" Y="4"/>
         <UsageCount Value="271"/>
@@ -243,7 +240,7 @@
         <ComponentName Value="AFSPartitionForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="5"/>
         <TopLine Value="40"/>
         <CursorPos Y="61"/>
         <UsageCount Value="244"/>
@@ -256,244 +253,270 @@
         <ComponentName Value="ChangeInterleaveForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="4"/>
         <TopLine Value="24"/>
+        <CursorPos X="15" Y="35"/>
         <UsageCount Value="223"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit21>
       <Unit22>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="17"/>
-        <TopLine Value="884"/>
-        <CursorPos X="19" Y="241"/>
-        <UsageCount Value="102"/>
+        <Filename Value="GJHRegistryClass.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="27"/>
+        <CursorPos X="28" Y="4"/>
+        <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit22>
       <Unit23>
-        <Filename Value="DiscImage_DFS.pas"/>
-        <EditorIndex Value="21"/>
-        <TopLine Value="181"/>
-        <CursorPos X="21" Y="189"/>
-        <UsageCount Value="102"/>
+        <Filename Value="CSVPrefUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="CSVPrefForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="33"/>
+        <CursorPos Y="49"/>
+        <UsageCount Value="224"/>
         <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit23>
       <Unit24>
-        <Filename Value="DiscImage_C64.pas"/>
-        <EditorIndex Value="30"/>
-        <TopLine Value="166"/>
-        <CursorPos X="27" Y="184"/>
-        <UsageCount Value="101"/>
+        <Filename Value="ImageReportUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="ImageReportForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="4"/>
+        <UsageCount Value="109"/>
         <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit24>
       <Unit25>
-        <Filename Value="DiscImage_Amiga.pas"/>
-        <EditorIndex Value="20"/>
-        <TopLine Value="1371"/>
-        <CursorPos X="62" Y="894"/>
-        <UsageCount Value="101"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="19"/>
+        <TopLine Value="2071"/>
+        <CursorPos X="6" Y="2066"/>
+        <UsageCount Value="102"/>
         <Loaded Value="True"/>
       </Unit25>
       <Unit26>
-        <Filename Value="DiscImage_Spectrum.pas"/>
-        <EditorIndex Value="32"/>
-        <CursorPos X="8" Y="10"/>
-        <UsageCount Value="101"/>
+        <Filename Value="DiscImage_DFS.pas"/>
+        <EditorIndex Value="24"/>
+        <TopLine Value="1036"/>
+        <CursorPos X="29" Y="1041"/>
+        <UsageCount Value="102"/>
         <Loaded Value="True"/>
       </Unit26>
       <Unit27>
-        <Filename Value="DiscImageRISCOSFileTypes.pas"/>
-        <EditorIndex Value="33"/>
-        <UsageCount Value="103"/>
+        <Filename Value="DiscImage_C64.pas"/>
+        <EditorIndex Value="22"/>
+        <TopLine Value="1062"/>
+        <CursorPos X="29" Y="1082"/>
+        <UsageCount Value="101"/>
         <Loaded Value="True"/>
       </Unit27>
       <Unit28>
-        <Filename Value="DiscImage_CFS.pas"/>
-        <EditorIndex Value="16"/>
-        <TopLine Value="512"/>
-        <CursorPos X="40" Y="411"/>
-        <UsageCount Value="114"/>
+        <Filename Value="DiscImage_Amiga.pas"/>
+        <EditorIndex Value="23"/>
+        <TopLine Value="1397"/>
+        <CursorPos Y="1403"/>
+        <UsageCount Value="101"/>
         <Loaded Value="True"/>
       </Unit28>
       <Unit29>
-        <Filename Value="DiscImage_MMB.pas"/>
-        <EditorIndex Value="31"/>
-        <UsageCount Value="107"/>
+        <Filename Value="DiscImage_Spectrum.pas"/>
+        <EditorIndex Value="35"/>
+        <TopLine Value="22"/>
+        <CursorPos X="16" Y="43"/>
+        <UsageCount Value="101"/>
         <Loaded Value="True"/>
       </Unit29>
       <Unit30>
-        <Filename Value="DiscImage_Spark.pas"/>
-        <EditorIndex Value="14"/>
-        <TopLine Value="72"/>
-        <CursorPos X="2" Y="40"/>
-        <UsageCount Value="100"/>
+        <Filename Value="DiscImageRISCOSFileTypes.pas"/>
+        <EditorIndex Value="36"/>
+        <UsageCount Value="103"/>
         <Loaded Value="True"/>
       </Unit30>
       <Unit31>
-        <Filename Value="DiscImage_AFS.pas"/>
-        <EditorIndex Value="19"/>
-        <TopLine Value="55"/>
-        <UsageCount Value="143"/>
+        <Filename Value="DiscImage_CFS.pas"/>
+        <EditorIndex Value="18"/>
+        <TopLine Value="170"/>
+        <CursorPos X="46" Y="115"/>
+        <UsageCount Value="114"/>
         <Loaded Value="True"/>
       </Unit31>
       <Unit32>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <EditorIndex Value="18"/>
-        <TopLine Value="118"/>
-        <CursorPos X="71" Y="85"/>
-        <UsageCount Value="120"/>
+        <Filename Value="DiscImage_MMB.pas"/>
+        <EditorIndex Value="34"/>
+        <TopLine Value="6"/>
+        <CursorPos X="40" Y="28"/>
+        <UsageCount Value="107"/>
         <Loaded Value="True"/>
       </Unit32>
       <Unit33>
-        <Filename Value="DiscImage_Private.pas"/>
-        <EditorIndex Value="12"/>
-        <TopLine Value="633"/>
-        <CursorPos X="2" Y="638"/>
-        <UsageCount Value="119"/>
+        <Filename Value="DiscImage_Spark.pas"/>
+        <EditorIndex Value="16"/>
+        <CursorPos X="26" Y="156"/>
+        <UsageCount Value="100"/>
         <Loaded Value="True"/>
       </Unit33>
       <Unit34>
-        <Filename Value="DiscImage_Published.pas"/>
-        <EditorIndex Value="13"/>
-        <TopLine Value="291"/>
-        <CursorPos X="68" Y="310"/>
-        <UsageCount Value="119"/>
+        <Filename Value="DiscImage_AFS.pas"/>
+        <EditorIndex Value="21"/>
+        <TopLine Value="2464"/>
+        <CursorPos X="29" Y="2474"/>
+        <UsageCount Value="143"/>
         <Loaded Value="True"/>
       </Unit34>
       <Unit35>
+        <Filename Value="DiscImage_DOSPlus.pas"/>
+        <EditorIndex Value="20"/>
+        <TopLine Value="2138"/>
+        <CursorPos X="29" Y="2145"/>
+        <UsageCount Value="120"/>
+        <Loaded Value="True"/>
+      </Unit35>
+      <Unit36>
+        <Filename Value="DiscImage_Private.pas"/>
+        <EditorIndex Value="14"/>
+        <TopLine Value="751"/>
+        <CursorPos X="46" Y="765"/>
+        <UsageCount Value="119"/>
+        <Loaded Value="True"/>
+      </Unit36>
+      <Unit37>
+        <Filename Value="DiscImage_Published.pas"/>
+        <EditorIndex Value="15"/>
+        <TopLine Value="1528"/>
+        <CursorPos X="57" Y="1540"/>
+        <UsageCount Value="119"/>
+        <Loaded Value="True"/>
+      </Unit37>
+      <Unit38>
         <Filename Value="DiscImageDOSFileTypes.pas"/>
-        <EditorIndex Value="34"/>
+        <EditorIndex Value="37"/>
         <TopLine Value="3"/>
         <CursorPos X="10" Y="28"/>
         <UsageCount Value="108"/>
         <Loaded Value="True"/>
-      </Unit35>
-      <Unit36>
-        <Filename Value="/Applications/Lazarus/lcl/include/treeview.inc"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="386"/>
-        <CursorPos Y="399"/>
-        <UsageCount Value="5"/>
-      </Unit36>
+      </Unit38>
     </Units>
-    <JumpHistory Count="29" HistoryIndex="28">
+    <JumpHistory Count="28" HistoryIndex="26">
       <Position1>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="494" Column="12" TopLine="476"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1916" TopLine="1909"/>
       </Position1>
       <Position2>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="4933" Column="65" TopLine="4927"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1917" TopLine="1909"/>
       </Position2>
       <Position3>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="286" Column="14" TopLine="268"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1916" TopLine="1909"/>
       </Position3>
       <Position4>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="5876" Column="5" TopLine="5859"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1917" TopLine="1909"/>
       </Position4>
       <Position5>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="5878" Column="10" TopLine="5860"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1916" TopLine="1909"/>
       </Position5>
       <Position6>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="363" Column="14" TopLine="318"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1917" TopLine="1909"/>
       </Position6>
       <Position7>
         <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="3124" Column="72" TopLine="3106"/>
+        <Caret Line="1916" TopLine="1909"/>
       </Position7>
       <Position8>
-        <Filename Value="SettingsUnit.pas"/>
-        <Caret Line="95" Column="53" TopLine="90"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1917" TopLine="1909"/>
       </Position8>
       <Position9>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="5904" Column="7" TopLine="5862"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1916" TopLine="1909"/>
       </Position9>
       <Position10>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="271" Column="14" TopLine="262"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1927" TopLine="1909"/>
       </Position10>
       <Position11>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="557" Column="64" TopLine="533"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1932" TopLine="1912"/>
       </Position11>
       <Position12>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="476" Column="15" TopLine="472"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="1926" Column="55" TopLine="1907"/>
       </Position12>
       <Position13>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="1593" Column="27" TopLine="1581"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="2086" Column="53" TopLine="2075"/>
       </Position13>
       <Position14>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="384" Column="14" TopLine="370"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="2051" Column="18" TopLine="2049"/>
       </Position14>
       <Position15>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="483" Column="12" TopLine="474"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="2014" TopLine="2007"/>
       </Position15>
       <Position16>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="2875" Column="32" TopLine="2867"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="2015" Column="76" TopLine="2009"/>
       </Position16>
       <Position17>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="3206" Column="29" TopLine="3181"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="2092" Column="79" TopLine="2078"/>
       </Position17>
       <Position18>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="271" Column="14" TopLine="269"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="243" Column="12" TopLine="237"/>
       </Position18>
       <Position19>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="4860" Column="12" TopLine="4856"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="596" Column="15" TopLine="571"/>
       </Position19>
       <Position20>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="389" Column="14" TopLine="379"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="282" Column="9" TopLine="265"/>
       </Position20>
       <Position21>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="4872" Column="2" TopLine="4844"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="564" TopLine="552"/>
       </Position21>
       <Position22>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="310" Column="14" TopLine="299"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="282" Column="6" TopLine="268"/>
       </Position22>
       <Position23>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="384" Column="14" TopLine="374"/>
+        <Filename Value="DiscImageUtils.pas"/>
+        <Caret Line="72" Column="12" TopLine="67"/>
       </Position23>
       <Position24>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="3208" Column="33" TopLine="3188"/>
+        <Caret Line="4905" Column="70" TopLine="4887"/>
       </Position24>
       <Position25>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="3197" Column="6" TopLine="3193"/>
+        <Filename Value="HardDriveUnit.pas"/>
+        <Caret Line="151" Column="36" TopLine="137"/>
       </Position25>
       <Position26>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="483" Column="12" TopLine="473"/>
+        <Filename Value="DiscImage_ADFS.pas"/>
+        <Caret Line="560" Column="52" TopLine="527"/>
       </Position26>
       <Position27>
-        <Filename Value="DiscImageUtils.pas"/>
-        <Caret Line="138" Column="24" TopLine="88"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="264" Column="12" TopLine="249"/>
       </Position27>
       <Position28>
-        <Filename Value="DiscImageUtils.pas"/>
-        <Caret Line="4" Column="21"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="266" Column="12" TopLine="251"/>
       </Position28>
-      <Position29>
-        <Filename Value="Global.pas"/>
-        <Caret Line="30" Column="2" TopLine="17"/>
-      </Position29>
     </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>
@@ -505,16 +528,16 @@
   <Debugging>
     <Watches>
       <Item>
-        <Expression Value="ImageToUse.Disc[dir].Entries[entry].Filename"/>
-        <DisplayStyle Value="wdfString"/>
+        <Expression Value="d1"/>
+        <DisplayStyle Value="wdfStructure"/>
       </Item>
       <Item>
-        <Expression Value="doshead"/>
-        <DisplayStyle Value="wdfHex"/>
+        <Expression Value="Entry"/>
+        <DisplayStyle Value="wdfStructure"/>
       </Item>
       <Item>
-        <Expression Value="Entry.Filename"/>
-        <DisplayStyle Value="wdfString"/>
+        <Expression Value="addr"/>
+        <DisplayStyle Value="wdfStructure"/>
       </Item>
     </Watches>
   </Debugging>

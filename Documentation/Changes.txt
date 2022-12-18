@@ -884,6 +884,43 @@ Bug fixes
 * A failed delete, or the user clicking on 'No' to confirm a deletion, would leave the confirmation window open until it was a successful delete, or the user clicked 'Yes'.
 * The configuration option to compress UEF images did not get saved to the registry.
 
+1.44 - 18th December 2022
+-------------------------
+New or improved features
+* Added a new class for accessing the registry.
+* Added an option, when creating ADFS hard drive images, to add the 512-byte 'emulator header'.
+* Changed some of the internal procedures so that they return a Boolean, instead of a structure, to make it easier to add multi-partition support.
+* MMFS support has been temporarily removed.
+* Added an option, when creating ADFS hard drive images, whether it will be an IDE drive or not. This fixes an issue where the resultant drive could not be read by RISC OS 3.11 in Arculator.
+* ADFS Directories which have not been read in for reasons other than the flag not being set, are now reported as broken.
+* ADFS broken directory error codes have been expanded. Now checks for non-sector aligned directories, invalid Start or End names (i.e. not 'Hugo' or 'Nick'), and any other reason it is found to be broken.
+* When adding multiple files to an image, no format checking is done and the files are just added.
+* When adding directories to an image, the progress indicator is shown.
+* When IDing DFS images, any image over 400KB (200KB double sided) is rejected.
+* Added the address of the file to the CSV output.
+* Extra range checking when updating ADFS New Map fragments, and if any part fails, the original is restored from the backup.
+* Moved the 'Waiting' and 'Progress Update' labels on the Progress dialogue window.
+* Performed some code optimisation on ADFS New Map.
+* Writing objects to ADFS New Map will now create, or re-use, shared fragments.
+* When outputting a CSV file of the contents, a dialogue box is now presented to select which columns, with some options, are to be included.
+* CSV output now prefixes all hex numbers with '0x' for easier importing into Excel/Numbers/etc.
+* Added 'Show Report' button and window.
+* Image report can also be included in the CSV output.
+* ADFS Hardware information is now saved into hard drive images (ADFS New Map).
+
+Bug fixes
+* In ADFS and Acorn FS, if a file had the same sector as the root then the filename would be blank. This would usually happen with New Map ADFS (usually an 'E' floppy) where the root was addressed directly, but the files were addressed indirectly.
+* Changing time/date on a file now updates the 'unsaved' icon in the status bar.
+* Some ADFS New Map fragment IDs were being used more than once, so the checking on unique IDs has been tightened up.
+* The ADFS disc size was being read in as the root size.
+* The heads and sectors per track fields were not being read in with ADFS New Map.
+* Sometimes the root on ADFS New Map was not being found, so this has been improved.
+* Renaming a directory in ADFS caused issues when then adding files to it as it kept it's old name.
+* Sometimes when writing a file on ADFS New Map, two (or more) files would have the same indirect address (fragment ID).
+* When writing a file to ADFS New Map, the end of free space marker on a zone would be beyond the zone and trample the following zone. When subsequent files where then written, this would continue into the following zone(s).
+* On ADFS New Map, the free space would sometimes be incorrectly reported meaning that some files were stored where there was not enough space to store the file.
+* On ADFS New Map, the smallest possible space to contain a fragment ID and the stop bit was not taken into consideration, meaning that a file stored could then not be retrieved.
+* Some ADFS New and Big directory object's attributes, that only had a single attribute, where having '00' appended to the end.
 
 Platform History
 ----------------

@@ -61,7 +61,7 @@ begin
     if FATType=diFAT16 then inc(FFormat,2);
     if FATType=diFAT32 then inc(FFormat,3);
    end;
-  Result:=FFormat>>4=diDOSPlus;
+  Result:=GetMajorFormatNumber=diDOSPlus;
  end;
 end;
 
@@ -109,14 +109,14 @@ var
  part     : Byte;
 begin
  //Is this an ADFS disc with DOS Plus partition?
- if((FFormat>>4=diAcornADFS)and(FDOSPresent))
- or(FFormat>>4=diDOSPlus)then //Or a straight DOS Plus?
+ if((GetMajorFormatNumber=diAcornADFS)and(FDOSPresent))
+ or(GetMajorFormatNumber=diDOSPlus)then //Or a straight DOS Plus?
  begin
   i:=0;
   part:=0;
-  if FFormat>>4=diDOSPlus then dir_sep:='\';
+  if GetMajorFormatNumber=diDOSPlus then dir_sep:='\';
   //ADFS Hybrid?
-  if FFormat>>4=diAcornADFS then
+  if GetMajorFormatNumber=diAcornADFS then
   begin
    part:=1;
    //Set up the second partition
@@ -308,7 +308,7 @@ begin
  //Don't need the parent or self referrals
  if(RightStr(dirname,1)='.')or(RightStr(dirname,2)='..')then exit;
  //ADFS hybrid?
- if FFormat>>4=diAcornADFS then side:=1 else side:=0;
+ if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
  //Directory name
  index:=Pos(GetDirSep(side),dirname);
  while Pos(GetDirSep(side),dirname,index+1)>index do
@@ -776,12 +776,12 @@ begin
  //Get all the used sectors
  fragments:=DOSGetFreeSectors(True);
  //Initialise the variables
- if FFormat>>4=diDOSPlus then
+ if GetMajorFormatNumber=diDOSPlus then
  begin
   SetLength(free_space_map,1);
   part:=0;
  end;
- if FFormat>>4=diAcornADFS then //Hybrids - DOS will take up the second 'side'
+ if GetMajorFormatNumber=diAcornADFS then //Hybrids - DOS will take up the second 'side'
  begin
   SetLength(free_space_map,2);
   part:=1;
@@ -896,7 +896,7 @@ var
  side  : Byte;
 begin
  //ADFS hybrid?
- if FFormat>>4=diAcornADFS then side:=1 else side:=0;
+ if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
  Result:=-2; //Original file does not exist
  //Validate the filename
  newname:=ValidateDOSFilename(newname);
@@ -1354,7 +1354,7 @@ begin
  dir:=0;
  entry:=0;
  //ADFS hybrid?
- if FFormat>>4=diAcornADFS then partition:=1 else partition:=0;
+ if GetMajorFormatNumber=diAcornADFS then partition:=1 else partition:=0;
  SetLength(fragments,0);
  //Start with a negative result
  Result:=-3;//File already exists
@@ -1374,7 +1374,7 @@ begin
   end;
  //Validate the proposed filename (ADFS rules the same as AFS)
  if(file_details.Filename<>dosrootname)
- and((FFormat>>4=diAcornADFS)or(FFormat=diDOSPlus))then //ADFS partition or DOS Plus
+ and((GetMajorFormatNumber=diAcornADFS)or(FFormat=diDOSPlus))then //ADFS partition or DOS Plus
   file_details.Filename:=ValidateDOSFilename(file_details.Filename);
  //First make sure it doesn't exist already
  if not FileExists(file_details.Parent+GetDirSep(partition)+file_details.Filename,pdir,entry)then
@@ -1479,7 +1479,7 @@ var
  side   : Byte;
 begin
  //ADFS hybrid?
- if FFormat>>4=diAcornADFS then side:=1 else side:=0;
+ if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
  Result:=-3; //Directory already exists
  ok:=False;
  //Make sure that the directory does not already exists
@@ -1547,7 +1547,7 @@ var
  side     : Byte;
 begin
  //ADFS hybrid?
- if FFormat>>4=diAcornADFS then side:=1 else side:=0;
+ if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
  Result:=False;
  //Make sure the file exists, and is not the root
  if filename<>dosrootname then
@@ -1678,7 +1678,7 @@ begin
  Result:=False;
  if size<9*secsize then exit; //Minimum size is 9 sectors
  //Only for adding DOS partition to 8 bit ADFS
- if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
  begin
   fsed:=GetADFSMaxLength(False);
   //Is there enough free space?
@@ -1729,7 +1729,7 @@ end;
 {-------------------------------------------------------------------------------
 Create a new DOS Plus or DOS image
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatDOS(size: QWord;fat: Byte): TDisc;
+function TDiscImage.FormatDOS(size: QWord;fat: Byte): Boolean;
 var
  index: Cardinal;
 const
@@ -1738,7 +1738,8 @@ const
  GB = 1024*1024*1024;
 begin
  //Default return value
- Result:=nil;
+ Result:=False;
+ FDisc:=nil;
  //Ensure that we don't create an illegal shape
  //Min sizes - these are Microsoft specs
  if                     size<  180*KB then size:=  180*KB; //  180KB
@@ -1761,15 +1762,16 @@ begin
  UpdateProgress('Formatting...');
  for index:=0 to size-1 do WriteByte(0,index);
  //Master 512 DOS Plus or Standard DOS?
- if(size<>800*1024)and(size<>640*1024)then //Standard DOS
+ if(size<>800*KB)and(size<>640*KB)then //Standard DOS
   WriteDOSHeader(0,size,fat,True)
  else
  begin //Master 512
   //BBC Master DOS Plus images do not have a DOS header, which makes them easier.
-  if size=640*1024 then //Master 512 hybrid image
+  if size=640*KB then //Master 512 hybrid image
   begin
    //Create the ADFS image (ADFS 'L')
-   Result:=FormatADFSFloppy(2);
+   FormatADFSFloppy(2);
+   Result:=Length(FDisc)>0;
    //Create the 636K DOS partition
    for index:=0 to $1FA do WriteByte(0,index);//Most of the ADFS header needs blanked
    Write24b($000AA0,$FC);  //Signature for 640K DOS Plus
@@ -1779,7 +1781,7 @@ begin
    WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
    WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
   end;
-  if size=800*1024 then //Master 512 800K image
+  if size=800*KB then //Master 512 800K image
   begin
    //Very simplistic this format.
    WriteByte($FD,0); //Media descriptor byte
@@ -1794,7 +1796,7 @@ begin
   //And read it in
   ReadImage;
   //Returning a result
-  Result:=FDisc;
+  Result:=Length(FDisc)>0;
   //Set the filename
   imagefilename:='Untitled.'+FormatExt;
  end;
@@ -1909,7 +1911,7 @@ begin
  if totBlocks<=$FFFF then //If it'll fit in the original BIOS block
   Write16b(totBlocks,offset+$13,buffer)
  else //Otherwise it'll need to go in the extended block - only for FAT16 & FAT32
-  Write32b(totBlocks,offset+$20,buffer);
+  if(fat=diFAT16)or(fat=diFAT32)then Write32b(totBlocks,offset+$20,buffer);
  //Media descriptor byte
  WriteByte(mdb,offset+$15,buffer);
  //FAT Size
@@ -2071,10 +2073,10 @@ const
 begin
  Result:='';
  //Validate the path exists, and check for DOS FAT12, 16 or 32
- if(FileExists(path,dir,entry))and(FFormat>>4=diDOSPlus)then
+ if(FileExists(path,dir,entry))and(GetMajorFormatNumber=diDOSPlus)then
  begin
   //DOS Plus - then just return the shortened, validated, filename
-  if FFormat mod$10=0 then
+  if GetMinorFormatNumber=0 then
   begin
    Result:=ValidateDOSFilename(LFN);
    exit;
@@ -2131,4 +2133,37 @@ function TDiscImage.BuildDOSFilename(f,e: String): String;
 begin
  Result:=f;
  if Length(e)>0 then Result:=Result+'.'+e;
+end;
+
+{-------------------------------------------------------------------------------
+Produce a report of the image's details
+-------------------------------------------------------------------------------}
+function TDiscImage.DOSReport(CSV: Boolean): TStringList;
+var
+ side: Integer;
+begin
+ Result:=TStringList.Create;
+ side:=0;
+ if GetMajorFormatNumber=diAcornADFS then
+ begin
+  if not CSV then Result.Add('');
+  Result.Add('DOS Plus partition');
+  if not CSV then Result.Add('------------------');
+  side:=1;
+ end;
+ Result.Add('Sector Size: '+IntToStr(secsize)+' bytes');
+ Result.Add('Sectors per Track: '+IntToStr(secspertrack));
+ Result.Add('Root Address: 0x'+IntToHex(Fdosroot,8));
+ Result.Add('Root Size: '+IntToStr(dosroot_size)+' bytes');
+ Result.Add('Disc Size: '+IntToStr(disc_size[side])+' bytes');
+ Result.Add('Free Space: '+IntToStr(free_space[side])+' bytes');
+ Result.Add('Boot Map Location: 0x'+IntToHex(doshead,8));
+ Result.Add('FAT Location: 0x'+IntToHex(dosmap,8));
+ Result.Add('FAT Size: '+IntToStr(DOSFATSize*secsize)+' bytes');
+ Result.Add('Number of FATs: '+IntToStr(NumFATs));
+ Result.Add('Cluster Size: '+IntToStr(cluster_size)+' bytes');
+ Result.Add('Allocation Unit: '+IntToStr(dosalloc)+' blocks');
+ Result.Add('Number of Blocks: '+IntToStr(DOSblocks));
+ Result.Add('Reserved Sectors: '+IntToStr(DOSResSecs));
+ Result.Add('Disc Name: '+disc_name[side]);
 end;

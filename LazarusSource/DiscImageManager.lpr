@@ -23,7 +23,9 @@ uses
   ImportSelectorUnit in 'ImportSelectorUnit.pas',
   PWordEditorUnit in 'PWordEditorUnit.pas',
   AFSPartitionUnit in 'AFSParitionUnit.pas',
-  ChangeInterleaveUnit in 'ChangeInterleaveUnit.pas';
+  ChangeInterleaveUnit in 'ChangeInterleaveUnit.pas', GJHRegistryClass,
+  CSVPrefUnit in 'CSVPrefUnit.pas',
+  ImageReportUnit in 'ImageReportUnit.pas';
 
 {$R *.res}
 
@@ -45,5 +47,7 @@ begin
  Application.CreateForm(TPwordEditorForm, PwordEditorForm);
  Application.CreateForm(TAFSPartitionForm, AFSPartitionForm);
  Application.CreateForm(TChangeInterleaveForm, ChangeInterleaveForm);
+ Application.CreateForm(TCSVPrefForm, CSVPrefForm);
+ Application.CreateForm(TImageReportForm, ImageReportForm);
  Application.Run;
 end.

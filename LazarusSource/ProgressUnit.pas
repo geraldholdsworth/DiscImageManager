@@ -64,7 +64,11 @@ begin
  UpdateProgress.Caption:='';
  //Re-position the 'Waiting' label
  WaitLabel.Left:=(Width-WaitLabel.Width)div 2;
- WaitLabel.Top:=(Height-WaitLabel.Height)div 2;
+ WaitLabel.Top:=(Height-WaitLabel.Height)div 4;
+ //Re-position the 'Progress' label
+ UpdateProgress.Left:=0;
+ UpdateProgress.Width:=Width;
+ UpdateProgress.Top:=WaitLabel.Top+WaitLabel.Height+16;
 end;
 
 procedure TProgressForm.FormPaint(Sender: TObject);

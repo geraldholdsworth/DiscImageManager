@@ -28,19 +28,19 @@ end;
 {-------------------------------------------------------------------------------
 Read Spark archive
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadSparkArchive: TDisc;
+function TDiscImage.ReadSparkArchive: Boolean;
 var
   index,
   ref   : Integer;
   d,
   e     : Cardinal;
   pnt   : String;
-  OldDisc: TDisc;
+//  OldDisc: TDisc;
 begin
  //In order to be able to use FileExists, we need to populate FDisc
- OldDisc:=FDisc; //So take a note
+// OldDisc:=FDisc; //So take a note
  //We will be returning a TDisc in Result
- Result:=nil;
+ Result:=False;
  //Set up the array for the basic root entry
  SetLength(FDisc,1);
  ResetDir(FDisc[0]);
@@ -107,15 +107,16 @@ begin
  //Disc size (total uncompressed size)
  disc_size[0]:=SparkFile.UncompressedSize;
  //Return a result
- Result:=FDisc;
+ Result:=Length(FDisc)>0;
  //And restore FDisc to what it was
- FDisc:=OldDisc;
+ //FDisc:=OldDisc;
 end;
 
 {-------------------------------------------------------------------------------
 Extract a file from Spark archive
 -------------------------------------------------------------------------------}
-function TDiscImage.ExtractSparkFile(filename: String;var buffer: TDIByteArray): Boolean;
+function TDiscImage.ExtractSparkFile(filename: String;
+                                             var buffer: TDIByteArray): Boolean;
 var
  d,e  : Cardinal;
  index: Integer;
@@ -142,17 +143,17 @@ end;
 {-------------------------------------------------------------------------------
 Create a new Spark archive
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatSpark(Zipfilename: String): TDisc;
+function TDiscImage.FormatSpark(Zipfilename: String): Boolean;
 begin
- Result:=nil;
+ Result:=True;
  if Zipfilename='' then exit;
  //Set up the TDisc structure for return
- SetLength(Result,1);
- ResetDir(Result[0]);
+ SetLength(FDisc,1);
+ ResetDir(FDisc[0]);
  //Set the root directory name
  root_name:='$';
- Result[0].Directory:=root_name;
- Result[0].BeenRead:=True;
+ FDisc[0].Directory:=root_name;
+ FDisc[0].BeenRead:=True;
  //Set the format
  FFormat:=diSpark<<4;
  //Create a blank file

@@ -64,6 +64,45 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Reset the partition to match the global variables
+-------------------------------------------------------------------------------}
+procedure TDiscImage.AddPartition;
+var
+ part: Integer;
+begin
+ part:=Length(FPartitions);
+ SetLength(FPartitions,part+1);
+ FPartitions[part].Directories:=FDisc;
+ FPartitions[part].Title:=disc_name[part];
+// FPartitions[part].RootTitle:=
+ FPartitions[part].RootName:=root_name;
+ FPartitions[part].DirSep:=dir_sep;
+// FPartitions[part].HeaderAddr:=
+// FPartitions[part].FSMAddr
+{   FreeSpaceMap    : array of TTrack;  //The free space map
+   DOSVolInRoot    : Boolean;          //Volume name is stored in the root (DOS)
+   RootAddress,                        //Offset of the root
+   SectorSize,                         //Sector Size
+   DOSalloc,                           //Allocation Unit (DOS Plus)
+   Version,                            //Format version
+   Root_size,                          //Size of the root directory
+   DOSBlocks,                          //Size of the DOS partition in blocks
+   DOSCluster_size : Cardinal;         //Size of a DOS cluster
+   FreeSpace,                          //Amount of free space in bytes
+   PartitionSize   : QWord;            //Size of the partition in bytes
+   Format,                             //Major format of this partition
+   DOSFATSize,                         //Size of DOS Plus FAT in blocks
+   DOSResSecs      : Word;             //Number of reserved blocks
+   SecsPerTrack,                       //Number of sectors per track
+   Heads,                              //Number of heads (Acorn ADFS New)
+   Density,                            //Density (Acorn ADFS New)
+   DOSFATType,                         //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
+   DOSNumFATs,                         //Number of FATs in a DOS Plus image
+   AmigaMapType    : Byte;             //OFS/FFS/PFS/OFS
+}
+end;
+
+{-------------------------------------------------------------------------------
 Extract a string from ptr to the next chr(term) or length(-term)
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadString(ptr,term: Integer;control: Boolean=True): String;
@@ -162,12 +201,12 @@ const
   ('Plus','FAT12','FAT16','FAT32','','','','','','','','','','','',''));
 begin
  Result:='';
- if FFormat>>4<=High(FS) then
-  if FFormat mod $10<=High(SUB[FFormat>>4]) then
+ if GetMajorFormatNumber<=High(FS) then
+  if GetMinorFormatNumber<=High(SUB[GetMajorFormatNumber]) then
   begin
-   Result:= FS[FFormat>>4];
-   if SUB[FFormat>>4,FFormat MOD $10]<>'' then
-    Result:=Result+' '+SUB[FFormat>>4,FFormat MOD $10];
+   Result:= FS[GetMajorFormatNumber];
+   if SUB[GetMajorFormatNumber,GetMinorFormatNumber]<>'' then
+    Result:=Result+' '+SUB[GetMajorFormatNumber,GetMinorFormatNumber];
   end;
  //ADFS with AFS partition
  if(FFormat=diAcornADFS<<4+ 2)and(FAFSPresent)then
@@ -197,9 +236,25 @@ const
   ('img','fat12','fat16','fat32','','','','','','','','','','','',''));//DOS and DOS Plus
 begin
  Result:='img';
- if FFormat>>4<=High(EXT) then
-  if FFormat mod $10<=High(EXT[FFormat>>4]) then
-   Result:=EXT[FFormat>>4,FFormat MOD $10];
+ if GetMajorFormatNumber<=High(EXT) then
+  if GetMinorFormatNumber<=High(EXT[GetMajorFormatNumber]) then
+   Result:=EXT[GetMajorFormatNumber,GetMinorFormatNumber];
+end;
+
+{-------------------------------------------------------------------------------
+Get the major format number
+-------------------------------------------------------------------------------}
+function TDiscImage.GetMajorFormatNumber: Word;
+begin
+ Result:=FFormat>>4;
+end;
+
+{-------------------------------------------------------------------------------
+Get the minor format number
+-------------------------------------------------------------------------------}
+function TDiscImage.GetMinorFormatNumber: Byte;
+begin
+ Result:=FFormat mod $10;
 end;
 
 {-------------------------------------------------------------------------------
@@ -461,10 +516,10 @@ const
  oldheads = 2;
 begin
  Result:=disc_addr;
- if(FForceInter=0)and(FFormat>>4=diAcornADFS)then
+ if(FForceInter=0)and(GetMajorFormatNumber=diAcornADFS)then
   if(FFormat<>diAcornADFS<<4+$02)then exit;
  //ADFS L or AFS with 'INT' option
- if((FFormat>>4=diAcornADFS{<<4+$02})or(FFormat>>4=diAcornFS))
+ if((GetMajorFormatNumber=diAcornADFS{<<4+$02})or(GetMajorFormatNumber=diAcornFS))
  and(Finterleave>1)then
  begin
   //Variables not set, then set them to default
@@ -658,17 +713,17 @@ Convert the Map flag to Map Type
 function TDiscImage.MapFlagToByte: Byte;
 begin
  Result:=diUnknownDir;          //Default value for non-ADFS
- if FFormat>>4=diAcornADFS then //Is it ADFS?
+ if GetMajorFormatNumber=diAcornADFS then //Is it ADFS?
  begin
   Result:=diADFSOldMap;              // ADFS Old Map
   if FMap then Result:=diADFSNewMap; // ADFS New Map
  end;
- if FFormat>>4=diAmiga then     //Is it Amiga?
+ if GetMajorFormatNumber=diAmiga then     //Is it Amiga?
  begin
   Result:=diAmigaOFS;                // AmigaDOS OFS
   if FMap then Result:=diAmigaFFS;   // AmigaDOS FFS
  end;
- if FFormat>>4=diDOSPlus then   //Is it DOS
+ if GetMajorFormatNumber=diDOSPlus then   //Is it DOS
   Result:=FATType;
 end;
 
@@ -679,7 +734,7 @@ function TDiscImage.MapTypeToString: String;
 begin
  Result:='';
  //ADFS and AmigaDOS
- if(FFormat>>4=diAcornADFS)or(FFormat>>4=diAmiga)then
+ if(GetMajorFormatNumber=diAcornADFS)or(GetMajorFormatNumber=diAmiga)then
  begin
   case MapFlagToByte of
    diADFSOldMap: Result:='ADFS Old Map';
@@ -688,7 +743,7 @@ begin
    diAmigaFFS  : Result:='AmigaDOS FFS';
   end;
  end;
- if FFormat>>4=diDOSPlus then
+ if GetMajorFormatNumber=diDOSPlus then
  begin
   case FATType of
    diFAT12 : Result:='FAT12';
@@ -817,7 +872,7 @@ Return the root address, depending on format
 function TDiscImage.GetRootAddress: Cardinal;
 begin
  Result:=root;
- if FFormat>>4=diAcornADFS then //New map will return the fragment ID
+ if GetMajorFormatNumber=diAcornADFS then //New map will return the fragment ID
   if FMap then Result:=rootfrag;
 end;
 
@@ -939,11 +994,11 @@ const
  ints:array[0..2] of String=('Sequential','Interleave','Multiplex');
 begin
  Result:='';
- if(FFormat>>4=diAcornDFS)and(FDSD)then Result:=ints[1];
+ if(GetMajorFormatNumber=diAcornDFS)and(FDSD)then Result:=ints[1];
  {if(FFormat=diAcornADFS<<4+2)
  or(FFormat=diAcornADFS<<4+$E)}
- if(FFormat>>4=diAcornADFS)
- or(FFormat>>4=diAcornFS)then
+ if(GetMajorFormatNumber=diAcornADFS)
+ or(GetMajorFormatNumber=diAcornFS)then
   if FInterleave-1<=High(ints) then Result:=ints[FInterleave-1];
 end;
 

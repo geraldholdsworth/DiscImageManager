@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.43
+TDiscImage class V1.44
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -54,11 +54,44 @@ type
    DOSPartition,                    //Is this in the DOS Plus partition? (ADFS/DOS Plus)
    AFSPartition: Boolean;           //Is this in the AFS partition? (ADFS/AFS)
    Sector,                          //Where is this directory located (same as TDirEntry)
+   Length,                          //How big is the directory (same as TDirEntry)
    Partition   : Cardinal;          //Which partition (side) is this on?
    Parent      : Integer;           //What is the TDir reference of the parent (-1 if none)
   end;
   //Collection of directories
   TDisc         = array of TDir;
+  //Partitions
+  TPartition    = record               //Details about the partition
+   Directories     : TDisc;            //All the directories
+   Title,                              //Title of the partition
+   RootTitle,                          //Title of the root directory
+   RootName        : String;           //Root name ($, A:, C:, DF0, DH0, etc.)
+   DirSep          : Char;             //Directory separator
+   HeaderAddr,                         //Offset(s) of the header(s)
+   FSMAddr         : array of Cardinal;//Offset(s) of the FSM/Map/Bitmap/FAT(s)
+   FreeSpaceMap    : array of TTrack;  //The free space map
+   DOSVolInRoot    : Boolean;          //Volume name is stored in the root (DOS)
+   RootAddress,                        //Offset of the root
+   SectorSize,                         //Sector Size
+   DOSalloc,                           //Allocation Unit (DOS Plus)
+   Version,                            //Format version
+   Root_size,                          //Size of the root directory
+   DOSBlocks,                          //Size of the DOS partition in blocks
+   DOSCluster_size : Cardinal;         //Size of a DOS cluster
+   FreeSpace,                          //Amount of free space in bytes
+   PartitionSize   : QWord;            //Size of the partition in bytes
+   Format,                             //Major format of this partition
+   DOSFATSize,                         //Size of DOS Plus FAT in blocks
+   DOSResSecs      : Word;             //Number of reserved blocks
+   SecsPerTrack,                       //Number of sectors per track
+   Heads,                              //Number of heads (Acorn ADFS New)
+   Density,                            //Density (Acorn ADFS New)
+   DOSFATType,                         //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
+   DOSNumFATs,                         //Number of FATs in a DOS Plus image
+   AmigaMapType    : Byte;             //OFS/FFS/PFS/OFS
+  end;
+  //Partitions
+  TPartitions   = array of TPartition;
   //Fragment
   TFragment     = record        //For retrieving the ADFS E/F fragment information
    Offset,
@@ -71,6 +104,7 @@ type
   TProgressProc = procedure(Fupdate: String) of Object;
  private
   FDisc         : TDisc;        //Container for the entire catalogue
+  FPartitions   : TPartitions;  //Container for the entire catalogue (partitioned)
   Fdata         : TDIByteArray; //Container for the image to be loaded into
   FDSD,                         //Double sided flag (Acorn DFS)
   FMap,                         //Old/New Map flag (Acorn ADFS) OFS/FFS (Amiga)
@@ -146,25 +180,29 @@ type
   SparkFile     : TSpark;       //For reading in Spark archives
   //Private methods
   procedure ResetVariables;
+  procedure AddPartition;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function ReadString(ptr,term: Integer;var buffer: TDIByteArray;
-                                      control: Boolean=True): String; overload;
+                                       control: Boolean=True): String; overload;
   procedure WriteString(str: String;ptr,len: Cardinal;pad: Byte);
   procedure WriteString(str: String;ptr,len: Cardinal;pad: Byte;
                                             var buffer: TDIByteArray); overload;
   function FormatToString: String;
   function FormatToExt: String;
+  function GetMajorFormatNumber: Word;
+  function GetMinorFormatNumber: Byte;
   function ReadBits(offset,start,length: Cardinal): Cardinal;
   procedure WriteBits(value,offset,start,length: Cardinal);
-  procedure WriteBits(value,offset,start,length: Cardinal;buffer: TDIByteArray); overload;
+  procedure WriteBits(value,offset,start,length: Cardinal;
+                                                buffer: TDIByteArray); overload;
   function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
   function TimeDateToRISCOS(delphitime: TDateTime): Int64;
   function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
   function Read32b(offset: Cardinal; var buffer: TDIByteArray;
-                                      bigendian: Boolean=False): Cardinal; overload;
+                                  bigendian: Boolean=False): Cardinal; overload;
   function Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
   function Read24b(offset: Cardinal; var buffer: TDIByteArray;
-                                      bigendian: Boolean=False): Cardinal; overload;
+                                  bigendian: Boolean=False): Cardinal; overload;
   function Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
   function Read16b(offset: Cardinal; var buffer: TDIByteArray;
                                       bigendian: Boolean=False): Word; overload;
@@ -181,7 +219,8 @@ type
   procedure Write16b(value: Word; offset: Cardinal; var buffer: TDIByteArray;
                                       bigendian: Boolean=False); overload;
   procedure WriteByte(value: Byte; offset: Cardinal);
-  procedure WriteByte(value: Byte; offset: Cardinal; var buffer: TDIByteArray); overload;
+  procedure WriteByte(value: Byte; offset: Cardinal;
+                                            var buffer: TDIByteArray); overload;
   function GetDataLength: Cardinal;
   procedure SetDataLength(newlen: Cardinal);
   function ROR13(v: Cardinal): Cardinal;
@@ -189,7 +228,8 @@ type
   function MapFlagToByte: Byte;
   function MapTypeToString: String;
   function DirTypeToString: String;
-  function GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
+  function GeneralChecksum(offset,length,chkloc,start: Cardinal;
+                                                      carry: Boolean): Cardinal;
   function GetImageCrc: String;
   function GetCRC(var buffer: TDIByteArray): String;
   function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
@@ -202,36 +242,43 @@ type
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
   function CalculateADFSDirCheck(sector: Cardinal): Byte;
-  function CalculateADFSDirCheck(sector: Cardinal;buffer:TDIByteArray): Byte; overload;
-  function NewDiscAddrToOffset(addr: Cardinal;offset:Boolean=True): TFragmentArray;
+  function CalculateADFSDirCheck(sector: Cardinal;
+                                          buffer: TDIByteArray): Byte; overload;
+  function NewDiscAddrToOffset(addr: Cardinal;
+                                          offset: Boolean=True): TFragmentArray;
   function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
   function ByteChecksum(offset,size: Cardinal): Byte;      
-  function ByteChecksum(offset,size: Cardinal;var buffer: TDIByteArray): Byte; overload;
-  function ReadADFSDisc: TDisc;
+  function ByteChecksum(offset,size: Cardinal;
+                                      var buffer: TDIByteArray): Byte; overload;
+  function ReadADFSDisc: Boolean;
   procedure ADFSFreeSpaceMap;
   procedure ADFSFillFreeSpaceMap(address: Cardinal;usage: Byte);
-  function FormatADFSFloppy(minor: Byte): TDisc;
+  function FormatADFSFloppy(minor: Byte): Boolean;
   procedure FormatOldMapADFS(disctitle: String);
-  procedure FormatNewMapADFS(disctitle: String);
-  function FormatADFSHDD(harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):TDisc;
+  procedure FormatNewMapADFS(disctitle: String; ide: Boolean);
+  function FormatADFSHDD(harddrivesize: Cardinal; newmap: Boolean; dirtype:Byte;
+                                               ide,addheader: Boolean): Boolean;
   function UpdateADFSDiscTitle(title: String): Boolean;
   function UpdateADFSBootOption(option: Byte): Boolean;
   function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
   function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
                          extend:Boolean=True): Integer;
-  function ADFSFindFreeSpace(filelen: Cardinal;var fragid: Cardinal): TFragmentArray;
+  function ADFSFindFreeSpace(filelen: Cardinal;
+                                          var fragid: Cardinal): TFragmentArray;
   function WriteFragmentedData(fragments: TFragmentArray;
-                                            var buffer: TDIByteArray): Boolean;
-  procedure ADFSAllocateFreeSpace(filelen,freeptr: Cardinal);
-  procedure ADFSAllocateFreeSpace(filelen,fragid: Cardinal;fragments: TFragmentArray); overload;
-  function ADFSSectorAlignLength(filelen: Cardinal): Cardinal;
+                                             var buffer: TDIByteArray): Boolean;
+  function ADFSAllocateFreeSpace(filelen,freeptr: Cardinal): Boolean;
+  function ADFSAllocateFreeSpace(filelen,fragid: Cardinal;
+                                  fragments: TFragmentArray): Boolean; overload;
+  function ADFSSectorAlignLength(filelen: Cardinal;
+                                             bpmbalign: Boolean=True): Cardinal;
   procedure ADFSCalcFileDate(var Entry: TDirEntry);
   function CreateADFSDirectory(var dirname,parent,attributes: String): Integer;
   procedure UpdateADFSCat(directory: String;newname: String='');
   function UpdateADFSFileAttributes(filename,attributes: String): Boolean;
   function ValidateADFSFilename(filename: String): String;
   function RetitleADFSDirectory(filename,newtitle: String): Boolean;
-  function RenameADFSFile(oldfilename: String;var newfilename: String):Integer;
+  function RenameADFSFile(oldfilename: String;var newfilename: String): Integer;
   procedure ConsolodateADFSFreeSpaceMap;
   procedure ConsolodateADFSFragments(fragid: Cardinal);
   function DeleteADFSFile(filename: String;
@@ -248,26 +295,30 @@ type
   procedure ReduceADFSCat(dir,entry: Cardinal);
   function FixBrokenADFSDirectories: Boolean;
   function FixADFSDirectory(dir,entry: Integer):Boolean;
-  function ADFSGetHardDriveParams(Ldiscsize:Cardinal;bigmap:Boolean;
-              var Lidlen,Lzone_spare,Lnzones,Llog2bpmb,Lroot: Cardinal):Boolean;
-  function UpdateADFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+  function ADFSGetHardDriveParams(Ldiscsize: Cardinal; bigmap,ide: Boolean;
+                                 var Lidlen,Lzone_spare,Lnzones,Llog2bpmb,Lroot,
+                                     Llog2secsize,Llowsec: Cardinal): Boolean;
+  function UpdateADFSFileAddr(filename: String; newaddr: Cardinal;
+                                                        load: Boolean): Boolean;
   function UpdateADFSFileType(filename:String;newtype:String):Boolean;
   function UpdateADFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
   function ExtractADFSPartition(side: Cardinal): TDIByteArray;
   function GetADFSMaxLength(lastentry:Boolean): Cardinal;
+  function ADFSReport(CSV: Boolean): TStringList;
   //Acorn FileStore Routines
   function ID_AFS: Boolean;
   procedure ReadAFSPartition;
-  function ReadAFSDirectory(dirname:String;addr: Cardinal):TDir;
+  function ReadAFSDirectory(dirname: String; addr: Cardinal): TDir;
   function ExtractAFSFile(filename: String;var buffer: TDIByteArray): Boolean;
   function ReadAFSObject(offset: Cardinal): TDIByteArray;
   function GetAFSObjLength(offset: Cardinal): Cardinal;
   function GetAllocationMap: Cardinal;
-  function GetAllocationMap(sector:Cardinal;var spt:Cardinal):Cardinal; overload;
+  function GetAllocationMap(sector: Cardinal;
+                                         var spt: Cardinal): Cardinal; overload;
   procedure ReadAFSFSM;
   function AFSGetFreeSectors(used: Boolean=False): TFragmentArray;
   function AFSAllocateFreeSpace(size :Cardinal;
-                 var fragments: TFragmentArray;addheader:Boolean=True): Cardinal;
+              var fragments: TFragmentArray; addheader: Boolean=True): Cardinal;
   procedure AFSDeAllocateFreeSpace(addr: Cardinal);
   procedure FinaliseAFSL2Map;
   function FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
@@ -277,8 +328,8 @@ type
   function CreateAFSPassword(Accounts: TUserAccounts): Integer;
   function ReadAFSPassword: TUserAccounts;
   function WriteAFSFile(var file_details: TDirEntry;
-                                              var buffer: TDIByteArray):Integer;
-  function AFSAttrToByte(attr: String):Byte;
+                                             var buffer: TDIByteArray): Integer;
+  function AFSAttrToByte(attr: String): Byte;
   procedure WriteAFSObject(offset: Cardinal;var buffer: TDIByteArray);
   function RenameAFSFile(oldname:String;var newname: String): Integer;
   procedure UpdateAFSDirectory(dirname: String);
@@ -287,72 +338,82 @@ type
   function RemoveAFSEntry(dir,entry: Cardinal): Boolean;
   function InsertAFSEntry(dir: Cardinal;file_details:TDirEntry): Integer;
   function MoveAFSFile(filename,directory: String): Integer;
-  function UpdateAFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
-  function UpdateAFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
-  function AFSTimeToWord(timedate: TDateTime):Word;
+  function UpdateAFSFileAddr(filename: String; newaddr: Cardinal;
+                                                        load: Boolean): Boolean;
+  function UpdateAFSTimeStamp(filename: String; newtimedate: TDateTime):Boolean;
+  function AFSTimeToWord(timedate: TDateTime): Word;
   function UpdateAFSAttributes(filename,attributes: String): Boolean;
   function UpdateAFSDiscTitle(title: String): Boolean;
   function AddAFSPartition(size: Cardinal): Boolean;
+  function AFSReport(CSV: Boolean): TStringList;
   //DFS Routines
   function ID_DFS: Boolean;
-  function ReadDFSDisc(mmbdisc:Integer=-1): TDisc;
-  procedure DFSFreeSpaceMap(LDisc: TDisc);
+  function ReadDFSDisc(mmbdisc:Integer=-1): Boolean;
+  procedure DFSFreeSpaceMap;
   function IsWatford(s: Integer): Boolean;
   function ConvertDFSSector(address,side: Integer): Integer;
-  function WriteDFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function WriteDFSFile(var file_details: TDirEntry;
+                                             var buffer: TDIByteArray): Integer;
   procedure UpdateDFSCat(side: Integer);
   function ValidateDFSFilename(filename: String): String;
   function RenameDFSFile(oldfilename: String;var newfilename: String):Integer;
   function DeleteDFSFile(filename: String):Boolean;
   function UpdateDFSFileAttributes(filename,attributes: String): Boolean;
-  function FormatDFS(minor,tracks: Byte): TDisc;
+  function FormatDFS(minor,tracks: Byte): Boolean;
   function UpdateDFSDiscTitle(title: String;side: Byte): Boolean;
   function UpdateDFSBootOption(option,side: Byte): Boolean;
   function ExtractDFSFile(filename: String;var buffer: TDIByteArray): Boolean;
-  function UpdateDFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+  function UpdateDFSFileAddr(filename: String; newaddr: Cardinal;
+                                                         load: Boolean):Boolean;
   function ExtractDFSPartition(side: Cardinal): TDIByteArray;
   function AddDFSSide(var buffer: TDIByteArray): Boolean;
   function AddDFSSide(filename: String): Boolean; overload;
   function MoveDFSFile(filename,directory: String): Integer;
+  function DFSReport(CSV: Boolean): TStringList;
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
-  function ReadCDRDisc: TDisc;
-  function FormatCDR(minor: Byte): TDisc;
+  function ReadCDRDisc: Boolean;
+  function FormatCDR(minor: Byte): Boolean;
   procedure CDRFreeSpaceMap;
-  procedure CDRSetClearBAM(track,sector: Byte;used: Boolean);
+  procedure CDRSetClearBAM(track,sector: Byte; used: Boolean);
   function UpdateCDRDiscTitle(title: String): Boolean;
-  function ExtractCDRFile(filename:String;var buffer:TDIByteArray): Boolean;
-  function WriteCDRFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function ExtractCDRFile(filename: String; var buffer:TDIByteArray): Boolean;
+  function WriteCDRFile(file_details: TDirEntry;
+                                             var buffer: TDIByteArray): Integer;
   procedure UpdateCDRCat;
   function CDRFindNextSector(var track,sector: Byte): Boolean;
   function CDRFindNextTrack(var track,sector: Byte): Boolean;
   function RenameCDRFile(oldfilename: String;var newfilename: String):Integer;
   function DeleteCDRFile(filename: String):Boolean;
   function UpdateCDRFileAttributes(filename,attributes: String): Boolean;
+  function CDRReport(CSV: Boolean): TStringList;
   //Sinclair Spectrum +3/Amstrad Routines
   function ID_Sinclair: Boolean;
-  function ReadSinclairDisc: TDisc;
-  function FormatSpectrum(minor: Byte): TDisc;
-  function WriteSpectrumFile(file_details: TDirEntry;var buffer: TDIByteArray): Integer;
-  function RenameSpectrumFile(oldfilename: String;var newfilename: String):Integer;
+  function ReadSinclairDisc: Boolean;
+  function FormatSpectrum(minor: Byte): Boolean;
+  function WriteSpectrumFile(file_details: TDirEntry;
+                                             var buffer: TDIByteArray): Integer;
+  function RenameSpectrumFile(oldfilename: String;
+                                               var newfilename: String):Integer;
   function DeleteSinclairFile(filename: String):Boolean;
   function UpdateSinclairFileAttributes(filename,attributes: String): Boolean;
   function UpdateSinclairDiscTitle(title: String): Boolean;
   function ExtractSpectrumFile(filename:String;var buffer:TDIByteArray):Boolean;
   //Commodore Amiga Routines
   function ID_Amiga: Boolean;
-  function ReadAmigaDisc: TDisc;
+  function ReadAmigaDisc: Boolean;
   function ReadAmigaDir(dirname: String; offset: Cardinal): TDir;
   function AmigaBootChecksum(offset: Cardinal): Cardinal;
   function AmigaChecksum(offset: Cardinal): Cardinal;
-  function ExtractAmigaFile(filename:String;var buffer:TDIByteArray):Boolean;
+  function ExtractAmigaFile(filename: String; var buffer: TDIByteArray):Boolean;
   function ExtractAmigaData(sector,filelen: Cardinal;
                                              var buffer: TDIByteArray): Boolean;
-  function FormatAmigaFDD(minor: Byte): TDisc;
-  function FormatAmigaHDD(harddrivesize: Cardinal): TDisc;
+  function FormatAmigaFDD(minor: Byte): Boolean;
+  function FormatAmigaHDD(harddrivesize: Cardinal): Boolean;
   procedure FormatAmiga(size: Cardinal);
-  function WriteAmigaFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
+  function WriteAmigaFile(var file_details: TDirEntry;
+                                             var buffer: TDIByteArray): Integer;
   function CreateAmigaDirectory(var dirname,parent,attributes: String): Integer;
   function RenameAmigaFile(oldfilename: String;var newfilename: String):Integer;
   function DeleteAmigaFile(filename: String):Boolean;
@@ -366,54 +427,63 @@ type
   function AmigaIntToStrAttr(attr: Cardinal): String;
   function AmigaStrToIntAttr(attr: String): Cardinal;
   function AmigaCalculateHashValue(filename: String): Cardinal;
-  procedure AmigaAllocateFSMBlock(addr:Cardinal;used:Boolean;var fsm:TDIByteArray);
+  procedure AmigaAllocateFSMBlock(addr:Cardinal;used:Boolean;
+                                                          var fsm:TDIByteArray);
   function GetAmigaFSMOffset(addr: Cardinal;var bit: Byte): Cardinal;
   function AmigaReadBitmap(var fsm: TDIByteArray): TFragmentArray;
   procedure AmigaWriteBitmap(fsmlist: TFragmentArray;var fsm: TDIByteArray);
   function AmigaFindFreeSpace(filelen: Cardinal): TFragmentArray;
-  function UpdateAmigaTimeStamp(filename: String;newtimedate: TDateTime): Boolean;
+  function UpdateAmigaTimeStamp(filename: String;
+                                               newtimedate: TDateTime): Boolean;
   function GetAmigaChain(sector: Cardinal): TFragmentArray;
   procedure AmigaAddToChain(filename: String;paraddr,sector: Cardinal);
-  function AmigaRemoveFromChain(filename: String;paraddr,sector: Cardinal):Boolean;
+  function AmigaRemoveFromChain(filename: String;
+                                              paraddr,sector: Cardinal):Boolean;
   procedure ValidateAmigaFile(var filename: String);
+  function AmigaReport(CSV: Boolean): TStringList;
   //Acorn CFS Routines
   function ID_CFS: Boolean;
-  function ReadUEFFile: TDisc;
+  function ReadUEFFile: Boolean;
   function CFSBlockStatus(status: Byte): String;
   function CFSTargetMachine(machine: Byte): String;
-  function ExtractCFSFile(entry: Integer;var buffer:TDIByteArray):Boolean;
-  procedure WriteUEFFile(filename: String;uncompress: Boolean=False);
-  function FormatCFS:TDisc;
+  function ExtractCFSFile(entry: Integer; var buffer:TDIByteArray): Boolean;
+  procedure WriteUEFFile(filename: String; uncompress: Boolean=False);
+  function FormatCFS: Boolean;
   function DeleteCFSFile(entry: Cardinal): Boolean;
-  function UpdateCFSAttributes(entry: Cardinal;attributes:String): Boolean;
+  function UpdateCFSAttributes(entry: Cardinal; attributes:String): Boolean;
   function MoveCFSFile(entry: Cardinal;dest: Integer): Integer;
   function CopyCFSFile(entry: Cardinal;dest: Integer): Integer;
-  function WriteCFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
-  function RenameCFSFile(entry: Cardinal;newfilename: String): Integer;
-  function UpdateCFSFileAddr(entry,newaddr:Cardinal;load:Boolean):Boolean;
+  function WriteCFSFile(var file_details: TDirEntry;
+                                             var buffer: TDIByteArray): Integer;
+  function RenameCFSFile(entry: Cardinal; newfilename: String): Integer;
+  function UpdateCFSFileAddr(entry,newaddr: Cardinal; load: Boolean): Boolean;
   //MMFS Routines
   function ID_MMB: Boolean;
-  function ReadMMBDisc: TDisc;
+  function ReadMMBDisc: Boolean;
   //Spark Routines
   function ID_Spark: Boolean;
-  function ReadSparkArchive: TDisc;
+  function ReadSparkArchive: Boolean;
   function ExtractSparkFile(filename: String;var buffer: TDIByteArray): Boolean;
-  function FormatSpark(Zipfilename: String): TDisc;
+  function FormatSpark(Zipfilename: String): Boolean;
   function DeleteSparkFile(filename: String): Boolean;
   function UpdateSparkAttributes(filename,attributes: String): Boolean;
   function MoveSparkFile(filename, dest: String): Integer;
-  function WriteSparkFile(var file_details:TDirEntry;var buffer:TDIByteArray):Integer;
+  function WriteSparkFile(var file_details: TDirEntry;
+                                             var buffer: TDIByteArray): Integer;
   function RenameSparkFile(filename, newfilename: String): Integer;
   function UpdateSparkFileType(filename: String; newtype: String): Boolean;
-  function UpdateSparkTimeStamp(filename: String;newtimedate:TDateTime): Boolean;
-  function UpdateSparkFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
+  function UpdateSparkTimeStamp(filename: String;
+                                               newtimedate: TDateTime): Boolean;
+  function UpdateSparkFileAddr(filename: String; newaddr: Cardinal;
+                                                        load: Boolean): Boolean;
   function CreateSparkDirectory(filename, parent, attributes: String): Integer;
   //DOS Plus Routines
   function ID_DOSPlus: Boolean;
   function IDDOSPartition(ctr: Cardinal): Boolean;
   procedure ReadDOSPartition;
   function ReadDOSHeader: Boolean;
-  function ReadDOSDirectory(dirname:String;addr:Cardinal;var len:Cardinal):TDir;
+  function ReadDOSDirectory(dirname: String; addr: Cardinal;
+                                                       var len: Cardinal): TDir;
   function DOSExtToFileType(ext: String): String;
   function ConvertDOSTimeDate(time,date: Word): TDateTime;
   function DOSTime(time: TDateTime): Word;
@@ -424,18 +494,19 @@ type
   function GetClusterEntry(cluster: Cardinal): Cardinal;
   procedure SetClusterEntry(cluster,entry: Cardinal);
   function IsClusterValid(cluster: Cardinal): Boolean;
-  function GetClusterChain(cluster:Cardinal;len:Cardinal=0):TFragmentArray;
+  function GetClusterChain(cluster: Cardinal; len: Cardinal=0): TFragmentArray;
   procedure SetClusterChain(fragments: TFragmentArray);
-  function ExtractDOSFile(filename: String;var buffer: TDIByteArray): Boolean;
+  function ExtractDOSFile(filename: String; var buffer: TDIByteArray): Boolean;
   function ReadDOSObject(cluster: Cardinal;len: Cardinal=0): TDIByteArray;
   procedure ReadDOSFSM;
   function DOSGetFreeSectors(used: Boolean=False): TFragmentArray;
-  function RenameDOSFile(oldname:String;var newname: String): Integer;
+  function RenameDOSFile(oldname: String; var newname: String): Integer;
   function ValidateDOSFilename(filename: String;long: Boolean=False): String;
   procedure UpdateDOSDirectory(dirname: String);
-  procedure AllocateDOSClusters(len:Cardinal;var fragments:TFragmentArray);
-  procedure DeAllocateDOSClusters(len:Cardinal;var fragments:TFragmentArray);
-  function WriteDOSObject(buffer:TDIByteArray;fragments:TFragmentArray):Boolean;
+  procedure AllocateDOSClusters(len: Cardinal; var fragments: TFragmentArray);
+  procedure DeAllocateDOSClusters(len: Cardinal; var fragments: TFragmentArray);
+  function WriteDOSObject(buffer: TDIByteArray;
+                                            fragments: TFragmentArray): Boolean;
   function WriteDOSFile(var file_details: TDirEntry;
                                               var buffer: TDIByteArray):Integer;
   function InsertDOSEntry(dir: Cardinal;direntry: TDirEntry): Integer;
@@ -444,15 +515,16 @@ type
   procedure RemoveDOSEntry(dir, entry: Cardinal);
   function UpdateDOSAttributes(filename,attributes: String): Boolean;
   function UpdateDOSDiscTitle(title: String): Boolean;
-  function UpdateDOSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
+  function UpdateDOSTimeStamp(filename: String; newtimedate: TDateTime):Boolean;
   function AddDOSPartition(size: Cardinal): Boolean;
-  function FormatDOS(size: QWord;fat: Byte): TDisc;
+  function FormatDOS(size: QWord;fat: Byte): Boolean;
   procedure WriteDOSHeader(offset, size: QWord;fat: Byte;bootable: Boolean);
   procedure WriteDOSHeader(offset, size: QWord;fat: Byte;bootable: Boolean;
-                                              var buffer:TDIByteArray);overload;
+                                             var buffer: TDIByteArray);overload;
   function MoveDOSFile(filename,directory: String): Integer;
   function DOSShortFilename(path,LFN: String;SFN :String=''): String;
   function BuildDOSFilename(f,e: String): String;
+  function DOSReport(CSV: Boolean): TStringList;
   //Private constants
   const
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
@@ -478,27 +550,35 @@ type
   function LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
   function IDImage: Boolean;
   procedure ReadImage;
-  procedure SaveToFile(filename: String;uncompress: Boolean=False);
+  function SaveToFile(filename: String;uncompress: Boolean=False): Boolean;
   procedure Close;
-  function FormatFDD(major:Word;minor:Byte=0;tracks: Byte=0;filename: String=''): Boolean;
-  function FormatHDD(major:Word;harddrivesize:Cardinal;newmap:Boolean;dirtype:Byte):Boolean;
-  function ExtractFile(filename:String;var buffer:TDIByteArray;entry:Cardinal=0): Boolean;
-  function WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
-  function FileExists(filename: String;var Ref: Cardinal;sfn: Boolean=False): Boolean;
-  function FileExists(filename: String;var dir,entry: Cardinal;sfn: Boolean=False): Boolean; overload;
+  function FormatFDD(major:Word;minor:Byte=0;tracks: Byte=0;
+                                                  filename: String=''): Boolean;
+  function FormatHDD(major:Word;harddrivesize:Cardinal;ide,newmap:Boolean;
+                                        dirtype:Byte;addheader:Boolean):Boolean;
+  function ExtractFile(filename:String;var buffer:TDIByteArray;
+                                                     entry:Cardinal=0): Boolean;
+  function WriteFile(var file_details: TDirEntry;
+                      var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
+  function FileExists(filename: String;var Ref: Cardinal;
+                                                   sfn: Boolean=False): Boolean;
+  function FileExists(filename: String;var dir,entry: Cardinal;
+                                         sfn: Boolean=False): Boolean; overload;
   function ReadDiscData(addr,count,side,offset: Cardinal;
                                              var buffer: TDIByteArray): Boolean;
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
-  function RenameFile(oldfilename: String;var newfilename: String;entry: Cardinal=0): Integer;
+  function RenameFile(oldfilename: String;var newfilename: String;
+                                                    entry: Cardinal=0): Integer;
   function DeleteFile(filename: String;entry: Cardinal=0): Boolean;
   function MoveFile(filename,directory: String): Integer;
   function MoveFile(source: Cardinal;dest: Integer): Integer; overload;
   function CopyFile(filename,directory: String): Integer;
   function CopyFile(filename,directory,newfilename: String): Integer; overload;
   function CopyFile(source: Cardinal;dest: Integer): Integer; overload;
-  function UpdateAttributes(filename,attributes: String;entry:Cardinal=0): Boolean;
+  function UpdateAttributes(filename,attributes: String;
+                                                     entry:Cardinal=0): Boolean;
   function UpdateDiscTitle(title: String;side: Byte): Boolean;
   function UpdateBootOption(option,side: Byte): Boolean;
   function CreateDirectory(var filename,parent,attributes: String): Integer;
@@ -506,8 +586,10 @@ type
   function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function FixDirectories: Boolean;
   function SaveFilter(var FilterIndex: Integer;thisformat: Integer=-1):String;
-  function UpdateLoadAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
-  function UpdateExecAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
+  function UpdateLoadAddr(filename:String;newaddr:Cardinal;
+                                                     entry:Cardinal=0): Boolean;
+  function UpdateExecAddr(filename:String;newaddr:Cardinal;
+                                                     entry:Cardinal=0): Boolean;
   function TimeStampFile(filename: String;newtimedate: TDateTime): Boolean;
   function ChangeFileType(filename,newtype: String): Boolean;
   function GetFileTypeFromNumber(filetype: Integer): String;
@@ -528,12 +610,16 @@ type
   function ChangeInterleaveMethod(NewMethod: Byte): Boolean;
   function GetDirSep(partition: Byte): Char;
   function ReadDirectory(dirname: String): Integer;
+  function ImageReport(CSV: Boolean): TStringList;
   //Published properties
   property AFSPresent:          Boolean       read FAFSPresent;
   property AFSRoot:             Cardinal      read Fafsroot;
-  property AllowDFSZeroSectors: Boolean       read FDFSzerosecs write FDFSzerosecs;
-  property DFSBeyondEdge:       Boolean       read FDFSBeyondEdge write FDFSBeyondEdge;
-  property DFSAllowBlanks:      Boolean       read FDFSAllowBlank write FDFSAllowBlank;
+  property AllowDFSZeroSectors: Boolean       read FDFSzerosecs
+                                              write FDFSzerosecs;
+  property DFSBeyondEdge:       Boolean       read FDFSBeyondEdge
+                                              write FDFSBeyondEdge;
+  property DFSAllowBlanks:      Boolean       read FDFSAllowBlank
+                                              write FDFSAllowBlank;
   property BootOpt:             TDIByteArray  read bootoption;
   property CRC32:               String        read GetImageCrc;
   property DirectoryType:       Byte          read FDirType;
@@ -543,23 +629,31 @@ type
   property DOSPlusRoot:         Cardinal      read Fdosroot;
   property DOSPresent:          Boolean       read FDOSPresent;
   property DoubleSided:         Boolean       read FDSD;
-  property Filename:            String        read imagefilename write imagefilename;
+  property Filename:            String        read imagefilename
+                                              write imagefilename;
   property FormatExt:           String        read FormatToExt;
   property FormatNumber:        Word          read FFormat;
   property FormatString:        String        read FormatToString;
   property FreeSpaceMap:        TSide         read free_space_map;
   property InterleaveInUse:     String        read InterleaveString;
   property InterleaveInUseNum:  Byte          read FInterleave;
-  property InterleaveMethod:    Byte          read FForceInter write FForceInter;
+  property InterleaveMethod:    Byte          read FForceInter
+                                              write FForceInter;
+  property MajorFormatNumber:   Word          read GetMajorFormatNumber;
   property MapType:             Byte          read MapFlagToByte;
   property MapTypeString:       String        read MapTypeToString;
   property MaxDirectoryEntries: Cardinal      read FMaxDirEnt;
-  property OpenDOSPartitions:   Boolean       read FOpenDOSPart write FOpenDOSPart;
+  property MinorFormatNumber:   Byte          read GetMinorFormatNumber;
+  property OpenDOSPartitions:   Boolean       read FOpenDOSPart
+                                              write FOpenDOSPart;
+  property Partitions:          TPartitions   read FPartitions;
   property ProgressIndicator:   TProgressProc write FProgress;
   property RAWData:             TDIByteArray  read Fdata;
   property RootAddress:         Cardinal      read GetRootAddress;
-  property ScanSubDirs:         Boolean       read FScanSubDirs write FScanSubDirs;
-  property SparkAsFS:           Boolean       read FSparkAsFS write FSparkAsFS;
+  property ScanSubDirs:         Boolean       read FScanSubDirs
+                                              write FScanSubDirs;
+  property SparkAsFS:           Boolean       read FSparkAsFS
+                                              write FSparkAsFS;
  public
   destructor Destroy; override;
  End;

@@ -4,10 +4,11 @@
 Identifies an MMB
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_MMB: Boolean;
-var
- c,i,ptr : Integer;
+{var
+ c,i,ptr : Integer;}
 begin
- if FFormat=diInvalidImg then
+ Result:=False;
+{ if FFormat=diInvalidImg then
  begin
   ResetVariables;
   //Check it is of the correct length (511 images * 200K + 0x2000 bytes)
@@ -24,22 +25,22 @@ begin
    if c<511 then FFormat:=diInvalidImg;
   end;
  end;
- Result:=FFormat>>4=diMMFS;
+ Result:=GetMajorFormatNumber=diMMFS;}
 end;
 
 {-------------------------------------------------------------------------------
 Read MMB file
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadMMBDisc: TDisc;
-var
+function TDiscImage.ReadMMBDisc: Boolean;
+{var
  i,j,
  dir   : Integer;
  ptr   : Cardinal;
  c     : Byte;
- d     : TDisc;
+ d     : TDisc; }
 begin
- Result:=nil;
- //511 entries in an MMB file
+ Result:=False;
+{ //511 entries in an MMB file
  SetLength(Result,511);
  //Now go through them and read them in
  for i:=0 to 510 do
@@ -75,5 +76,5 @@ begin
    Result[i].Directory:=IntToStr(i)+': empty';
  end;
  disc_name[0]:='MMFS File';
- disc_size[0]:=511;
+ disc_size[0]:=511; }
 end;

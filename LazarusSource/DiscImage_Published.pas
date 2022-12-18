@@ -79,7 +79,7 @@ function TDiscImage.FixDirectories: Boolean;
 begin
  Result:=False;
  //Only for ADFS
- if FFormat>>4=diAcornADFS then Result:=FixBrokenADFSDirectories;
+ if GetMajorFormatNumber=diAcornADFS then Result:=FixBrokenADFSDirectories;
 end;
 
 {-------------------------------------------------------------------------------
@@ -133,7 +133,7 @@ begin
   //Make a note of the file being read in
   FFilename:=filename;
   //Free up the Spark instance, if used
-  if FFormat>>4=diSpark then SparkFile.Free;
+  if GetMajorFormatNumber=diSpark then SparkFile.Free;
   //Blank off the variables
   ResetVariables;
   //Read the file in, uncompressing if need be
@@ -185,25 +185,25 @@ procedure TDiscImage.ReadImage;
 var
  d: Cardinal;
 begin
- case FFormat>>4 of
-  diAcornDFS : FDisc:=ReadDFSDisc;     //Acorn DFS
+ case GetMajorFormatNumber of
+  diAcornDFS : ReadDFSDisc;     //Acorn DFS
   diAcornADFS:
    begin
-    FDisc:=ReadADFSDisc;               //Acorn ADFS
+    ReadADFSDisc;               //Acorn ADFS
     ReadAFSPartition;//Read in the AFS partition, if one is present
     ReadDOSPartition;//Read in the DOS Plus partition, if one is present
    end;
   diAcornFS  : ReadAFSPartition;       //Acorn File Server
-  diCommodore: FDisc:=ReadCDRDisc;     //Commodore
-  diSinclair : FDisc:=ReadSinclairDisc;//Sinclair/Amstrad
-  diAmiga    : FDisc:=ReadAmigaDisc;   //Amiga
-  diAcornUEF : FDisc:=ReadUEFFile;     //Acorn CFS
-  diMMFS     : FDisc:=ReadMMBDisc;     //MMFS
-  diSpark    : FDisc:=ReadSparkArchive;//Spark archive
+  diCommodore: ReadCDRDisc;            //Commodore
+  diSinclair : ReadSinclairDisc;       //Sinclair/Amstrad
+  diAmiga    : ReadAmigaDisc;          //Amiga
+  diAcornUEF : ReadUEFFile;            //Acorn CFS
+  diMMFS     : ReadMMBDisc;            //MMFS
+  diSpark    : ReadSparkArchive;       //Spark archive
   diDOSPlus  : ReadDOSPartition;       //DOS Plus
  end;
  //Find the maximum directory entries
- if FFormat>>4<>diSpark then //Not Spark, as this already provides this info
+ if GetMajorFormatNumber<>diSpark then //Not Spark, as this already provides this info
  begin
   FMaxDirEnt:=0;
   if Length(FDisc)>0 then
@@ -217,11 +217,12 @@ end;
 {-------------------------------------------------------------------------------
 Saves an image to a file
 -------------------------------------------------------------------------------}
-procedure TDiscImage.SaveToFile(filename: String;uncompress: Boolean=False);
+function TDiscImage.SaveToFile(filename: String;uncompress: Boolean=False): Boolean;
 var
  FDiscDrive: TFileStream;
  ext: String;
 begin
+ Result:=False;
  //Validate the filename
  ext:=ExtractFileExt(filename); //First extract the extension
  if ext='' then //If it hasn't been given an extension, then give it the default
@@ -229,7 +230,7 @@ begin
   filename:=LeftStr(filename,Length(filename)-Length(ext));
   filename:=filename+'.'+FormatToExt;
  end;
- if FFormat>>4<>diAcornUEF then //Not CFS
+ if GetMajorFormatNumber<>diAcornUEF then //Not CFS
  begin
   //Create the stream
   try
@@ -242,11 +243,13 @@ begin
    FDiscDrive.Free;
    //Change the image's filename
    imagefilename:=filename;
+   Result:=True;
   except
    //Could not create
+   Result:=False;
   end;
  end;
- if FFormat>>4=diAcornUEF then WriteUEFFile(filename,uncompress); //CFS
+ if GetMajorFormatNumber=diAcornUEF then WriteUEFFile(filename,uncompress); //CFS
 end;
 
 {-------------------------------------------------------------------------------
@@ -269,52 +272,23 @@ begin
  if major<>diDOSPlus then
   tracks:=tracks MOD 2;
  case major of
-  diAcornDFS://Create DFS
-   begin
-    FDisc:=FormatDFS(minor,tracks);
-    Result:=Length(FDisc)>0;
-   end;
-  diAcornADFS://Create ADFS
-   begin
-    FDisc:=FormatADFSFloppy(minor);
-    Result:=Length(FDisc)>0;
-   end;
-  diCommodore://Create Commodore 64/128
-   begin
-    FDisc:=FormatCDR(minor);
-    Result:=Length(FDisc)>0;
-   end;
-  diSinclair://Create Sinclair/Amstrad
-   begin
-    FDisc:=FormatSpectrum(minor);
-    Result:=Length(FDisc)>0;
-   end;
-  diAmiga://Create AmigaDOS
-   begin
-    FDisc:=FormatAmigaFDD(minor);
-    Result:=Length(FDisc)>0;
-   end;
-  diAcornUEF://Create CFS
-   begin
-    FDisc:=FormatCFS;
-    Result:=Length(FDisc)>0;
-   end;
-  diSpark://Create Spark
-   begin
-    FDisc:=FormatSpark(filename);
-    Result:=Length(FDisc)>0;
-   end;
-  diDOSPlus://Create DOS or DOS Plus
+  diAcornDFS : Result:=FormatDFS(minor,tracks); //Create DFS
+  diAcornADFS: Result:=FormatADFSFloppy(minor); //Create ADFS
+  diCommodore: Result:=FormatCDR(minor);        //Create Commodore 64/128
+  diSinclair : Result:=FormatSpectrum(minor);   //Create Sinclair/Amstrad
+  diAmiga    : Result:=FormatAmigaFDD(minor);   //Create AmigaDOS
+  diAcornUEF : Result:=FormatCFS;               //Create CFS
+  diSpark    : Result:=FormatSpark(filename);   //Create Spark
+  diDOSPlus  :                                  //Create DOS or DOS Plus
    begin
     case minor of
-     0: FDisc:=FormatDOS( 640*1024,diFAT12);// 640KB ADFS/DOS Plus
-     1: FDisc:=FormatDOS( 800*1024,diFAT12);// 800KB DOS Plus
-     2: FDisc:=FormatDOS( 360*1024,diFAT12);// 360KB DOS
-     3: FDisc:=FormatDOS( 720*1024,diFAT12);// 720KB DOS
-     4: FDisc:=FormatDOS(1440*1024,diFAT12);//1.44MB DOS
-     5: FDisc:=FormatDOS(2880*1024,diFAT12);//2.88MB DOS
+     0: Result:=FormatDOS( 640*1024,diFAT12);   // 640KB ADFS/DOS Plus
+     1: Result:=FormatDOS( 800*1024,diFAT12);   // 800KB DOS Plus
+     2: Result:=FormatDOS( 360*1024,diFAT12);   // 360KB DOS
+     3: Result:=FormatDOS( 720*1024,diFAT12);   // 720KB DOS
+     4: Result:=FormatDOS(1440*1024,diFAT12);   //1.44MB DOS
+     5: Result:=FormatDOS(2880*1024,diFAT12);   //2.88MB DOS
     end;
-    Result:=Length(FDisc)>0;
    end;
  end;
 end;
@@ -322,29 +296,21 @@ end;
 {-------------------------------------------------------------------------------
 Create and format a new hard disc image
 -------------------------------------------------------------------------------}
-function TDiscimage.FormatHDD(major:Word;harddrivesize:Cardinal;newmap:Boolean;
-                                                          dirtype:Byte):Boolean;
+function TDiscimage.FormatHDD(major: Word;harddrivesize: Cardinal;
+                 ide,newmap: Boolean;dirtype: Byte;addheader: Boolean): Boolean;
 begin
  Result:=False;
  //Make sure the numbers are within bounds
  major :=major AND $FFF;
  case major of
-  diAcornADFS: //Create ADFS
-   begin
-    FDisc:=FormatADFSHDD(harddrivesize,newmap,dirtype);
-    Result:=Length(FDisc)>0;
-   end;
-  diAcornFS: Result:=FormatAFS(harddrivesize,dirtype);//Create Acorn FS
-  diDOSPlus: //Create DOS HDD
-   begin
-    FDisc:=FormatDOS(harddrivesize,dirtype);
-    Result:=Length(FDisc)>0;
-   end;
-  diAmiga  : //Create Amiga HDD
-   begin
-    FDisc:=FormatAmigaHDD(harddrivesize);
-    Result:=Length(FDisc)>0;
-   end;
+  diAcornADFS: Result:=FormatADFSHDD(harddrivesize,
+                                     newmap,
+                                     dirtype,
+                                     ide,
+                                     addheader);        //Create ADFS
+  diAcornFS  : Result:=FormatAFS(harddrivesize,dirtype);//Create Acorn FS
+  diDOSPlus  : Result:=FormatDOS(harddrivesize,dirtype);//Create DOS HDD
+  diAmiga    : Result:=FormatAmigaHDD(harddrivesize);   //Create Amiga HDD
  end;
 end;
 
@@ -352,11 +318,11 @@ end;
 Extracts a file, filename contains complete path (CFS, entry is entry number)
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtractFile(filename:String;var buffer:TDIByteArray;
-                                entry:Cardinal=0): Boolean;
+                                                     entry:Cardinal=0): Boolean;
 begin
  //Start with a false result
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS :Result:=ExtractDFSFile(filename,buffer);     //Extract DFS
   diAcornADFS:Result:=ExtractADFSFile(filename,buffer);    //Extract ADFS
   diCommodore:Result:=ExtractCDRFile(filename,buffer);     //Extract Commodore 64/128
@@ -372,7 +338,8 @@ end;
 {-------------------------------------------------------------------------------
 Save a file into the disc image, from buffer
 -------------------------------------------------------------------------------}
-function TDiscImage.WriteFile(var file_details: TDirEntry; var buffer: TDIByteArray): Integer;
+function TDiscImage.WriteFile(var file_details: TDirEntry;
+                      var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
 var
  count : Integer;
 begin
@@ -381,15 +348,15 @@ begin
  //Get the length of data to be written
  count:=file_details.Length;
  //Only write a file if there is actually any data to be written
- if(count>0)and((Length(free_space)>0)or(FFormat>>4=diSpark))then
+ if(count>0)and((Length(free_space)>0)or(GetMajorFormatNumber=diSpark))then
  begin
-  if FFormat>>4<>diSpark then
+  if GetMajorFormatNumber<>diSpark then
    file_details.Side:=file_details.Side mod Length(free_space);
   //Can only write a file that will fit on the disc, or CFS
   if(count<=free_space[file_details.Side])
-  or(FFormat>>4=diAcornUEF)
-  or(FFormat>>4=diSpark)then
-   case FFormat>>4 of
+  or(GetMajorFormatNumber=diAcornUEF)
+  or(GetMajorFormatNumber=diSpark)then
+   case GetMajorFormatNumber of
     diAcornDFS :Result:=WriteDFSFile(file_details,buffer);     //Write DFS
     diAcornADFS:Result:=WriteADFSFile(file_details,buffer);    //Write ADFS
     diCommodore:Result:=WriteCDRFile(file_details,buffer);     //Write Commodore 64/128
@@ -411,7 +378,7 @@ function TDiscImage.CreateDirectory(var filename,parent,attributes: String): Int
 begin
  //Start with a false result
  Result:=-1;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : exit;//Can't create directories on DFS
   diAcornADFS:      //Create directory on ADFS
     Result:=CreateADFSDirectory(filename,parent,attributes);
@@ -436,7 +403,7 @@ function TDiscImage.RetitleDirectory(var filename,newtitle: String): Boolean;
 begin
  //Start with a false result
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS :      //DFS doesn't have directories
   begin
    //Update the disc title instead
@@ -513,15 +480,15 @@ begin
  begin
   SetLength(Path,0);
   //Explode the pathname into an array, without the '.'
-  if(FFormat>>4<>diAcornDFS)and(FFormat>>4<>diCommodore)then //Not DFS or Commodore
+  if(GetMajorFormatNumber<>diAcornDFS)and(GetMajorFormatNumber<>diCommodore)then //Not DFS or Commodore
   begin
-   if(FFormat>>4=diAcornADFS)and(FDOSPresent)
+   if(GetMajorFormatNumber=diAcornADFS)and(FDOSPresent)
    and(LeftStr(filename,Length(dosrootname))=dosrootname)then//Is this on a DOS Partition of an ADFS?
     Path:=filename.Split('\')
    else
     Path:=filename.Split(dir_sep);
   end;
-  if FFormat>>4=diAcornDFS then //With DFS, we need the initial root name, including the '.'
+  if GetMajorFormatNumber=diAcornDFS then //With DFS, we need the initial root name, including the '.'
   begin
    //So should only be 2 entries
    SetLength(Path,2);
@@ -545,7 +512,7 @@ begin
      Path[1]:=filename;
    end;
   end;
-  if FFormat>>4=diCommodore then //Commodore is similar to DFS
+  if GetMajorFormatNumber=diCommodore then //Commodore is similar to DFS
   begin
    //So should only be 2 entries
    SetLength(Path,2);
@@ -657,11 +624,11 @@ begin
   begin
    if offset+i<Length(buffer) then //Bit of range checking
    begin
-    if FFormat>>4<>diAcornDFS then //All but DFS
+    if GetMajorFormatNumber<>diAcornDFS then //All but DFS
      if addr+i<GetDataLength then        //If the data is within bounds
       buffer[offset+i]:=ReadByte(addr+i) //Read it
      else Result:=False;                 //Otherwise return a fail
-    if FFormat>>4=diAcornDFS then  //DFS only
+    if GetMajorFormatNumber=diAcornDFS then  //DFS only
      if ConvertDFSSector(addr+i,side)<GetDataLength then
       buffer[offset+i]:=ReadByte(ConvertDFSSector(addr+i,side))
      else Result:=False;                 //Fail if outside the image
@@ -685,7 +652,7 @@ begin
  begin
   //Sometimes the image file is smaller than the actual disc size
   if GetDataLength<disc_size[side]then SetDataLength(disc_size[side]);
-  if FFormat>>4<>diAcornDFS then //not DFS
+  if GetMajorFormatNumber<>diAcornDFS then //not DFS
   begin
    //Ensure that the entire block will fit into the available space
    Result:=(addr+count)<=GetDataLength;
@@ -842,7 +809,7 @@ function TDiscImage.RenameFile(oldfilename: String;var newfilename: String;
                                     entry:Cardinal=0): Integer;
 begin
  Result:=-1;//Failed to rename
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : Result:=RenameDFSFile(oldfilename,newfilename);     //Rename DFS
   diAcornADFS: Result:=RenameADFSFile(oldfilename,newfilename);    //Rename ADFS
   diCommodore: Result:=RenameCDRFile(oldfilename,newfilename);     //Rename Commodore 64/128
@@ -861,7 +828,7 @@ Deletes a file (given full pathname)
 function TDiscImage.DeleteFile(filename: String;entry: Cardinal=0): Boolean;
 begin
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : Result:=DeleteDFSFile(filename);     //Delete DFS
   diAcornADFS: Result:=DeleteADFSFile(filename);    //Delete ADFS
   diCommodore: Result:=DeleteCDRFile(filename);     //Delete Commodore 64/128
@@ -880,7 +847,7 @@ Moves a file from one directory to another
 function TDiscImage.MoveFile(filename,directory: String): Integer;
 begin
  Result:=-12;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : Result:=MoveDFSFile(filename,directory);  //Move on DFS
   diAcornADFS: Result:=MoveADFSFile(filename,directory); //Move ADFS File
   diAmiga    : Result:=MoveAmigaFile(filename,directory);//Move Amiga File
@@ -893,7 +860,7 @@ function TDiscImage.MoveFile(source: Cardinal;dest: Integer): Integer;
 begin
  Result:=-12;
  //Can only move files on DFS (between drives), ADFS, Amiga, AFS and CFS
- if FFormat>>4=diAcornUEF then //Move on CFS
+ if GetMajorFormatNumber=diAcornUEF then //Move on CFS
   Result:=MoveCFSFile(source,dest);
 end;
 
@@ -938,7 +905,7 @@ begin
      DeleteFile(directory+dir_sep+file_details.Filename);
     //Set up the filedetails
     file_details.Parent:=directory;
-    if FFormat>>4=diAcornDFS then //DFS
+    if GetMajorFormatNumber=diAcornDFS then //DFS
      if(directory[1]=':')and(directory[2]='2') then
       file_details.Side:=1
      else
@@ -978,7 +945,7 @@ function TDiscImage.CopyFile(source: Cardinal;dest: Integer): Integer;
 begin
  Result:=-12;
  //Can only copy files on DFS (between drives), ADFS, Amiga, AFS and CFS
- if FFormat>>4=diAcornUEF then //Copy on CFS
+ if GetMajorFormatNumber=diAcornUEF then //Copy on CFS
   Result:=CopyCFSFile(source,dest);
 end;
 
@@ -989,7 +956,7 @@ function TDiscImage.UpdateAttributes(filename,attributes: String;entry:Cardinal=
 begin
  Result:=False;
  if(filename<>root_name)and(filename<>afsrootname)then
-  case FFormat>>4 of
+  case GetMajorFormatNumber of
    diAcornDFS : Result:=UpdateDFSFileAttributes(filename,attributes);     //Update DFS attributes
    diAcornADFS: Result:=UpdateADFSFileAttributes(filename,attributes);    //Update ADFS attributes
    diCommodore: Result:=UpdateCDRFileAttributes(filename,attributes);     //Update Commodore 64/128 attributes
@@ -1008,7 +975,7 @@ Set the disc title
 function TDiscImage.UpdateDiscTitle(title: String;side: Byte): Boolean;
 begin
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : Result:=UpdateDFSDiscTitle(title,side);//Title DFS Disc
   diAcornADFS:
    begin
@@ -1032,7 +999,7 @@ Set the boot option
 function TDiscImage.UpdateBootOption(option,side: Byte): Boolean;
 begin
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : Result:=UpdateDFSBootOption(option,side);//Update DFS Boot
   diAcornADFS: Result:=UpdateADFSBootOption(option);    //Update ADFS Boot
   diCommodore: exit;//Update Commodore 64/128 Boot ++++++++++++++++++++++++++++++++++++++
@@ -1050,7 +1017,7 @@ Change the load address
 function TDiscImage.UpdateLoadAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
 begin
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : Result:=UpdateDFSFileAddr(filename,newaddr,True); //Update DFS Load Address
   diAcornADFS: Result:=UpdateADFSFileAddr(filename,newaddr,True);//Update ADFS Load Address
   diCommodore: exit;//Update Commodore 64/128 Load Address
@@ -1069,7 +1036,7 @@ Change the execution address
 function TDiscImage.UpdateExecAddr(filename:String;newaddr:Cardinal;entry:Cardinal=0): Boolean;
 begin
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : Result:=UpdateDFSFileAddr(filename,newaddr,False); //Update DFS Execution Address
   diAcornADFS: Result:=UpdateADFSFileAddr(filename,newaddr,False);//Update ADFS Execution Address
   diCommodore: exit;//Update Commodore 64/128 Execution Address
@@ -1088,7 +1055,7 @@ Timestamp the file
 function TDiscImage.TimeStampFile(filename:String;newtimedate:TDateTime):Boolean;
 begin
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : exit;//Update DFS Timestamp
   diAcornADFS: Result:=UpdateADFSTimeStamp(filename,newtimedate);//Update ADFS Timestamp
   diCommodore: exit;//Update Commodore 64/128 Timestamp
@@ -1107,7 +1074,7 @@ Change the file's filetype
 function TDiscImage.ChangeFileType(filename,newtype: String): Boolean;
 begin
  Result:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : exit;//Update DFS Filetype
   diAcornADFS: Result:=UpdateADFSFileType(filename,newtype);//Update ADFS Filetype
   diCommodore: exit;//Update Commodore 64/128 Filetype
@@ -1168,7 +1135,7 @@ Updating is ending
 procedure TDiscImage.EndUpdate;
 begin
  Fupdating:=False;
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : exit;//Update DFS
   diAcornADFS: ADFSFreeSpaceMap;//Update ADFS
   diCommodore: exit;//Update Commodore 64/128
@@ -1200,7 +1167,7 @@ begin
  Result:=False;
  len:=0; //Maximum file length
  //Work out the max file length for the system
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : len:=7;
   diAcornADFS:
   begin
@@ -1221,7 +1188,7 @@ begin
   diAcornFS  : len:=10;
   diDOSPlus  :
   begin
-   if FFormat mod$10=0 then len:=12 //Filename+'.'+extension - Master 512 DOS Plus
+   if GetMinorFormatNumber=0 then len:=12 //Filename+'.'+extension - Master 512 DOS Plus
    else len:=255; //FAT12, 16, and 32
   end;
  end;
@@ -1230,7 +1197,7 @@ begin
  while Pos(GetDirSep(part),filename)>0 do
   filename:=Copy(filename,Pos(GetDirSep(part),filename)+1);
  //CFS files can have multiple files with the same name
- if FFormat>>4=diAcornUEF then
+ if GetMajorFormatNumber=diAcornUEF then
  begin
   Result:=True;
   exit;
@@ -1286,8 +1253,8 @@ Create a password file for AFS systems
 function TDiscImage.CreatePasswordFile(Accounts: TUserAccounts): Integer;
 begin
  Result:=-5;
- if(FFormat>>4=diAcornFS)
- or((FFormat>>4=diAcornADFS)and(Fafspresent)) then
+ if(GetMajorFormatNumber=diAcornFS)
+ or((GetMajorFormatNumber=diAcornADFS)and(Fafspresent)) then
   Result:=CreateAFSPassword(Accounts);
 end;
 
@@ -1297,8 +1264,8 @@ Read the password file for AFS systems
 function TDiscImage.ReadPasswordFile: TUserAccounts;
 begin
  Result:=nil;
- if(FFormat>>4=diAcornFS)
- or((FFormat>>4=diAcornADFS)and(Fafspresent)) then
+ if(GetMajorFormatNumber=diAcornFS)
+ or((GetMajorFormatNumber=diAcornADFS)and(Fafspresent)) then
   Result:=ReadAFSPassword;
 end;
 
@@ -1346,7 +1313,7 @@ begin
   if side=1 then side:=0;
  end;
  //Extract the partition/side into a buffer.
- case FFormat>>4 of
+ case GetMajorFormatNumber of
   diAcornDFS : buffer:=ExtractDFSPartition(side);  //DFS
   diAcornADFS: buffer:=ExtractADFSPartition(side); //ADFS/AFS or DOS
  end;
@@ -1364,10 +1331,10 @@ begin
     //Remember the current format
     oldformat:=FFormat;
     //If we have an ADFS/AFS hybrid, and are saving the AFS partition
-    if(FFormat>>4=diAcornADFS)and(side<>0)and(FAFSPresent)then
+    if(GetMajorFormatNumber=diAcornADFS)and(side<>0)and(FAFSPresent)then
      FFormat:=diAcornFS<<4;
     //If we have an ADFS/DOS hybrid, and are saving the DOS partition
-    if(FFormat>>4=diAcornADFS)and(side<>0)and(FDOSPresent)then
+    if(GetMajorFormatNumber=diAcornADFS)and(side<>0)and(FDOSPresent)then
      FFormat:=diDOSPlus<<4;
     filename:=filename+'.'+FormatToExt;
     //Change back
@@ -1413,7 +1380,7 @@ function TDiscImage.GetMaxLength: Cardinal;
 begin
  Result:=0;
  //Only 8 bit ADFS
- if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
   Result:=GetADFSMaxLength(False);
 end;
 
@@ -1424,7 +1391,7 @@ function TDiscImage.AddPartition(size: Cardinal;format: Byte): Boolean;
 begin
  Result:=False;
  //Only for adding AFS or DOS Plus partition to 8 bit ADFS
- if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
   case format of
    0: Result:=AddAFSPartition(size); //Add AFS partition
    1: Result:=AddDOSPartition(size); //Add DOS Plus partition
@@ -1434,7 +1401,7 @@ function TDiscImage.AddPartition(filename: String): Boolean;
 begin
  Result:=False;
  //Only for Acorn DFS, given a filename
- if(FFormat>>4=diAcornDFS)and(not FDSD)then //Single sided images only
+ if(GetMajorFormatNumber=diAcornDFS)and(not FDSD)then //Single sided images only
   Result:=AddDFSSide(filename);
 end;
 
@@ -1452,8 +1419,8 @@ begin
   //Only works with ADFS L and Acorn FS, or ADFS with non-auto interleave
   if(FFormat=diAcornADFS<<4+2)
   or(FFormat=diAcornADFS<<4+$E)
-  or((FFormat>>4=diAcornADFS)and(FForceInter>0))
-  or(FFormat>>4=diAcornFS) then
+  or((GetMajorFormatNumber=diAcornADFS)and(FForceInter>0))
+  or(GetMajorFormatNumber=diAcornFS) then
   begin
    //Set up the buffer
    SetLength(buffer,GetDataLength);
@@ -1508,7 +1475,7 @@ begin
    begin
     sector:=FDisc[dir].Entries[entry].Sector;
     //Divert to the appropriate function
-    case FFormat>>4 of
+    case GetMajorFormatNumber of
      diAcornADFS: NewDir:=ReadADFSDir(dirname,sector);
      diAcornFS  : NewDir:=ReadAFSDirectory(dirname,sector);
      diAmiga    : NewDir:=ReadAmigaDir(dirname,sector);
@@ -1535,4 +1502,52 @@ begin
        end;
     end;
    end;
+end;
+
+{-------------------------------------------------------------------------------
+Produce a report of the image's details
+-------------------------------------------------------------------------------}
+function TDiscImage.ImageReport(CSV: Boolean): TStringList;
+var
+ temp,
+ uline : String;
+ side  : Integer;
+ report: TStringList;
+begin
+ Result:=TStringList.Create;
+ if FFormat<>diInvalidImg then
+ begin
+  //Header
+  temp:='Container format: '+FormatToString;
+  Result.Add(temp);
+  if not(CSV) then
+  begin
+   uline:='';
+   uline:=AddChar('=',uline,Length(temp));
+   Result.Add(uline);
+   Result.Add('');
+  end;
+  //Main Report, depending on format
+  if GetMajorFormatNumber=diAcornDFS  then report:=DFSReport(CSV); //DFS
+  if GetMajorFormatNumber=diAcornADFS then report:=ADFSReport(CSV);//ADFS
+  if(GetMajorFormatNumber=diAcornFS)
+  or((GetMajorFormatNumber=diAcornADFS)
+  and(FAFSPresent))                   then report:=AFSReport(CSV);//AFS
+  if(GetMajorFormatNumber=diDOSPlus)
+  or((GetMajorFormatNumber=diAcornADFS)
+  and(FDOSPresent))                   then report:=DOSReport(CSV);//DOS
+  if GetMajorFormatNumber=diCommodore then report:=CDRReport(CSV);//C64
+  if GetMajorFormatNumber=diAmiga     then report:=AmigaReport(CSV);//Amiga
+  if GetMajorFormatNumber=diSinclair  then report:=TStringList.Create;//Not written yet
+  if GetMajorFormatNumber=diAcornUEF  then report:=TStringList.Create;//Nothing to report
+  if GetMajorFormatNumber=diSpark     then report:=TStringList.Create;//Nothing to report
+  //Incorporate the report
+  if report.Count>0 then
+   for side:=0 to report.Count-1 do Result.Add(report[side]);
+  report.Free;
+  //Re-jig the output if CSV has been specified
+  if(CSV)and(Result.Count>0)then
+   for side:=0 to Result.Count-1 do
+    Result[side]:='"'+StringReplace(Result[side],': ','","',[rfReplaceAll])+'"';
+ end;
 end;

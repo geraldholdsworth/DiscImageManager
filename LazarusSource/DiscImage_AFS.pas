@@ -80,13 +80,13 @@ function TDiscImage.ID_AFS: Boolean;
     end else FFormat:=diInvalidImg; //Headers not matching, no format
    end else FFormat:=diInvalidImg; //No header ID, invalid image
   end;
-  Result:=FFormat>>4=diAcornFS;
+  Result:=GetMajorFormatNumber=diAcornFS;
  end;
 var
  start: Byte;
 begin
  Result:=False;
- if(FFormat=diInvalidImg)or(FFormat>>4=diAcornFS)then
+ if(FFormat=diInvalidImg)or(GetMajorFormatNumber=diAcornFS)then
  begin
   //Interleaving, depending on the option
   Finterleave:=FForceInter;
@@ -119,10 +119,10 @@ var
 begin
  visited:=nil;
  //Is this an ADFS disc with Acorn FileStore partition?
- if((FFormat>>4=diAcornADFS)and(FAFSPresent))
- or(FFormat>>4=diAcornFS)then
+ if((GetMajorFormatNumber=diAcornADFS)and(FAFSPresent))
+ or(GetMajorFormatNumber=diAcornFS)then
  begin
-  if FFormat>>4=diAcornADFS then
+  if GetMajorFormatNumber=diAcornADFS then
   begin
    afshead:=Read24b($0F6)*secsize;
    afshead2:=Read24b($1F6)*secsize;
@@ -139,7 +139,7 @@ begin
    if FFormat=diAcornFS<<4+2 then //Level 3
     disc_size[0]:=Read24b(afshead+$16)*secsize;
    i:=0;
-   if FFormat>>4=diAcornADFS then //Level 3/ADFS Hybrid
+   if GetMajorFormatNumber=diAcornADFS then //Level 3/ADFS Hybrid
    begin
     SetLength(disc_size,2);
     SetLength(free_space,2);
@@ -163,7 +163,7 @@ begin
    d:=Length(FDisc);
    SetLength(FDisc,d+1);
    //Start the chain by reading the root
-   if FFormat>>4=diAcornADFS then startdir:=afsrootname else startdir:='$';
+   if GetMajorFormatNumber=diAcornADFS then startdir:=afsrootname else startdir:='$';
    FDisc[d]:=ReadAFSDirectory(startdir,allocmap);
    //Add the root as a visited directory
    SetLength(visited,1);
@@ -277,7 +277,7 @@ begin
   //And set the partition flag to true
   Result.AFSPartition:=True;
   //ADFS hybrid?
-  if FFormat>>4=diAcornADFS then side:=1 else side:=0;
+  if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
   Result.Partition:=side;
   //Directory title
   Result.Directory:=ReadString($03,-10,buffer);
@@ -386,7 +386,7 @@ begin
  Result:=nil;
  //Make sure it is a valid allocation map for Level 3
  if(ReadString(offset,-6)='JesMap')
- and((FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS))then
+ and((FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS))then
  begin
   //Start of the list
   ptr:=$0A;
@@ -480,7 +480,7 @@ begin
  end;
  //Level 3
  if(ReadString(offset,-6)='JesMap')
- and((FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS))then
+ and((FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS))then
  begin
   lenLSB:=ReadByte(offset+$08); //LSB of the length
   ptr:=$0A;
@@ -524,7 +524,7 @@ begin
   if ReadByte(Read24b(afshead+$1B)*secsize)>ReadByte(Read24b(afshead+$1E)*secsize)then
    Result:=Read24b(afshead+$1B)*secsize else Result:=Read24b(afshead+$1E)*secsize;
  //Level 3 and Hybrid
- if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
+ if(FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS)then
  begin
   spt:=Read16b(afshead+$1A);
   //Level 3
@@ -575,18 +575,18 @@ begin
  //Get all the used sectors
  fragments:=AFSGetFreeSectors(True);
  //Initialise the variables
- if FFormat>>4=diAcornFS then //AFS Level 2 and 3
+ if GetMajorFormatNumber=diAcornFS then //AFS Level 2 and 3
  begin
   SetLength(free_space_map,1);
   part:=0;
  end;
- if FFormat>>4=diAcornADFS then //Hybrids - AFS will take up the second 'side'
+ if GetMajorFormatNumber=diAcornADFS then //Hybrids - AFS will take up the second 'side'
  begin
   SetLength(free_space_map,2);
   part:=1;
  end;
  //Get the local sectors per track
- if(FFormat>>4=diAcornADFS)or(FFormat=diAcornFS<<4+2)then
+ if(GetMajorFormatNumber=diAcornADFS)or(FFormat=diAcornFS<<4+2)then
   spt:=Read16b(afshead+$1A) else spt:=secspertrack;
  //Initialise the free space
  free_space[part]:=disc_size[part];
@@ -811,11 +811,11 @@ begin
  if Length(FSM)>0 then
  begin
   //The above array will have offsets relative to the start of the AFS partition
-  if FFormat>>4=diAcornADFS then
+  if GetMajorFormatNumber=diAcornADFS then
    for index:=0 to Length(FSM)-1 do
     inc(FSM[index].Offset,disc_size[0]); //So add the ADFS size to the offset
   //Level 3 includes a 256 byte object header
-  if((FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS))
+  if((FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS))
   and(addheader)then inc(size,$100);
   //Are there any that will fit the data without fragmenting?
   index:=0;
@@ -910,7 +910,7 @@ begin
       //Mark as written
       WriteBits(1,allocmap+(alloc[index].Offset*2)+6,7,1);
      end;
-     if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
+     if(FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS)then
      begin
       for fragsize:=0 to Ceil(alloc[index].Length/secsize)-1 do
       begin
@@ -961,7 +961,7 @@ begin
   FinaliseAFSL2Map;
  end;
  //Level 3 and Hybrid
- if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
+ if(FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS)then
  begin
   addr:=addr*secsize;
   if ReadString(addr,-6)='JesMap' then //Make sure it is a valid block
@@ -1390,7 +1390,7 @@ begin
   //Copy of cycle number at end of root
   WriteByte(cycle,dirsize-1,buffer);
   //First entry at $11 (pointer is $FFFF to indicate parent), for Level 3
-  if(FFormat>>4=diAcornADFS)or(FFormat=diAcornFS<<4+2)then
+  if(GetMajorFormatNumber=diAcornADFS)or(FFormat=diAcornFS<<4+2)then
   begin
    //Get the parent directory address
    if dirname<>'$' then
@@ -1413,7 +1413,7 @@ begin
   begin
    //Then we'll just copy the data across and we're done
    addr:=Fafsroot;
-   if(FFormat>>4=diAcornADFS)or(FFormat=diAcornFS<<4+2)then addr:=Fafsroot+$100;
+   if(GetMajorFormatNumber=diAcornADFS)or(FFormat=diAcornFS<<4+2)then addr:=Fafsroot+$100;
    for ptr:=0 to Length(buffer)-1 do
     WriteByte(buffer[ptr],addr+ptr); //Replace with bulk copy function
    Result:=0;
@@ -1454,7 +1454,7 @@ begin
  buffer:=nil;
  l3offset:=0;
  //Take account of the JesMap header
- if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then l3offset:=secsize;
+ if(FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS)then l3offset:=secsize;
  //Only continue if the directory needs extending
  if Read16b(sector*secsize+$0D+l3offset)=0 then
  begin
@@ -1482,7 +1482,7 @@ begin
    //Set the directory's next free chain to point into here
    Write16b(addr,$0D,buffer);
    //Level 3 : Update the JesMap pointers to include this
-   if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
+   if(FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS)then
    begin
     //Start of chain
     addr:=$0A-5;
@@ -1560,8 +1560,8 @@ var
  afslevel: Byte;
 begin
  afslevel:=0;
- if FFormat>>4=diAcornFS then afslevel:=(FFormat AND$F)+1;
- if FFormat>>4=diAcornADFS then afslevel:=3;
+ if GetMajorFormatNumber=diAcornFS then afslevel:=(FFormat AND$F)+1;
+ if GetMajorFormatNumber=diAcornADFS then afslevel:=3;
  //Default response
  Result:=-5;
  buffer:=nil; //To stop 'hints' or 'warnings' from the compiler
@@ -1641,7 +1641,7 @@ begin
  //Set up the file entry
  ResetDirEntry(newentry);
  newentry.Filename:='Passwords';
- if FFormat>>4=diAcornADFS then
+ if GetMajorFormatNumber=diAcornADFS then
  begin
   newentry.Parent :=afsrootname;
   newentry.Side   :=1;
@@ -1676,7 +1676,7 @@ begin
  //Start with a blank array
  Result:=nil;
  //Get the full pathname for the password file
- if FFormat>>4=diAcornADFS then pwordfile:=afsrootname+dir_sep+'Passwords'
+ if GetMajorFormatNumber=diAcornADFS then pwordfile:=afsrootname+dir_sep+'Passwords'
  else pwordfile:=FDisc[0].Directory+dir_sep+'Passwords';
  //Make sure it exists
  if FileExists(pwordfile,dir,entry) then
@@ -1815,7 +1815,7 @@ begin
       //Set the date
       file_details.TimeStamp:=Floor(Now);
       //Write the file data
-      if(FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS)then
+      if(FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS)then
       begin
        //First, for level 3, we'll need a header
        SetLength(block,$100);
@@ -1892,7 +1892,7 @@ var
 begin
  //Make sure it is a valid allocation map for Level 3
  if(ReadString(offset,-6)='JesMap')
- and((FFormat=diAcornFS<<4+2)or(FFormat>>4=diAcornADFS))then
+ and((FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS))then
  begin
   //Start of the list
   ptr:=$0A;
@@ -1974,7 +1974,7 @@ begin
     FDisc[FDisc[dir].Entries[entry].DirRef].Directory:=newname;
     //Get the address of the directory
     ptr:=FDisc[dir].Entries[entry].Sector*secsize;
-    if(FFormat>>4=diAcornADFS)or(FFormat=diAcornFS<<4+2)then //Level 3
+    if(GetMajorFormatNumber=diAcornADFS)or(FFormat=diAcornFS<<4+2)then //Level 3
      ptr:=Read24b(ptr+$0A)*secsize;
     //And write it to the header
     WriteString(newname,ptr+$03,10,32);
@@ -2391,7 +2391,7 @@ begin
  //Make sure it is not overlength
  title:=LeftStr(title,16);
  //And update the internal variable
- if FFormat>>4=diAcornADFS then disc_name[1]:=title else disc_name[0]:=title;
+ if GetMajorFormatNumber=diAcornADFS then disc_name[1]:=title else disc_name[0]:=title;
  //Write to the image header
  WriteString(title,afshead+4,16,32);
  //And the copy
@@ -2414,7 +2414,7 @@ begin
  Result:=False;
  if size<9*secsize then exit; //Minimum size is 9 sectors
  //Only for adding AFS partition to 8 bit ADFS
- if(FFormat>>4=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
  begin
   fsed:=GetADFSMaxLength(False);
   //Is there enough free space?
@@ -2462,4 +2462,30 @@ begin
    Result:=True;
   end;
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Produce a report of the image's details
+-------------------------------------------------------------------------------}
+function TDiscImage.AFSReport(CSV: Boolean): TStringList;
+var
+ side: Integer;
+begin
+ Result:=TStringList.Create;
+ side:=0;
+ if GetMajorFormatNumber=diAcornADFS then
+ begin
+  side:=1;
+  if not CSV then Result.Add('');
+  Result.Add('Acorn FS partition');
+  if not CSV then Result.Add('------------------');
+ end;
+ Result.Add('Sector Size: '+IntToStr(secsize)+' bytes');
+ Result.Add('Sectors per Track: '+IntToStr(secspertrack));
+ Result.Add('Root Address: 0x'+IntToHex(Fafsroot,8));
+ Result.Add('Root Size: '+IntToStr(afsroot_size)+' bytes');
+ Result.Add('Disc Size: '+IntToStr(disc_size[side])+' bytes');
+ Result.Add('Free Space: '+IntToStr(free_space[side])+' bytes');
+ Result.Add('Boot Map Location: 0x'+IntToHex(afshead,8));
+ Result.Add('Disc Name: '+disc_name[side]);
 end;

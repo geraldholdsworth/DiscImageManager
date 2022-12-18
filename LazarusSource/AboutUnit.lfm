@@ -76,7 +76,7 @@ object AboutForm: TAboutForm
       Align = alTop
       Alignment = taCenter
       BorderSpacing.Bottom = 4
-      Caption = 'http://www.geraldholdsworth.co.uk'
+      Caption = 'https://www.geraldholdsworth.co.uk'
       Font.Color = clNavy
       Font.Height = -16
       Font.Name = 'Tahoma'

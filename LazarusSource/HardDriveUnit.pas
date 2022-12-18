@@ -33,6 +33,8 @@ type
 
  THardDriveForm = class(TForm)
   cb_NewMap: TCheckBox;
+  cb_AddHeader: TCheckBox;
+  cb_IDE: TCheckBox;
   Image1: TImage;
   CapacityHeaderLabel: TLabel;
   CapacityLabel: TLabel;
@@ -93,6 +95,7 @@ begin
  //Enable/disable the appropriate radio boxes
  rb_BigDir.Enabled:=cb_NewMap.Checked;
  rb_OldDir.Enabled:=not cb_NewMap.Checked;
+ cb_IDE.Enabled:=cb_NewMap.Checked;
  //If Old map is selected
  if not cb_NewMap.Checked then
  begin
@@ -133,15 +136,19 @@ begin
   ADFSControls.Visible:=True;
   DOSControls.Visible:=False;
   Caption:='Create ADFS Hard Drive';
-  //Set directory type to 'Old'
-  rb_OldDir.Checked:=True;
-  rb_NewDir.Checked:=False;
-  rb_BigDir.Checked:=False;
-  //Enable/Disable the appropriate radio boxes
-  rb_OldDir.Enabled:=True;
-  rb_BigDir.Enabled:=False;
-  cb_NewMap.Checked:=False;
  end;
+ //Set directory type to 'Old'
+ rb_OldDir.Checked:=True;
+ rb_NewDir.Checked:=False;
+ rb_BigDir.Checked:=False;
+ //Enable/Disable the appropriate radio boxes
+ rb_OldDir.Enabled:=True;
+ rb_BigDir.Enabled:=False;
+ //Other options
+ cb_NewMap.Checked:=False;
+ cb_AddHeader.Checked:=False;
+ cb_IDE.Checked:=True;
+ cb_IDE.Enabled:=cb_NewMap.Checked;
  if AmigaHDD then
  begin
   //Set capacity to 40MB
@@ -165,10 +172,10 @@ begin
   ADFSControls.Visible:=False;
   DOSControls.Visible:=True;
   Caption:='Create DOS Hard Drive';
-  rb_FAT12.Checked:=True;
-  rb_FAT16.Checked:=False;
-  rb_FAT32.Checked:=False;
  end;
+ rb_FAT12.Checked:=True;
+ rb_FAT16.Checked:=False;
+ rb_FAT32.Checked:=False;
 end;
 
 {-------------------------------------------------------------------------------

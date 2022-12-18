@@ -31,7 +31,7 @@ end;
 {-------------------------------------------------------------------------------
 Read in and decode the file
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadUEFFile: TDisc;
+function TDiscImage.ReadUEFFile: Boolean;
 var
  i,j      : Integer;
  filenum,
@@ -52,10 +52,10 @@ var
  crcok    : Boolean;
  dummy    : TDIByteArray;
 begin
- Result:=nil;
+ FDisc:=nil;
  SetLength(dummy,0);
  //Set up the TDisc structure for return
- Result:=FormatCFS;
+ FormatCFS;
 { SetLength(Result,1);
  ResetDir(Result[0]);
  //Set the root directory name
@@ -106,54 +106,54 @@ begin
      //Sometimes a file has no filename, so give it one
      if temp='' then temp:='?';
      //Create a new entry in our array, if need be
-     if filenum>=Length(Result[0].Entries) then
+     if filenum>=Length(FDisc[0].Entries) then
      begin
       //If the last file failed CRC checks on any block, clear the data
       if (not crcok) and (Length(FilesData)>0) then
        SetLength(FilesData[filenum],0);
       //Now create the entry for this file
-      SetLength(Result[0].Entries,filenum+1);
-      ResetDirEntry(Result[0].Entries[filenum]);
-      Result[0].Entries[filenum].Length  :=0;      //Length counter
-      Result[0].Entries[filenum].Filename:=FilenameToASCII(temp);//Filename
-      Result[0].Entries[filenum].Sector  :=pos-6;  //Where to find it (first block)
-      Result[0].Entries[filenum].Parent  :=Result[0].Directory;
-      Result[0].Entries[filenum].DirRef  :=-1;
+      SetLength(FDisc[0].Entries,filenum+1);
+      ResetDirEntry(FDisc[0].Entries[filenum]);
+      FDisc[0].Entries[filenum].Length  :=0;      //Length counter
+      FDisc[0].Entries[filenum].Filename:=FilenameToASCII(temp);//Filename
+      FDisc[0].Entries[filenum].Sector  :=pos-6;  //Where to find it (first block)
+      FDisc[0].Entries[filenum].Parent  :=FDisc[0].Directory;
+      FDisc[0].Entries[filenum].DirRef  :=-1;
       SetLength(FilesData,filenum+1);
       firstblck:=True;
       //Read in the load address
-      Result[0].Entries[filenum].LoadAddr:=Read32b(pos+i);
+      FDisc[0].Entries[filenum].LoadAddr:=Read32b(pos+i);
       //Read in the execution address
-      Result[0].Entries[filenum].ExecAddr:=Read32b(pos+i+4);
+      FDisc[0].Entries[filenum].ExecAddr:=Read32b(pos+i+4);
       //CRC Checks
       crcok:=True;
      end;
      //Read in the block number
      blocknum:=Read16b(pos+i+8);
      //Is it a new block, or copy protection?
-     if(blocknum>0)and(firstblck)and(Length(Result[0].Entries)>1)then
+     if(blocknum>0)and(firstblck)and(Length(FDisc[0].Entries)>1)then
       if (lastblock=blocknum-1)
-      and(Result[0].Entries[filenum-1].Filename=Result[0].Entries[filenum].Filename)
+      and(FDisc[0].Entries[filenum-1].Filename=FDisc[0].Entries[filenum].Filename)
        {and(files[filenum-1].LoadAddr=files[filenum].LoadAddr)
        and(files[filenum-1].ExecAddr=files[filenum].ExecAddr)}then
       begin
-       SetLength(Result[0].Entries,Length(Result[0].Entries)-1);
+       SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)-1);
        dec(filenum);
        firstblck:=False;
       end;
      lastblock:=blocknum;
      //Take a note of where we are in the file's data, as we build it up
-     ptr:=Result[0].Entries[filenum].Length;
+     ptr:=FDisc[0].Entries[filenum].Length;
      //Get the length of this block
      blocklen:=Read16B(pos+i+10);
      //And add it to the total length
-     inc(Result[0].Entries[filenum].Length,blocklen);
+     inc(FDisc[0].Entries[filenum].Length,blocklen);
      //Get the block status
      blockst:=ReadByte(pos+i+12);
      if IsBitSet(blockst,0) then
-      Result[0].Entries[filenum].Attributes:='L'
+      FDisc[0].Entries[filenum].Attributes:='L'
      else
-      Result[0].Entries[filenum].Attributes:='';
+      FDisc[0].Entries[filenum].Attributes:='';
      //Get the CRC16 value for the header
      headcrc:=Read16b(pos+i+17);
      //Check it is valid
@@ -161,7 +161,7 @@ begin
      //Move our chunk pointer onto the data
      inc(i,19);//Points to the data
      //Increase the file's data length to match the total length, so far
-     SetLength(FilesData[filenum],Result[0].Entries[filenum].Length);
+     SetLength(FilesData[filenum],FDisc[0].Entries[filenum].Length);
      //And copy in the data in this block
      for j:=0 to blocklen-1 do FilesData[filenum][ptr+j]:=ReadByte(pos+i+j);
      //Move to after the data
@@ -181,6 +181,7 @@ begin
   //Move our offset pointer to the next chunk
   inc(pos,chunklen);
  end;
+ Result:=Length(FDisc)>0;
 end;
 
 {-------------------------------------------------------------------------------
@@ -395,20 +396,21 @@ end;
 {-------------------------------------------------------------------------------
 Create a new, empty, UEF file for CFS
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatCFS:TDisc;
+function TDiscImage.FormatCFS: Boolean;
 begin
- Result:=nil;
+ FDisc:=nil;
  //Set up the TDisc structure for return
- SetLength(Result,1);
- ResetDir(Result[0]);
+ SetLength(FDisc,1);
+ ResetDir(FDisc[0]);
  //Set the root directory name
  root_name:='tape';
- Result[0].Directory:=root_name;
- Result[0].BeenRead:=True;
+ FDisc[0].Directory:=root_name;
+ FDisc[0].BeenRead:=True;
  //Set the format
  FFormat:=diAcornUEF<<4;
  //Set the filename
  imagefilename:='Untitled.'+FormatExt;
+ Result:=True;
 end;
 
 {-------------------------------------------------------------------------------

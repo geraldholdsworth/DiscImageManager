@@ -323,7 +323,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="22">
+    <Units Count="25">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -460,6 +460,24 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit21>
+      <Unit22>
+        <Filename Value="GJHRegistryClass.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit22>
+      <Unit23>
+        <Filename Value="CSVPrefUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="CSVPrefForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit23>
+      <Unit24>
+        <Filename Value="ImageReportUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="ImageReportForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit24>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

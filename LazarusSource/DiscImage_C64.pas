@@ -80,8 +80,8 @@ begin
     //Successful checks
     if ctr=16 then FFormat:=diCommodore<<4+2; //1581
    end;
-   FDSD  :=(FFormat mod$10>0)and(FFormat mod$10<$F); //Set/reset the DoubleSided flag
-   Result:=FFormat>>4=diCommodore;        //Return TRUE if succesful ID
+   FDSD  :=(GetMinorFormatNumber>0)and(GetMinorFormatNumber<$F); //Set/reset the DoubleSided flag
+   Result:=GetMajorFormatNumber=diCommodore;        //Return TRUE if succesful ID
    If Result then FMap:=False;            //and reset the NewMap flag
   end;
  end;
@@ -135,7 +135,7 @@ end;
 {-------------------------------------------------------------------------------
 Read Commodore Disc
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadCDRDisc: TDisc;
+function TDiscImage.ReadCDRDisc: Boolean;
 var
  ptr,t,s,amt,
  file_chain,
@@ -143,9 +143,9 @@ var
  ch,c,f,dirTr :Integer;
  temp         : String;
 begin
- Result:=nil;
- SetLength(Result,1);
- ResetDir(Result[0]);
+ FDisc:=nil;
+ SetLength(FDisc,1);
+ ResetDir(FDisc[0]);
  //Get the format
  f:=FFormat AND $F; //'f' is the format - 0: D64, 1: D71, 2: D81
  dirTr:=18; //D64 and D71 disc info is on track 18, sector 0
@@ -179,9 +179,9 @@ begin
  ptr:=ConvertDxxTS(f,t,s);
  amt:=0;
  //Set the root directory name
- Result[0].Directory:=root_name;
- Result[0].Sector:=root;
- Result[0].BeenRead:=True;
+ FDisc[0].Directory:=root_name;
+ FDisc[0].Sector:=root;
+ FDisc[0].BeenRead:=True;
  repeat
   //Track/Sector for next link or 00/FF for end
   t:=ReadByte(ptr);
@@ -189,34 +189,34 @@ begin
   for c:=0 to 7 do
    if ReadByte(ptr+(c*$20)+2)>$00 then
    begin
-    SetLength(Result[0].Entries,amt+1);
-    ResetDirEntry(Result[0].Entries[amt]);
-    Result[0].Entries[amt].Parent:=root_name;
+    SetLength(FDisc[0].Entries,amt+1);
+    ResetDirEntry(FDisc[0].Entries[amt]);
+    FDisc[0].Entries[amt].Parent:=root_name;
     //First track/sector of Fdata
-    Result[0].Entries[amt].Track :=ReadByte(ptr+(c*$20)+3);
-    Result[0].Entries[amt].Sector:=ReadByte(ptr+(c*$20)+4);
+    FDisc[0].Entries[amt].Track :=ReadByte(ptr+(c*$20)+3);
+    FDisc[0].Entries[amt].Sector:=ReadByte(ptr+(c*$20)+4);
     //Filetype
-    Result[0].Entries[amt].ShortFiletype:=
+    FDisc[0].Entries[amt].ShortFiletype:=
                         LeftStr(CDRFileTypes[ReadByte(ptr+(c*$20)+2) AND $0F],3);
-    Result[0].Entries[amt].Filetype:=
+    FDisc[0].Entries[amt].Filetype:=
                         Copy(CDRFileTypes[ReadByte(ptr+(c*$20)+2) AND $0F],4);
     //Attributes
     if (ReadByte(ptr+(c*$20)+2) AND $40)=$40 then //Locked
-     Result[0].Entries[amt].Attributes:=Result[0].Entries[amt].Attributes+'L';
+     FDisc[0].Entries[amt].Attributes:=FDisc[0].Entries[amt].Attributes+'L';
     if (ReadByte(ptr+(c*$20)+2) AND $80)=$80 then // Closed
-     Result[0].Entries[amt].Attributes:=Result[0].Entries[amt].Attributes+'C';
+     FDisc[0].Entries[amt].Attributes:=FDisc[0].Entries[amt].Attributes+'C';
     //Length of file - in sectors
-    Result[0].Entries[amt].Length:=Read16b(ptr+(c*$20)+$1E);
+    FDisc[0].Entries[amt].Length:=Read16b(ptr+(c*$20)+$1E);
     //now follow the chain to find the exact file length}
     file_ptr:=ConvertDxxTS(f,
-      Result[0].Entries[amt].Track,Result[0].Entries[amt].Sector); //first sector
+      FDisc[0].Entries[amt].Track,FDisc[0].Entries[amt].Sector); //first sector
     //Now read the rest of the chain
-    for file_chain:=1 to Result[0].Entries[amt].Length-1 do
+    for file_chain:=1 to FDisc[0].Entries[amt].Length-1 do
      file_ptr:=ConvertDxxTS(f,ReadByte(file_ptr),ReadByte(file_ptr+1));
     //and get the partial usage of final sector
     if ReadByte(file_ptr)=$00 then
-     Result[0].Entries[amt].Length:=
-                 ((Result[0].Entries[amt].Length-1)*254)+ReadByte(file_ptr+1)-1;
+     FDisc[0].Entries[amt].Length:=
+                 ((FDisc[0].Entries[amt].Length-1)*254)+ReadByte(file_ptr+1)-1;
     //Filename
     temp:='';
     for ch:=0 to 15 do
@@ -224,20 +224,21 @@ begin
      p:=ReadByte(ptr+(c*$20)+5+ch);
      if (p>32) and (p<>$A0) then temp:=temp+chr(p AND $7F);
     end;
-    Result[0].Entries[amt].Filename:=temp;
+    FDisc[0].Entries[amt].Filename:=temp;
     //Not a directory - not used by D64/D71/D81
-    Result[0].Entries[amt].DirRef:=-1;
+    FDisc[0].Entries[amt].DirRef:=-1;
     inc(amt);
    end;
   //If not end of directory, go to next block
   if (t<>$00) and (s<>$FF) then ptr:=ConvertDxxTS(f,t,s);
  until (t=$00) and (s=$FF);
+ Result:=Length(FDisc)>0;
 end;
 
 {-------------------------------------------------------------------------------
 Create a new, blank, disc
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatCDR(minor: Byte): TDisc;
+function TDiscImage.FormatCDR(minor: Byte): Boolean;
 var
  t,i : Integer;
  c   : Byte;
@@ -376,7 +377,8 @@ begin
   //First directory entry
   WriteByte($FF,$61B01);
  end;
- Result:=ReadCDRDisc;
+ ReadCDRDisc;
+ Result:=Length(FDisc)>0;
 end;
 
 {-------------------------------------------------------------------------------
@@ -491,7 +493,7 @@ var
  ptr,
  ptr1  : Cardinal;
 begin
- f:=FFormat mod $10;
+ f:=GetMinorFormatNumber;
  //Pointer to BAM number of free sectors:
  //ptr will be the number of free sectors
  //ptr1 will be the allocation bits for the track
@@ -543,8 +545,8 @@ var
 begin
  disc_name[0]:=title;
  //Get the location of the disc title, less one
- if FFormat mod $10<2 then ptr:=ConvertDxxTS(FFormat mod $10,18,0)+$8F;
- if FFormat mod $10=2 then ptr:=ConvertDxxTS(FFormat mod $10,40,0)+$03;
+ if GetMinorFormatNumber<2 then ptr:=ConvertDxxTS(GetMinorFormatNumber,18,0)+$8F;
+ if GetMinorFormatNumber=2 then ptr:=ConvertDxxTS(GetMinorFormatNumber,40,0)+$03;
  //Fill the 16 bytes
  for i:=1 to 16 do
  begin
@@ -627,7 +629,7 @@ begin
  count:=file_details.Length;
  if count>0 then //Make sure that there is something to write
  begin
-  f:=FFormat MOD $10; //Minor format (sub format)
+  f:=GetMinorFormatNumber; //Minor format (sub format)
   //Overwrite the parent
   file_details.Parent:=root_name;
   //Check that the filename is valid
@@ -770,7 +772,7 @@ begin
  sector:=1;     //Sector where the first directory is
  maxsector:=19; //Maximum sectors on this track
  //1581 track and sector number
- if FFormat mod $10=2 then
+ if GetMinorFormatNumber=2 then
  begin
   track:=40;
   sector:=3;
@@ -804,7 +806,7 @@ begin
    free_space_map[0,track-1,dirsector]:=$FE;
    sectors[i DIV 8]:=dirsector;
   end;
-  ptr:=ConvertDxxTS(FFormat mod $10,track,dirsector)+(i MOD 8)*$20;
+  ptr:=ConvertDxxTS(GetMinorFormatNumber,track,dirsector)+(i MOD 8)*$20;
   //t/s link to next directory - they are all 00/00 except for the first
   WriteByte($00,ptr  ); //Track
   WriteByte($00,ptr+1); //Sector
@@ -862,7 +864,7 @@ begin
  for i:=0 to j do
  begin
   //Pointer to this directory
-  ptr:=ConvertDxxTS(FFormat mod $10,track,sectors[i]);
+  ptr:=ConvertDxxTS(GetMinorFormatNumber,track,sectors[i]);
   if i=j then WriteByte($00,ptr) else WriteByte(track,ptr);
   WriteByte(sectors[i+1],ptr+1);
   //Update the BAM for the system track
@@ -921,7 +923,7 @@ var
  freesecs    : Boolean;
 begin
  //Number of sides - also, number of times to repeat main loop
- if FFormat mod $10=1 then cycles:=2 else cycles:=1;
+ if GetMinorFormatNumber=1 then cycles:=2 else cycles:=1;
  //Counter for distance from root
  counter:=1;
  repeat
@@ -931,7 +933,7 @@ begin
   while i<cycles do
   begin
    //Set up the root, lowest track number and highest track number
-   if FFormat mod $10<2 then //1541 and 1571
+   if GetMinorFormatNumber<2 then //1541 and 1571
     if i=0 then              //1541 and 1571 side 0
      begin
       starttrack:=18;
@@ -1029,7 +1031,7 @@ begin
   while track<>$00 do
   begin
    CDRSetClearBAM(track,sector,False);
-   ptr:=ConvertDxxTS(FFormat MOD$10,track,sector);
+   ptr:=ConvertDxxTS(GetMinorFormatNumber,track,sector);
    track:=ReadByte(ptr);
    sector:=ReadByte(ptr+1);
    for i:=0 to $FF do WriteByte($00,ptr+i);// Delete the data
@@ -1070,4 +1072,18 @@ begin
   //And return a success
   Result:=True;
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Produce a report of the image's details
+-------------------------------------------------------------------------------}
+function TDiscImage.CDRReport(CSV: Boolean): TStringList;
+begin
+ Result:=TStringList.Create;
+ if FDSD then Result.Add('Double Sided') else Result.Add('Single Sided');
+ Result.Add('Disc Size: '+IntToStr(disc_size[0])+' bytes');
+ Result.Add('Free Space: '+IntToStr(free_space[0])+' bytes');
+ Result.Add('Disc Name: '+disc_name[0]);
+ Result.Add('Root Address: 0x'+IntToHex(root,8));
+ Result.Add('Tracks: '+IntToStr(Length(free_space_map[0])));
 end;

@@ -32,7 +32,7 @@ begin
     FDirType :=$00;
     //Get more details from the boot block disc ID
     FMap    :=IsBitSet(ReadByte($03),0);   //AmigaDOS OFS/FFS
-    FDirType:=(ReadByte($03) AND $4)shr 2; //AmigaDOS DIRC
+    FDirType:=(ReadByte($03) AND $4)<<2; //AmigaDOS DIRC
     //Look at the checksum
     if not FMap then //OFS should have a checksum
     begin
@@ -111,7 +111,7 @@ begin
       ResetVariables;
     end;
    end;
-   Result:=FFormat>>4=diAmiga;
+   Result:=GetMajorFormatNumber=diAmiga;
   end;
  end;
 end;
@@ -119,14 +119,14 @@ end;
 {-------------------------------------------------------------------------------
 Read Commodore Amiga Disc
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadAmigaDisc: TDisc;
+function TDiscImage.ReadAmigaDisc: Boolean;
 var
  d,ptr,
  sectors : Integer;
 begin
- Result:=nil;
+ FDisc:=nil;
  //Initialise some variables
- SetLength(Result,0);
+ SetLength(FDisc,0);
  if FFormat<>diInvalidImg then
  begin
   //Total number of sectors will be double where the root is
@@ -136,44 +136,45 @@ begin
   //Disc name
   disc_name[0]:=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
   //Create an entry for the root
-  SetLength(Result,1);
+  SetLength(FDisc,1);
   //Blank the values
-  ResetDir(Result[0]);
+  ResetDir(FDisc[0]);
   //We'll start by reading the root
-  Result[0]:=ReadAmigaDir(root_name,root);
+  FDisc[0]:=ReadAmigaDir(root_name,root);
   //Now iterate through the entries and find the sub-directories
   d:=0;
   repeat
    //If there are actually any entries
-   if Length(Result[d].Entries)>0 then
+   if Length(FDisc[d].Entries)>0 then
    begin
     //Go through the entries
-    for ptr:=0 to Length(Result[d].Entries)-1 do
+    for ptr:=0 to Length(FDisc[d].Entries)-1 do
      //And add them if they are valid
-     if Result[d].Entries[ptr].Filename<>'' then
+     if FDisc[d].Entries[ptr].Filename<>'' then
      begin
       //Attribute has a 'F', so drill down
-      if Pos('F',Result[d].Entries[ptr].Attributes)>0 then
+      if Pos('F',FDisc[d].Entries[ptr].Attributes)>0 then
       begin
        //Once found, list their entries
-       SetLength(Result,Length(Result)+1);
+       SetLength(FDisc,Length(FDisc)+1);
        //Read in the contents of the directory
        if FScanSubDirs then
-        Result[Length(Result)-1]:=ReadAmigaDir(GetParent(d)+dir_sep
-                                          +Result[d].Entries[ptr].Filename,
-                                           Result[d].Entries[ptr].Sector);
-       Result[Length(Result)-1].Parent:=d;
+        FDisc[Length(FDisc)-1]:=ReadAmigaDir(GetParent(d)+dir_sep
+                                          +FDisc[d].Entries[ptr].Filename,
+                                           FDisc[d].Entries[ptr].Sector);
+       FDisc[Length(FDisc)-1].Parent:=d;
        //Update the directory reference
-       Result[d].Entries[ptr].DirRef:=Length(Result)-1;
+       FDisc[d].Entries[ptr].DirRef:=Length(FDisc)-1;
       end;
      end;
    end;
    inc(d);
   //The length of disc will increase as more directories are found
-  until d>=Length(Result);
+  until d>=Length(FDisc);
   //Get the free space map
   ReadAmigaFSM;
  end;
+ Result:=Length(FDisc)>0;
 end;
 
 {-------------------------------------------------------------------------------
@@ -582,7 +583,7 @@ end;
 {-------------------------------------------------------------------------------
 Create a new Amiga image - Floppy
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatAmigaFDD(minor: Byte): TDisc;
+function TDiscImage.FormatAmigaFDD(minor: Byte): Boolean;
 begin
  //Blank everything
  ResetVariables;
@@ -590,8 +591,8 @@ begin
  //Set the format
  //FFormat:=diAmiga<<4+minor;
  //Start with blank result
- Result:=nil;
- SetLength(Result,0);
+ FDisc:=nil;
+ SetLength(FDisc,0);
  //Format the drive
  case minor of
   0: FormatAmiga(880*1024);
@@ -606,7 +607,7 @@ end;
 {-------------------------------------------------------------------------------
 Create a new Amiga image - Hard Disc
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatAmigaHDD(harddrivesize: Cardinal): TDisc;
+function TDiscImage.FormatAmigaHDD(harddrivesize: Cardinal): Boolean;
 begin
  //Blank everything
  ResetVariables;
@@ -614,8 +615,8 @@ begin
  //Set the format
  //FFormat:=diAmiga<<4+$F;
  //Start with blank result
- Result:=nil;
- SetLength(Result,0);
+ FDisc:=nil;
+ SetLength(FDisc,0);
  //Format the drive
  FormatAmiga(harddrivesize);
  //Read it back in to set the rest up
@@ -936,7 +937,7 @@ var
  c,d      : Cardinal;
  bit      : Byte;
 begin
- UpdateProgress('Reading Free Space Map');
+ //UpdateProgress('Reading Free Space Map');
  //Set up the variables
  free_space[0]:=0;
  secspertrack:=22;//Not used anywhere else
@@ -1394,4 +1395,32 @@ begin
    if Pos(filename[index],illegal)>0 then filename[index]:='_';
  //If nothing was supplied, then supply something
  if Length(filename)=0 then filename:='Unnamed';
+end;
+
+{-------------------------------------------------------------------------------
+Produce a report of the image's details
+-------------------------------------------------------------------------------}
+function TDiscImage.AmigaReport(CSV: Boolean): TStringList;
+var
+ temp: String;
+begin
+ Result:=TStringList.Create;
+ if FMap then temp:='Fast File System' else temp:='Original File System';
+ if FDirType=diAmigaDir   then temp:=temp+' AmigaDOS Directory';
+ if FDirType=diAmigaCache then temp:=temp+' AmigaDOS Directory Cache';
+ Result.Add(temp);
+ Result.Add('Sector Size: '+IntToStr(secsize)+' bytes');
+ temp:=IntToStr(density);
+ case density of
+  0: temp:='Hard Drive';
+  1: temp:='Single';
+  2: temp:='Double';
+  4: temp:='Quad';
+  8: temp:='Octal';
+ end;
+ Result.Add('Density: '+temp);
+ Result.Add('Root Address: 0x'+IntToHex(root,8));
+ Result.Add('Disc Size: '+IntToStr(disc_size[0])+' bytes');
+ Result.Add('Free Space: '+IntToStr(free_space[0])+' bytes');
+ Result.Add('Disc Name: '+disc_name[0]);
 end;
