@@ -1713,8 +1713,8 @@ begin
    //Create the partition
    WriteDOSHeader(doshead,size,diMaster512,False);
    //Update the checksums
-   WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
-   WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
+   WriteByte(ByteCheckSum($0000,$100,False),$0FF);//Checksum sector 0
+   WriteByte(ByteCheckSum($0100,$100,False),$1FF);//Checksum sector 1
    //Now we re-ID and re-read the data
    oldfilename:=imagefilename;
    IDImage;
@@ -1778,8 +1778,8 @@ begin
    Write24b($FFFFFF,$1000);//FAT signature
    WriteByte(0,$1FE);//Blank off the free space count
    //Update the checksums
-   WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
-   WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
+   WriteByte(ByteCheckSum($0000,$100,False),$0FF);//Checksum sector 0
+   WriteByte(ByteCheckSum($0100,$100,False),$1FF);//Checksum sector 1
   end;
   if size=800*KB then //Master 512 800K image
   begin

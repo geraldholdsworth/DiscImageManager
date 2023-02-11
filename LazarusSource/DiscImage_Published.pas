@@ -334,6 +334,24 @@ begin
   diDOSPlus  :Result:=ExtractDOSFile(filename,buffer);     //Extract DOS Plus
  end;
 end;
+function TDiscImage.ExtractFile(filename:String;Stream:TStream;
+                                                     entry:Cardinal=0): Boolean;
+var
+ Lbuffer: TDIByteArray;
+begin
+ //Start with a false result
+ Result:=False;
+ SetLength(Lbuffer,0);
+ //Get the file into our buffer
+ if Stream<>nil then
+  if ExtractFile(filename,Lbuffer,entry) then
+  begin
+   //Positive Result
+   Result:=True;
+   //Now copy into the stream (which should already exist, and be in position)
+   Stream.Write(Lbuffer[0],Length(Lbuffer));
+  end;
+end;
 
 {-------------------------------------------------------------------------------
 Save a file into the disc image, from buffer

@@ -1,0 +1,14 @@
+{
+Changes
+1.10
+
+Methods
+
+Proposed changes
+ * Deal with AmigaDOS FFS and DIRC formats - change the way we find the data blocks
+ * Deal with Sinclair/Amstrad DSK discs (CP/M)
+ * Deal with 'FSD' images
+ * Implement methods: SaveToFile, SaveToStream, Format, WriteFile, WriteFileFromStream, DeleteFile, RenameFile, MoveFile, CopyFile
+ * Be able to change the disc title, boot option, directory titles and file's/directory's attributes
+ * Method to fix Broken Directories
+}

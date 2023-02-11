@@ -922,6 +922,15 @@ Bug fixes
 * On ADFS New Map, the smallest possible space to contain a fragment ID and the stop bit was not taken into consideration, meaning that a file stored could then not be retrieved.
 * Some ADFS New and Big directory object's attributes, that only had a single attribute, where having '00' appended to the end.
 
+1.45
+-------------------------
+New or improved features
+* Removed the file type filter from the 'Add Files' dialogue box.
+* Rewrote the function to reconsolidate the ADFS Old Map Free Space Map, sorting entries into order and removing unused ones.
+
+Bug fixes
+* Adding files to an ADFS Old Map would sometimes result in a 'Bad FS Map' when read by the MOS.
+
 Platform History
 ----------------
 

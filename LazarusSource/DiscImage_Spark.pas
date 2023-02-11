@@ -307,7 +307,6 @@ begin
   //Get the directory where we are adding it to, and make sure it exists
   if FileExists(file_details.Parent,ref)then
   begin
-   file_details.ImageAddress:=0;
    //Where we are inserting this into
    if file_details.Parent='$' then
     dir  :=0

@@ -9966,7 +9966,7 @@ object MainForm: TMainForm
   end
   object AddNewFile: TOpenDialog
     Title = 'Add a file, or import an image, to image'
-    Filter = 'All Files|*.*|Spark Archives|*.zip,a91;*.zip,ddc;*.zip|All Image Files|*.adf;*.adl;*.adm;*.ads;*.ssd;*.dsd;*.dsk;*.d64;*.d71;*.d81;*.hdf;*.dat;*.dsc;*.uef;*.mmb'
+    Filter = 'All Files|*.*'
     Options = [ofAllowMultiSelect, ofEnableSizing, ofViewDetail]
     Left = 280
     Top = 152

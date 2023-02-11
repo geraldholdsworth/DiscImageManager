@@ -27,8 +27,8 @@ begin
    //Check for Old Map
    Check0   :=ReadByte($0FF);
    Check1   :=ReadByte($1FF);
-   Check0a  :=ByteCheckSum($0000,$100);
-   Check1a  :=ByteCheckSum($0100,$100);
+   Check0a  :=ByteCheckSum($0000,$100,False);
+   Check1a  :=ByteCheckSum($0100,$100,False);
    //Do the checksums on both sectors
    if  (Check0a=Check0)
    and (Check1a=Check1) then
@@ -199,7 +199,7 @@ begin
      if (ctr>0) and (Result) then
      begin
       Check0:=ReadByte($0C00+$1FF);
-      if ByteChecksum($0C00,$200)<>Check0 then Result:=False;
+      if ByteChecksum($0C00,$200,True)<>Check0 then Result:=False;
      end;
      inc(ctr);
     until (Result) or (ctr=3);
@@ -213,7 +213,7 @@ begin
      //Boot block checksum, if there is a partial disc record at $0DC0
      if dr_ptr=$DC0 then
      begin
-      Check0 :=ByteChecksum($C00,$200);
+      Check0 :=ByteChecksum($C00,$200,True);
       Check0a:=ReadByte($DFF);
       if Check0<>Check0a then FFormat:=diInvalidImg; //Checksums do not match
      end;
@@ -875,30 +875,34 @@ end;
 {-------------------------------------------------------------------------------
 Calculate Boot Block or Old Map Free Space Checksum
 -------------------------------------------------------------------------------}
-function TDiscImage.ByteChecksum(offset,size: Cardinal): Byte;
+function TDiscImage.ByteChecksum(offset,size: Cardinal;newmap: Boolean): Byte;
 var
  buffer: TDIByteArray;
 begin
  SetLength(buffer,0);
- Result:=ByteChecksum(offset,size,buffer);
+ Result:=ByteChecksum(offset,size,newmap,buffer);
 end;
-function TDiscImage.ByteChecksum(offset,size: Cardinal;var buffer:TDIByteArray): Byte;
+function TDiscImage.ByteChecksum(offset,size: Cardinal;newmap: Boolean;
+                                                 var buffer:TDIByteArray): Byte;
 var
  acc,
  pointer: Cardinal;
  carry : Byte;
 begin
  //Reset the accumulator
- acc:=0;
+ //This should be 255 for the FSM in Old Map, but zero for New Map boot block
+ if newmap then acc:=0 //New
+ else acc:=$FF;        //Old
+ //We can't used the global FMap, as this may not have been defined yet
  //Iterate through the block, ignoring the final byte (which contains the
  //checksum)
  for pointer:=size-2 downto 0 do
  begin
-  //Add in the carry
+  //Make a note of the carry
   carry:=acc div $100;
-  //and reset the carry
+  //and ensure the accumulator is <=255
   acc:=acc and $FF;
-  //Add each byte to the accumulator
+  //Add each byte to the accumulator, along with the carry
   inc(acc,ReadByte(offset+pointer,buffer)+carry);
  end;
  //Return an 8 bit number
@@ -1427,7 +1431,7 @@ begin
  //Disc size
  Write24b(disc_size[0]div$100,$0FC);
  //Checksum
- WriteByte(ByteCheckSum($0000,$100),$0FF);
+ WriteByte(ByteCheckSum($0000,$100,False),$0FF);
  //Old map FreeLen
  Write24b((disc_size[0]-(root+root_size))div$100,$100);
  //Disc ID
@@ -1435,7 +1439,7 @@ begin
  //Old map FreeEnd
  WriteByte($03,$1FE);
  //Checksum
- WriteByte(ByteCheckSum($0100,$100),$1FF);
+ WriteByte(ByteCheckSum($0100,$100,False),$1FF);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1503,7 +1507,7 @@ begin
    Write32b($00000001,$DEC); //format version (+)
    Write32b(root_size,$DF0); //Root size (+)
   end;
-  WriteByte(ByteCheckSum($C00,$200),$DFF);  //Checksum
+  WriteByte(ByteCheckSum($C00,$200,True),$DFF);  //Checksum
   bootmap:=((nzones div 2)*(8*secsize-zone_spare)-480)*bpmb; //Middle of the disc
  end;
  if nzones=1 then bootmap:=0;
@@ -1742,9 +1746,9 @@ begin
     WriteByte(Ord(title[t]),$1F6+((t-1)DIV 2));
   end;
   //Checksum on first sector
-  WriteByte(ByteCheckSum($0000,$100),$0FF);
+  WriteByte(ByteCheckSum($0000,$100,False),$0FF);
   //Checksum on second sector
-  WriteByte(ByteCheckSum($0100,$100),$1FF);
+  WriteByte(ByteCheckSum($0100,$100,False),$1FF);
  end;
  if FMap then //New Map
  begin
@@ -1773,7 +1777,7 @@ begin
   //Boot option is at $1FD
   WriteByte(option,$1FD);
   //Checksum
-  WriteByte(ByteCheckSum($0100,$100),$1FF);
+  WriteByte(ByteCheckSum($0100,$100,False),$1FF);
  end;
  if FMap then //New Map
  begin
@@ -1970,7 +1974,6 @@ begin
   begin
    if file_details.filename<>root_name then
    begin
-    file_details.ImageAddress:=0;
     //Where we are inserting this into
     if file_details.Parent=root_name then
      dir  :=0
@@ -2321,9 +2324,8 @@ Allocate the space in the free space map (old map)
 -------------------------------------------------------------------------------}
 function TDiscImage.ADFSAllocateFreeSpace(filelen,freeptr: Cardinal): Boolean;
 var
- ref,
- safilelen,
- ptr       : Cardinal;
+ ref,ptr,
+ safilelen : Cardinal;
 begin
  Result:=False;
  if not FMap then //Old map
@@ -2356,8 +2358,10 @@ begin
    Write24b(ptr,$1FE);
   end;
   //Update the checksums
-  WriteByte(ByteCheckSum($0000,$100),$0FF);
-  WriteByte(ByteCheckSum($0100,$100),$1FF);
+  WriteByte(ByteCheckSum($0000,$100,False),$0FF);
+  WriteByte(ByteCheckSum($0100,$100,False),$1FF);
+  //Consolidate the free space map
+  ConsolidateADFSFreeSpaceMap;
   Result:=True;
  end;
 end;
@@ -3102,91 +3106,97 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Consolodate an ADFS Free space map
+Consolidate an ADFS Free space map
 -------------------------------------------------------------------------------}
-procedure TDiscImage.ConsolodateADFSFreeSpaceMap;
+procedure TDiscImage.ConsolidateADFSFreeSpaceMap;
 var
- i,j,p,
- start,
- len       : Integer;
- fslinks   : TFragmentArray;
- FreeEnd,
- linklen   : Byte;
- FreeStart,
- FreeLen   : array[0..81] of Integer;
- changed   : Boolean;
+ ptr,ref,
+ pos     : Cardinal;
+ i,p,len,
+ start   : Integer;
+ fslinks : TFragmentArray;
+ linklen : Byte;
+ changed : Boolean;
 begin
  if not FMap then //Old map only
  begin
-  //Changed flag
-  changed:=False;
-  repeat
-   //First, lets clear the array
-   for i:=0 to Length(FreeLen)-1 do
-   begin
-    FreeStart[i]:=0;
-    FreeLen  [i]:=0;
-   end;
-   //Get the number of free areas
-   FreeEnd:=ReadByte($1FE);
-   //Initialise some variables
-   i:=3; //This is pointer into our free space map copy
-   p:=1; //This is counter for number of entries in our map copy
-   //Read the first entry
-   FreeStart[0]:=Read24b($000);
-   FreeLen[0]  :=Read24b($100);
-   //Loop to read each successive entry
-   while i<FreeEnd do
-   begin
-    //Next entry
-    start:=Read24b($000+i);
-    len  :=Read24b($100+i);
-    //See if there are any contiguous areas
-    for j:=0 to i div 3 do
-    begin
-     //The start of this will match the end of another
-     if FreeStart[j]+FreeLen[j]=start then
-     begin //If it does, then just increase the length and discard
-      inc(FreeLen[j],len);
-      start:=0;
-      len  :=0;
-     end;
-     //This end will match the start of another
-     if start+len=FreeStart[j] then
-     begin //If it does, then just change the start, increase the length & discard
-      FreeStart[j]:=start;
-      inc(FreeLen[j],len);
-      start:=0;
-      len  :=0;
-     end;
-    end;
-    //Otherwise, save a copy of it, and increase our counter
-    if start+len>0 then
-    begin
-     FreeStart[p]:=start;
-     FreeLen[p]:=len;
-     inc(p);
-    end;
-    //Move to the next entry, if there is one
-    inc(i,3);
-   end;
-   //Fill the free space with our copy, and clear any others
-   for i:=0 to 81 do
-   begin
-    Write24b(FreeStart[i],$000+i*3);
-    Write24b(FreeLen[i],$100+i*3);
-   end;
-   //And write the counter in
-   WriteByte(p*3,$1FE);
-   //Marks as changed
-   changed:=True;
-  until FreeEnd=p*3; //Go back and do it again, if things have changed
-  if changed then
+  SetLength(fslinks,0);
+  //Just make sure the current FS Map is in order, not fragmented and FreeEnd is correct
+  //Total number of entries
+  ptr:=ReadByte($1FE);
+  //Start at the beginning
+  ref:=0;
+  //Add each one
+  while ref<ptr do
   begin
-   //Run the checksums and we're done
-   WriteByte(ByteCheckSum($0000,$100),$0FF);
-   WriteByte(ByteCheckSum($0100,$100),$1FF);
+   //FreeStart
+   start:=Read24b($000+ref);
+   //FreeLen
+   len  :=Read24b($100+ref);
+   //Add a new entry, in order using insertion sort
+   SetLength(fslinks,Length(fslinks)+1);
+   if len>0 then //Only if the length isn't zero
+   begin
+    pos:=Length(fslinks)-1;
+    if pos>0 then
+     for i:=pos-1 downto 0 do
+      if fslinks[i].Offset>start then
+      begin
+       fslinks[i+1].Offset:=fslinks[i].Offset;
+       fslinks[i+1].Length:=fslinks[i].Length;
+       pos:=i;
+      end;
+    fslinks[pos].Offset:=start;
+    fslinks[pos].Length:=len;
+   end;
+   inc(ref,3);
   end;
+  //Concatenate entries
+  if Length(fslinks)>2 then
+  begin
+   i:=0;
+   while i<Length(fslinks)-2 do
+   begin
+    //if concurrent
+    if fslinks[i].Offset+fslinks[i].Length=fslinks[i+1].Offset then
+    begin
+     //Add them together
+     inc(fslinks[i].Length,fslinks[i+1].Length);
+     //And remove the next entry
+    end;
+    if i<Length(fslinks)-2 then
+    begin
+     //Iterate through the above entries
+     for ref:=i to Length(fslinks)-2 do
+     begin
+      //Move each one down by one
+      fslinks[ref].Offset:=fslinks[ref+1].Offset;
+      fslinks[ref].Length:=fslinks[ref+1].Length;
+     end;
+     //And decrease the length
+     SetLength(fslinks,Length(fslinks)-1);
+    end;
+    inc(i);
+   end;
+  end;
+  ptr:=Length(fslinks)*3;
+  //Write back FreeEnd
+  WriteByte(ptr,$1FE);
+  //And all the entries
+  for i:=0 to 81 do
+  if i<Length(fslinks) then
+  begin
+   Write24b(fslinks[i].Offset,$000+(i*3));
+   Write24b(fslinks[i].Length,$100+(i*3));
+  end
+  else
+  begin //Blank off the extra entries
+   Write24b(0,$000+(i*3));
+   Write24b(0,$100+(i*3));
+  end;
+  //Update the checksums
+  WriteByte(ByteCheckSum($0000,$100,False),$0FF);
+  WriteByte(ByteCheckSum($0100,$100,False),$1FF);
  end;
  if FMap then //New Map
  begin
@@ -3270,9 +3280,9 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Consolodate fragments in an ADFS New Map Free space map
+Consolidate fragments in an ADFS New Map Free space map
 -------------------------------------------------------------------------------}
-procedure TDiscImage.ConsolodateADFSFragments(fragid: Cardinal);
+procedure TDiscImage.ConsolidateADFSFragments(fragid: Cardinal);
 var
  fragments : TFragmentArray;
  frag,i,
@@ -3406,7 +3416,7 @@ begin
    //Big Dir - Verify if directory needs reduced.
    if(FDirType=diADFSBigDir)and(extend)then ExtendADFSBigDir(dir,0,False);
    //Tidy up the free space map, as we may have missed something
-   ConsolodateADFSFreeSpaceMap;
+   ConsolidateADFSFreeSpaceMap;
    //Update the free space map
    ADFSFreeSpaceMap;
    //Return a success
@@ -3904,7 +3914,7 @@ begin
     begin
      //ADFS does not reduce the fragments when contracting
      ADFSDeAllocateFreeSpace(fragid);
-     ConsolodateADFSFreeSpaceMap;
+     ConsolidateADFSFreeSpaceMap;
     end;
     //Reduce the fragments by 2048 bytes, from the end
     ctr:=2048;
@@ -3937,8 +3947,8 @@ begin
    dircache[dirsize-1]:=CalculateADFSDirCheck(0,dircache);
    //Write the directory cache back
    Result:=WriteFragmentedData(fragments,dircache);
-   //Consolodate the fragments
-   if extend then ConsolodateADFSFragments(fragid);
+   //Consolidate the fragments
+   if extend then ConsolidateADFSFragments(fragid);
    //And update the entry
    if(dir<>$FFFF)and(entry<>$FFFF)then //As long as it isn't the root
     FDisc[dir].Entries[entry].Length:=dirsize
@@ -4457,8 +4467,8 @@ begin
    //Blank off the other partition
    for index:=disc_size[0] to new1-1 do Result[index]:=$00;
    //Update the checksums
-   WriteByte(ByteCheckSum($0000,$100,Result),$0FF,Result);
-   WriteByte(ByteCheckSum($0100,$100,Result),$1FF,Result);
+   WriteByte(ByteCheckSum($0000,$100,False,Result),$0FF,Result);
+   WriteByte(ByteCheckSum($0100,$100,False,Result),$1FF,Result);
    //Change interleave on 640KB images
    if new1=$A0000 then
    begin
@@ -4558,8 +4568,8 @@ begin
    Result[$0FD]:=(start AND $FF00)>>8;
    Result[$0FE]:=(start AND $FF0000)>>16;
    //Update the checksums
-   WriteByte(ByteCheckSum($0000,$100,Result),$0FF,Result);
-   WriteByte(ByteCheckSum($0100,$100,Result),$1FF,Result);
+   WriteByte(ByteCheckSum($0000,$100,False,Result),$0FF,Result);
+   WriteByte(ByteCheckSum($0100,$100,False,Result),$1FF,Result);
    //Blank off the last 32 bytes of the 'root'
    for index:=0 to 31 do Result[$6E0+index]:=$00;
    //Write 'Hug' to the last 3 bytes

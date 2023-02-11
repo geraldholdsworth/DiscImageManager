@@ -1,9 +1,9 @@
 unit DiscImageUtils;
 
 {
-DiscImageUtils V1.44 - part of TDiscImage class
+DiscImageUtils V1.45 - part of TDiscImage class
 
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -43,16 +43,13 @@ type
   ExecAddr,                 //Execution Address (ADFS/DFS)
   Length,                   //Total length (ALL)
   Side,                     //Side of disc of location of data (DFS)
-  Track,                    //Track of location of data (D64/D71/D81)
-  DataFile,                 //Reserved for use by Repton Map Display
-  ImageAddress: Cardinal;   //Reserved for use by Repton Map Display
+  Track       : Cardinal;   //Track of location of data (D64/D71/D81)
   Sector,                   //Sector of disc of location of data (DFS/D64/D71/D81/AmigaDOS file)
                             //Sector of disc of location of header (AmigaDOS directory)
                             //Address of location of data (ADFS S/M/L/D)
                             //Indirect disc address of data (ADFS E/F/E+/F+)
   DirRef      : Integer;    //Reference to directory, if directory (ADFS/AmigaDOS)
   TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
-  EOR         : Byte;       //Reserved for use by Repton Map Display
   isDOSPart   : Boolean;    //This file is the DOS partition
  end;
  type
@@ -129,12 +126,9 @@ begin
   Length       :=$0000;
   Side         :=$0000;
   Track        :=$0000;
-  DataFile     :=$0000;
-  ImageAddress :=$0000;
   Sector       :=$0000;
   DirRef       :=$0000;
   TimeStamp    :=0;
-  EOR          :=$00;
   isDOSPart    :=False;
  end;
 end;

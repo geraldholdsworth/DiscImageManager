@@ -1205,10 +1205,10 @@ begin
    Write24b($20,$000);//FreeStart
    Write24b(afshead>>8,$0F6);//AFS Header copy 1
    Write24b($20,$0FC);//Disc size
-   WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
+   WriteByte(ByteCheckSum($0000,$100,False),$0FF);//Checksum sector 0
    Write24b($00,$100);//FreeEnd
    Write24b(afshead2>>8,$1F6);//AFS Header copy 2
-   WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
+   WriteByte(ByteCheckSum($0100,$100,False),$1FF);//Checksum sector 1
    //Write the AFS headers
    WriteAFSPartition(afsdisctitle,harddrivesize);
    //Mark as a success
@@ -2451,8 +2451,8 @@ begin
    //Create the partition
    WriteAFSPartition(disc_name[0],GetDataLength);
    //Update the checksums
-   WriteByte(ByteCheckSum($0000,$100),$0FF);//Checksum sector 0
-   WriteByte(ByteCheckSum($0100,$100),$1FF);//Checksum sector 1
+   WriteByte(ByteCheckSum($0000,$100,False),$0FF);//Checksum sector 0
+   WriteByte(ByteCheckSum($0100,$100,False),$1FF);//Checksum sector 1
    //Now we re-ID and re-read the data
    oldfilename:=imagefilename;
    IDImage;

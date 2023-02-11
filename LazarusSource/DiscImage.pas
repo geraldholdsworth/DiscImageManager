@@ -1,14 +1,14 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.44
+TDiscImage class V1.45
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
 1541, Commodore 1571, Commodore 1581, Commodore AmigaDOS, Acorn File Server,
 SparkFS, PackDir, MS-DOS, and Acorn DOS Plus.
 
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -247,8 +247,8 @@ type
   function NewDiscAddrToOffset(addr: Cardinal;
                                           offset: Boolean=True): TFragmentArray;
   function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
-  function ByteChecksum(offset,size: Cardinal): Byte;      
-  function ByteChecksum(offset,size: Cardinal;
+  function ByteChecksum(offset,size: Cardinal;newmap: Boolean): Byte;
+  function ByteChecksum(offset,size: Cardinal;newmap: Boolean;
                                       var buffer: TDIByteArray): Byte; overload;
   function ReadADFSDisc: Boolean;
   procedure ADFSFreeSpaceMap;
@@ -279,8 +279,8 @@ type
   function ValidateADFSFilename(filename: String): String;
   function RetitleADFSDirectory(filename,newtitle: String): Boolean;
   function RenameADFSFile(oldfilename: String;var newfilename: String): Integer;
-  procedure ConsolodateADFSFreeSpaceMap;
-  procedure ConsolodateADFSFragments(fragid: Cardinal);
+  procedure ConsolidateADFSFreeSpaceMap;
+  procedure ConsolidateADFSFragments(fragid: Cardinal);
   function DeleteADFSFile(filename: String;
                          TreatAsFile:Boolean=False;extend:Boolean=True):Boolean;
   procedure ADFSDeAllocateFreeSpace(addr,len: Cardinal);
@@ -558,6 +558,8 @@ type
                                         dirtype:Byte;addheader:Boolean):Boolean;
   function ExtractFile(filename:String;var buffer:TDIByteArray;
                                                      entry:Cardinal=0): Boolean;
+  function ExtractFile(filename:String;Stream:TStream;entry:Cardinal=0)
+                                                             : Boolean;overload;
   function WriteFile(var file_details: TDirEntry;
                       var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
   function FileExists(filename: String;var Ref: Cardinal;
