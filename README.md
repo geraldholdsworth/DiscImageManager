@@ -24,7 +24,11 @@ For images in HFE format, I recommend you use <a href="https://sourceforge.net/p
 <br>
 Another project that may interest users of Disc Image Manager is a test tool I wrote for UEF files - <a href="https://github.com/geraldholdsworth/UEFReader">UEF Reader</a>. The results of this project paved the way for UEF files to be read by Disc Image Manager.<br>
 <br>
+<<<<<<< HEAD
 In order to compile Disc Image Manager, you will require the <a href="https://github.com/geraldholdsworth/SpriteToBitmap">TSpriteFile class</a> (specifically the files SpriteFile.pas and SpriteFilePalettes.pas).<br>
+=======
+In addition, I've developed a <a href="https://github.com/geraldholdsworth/SpriteToBitmap">RISC OS sprite to bitmap/PNG converter here<a>, which, as a cut down version, has been incorporated into Disc Image Manager. If you wish to recompile Disc Image Manager, you will now require the SpriteFile library from that project, as I no longer include it here. Another project that has made it into Disc Image Manager, as a cut down version, is <a href="https://github.com/geraldholdsworth/FileDump">here</a>.<br>
+>>>>>>> 81b5a40abfaee2d3cec39b4b783fba7f0ed04ff3
 <br>
   Project was written in <a href="https://www.lazarus-ide.org">Lazarus</a>. Binaries are available for macOS 32 bit, 64 bit and ARM, Windows 32 and 64 bit, Linux 32 and 64 bit, and Raspbian 32 bit (Linux ARM 32 bit). Full source is available if you wish to compile for other systems.<br>
 <br>
