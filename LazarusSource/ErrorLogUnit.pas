@@ -1,7 +1,7 @@
 unit ErrorLogUnit;
 
 {
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free

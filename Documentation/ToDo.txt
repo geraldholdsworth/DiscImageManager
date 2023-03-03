@@ -30,6 +30,7 @@ General - Ideas which are maybe possible
 * AFS: AFS0 images do not get created correctly (in particular the free space allocation maps) - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: Add option to new Level 3 images for pre-1988 or post-1988 format - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: When extracting the AFS partition, remove the ADFS partition and re-address all the objects, instead of just blanking out the ADFS part - IN PROGRESS.
+* AFS: Consolidate the JesMap fragments which are concurrent (as per Old Map ADFS).
 * Amiga: Add in support for Rigid Disks (multi-partition hard discs) - NEED TO IMPLEMENT MULTI-PARTITION SUPPORT FIRST.
 * Amiga: Add in support for Professional File System - AWAITING FORMAT DETAILS AND SAMPLE(S).
 * Amiga: Add in support for Smart File System - AWAITING SAMPLE(S).
@@ -38,4 +39,5 @@ General - Ideas which are maybe possible
 * DOS: Add in support for partitioned hard drive images - NEED TO IMPLEMENT MULTI_PARTITION SUPPORT FIRST.
 * Have different TImageList components for each format.
 * File Viewer: ability to export contents in a different format (e.g. BASIC -> Text, or Sprite -> PNG).
-* Function to check every file and directory on a volume and produce a report detailing number of files with error (CRC32) and number of broken directories (ADFS), and list them, with option to save to a text file.
+* Function (and button) to check every file and directory on a volume and produce a report detailing number of files with error (CRC32) and number of broken directories (ADFS), and list them, with option to save to a text file.
+* Function (and button) to consolidate the free space map for ADFS and AFS (using the functions built into the class).

@@ -1,7 +1,7 @@
 unit HardDriveUnit;
 
 {
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -24,34 +24,33 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Buttons,ExtCtrls,ComCtrls,
- StdCtrls;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ExtCtrls,ComCtrls,
+ StdCtrls, GJHCustomComponents;
 
 type
 
  { THardDriveForm }
 
  THardDriveForm = class(TForm)
-  cb_NewMap: TCheckBox;
-  cb_AddHeader: TCheckBox;
-  cb_IDE: TCheckBox;
-  Image1: TImage;
+  HDDImage: TImage;
   CapacityHeaderLabel: TLabel;
-  CapacityLabel: TLabel;
   DirectoryLabel: TLabel;
-  OKBtnBack: TPanel;
-  OKButton: TBitBtn;
-  CancelButton: TBitBtn;
-  CapacitySlider: TTrackBar;
   ADFSControls: TPanel;
   DOSControls: TPanel;
-  rb_FAT12: TRadioButton;
-  rb_BigDir: TRadioButton;
-  rb_FAT16: TRadioButton;
-  rb_FAT32: TRadioButton;
-  rb_NewDir: TRadioButton;
-  rb_OldDir: TRadioButton;
+  CapacitySlider: TGJHSlider;
+  cb_NewMap,
+  cb_AddHeader,
+  cb_IDE: TGJHTickBox;
+  rb_FAT12,
+  rb_FAT16,
+  rb_FAT32,
+  rb_BigDir,
+  rb_NewDir,
+  rb_OldDir: TGJHRadioBox;
+  OKButton,
+  CancelButton: TGJHButton;
   procedure cb_NewMapChange(Sender: TObject);
+  procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure CapacitySliderChange(Sender: TObject);
   procedure FormShow(Sender: TObject);
@@ -93,20 +92,103 @@ Change of the new map tick box
 procedure THardDriveForm.cb_NewMapChange(Sender: TObject);
 begin
  //Enable/disable the appropriate radio boxes
- rb_BigDir.Enabled:=cb_NewMap.Checked;
- rb_OldDir.Enabled:=not cb_NewMap.Checked;
- cb_IDE.Enabled:=cb_NewMap.Checked;
+ rb_BigDir.Enabled:=cb_NewMap.Ticked;
+ rb_OldDir.Enabled:=not cb_NewMap.Ticked;
+ cb_IDE.Enabled:=cb_NewMap.Ticked;
  //If Old map is selected
- if not cb_NewMap.Checked then
+ if not cb_NewMap.Ticked then
  begin
   //Ensure the hard drive capactiy is <512MB
   if CapacitySlider.Position*MB>OldMapLimit then
    CapacitySlider.Position:=OldMapLimit div MB;
   //And Big Dir is not selected
-  if rb_BigDir.Checked then rb_NewDir.Checked:=True;
+  if rb_BigDir.Ticked then rb_NewDir.Ticked:=True;
  end;
  //If New map is selected, ensure Old Dir is not
- if(cb_NewMap.Checked)and(rb_OldDir.Checked)then rb_NewDir.Checked:=True;
+ if(cb_NewMap.Ticked)and(rb_OldDir.Ticked)then rb_NewDir.Ticked:=True;
+end;
+
+{-------------------------------------------------------------------------------
+Form creation
+-------------------------------------------------------------------------------}
+procedure THardDriveForm.FormCreate(Sender: TObject);
+function CreateTickBox(text: String; LPanel: TPanel): TGJHTickBox;
+begin
+ Result:=TGJHTickBox.Create(LPanel as TControl);
+ Result.Parent:=LPanel as TWinControl;
+ Result.Visible:=True;
+ Result.Caption:=text;
+ Result.Top:=0;
+end;
+function CreateRadioBox(text: String; LPanel: TPanel): TGJHRadioBox;
+begin
+ Result:=TGJHRadioBox.Create(LPanel as TControl);
+ Result.Parent:=LPanel as TWinControl;
+ Result.Visible:=True;
+ Result.Caption:=text;
+ Result.Top:=0;
+end;
+var ratio: Real;
+begin
+ ratio:=PixelsPerInch/DesignTimePPI;
+ //Create the slider
+ CapacitySlider:=TGJHSlider.Create(HardDriveForm as TControl);
+ CapacitySlider.Parent:=HardDriveForm as TWinControl;
+ CapacitySlider.Visible:=True;
+ CapacitySlider.Min:=4;
+ CapacitySlider.Max:=203;
+ CapacitySlider.Position:=4;
+ CapacitySlider.Outline:=csOutInner;
+ CapacitySlider.Height:=Round(30*ratio);
+ CapacitySlider.Orientation:=csHorizontal;
+ CapacitySlider.ShowValue:=True;
+ CapacitySlider.Pointers:=False;
+ CapacitySlider.Top:=CapacityHeaderLabel.Top+CapacityHeaderLabel.Height;
+ CapacitySlider.Left:=HDDImage.Left+HDDImage.Width;
+ CapacitySlider.Suffix:='MB';
+ CapacitySlider.OnChange:=@CapacitySliderChange;
+ //Create the ADFS Tick boxes
+ cb_NewMap:=CreateTickBox('New Map',ADFSControls);
+ cb_NewMap.Left:=0;
+ cb_NewMap.OnChange:=@cb_NewMapChange;
+ cb_IDE:=CreateTickBox('IDE',ADFSControls);
+ cb_IDE.Left:=cb_NewMap.Left+cb_NewMap.Width+4;
+ cb_AddHeader:=CreateTickBox('Emulator',ADFSControls);
+ cb_AddHeader.Left:=cb_IDE.Left+cb_IDE.Width+4;
+ //Move the label
+ DirectoryLabel.Left:=cb_AddHeader.Left+cb_AddHeader.Width+Round(12*ratio);
+ //Create the ADFS Radio boxes
+ rb_OldDir:=CreateRadioBox('Old',ADFSControls);
+ rb_OldDir.Left:=DirectoryLabel.Left+DirectoryLabel.Width+Round(4*ratio);
+ rb_NewDir:=CreateRadioBox('New',ADFSControls);
+ rb_NewDir.Left:=rb_OldDir.Left+rb_OldDir.Width+Round(4*ratio);
+ rb_BigDir:=CreateRadioBox('Big',ADFSControls);
+ rb_BigDir.Left:=rb_NewDir.Left+rb_NewDir.Width+Round(4*ratio);
+ ADFSControls.Height:=rb_BigDir.Top+rb_BigDir.Height+Round(8*ratio);
+ //Change the widths
+ ADFSControls.Width:=rb_BigDir.Left+rb_BigDir.Width+Round(8*ratio);
+ Width:=ADFSControls.Left+ADFSControls.Width;
+ CapacitySlider.Width:=Width-CapacitySlider.Left;
+ //Create the DOS Tick boxes
+ rb_FAT12:=CreateRadioBox('FAT12',DOSControls);
+ rb_FAT12.OnChange:=@rb_FAT12Change;
+ rb_FAT12.Left:=0;
+ rb_FAT16:=CreateRadioBox('FAT16',DOSControls);
+ rb_FAT16.OnChange:=@rb_FAT16Change;
+ rb_FAT16.Left:=rb_FAT12.Left+rb_FAT12.Width+Round(4*ratio);
+ rb_FAT32:=CreateRadioBox('FAT32',DOSControls);
+ rb_FAT32.OnChange:=@rb_FAT32Change;
+ rb_FAT32.Left:=rb_FAT16.Left+rb_FAT16.Width+Round(4*ratio);
+ //Create the buttons
+ OKButton:=MainForm.CreateButton(HardDriveForm as TControl,'Create',True,0,
+                            ADFSControls.Height+ADFSControls.Top+Round(4*ratio),
+                                 mrOK);
+ OKButton.Left:=Width-OKButton.Width-Round(8*ratio);
+ CancelButton:=MainForm.CreateButton(HardDriveForm as TControl,'Cancel',False,0,
+                                     OKButton.Top+Round(4*ratio),mrCancel);
+ CancelButton.Left:=OKButton.Left-Round(8*ratio)-CancelButton.Width;
+ //Adjust the form height
+ Height:=OKButton.Top+OKButton.Height+Round(8*ratio);
 end;
 
 {-------------------------------------------------------------------------------
@@ -114,11 +196,9 @@ Hard drive capacity is changing
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.CapacitySliderChange(Sender: TObject);
 begin
- //Update the label
- CapacityLabel.Caption:=IntToStr(CapacitySlider.Position)+'MB';
  if ADFSHDD then
   if CapacitySlider.Position*MB>OldMapLimit then
-   cb_NewMap.Checked:=True;
+   cb_NewMap.Ticked:=True;
 end;
 
 {-------------------------------------------------------------------------------
@@ -138,17 +218,17 @@ begin
   Caption:='Create ADFS Hard Drive';
  end;
  //Set directory type to 'Old'
- rb_OldDir.Checked:=True;
- rb_NewDir.Checked:=False;
- rb_BigDir.Checked:=False;
+ rb_OldDir.Ticked:=True;
+ rb_NewDir.Ticked:=False;
+ rb_BigDir.Ticked:=False;
  //Enable/Disable the appropriate radio boxes
  rb_OldDir.Enabled:=True;
  rb_BigDir.Enabled:=False;
  //Other options
- cb_NewMap.Checked:=False;
- cb_AddHeader.Checked:=False;
- cb_IDE.Checked:=True;
- cb_IDE.Enabled:=cb_NewMap.Checked;
+ cb_NewMap.Ticked:=False;
+ cb_AddHeader.Ticked:=False;
+ cb_IDE.Ticked:=True;
+ cb_IDE.Enabled:=cb_NewMap.Ticked;
  if AmigaHDD then
  begin
   //Set capacity to 40MB
@@ -173,9 +253,9 @@ begin
   DOSControls.Visible:=True;
   Caption:='Create DOS Hard Drive';
  end;
- rb_FAT12.Checked:=True;
- rb_FAT16.Checked:=False;
- rb_FAT32.Checked:=False;
+ rb_FAT12.Ticked:=True;
+ rb_FAT16.Ticked:=False;
+ rb_FAT32.Ticked:=False;
 end;
 
 {-------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 unit HexDumpUnit;
 
 {
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -135,18 +135,18 @@ begin
  HexDumpDisplay.RowCount :=1;
  HexDumpDisplay.Font.Size:=Round(8*Screen.PixelsPerInch/DesignTimePPI);
  //Header
- HexDumpDisplay.ColWidths[0] :=80;
+ HexDumpDisplay.ColWidths[0] :=Round(80*Screen.PixelsPerInch/DesignTimePPI);
  HexDumpDisplay.Cells[0,0]   :='Address';
- HexDumpDisplay.ColWidths[17]:=120;
+ HexDumpDisplay.ColWidths[17]:=Round(120*Screen.PixelsPerInch/DesignTimePPI);
  HexDumpDisplay.Cells[17,0]  :='ASCII';
  for c:=1 to 16 do
  begin
-  HexDumpDisplay.ColWidths[c]:=25;
+  HexDumpDisplay.ColWidths[c]:=Round(25*Screen.PixelsPerInch/DesignTimePPI);
   HexDumpDisplay.Cells[c,0]  :=IntToHex(c-1,2);
  end;
  ResetApplication;
  //Set up the form
- Width:=635;
+ Width:=Round(635*Screen.PixelsPerInch/DesignTimePPI);
  //Show the hex display
  DisplayHex(0);
  //Setup the scrollbar
@@ -801,7 +801,19 @@ begin
       if(c<$C6)or(c>$C8)then
       begin
        if c-$80<=High(tokens) then
-        linetxt:=linetxt+'<span '+keywordstyle+'>'+tokens[c-$80]+'</span>';
+        if c-$80<>$D then
+         linetxt:=linetxt+'<span '+keywordstyle+'>'+tokens[c-$80]+'</span>'
+        else
+        begin //Line number
+         linetxt:=linetxt+'<span '+keywordstyle+'>'
+                 +IntToStr(
+                     ((buffer[ptr+lineptr  ]XOR$54)AND$30)<< 2
+                   OR((buffer[ptr+lineptr  ]XOR$54)AND$03)<<14
+                   OR (buffer[ptr+lineptr+1]       AND$3F)
+                   OR (buffer[ptr+lineptr+2]       AND$3F)<< 8)
+                 +'</span>';
+         inc(lineptr,3);
+        end;
       end
       else //Extended tokens (BASIC V)
       begin

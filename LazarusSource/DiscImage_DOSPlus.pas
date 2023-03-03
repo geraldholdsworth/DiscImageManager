@@ -1680,6 +1680,7 @@ begin
  //Only for adding DOS partition to 8 bit ADFS
  if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
  begin
+  if disc_size[0]=$A0000 then size:=$9F000; //640K 'L' has 4K of ADFS
   fsed:=GetADFSMaxLength(False);
   //Is there enough free space?
   if fsed>=size then
@@ -1689,6 +1690,8 @@ begin
    //Adjust the ADFS free space map
    fsptr:=GetADFSMaxLength(True);
    Write24b(Read24b($100+fsptr)-(size div secsize),$100+fsptr); //Just adjust the length
+   //Adjust the disc size for 640K
+   if disc_size[0]=$A0000 then WriteByte($A0,$FC);
    //Update our disc sizes
    disc_size[0]:=fsst;
    SetLength(disc_size,2);
@@ -1712,9 +1715,8 @@ begin
    for index:=doshead to GetDataLength-1 do WriteByte(0,index);
    //Create the partition
    WriteDOSHeader(doshead,size,diMaster512,False);
-   //Update the checksums
-   WriteByte(ByteCheckSum($0000,$100,False),$0FF);//Checksum sector 0
-   WriteByte(ByteCheckSum($0100,$100,False),$1FF);//Checksum sector 1
+   //Sort out the FSM
+   ConsolidateADFSFreeSpaceMap;
    //Now we re-ID and re-read the data
    oldfilename:=imagefilename;
    IDImage;
@@ -1870,14 +1872,15 @@ begin
  //Total Blocks
  totBlocks:=size div sectorSize;
  //JMP Instruction for Boot sector
- WriteByte($EB,offset+$00,buffer);
  if master512 then
  begin
-  WriteByte($FE,offset+$01,buffer);
-  WriteByte($91,offset+$02,buffer);
+  WriteByte($FF,offset+$00,buffer);// $EB
+  WriteByte($FF,offset+$01,buffer);// $FE
+  WriteByte($FF,offset+$02,buffer);// $91
  end
  else
  begin
+  WriteByte($EB,offset+$00,buffer);
   WriteByte($3C,offset+$01,buffer);
   WriteByte($90,offset+$02,buffer);
  end;

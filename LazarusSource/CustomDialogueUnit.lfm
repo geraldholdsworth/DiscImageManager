@@ -9,6 +9,7 @@ object CustomDialogue: TCustomDialogue
   ClientHeight = 195
   ClientWidth = 360
   Color = 15527148
+  OnCreate = FormCreate
   OnPaint = FormPaint
   Position = poMainFormCenter
   LCLVersion = '2.2.0.4'
@@ -209,13 +210,13 @@ object CustomDialogue: TCustomDialogue
     BevelOuter = bvNone
     ClientHeight = 128
     ClientWidth = 288
-    TabOrder = 3
+    TabOrder = 0
     OnPaint = FormPaint
     object MessageLabel: TLabel
       Left = 0
       Height = 48
       Top = 40
-      Width = 286
+      Width = 288
       Alignment = taCenter
       Caption = 'The file has been detected as an image.'#10'Would you like to import the contents or add to the open image?'
       Constraints.MaxWidth = 288
@@ -227,52 +228,5 @@ object CustomDialogue: TCustomDialogue
     Height = 4
     Top = 144
     Width = 360
-  end
-  object CancelButton: TBitBtn
-    Left = 130
-    Height = 30
-    Top = 156
-    Width = 100
-    Cancel = True
-    Caption = 'Cancel'
-    Color = 15527148
-    ModalResult = 2
-    TabOrder = 1
-  end
-  object IgnoreButton: TBitBtn
-    Left = 16
-    Height = 30
-    Top = 156
-    Width = 100
-    Caption = '&Ignore'
-    Color = 15527148
-    ModalResult = 5
-    TabOrder = 2
-  end
-  object OKBtnBack: TPanel
-    Left = 244
-    Height = 30
-    Top = 156
-    Width = 100
-    BevelColor = clYellow
-    BevelInner = bvLowered
-    BevelOuter = bvLowered
-    BevelWidth = 4
-    ClientHeight = 30
-    ClientWidth = 100
-    Color = clYellow
-    ParentColor = False
-    TabOrder = 0
-    object OKButton: TBitBtn
-      Left = 0
-      Height = 30
-      Top = 0
-      Width = 100
-      Caption = '&OK'
-      Color = 15527148
-      Default = True
-      ModalResult = 1
-      TabOrder = 0
-    end
   end
 end

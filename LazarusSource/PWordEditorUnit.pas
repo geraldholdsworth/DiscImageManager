@@ -1,7 +1,7 @@
 unit PWordEditorUnit;
 
 {
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -25,7 +25,7 @@ interface
 
 uses
  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
- Buttons, DiscImageUtils;
+ GJHCustomComponents, DiscImageUtils, Buttons;
 
 type
 
@@ -33,7 +33,6 @@ type
 
  TPwordEditorForm = class(TForm)
   AccountsPanel: TPanel;
-  CancelButton: TBitBtn;
   HeaderPanel: TPanel;
   AccountsScroll: TScrollBox;
   ControlsPanel: TPanel;
@@ -42,28 +41,29 @@ type
   Label3: TLabel;
   Label4: TLabel;
   Label5: TLabel;
-  OKBtnBack: TPanel;
-  OKButton: TBitBtn;
   btnAdd: TSpeedButton;
   UsernamesHdr: TPanel;
   PasswordsHdr: TPanel;
   SystemHdr: TPanel;
   LockedHdr: TPanel;
   BootOptionHdr: TPanel;
+  OKButton,
+  CancelButton: TGJHButton;
   procedure btnAddClick(Sender: TObject);
+  procedure FormCreate(Sender: TObject);
   procedure FormHide(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
   function CreateNewEntry: Integer;
   function CreateEditField(column: TPanel;maxlen,len: Integer): TEdit;
-  function CreateTickBox(column: TPanel;len: Integer): TCheckBox;
+  function CreateTickBox(column: TPanel;len: Integer): TGJHTickBox;
   function CreateDropDown(column: TPanel;len: Integer): TComboBox;
   procedure OKButtonClick(Sender: TObject);
  private
   Usernames: array of TEdit;
   Passwords: array of TEdit;
-  System   : array of TCheckBox;
-  Locked   : array of TCheckBox;
+  System   : array of TGJHTickBox;
+  Locked   : array of TGJHTickBox;
   BootOpts : array of TComboBox;
   FreeSpc  : array of TEdit;
  public
@@ -98,8 +98,8 @@ begin
    //Fill in the fields
    Usernames[ctrl].Text    :=UserAccounts[index].Username;
    Passwords[ctrl].Text    :=UserAccounts[index].Password;
-   System[ctrl].Checked    :=UserAccounts[index].System;
-   Locked[ctrl].Checked    :=UserAccounts[index].Locked;
+   System[ctrl].Ticked     :=UserAccounts[index].System;
+   Locked[ctrl].Ticked     :=UserAccounts[index].Locked;
    BootOpts[ctrl].ItemIndex:=UserAccounts[index].BootOption;
    FreeSpc[ctrl].Text      :=IntToHex(UserAccounts[index].FreeSpace,8);
   end;
@@ -152,6 +152,24 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Create the form
+{------------------------------------------------------------------------------}
+procedure TPwordEditorForm.FormCreate(Sender: TObject);
+var
+ ratio  : Real;
+begin
+ ratio:=PixelsPerInch/DesignTimePPI;
+ OKButton:=MainForm.CreateButton(ControlsPanel as TControl,'OK',True,0,
+                                 Round(8*ratio),mrOK);
+ OKButton.Left:=ControlsPanel.ClientWidth-OKButton.Width-Round(8*ratio);
+ OKButton.OnClick:=@OKButtonClick;
+ CancelButton:=MainForm.CreateButton(ControlsPanel as TControl,'Cancel',False,
+                                     0,Round(12*ratio),mrCancel);
+ CancelButton.Left:=OKButton.Left-Round(8*ratio)-CancelButton.Width;
+ ControlsPanel.Height:=OKButton.Top+OKButton.Height+Round(8*ratio);
+end;
+
+{------------------------------------------------------------------------------}
 //Create a new entry, including creating the components
 {------------------------------------------------------------------------------}
 function TPwordEditorForm.CreateNewEntry: Integer;
@@ -198,12 +216,13 @@ end;
 {------------------------------------------------------------------------------}
 //Create a TCheckBox
 {------------------------------------------------------------------------------}
-function TPwordEditorForm.CreateTickBox(column: TPanel;len: Integer): TCheckBox;
+function TPwordEditorForm.CreateTickBox(column: TPanel;len: Integer): TGJHTickBox;
 begin
- Result:=TCheckBox.Create(AccountsScroll);
+ Result:=TGJHTickBox.Create(AccountsScroll);
  Result.Parent:=AccountsScroll;
  Result.Left:=column.Left+(column.Width-18)div 2;
  Result.Top:=2+(2+column.Height)*len;
+ Result.Caption:='';
 end;
 
 {------------------------------------------------------------------------------}
@@ -240,8 +259,8 @@ begin
     //Populate it
     UserAccounts[Length(UserAccounts)-1].Username  :=Usernames[index].Text;
     UserAccounts[Length(UserAccounts)-1].Password  :=Passwords[index].Text;
-    UserAccounts[Length(UserAccounts)-1].System    :=System[index].Checked;
-    UserAccounts[Length(UserAccounts)-1].Locked    :=Locked[index].Checked;
+    UserAccounts[Length(UserAccounts)-1].System    :=System[index].Ticked;
+    UserAccounts[Length(UserAccounts)-1].Locked    :=Locked[index].Ticked;
     UserAccounts[Length(UserAccounts)-1].BootOption:=BootOpts[index].ItemIndex;
     UserAccounts[Length(UserAccounts)-1].FreeSpace :=StrToIntDef('$'+FreeSpc[index].Text,0);
    end;

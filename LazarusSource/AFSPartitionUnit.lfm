@@ -3,104 +3,23 @@ object AFSPartitionForm: TAFSPartitionForm
   Height = 156
   Top = 272
   Width = 355
-  BorderIcons = [biSystemMenu]
+  BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Partition Size'
   ClientHeight = 156
   ClientWidth = 355
   Color = 15527148
+  OnCreate = FormCreate
   OnPaint = FormPaint
   Position = poMainFormCenter
   LCLVersion = '2.2.0.4'
-  object PartitionSize: TTrackBar
-    Left = 0
-    Height = 37
-    Top = 0
-    Width = 355
-    OnChange = PartitionSizeChange
-    Position = 0
-    TickMarks = tmBoth
-    TickStyle = tsNone
-    Align = alTop
-    TabOrder = 0
-  end
   object PartitionSizeLabel: TLabel
     Left = 0
     Height = 16
-    Top = 37
+    Top = 0
     Width = 355
     Align = alTop
     Alignment = taCenter
     Caption = 'PartitionSizeLabel'
-  end
-  object CancelButton: TBitBtn
-    Left = 128
-    Height = 30
-    Top = 120
-    Width = 100
-    Caption = 'Cancel'
-    Color = 15527148
-    ModalResult = 2
-    TabOrder = 1
-  end
-  object OKBtnBack: TPanel
-    Left = 244
-    Height = 30
-    Top = 120
-    Width = 100
-    BevelColor = clYellow
-    BevelInner = bvLowered
-    BevelOuter = bvLowered
-    BevelWidth = 4
-    ClientHeight = 30
-    ClientWidth = 100
-    Color = clYellow
-    ParentColor = False
-    TabOrder = 2
-    object OKButton: TBitBtn
-      Left = 0
-      Height = 30
-      Top = 0
-      Width = 100
-      Caption = '&OK'
-      Color = 15527148
-      ModalResult = 1
-      TabOrder = 0
-    end
-  end
-  object rad_type: TRadioGroup
-    Left = 0
-    Height = 56
-    Top = 53
-    Width = 355
-    Align = alTop
-    AutoFill = True
-    Caption = 'Partition Type'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 37
-    ClientWidth = 345
-    ItemIndex = 0
-    Items.Strings = (
-      'Acorn File Server'
-      'DOS Plus'
-    )
-    OnClick = rad_typeClick
-    TabOrder = 3
-  end
-  object FromFileButton: TBitBtn
-    Left = 8
-    Height = 30
-    Top = 120
-    Width = 100
-    Caption = 'From File...'
-    Color = 15527148
-    Enabled = False
-    TabOrder = 4
   end
 end

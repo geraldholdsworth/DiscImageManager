@@ -10,6 +10,7 @@ object ImportSelectorForm: TImportSelectorForm
   Color = 15527148
   Constraints.MinHeight = 456
   Constraints.MinWidth = 400
+  OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
@@ -40,57 +41,16 @@ object ImportSelectorForm: TImportSelectorForm
     Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoShowButtons, tvoShowRoot, tvoToolTips, tvoThemedDraw]
     TreeLineColor = clNone
   end
-  object Panel1: TPanel
+  object ButtonPanel: TPanel
     Left = 0
     Height = 40
     Top = 416
     Width = 400
     Align = alBottom
     BevelOuter = bvNone
-    ClientHeight = 40
-    ClientWidth = 400
     TabOrder = 1
     OnPaint = FormPaint
-    OnResize = Panel1Resize
-    object OKBtnBack: TPanel
-      Left = 120
-      Height = 30
-      Top = 4
-      Width = 100
-      BevelColor = clYellow
-      BevelInner = bvLowered
-      BevelOuter = bvLowered
-      BevelWidth = 4
-      ClientHeight = 30
-      ClientWidth = 100
-      Color = clYellow
-      ParentColor = False
-      TabOrder = 0
-      object OKButton: TBitBtn
-        Left = 0
-        Height = 30
-        Top = 0
-        Width = 100
-        Caption = '&OK'
-        Color = 15527148
-        Default = True
-        ModalResult = 1
-        OnClick = OKButtonClick
-        TabOrder = 0
-      end
-    end
-    object CancelButton: TBitBtn
-      Left = 4
-      Height = 30
-      Top = 4
-      Width = 100
-      Cancel = True
-      Caption = 'Cancel'
-      Color = 15527148
-      ModalResult = 2
-      OnClick = CancelButtonClick
-      TabOrder = 1
-    end
+    OnResize = ButtonPanelResize
   end
   object TickIcons: TImageList
     Height = 44

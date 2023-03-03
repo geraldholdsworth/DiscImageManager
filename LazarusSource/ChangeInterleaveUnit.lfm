@@ -9,46 +9,10 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   ClientHeight = 124
   ClientWidth = 234
   Color = 15527148
+  OnCreate = FormCreate
   OnPaint = FormPaint
   Position = poMainFormCenter
   LCLVersion = '2.2.0.4'
-  object CancelButton: TBitBtn
-    Left = 8
-    Height = 30
-    Top = 80
-    Width = 100
-    Cancel = True
-    Caption = 'Cancel'
-    Color = 15527148
-    ModalResult = 2
-    TabOrder = 0
-  end
-  object OKBtnBack: TPanel
-    Left = 124
-    Height = 30
-    Top = 80
-    Width = 100
-    BevelColor = clYellow
-    BevelInner = bvLowered
-    BevelOuter = bvLowered
-    BevelWidth = 4
-    ClientHeight = 30
-    ClientWidth = 100
-    Color = clYellow
-    ParentColor = False
-    TabOrder = 1
-    object OKButton: TBitBtn
-      Left = 0
-      Height = 30
-      Top = 0
-      Width = 100
-      Caption = '&OK'
-      Color = 15527148
-      Default = True
-      ModalResult = 1
-      TabOrder = 0
-    end
-  end
   object CurrentLabel: TLabel
     Left = 0
     Height = 16
@@ -63,7 +27,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   end
   object lb_Current: TLabel
     Left = 0
-    Height = 16
+    Height = 15
     Top = 16
     Width = 234
     Align = alTop
@@ -75,7 +39,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   object NewLabel: TLabel
     Left = 0
     Height = 16
-    Top = 32
+    Top = 31
     Width = 234
     Align = alTop
     Alignment = taCenter
@@ -86,14 +50,14 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   end
   object cb_NewMethod: TComboBox
     Left = 0
-    Height = 26
-    Top = 48
+    Height = 20
+    Top = 47
     Width = 234
     Align = alTop
     Color = 15527148
     Font.Color = clBlack
     Font.Name = 'Courier New'
-    ItemHeight = 0
+    ItemHeight = 26
     ItemIndex = 0
     Items.Strings = (
       'Sequential'
@@ -102,7 +66,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
     )
     ParentFont = False
     Style = csDropDownList
-    TabOrder = 2
+    TabOrder = 0
     Text = 'Sequential'
   end
 end

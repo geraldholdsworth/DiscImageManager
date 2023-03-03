@@ -767,6 +767,7 @@ begin
   //Get the disc title(s)
   FDisc[s].Title:=disctitle;
   disc_name[s]:=FDisc[s].Title;
+  FDisc[s].BeenRead:=True;
   //Disc Size
   side_size:=0;
   if tracks=0 then side_size:=$190; //40T

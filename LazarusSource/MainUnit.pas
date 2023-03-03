@@ -35,7 +35,7 @@ uses
   SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls, DiscImage,
   Global, DiscImageUtils, ExtCtrls, Buttons, ComCtrls, Menus, DateUtils,
   ImgList, StrUtils, Clipbrd, HexDumpUnit, Spark, FPImage, IntfGraphics,
-  ActnList, GraphType, DateTimePicker, Types, GJHRegistryClass;
+  ActnList, GraphType, DateTimePicker, Types, GJHCustomComponents;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -64,34 +64,9 @@ type
   TMainForm = class(TForm)
    AmigaAttrPanel: TPanel;
    AFSAttrPanel: TPanel;
-   cb_Amiga_othd: TCheckBox;
-   cb_Amiga_arch: TCheckBox;
-   cb_Amiga_othe: TCheckBox;
-   cb_Amiga_pure: TCheckBox;
-   cb_Amiga_hold: TCheckBox;
-   cb_Amiga_scri: TCheckBox;
-   cb_Amiga_ownr: TCheckBox;
-   cb_Amiga_othr: TCheckBox;
-   cb_Amiga_ownw: TCheckBox;
-   cb_Amiga_owne: TCheckBox;
-   cb_Amiga_ownd: TCheckBox;
-   cb_Amiga_othw: TCheckBox;
-   cb_Amiga_pubw: TCheckBox;
-   cb_Amiga_pubr: TCheckBox;
-   cb_Amiga_pubd: TCheckBox;
-   cb_Amiga_pube: TCheckBox;
    DOSAttributeLabel: TLabel;
-   cb_DOS_archive: TCheckBox;
    DOSAttrPanel: TPanel;
    CancelDragDrop: TAction;
-   cb_AFS_ownl: TCheckBox;
-   cb_DOS_system: TCheckBox;
-   cb_AFS_ownr: TCheckBox;
-   cb_DOS_read: TCheckBox;
-   cb_AFS_ownw: TCheckBox;
-   cb_DOS_hidden: TCheckBox;
-   cb_AFS_pubr: TCheckBox;
-   cb_AFS_pubw: TCheckBox;
    menuFixADFS: TMenuItem;
    menuDefrag: TMenuItem;
    menuChangeInterleave: TMenuItem;
@@ -101,18 +76,44 @@ type
    MiscAttrLabelAmiga: TLabel;
    PubAttrLabelAmiga: TLabel;
    HoverTimer: TTimer;
-   ToolBarContainer: TCoolBar;
+   ImageToolBarPage: TTabSheet;
+   FIlesToolBarPage: TTabSheet;
+   PartitionToolBarPage: TTabSheet;
+   btn_FixADFS: TToolButton;
+   btn_ChangeInterleave: TToolButton;
+   btn_Defrag: TToolButton;
+   btn_Settings: TToolButton;
+   btn_About: TToolButton;
+   ToolsToolBar: TToolBar;
+   ToolsToolBarPage: TTabSheet;
+   ImageToolBar: TToolBar;
    FilesToolBar: TToolBar;
+   PartitionToolBar: TToolBar;
    menuImage: TMenuItem;
    menuFiles: TMenuItem;
    menuTools: TMenuItem;
    menuPartition: TMenuItem;
-   btn_AddPartition: TToolButton;
-   btn_ChangeInterleave: TToolButton;
-   btn_Defrag: TToolButton;
+   ToolBarContainer: TPageControl;
+   btn_NewImage: TToolButton;
+   btn_OpenImage: TToolButton;
+   btn_CloseImage: TToolButton;
+   btn_SaveImage: TToolButton;
+   btn_SaveAsCSV: TToolButton;
+   btn_ImageDetails: TToolButton;
+   btn_FileSearch: TToolButton;
    btn_ShowReport: TToolButton;
-   ToolsToolBar: TToolBar;
-   PartitionToolBar: TToolBar;
+   btn_download: TToolButton;
+   btn_AddFiles: TToolButton;
+   btn_Rename: TToolButton;
+   btn_HexDump: TToolButton;
+   btn_NewDirectory: TToolButton;
+   btn_Delete: TToolButton;
+   btn_DuplicateFile: TToolButton;
+   btn_AddPassword: TToolButton;
+   btn_EditPassword: TToolButton;
+   btn_SavePartition: TToolButton;
+   btn_DeletePartition: TToolButton;
+   btn_AddPartition: TToolButton;
    DuplicateFile1: TMenuItem;
    IyonixTextureTile: TImage;
    menuAddPasswordFile: TMenuItem;
@@ -122,7 +123,6 @@ type
    menuViewStatus: TMenuItem;
    menuViewToolBar: TMenuItem;
    TextureTiles: TPanel;
-   ImageToolBar: TToolBar;
    ViewMenu: TMenuItem;
    menuSavePartition: TMenuItem;
    menuDeletePartition: TMenuItem;
@@ -136,17 +136,6 @@ type
    PasteFromClipboard: TAction;
    CopyToClipboard: TAction;
    KeyboardShortcuts: TActionList;
-   cb_C64_c: TCheckBox;
-   cb_C64_l: TCheckBox;
-   cb_DFS_l: TCheckBox;
-   cb_ADFS_pubp: TCheckBox;
-   cb_ADFS_ownw: TCheckBox;
-   cb_ADFS_ownr: TCheckBox;
-   cb_ADFS_ownl: TCheckBox;
-   cb_ADFS_owne: TCheckBox;
-   cb_ADFS_pubr: TCheckBox;
-   cb_ADFS_pubw: TCheckBox;
-   cb_ADFS_pube: TCheckBox;
    C64AttributeLabel: TLabel;
    ed_timestamp: TDateTimePicker;
    ed_loadaddr: TEdit;
@@ -172,12 +161,6 @@ type
    DirTitlePanel: TPanel;
    LocationPanel: TPanel;
    CRC32Panel: TPanel;
-   btn_Settings: TToolButton;
-   btn_DuplicateFile: TToolButton;
-   btn_AddPassword: TToolButton;
-   btn_EditPassword: TToolButton;
-   btn_DeletePartition: TToolButton;
-   btn_SavePartition: TToolButton;
    ToolSplitter: TSplitter;
    TimeStampPanel: TPanel;
    ParentPanel: TPanel;
@@ -194,7 +177,6 @@ type
    HexDumpMenu: TMenuItem;
    HexDump1: TMenuItem;
    menuHexDump: TMenuItem;
-   btn_FileSearch: TToolButton;
    menuSaveAsCSV: TMenuItem;
    menuRenameFile: TMenuItem;
    menuNewDir: TMenuItem;
@@ -212,20 +194,6 @@ type
    ToolBarImages: TImageList;
    AddNewFile: TOpenDialog;
    SaveImage: TSaveDialog;
-   btn_OpenImage: TToolButton;
-   btn_SaveImage: TToolButton;
-   btn_Delete: TToolButton;
-   btn_Rename: TToolButton;
-   btn_AddFiles: TToolButton;
-   btn_NewImage: TToolButton;
-   btn_ImageDetails: TToolButton;
-   btn_NewDirectory: TToolButton;
-   btn_CloseImage: TToolButton;
-   btn_SaveAsCSV: TToolButton;
-   btn_FixADFS: TToolButton;
-   btn_HexDump: TToolButton;
-   btn_download: TToolButton;
-   btn_About: TToolButton;
    OpenImageFile: TOpenDialog;
    DirList: TTreeView;
    FileInfoPanel: TPanel;
@@ -256,6 +224,43 @@ type
    ImageDetails: TStatusBar;
    AddFile1: TMenuItem;
    NewDirectory1: TMenuItem;
+   //Dynamically created tickboxes
+   cb_C64_c, //Commodore 64
+   cb_C64_l,
+   cb_DFS_l, //Acorn DFS
+   cb_ADFS_pubp, //Acorn ADFS
+   cb_ADFS_ownw,
+   cb_ADFS_ownr,
+   cb_ADFS_ownl,
+   cb_ADFS_owne,
+   cb_ADFS_pubr,
+   cb_ADFS_pubw,
+   cb_ADFS_pube,
+   cb_AFS_ownl, //Acorn FS  
+   cb_AFS_ownr,
+   cb_AFS_ownw,
+   cb_AFS_pubr,
+   cb_AFS_pubw,
+   cb_DOS_system, //DOS
+   cb_DOS_read,
+   cb_DOS_hidden,
+   cb_DOS_archive,
+   cb_Amiga_othd, //Amiga
+   cb_Amiga_arch,
+   cb_Amiga_othe,
+   cb_Amiga_pure,
+   cb_Amiga_hold,
+   cb_Amiga_scri,
+   cb_Amiga_ownr,
+   cb_Amiga_othr,
+   cb_Amiga_ownw,
+   cb_Amiga_owne,
+   cb_Amiga_ownd,
+   cb_Amiga_othw,
+   cb_Amiga_pubw,
+   cb_Amiga_pubr,
+   cb_Amiga_pubd,
+   cb_Amiga_pube: TGJHTickBox;
    //Events - mouse clicks
    procedure btn_AddPartitionClick(Sender: TObject);
    procedure btn_AddPasswordClick(Sender: TObject);
@@ -359,9 +364,12 @@ type
    function AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
    procedure CloseAllHexDumps;                                                   
    function ConvertToKMG(size: Int64): String;
+   function CreateButton(Lparent: TControl; Lcaption: String;LDef: Boolean;
+                         LLeft,LTop: Integer; LModal: TModalResult): TGJHButton;
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure CreateFileTypeDialogue;
    procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
+   procedure CreateRootInf(filename: String; dir: Integer);
    procedure Defrag(side: Byte);
    procedure DeleteFile(confirm: Boolean);                                      
    procedure DisableControls;
@@ -390,6 +398,7 @@ type
    procedure ReportError(error: String);
    procedure ResetFileFields;
    procedure SaveConfigSettings;
+   procedure Scaling;
    procedure SelectNode(filename: String;casesens:Boolean=True);
    procedure ShowErrorLog;
    procedure ShowInfo(info: String);
@@ -471,6 +480,7 @@ type
     arch          :String;
     //Registry
     DIMReg        :TGJHRegistry;
+    AppIsClosing  :Boolean;
    const
     //These point to certain icons used when no filetype is found, or non-ADFS
     //The numbers are indexes into the TImageList component 'FileImages'.
@@ -564,7 +574,6 @@ type
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
-   procedure AfterConstruction; override;
   end;
 
 var
@@ -579,39 +588,6 @@ uses
   CustomDialogueUnit,ErrorLogUnit,SettingsUnit,ImportSelectorUnit,
   PWordEditorUnit,AFSPartitionUnit,ChangeInterleaveUnit,CSVPrefUnit,
   ImageReportUnit;
-
-{------------------------------------------------------------------------------}
-//Rescale the form
-{------------------------------------------------------------------------------}
-procedure TMainForm.AfterConstruction;
-var
- i,ppi: Integer;
- ratio: Real;
-begin
- inherited;
- ppi:=Screen.PixelsPerInch;//Can use TMonitor.PixelsPerInch to scale to a big monitor
- if ppi<>DesignedDPI then
- begin
-  ratio:=ppi/DesignedDPI;
-  //Status Bar
-  ImageDetails.Height            :=Round(ImageDetails.Height*ratio);
-  ImageDetails.Panels[0].Width   :=ImageDetails.Height;
-  for i:=0 to -1+ImageDetails.Panels.Count do
-   ImageDetails.Panels[i].Width  :=Round(ImageDetails.Panels[i].Width*ratio);
-  //Tool bars
-  ImageToolBar.ImagesWidth       :=Round(ImageToolBar.ImagesWidth*ratio);
-  FilesToolBar.ImagesWidth       :=Round(FilesToolBar.ImagesWidth*ratio);
-  PartitionToolBar.ImagesWidth   :=Round(PartitionToolBar.ImagesWidth*ratio);
-  ToolsToolBar.ImagesWidth       :=Round(ToolsToolBar.ImagesWidth*ratio);
-  //Toolbar bands
-  ToolBarContainer.Bands[0].Width:=ImageToolBar.Width+Round(14*ratio);
-  ToolBarContainer.Bands[1].Width:=FilesToolBar.Width+Round(14*ratio);
-  ToolBarContainer.Bands[2].Width:=PartitionToolBar.Width+Round(14*ratio);
-  ToolBarContainer.Bands[3].Width:=ToolsToolBar.Width+Round(14*ratio);
-  //Directory Listing
-  DirList.ImagesWidth            :=Round(DirList.ImagesWidth*ratio);
- end;
-end;
 
 {------------------------------------------------------------------------------}
 //Add a new file to the disc image
@@ -644,12 +620,16 @@ var
  NewNode      : TTreeNode;
  inffile,
  attr,
+ dirtitle,
+ disctitle,
  importname   : String;
  F            : TFileStream;
  chr          : Char;
  fields       : array of String;
  Dir          : TSearchRec;
+ Index        : Integer;
 begin
+ //Need to make this compatible with AmigaDOS too. *****************************
  Image.ProgressIndicator:=nil;
  ProgressForm.Show;
  //First, if there is no selection, make one, or if multiple, select the root
@@ -664,6 +644,8 @@ begin
  begin
   importname:=ExtractFilename(dirname);
   attr      :='DLR';
+  disctitle :='';
+  dirtitle  :='';
   //Is there an inf file?
   if FileExists(dirname+'.inf') then
   begin
@@ -677,14 +659,43 @@ begin
     F.Free;
     fields:=BreakDownInf(inffile);
     //Then extract the fields
-    if Length(fields)>0 then importname:=fields[0];
-    if Length(fields)>4 then attr      :=fields[4];
+    if Length(fields)>0 then importname:=fields[0];//Filename
+    if Length(fields)>1 then
+     for Index:=0 to Length(fields)-1 do
+     begin
+      //Get the tagged fields
+      if LeftStr(fields[Index],4)='OPT=' then
+       Image.UpdateBootOption(StrToIntDef(RightStr(fields[Index],2),0)
+                       ,Image.Disc[TMyTreeNode(OriginalNode).DirRef].Partition);
+      if LeftStr(fields[Index],9)='DIRTITLE=' then
+       dirtitle:=Copy(fields[Index],10);
+      if LeftStr(fields[Index],6)='TITLE=' then //Can be disc or dir title
+       if importname='$' then //If root, it will be disc title
+        disctitle:=Copy(fields[Index],7)
+       else //Otherwise it will be dir title
+        dirtitle:=Copy(fields[Index],7);
+     end;
+    if Length(fields)>4 then attr:=fields[4];//Attributes
+    //Convert the attributes from hex to letters, if necessary
+    attr:=GetAttributes(attr,Image.MajorFormatNumber);
+    //Remove any quotes from the titles
+    if Length(dirtitle)>1 then
+     if(dirtitle[1]='"')and(dirtitle[Length(dirtitle)]='"')then
+      dirtitle:=Copy(dirtitle,2,Length(dirtitle)-2);
+    if Length(disctitle)>1 then
+     if(disctitle[1]='"')and(disctitle[Length(disctitle)]='"')then
+      disctitle:=Copy(disctitle,2,Length(disctitle)-2);
+    //Update the disc title, only on the root
+    if(disctitle<>'')and(importname='$')then
+     Image.UpdateDiscTitle(LeftStr(disctitle,10)
+                       ,Image.Disc[TMyTreeNode(OriginalNode).DirRef].Partition);
    except
     //Could not load
    end;
   end;
   //Convert a Windows filename to a BBC filename
-  WinToBBC(importname);
+  if(TMyTreeNode(OriginalNode).Parent=nil)
+  and(importname=OriginalNode.Text)then else WinToBBC(importname);
   //Remove spaces for non-big directories, and ensure is 10 chars or less
   if Image.DirectoryType<>2 then
   begin
@@ -692,12 +703,25 @@ begin
    importname:=LeftStr(importname,10);
   end;
   //Create the directory
-  NewNode:=CreateDirectory(importname,attr);
+  if importname<>'$' then
+   NewNode:=CreateDirectory(importname,attr)
+  else
+   NewNode:=OriginalNode;
   if NewNode<>nil then //Success
   begin
    //And select it
    DirList.ClearSelection;
    NewNode.Selected:=True;
+   //Update the directory title
+   if dirtitle<>'' then
+    if(TMyTreeNode(NewNode).DirRef>=0)
+    and(TMyTreeNode(NewNode).DirRef<Length(Image.Disc))then
+    begin
+     if TMyTreeNode(NewNode).ParentDir>=0 then
+      disctitle:=Image.GetParent(TMyTreeNode(NewNode).DirRef)
+     else disctitle:=importname;
+     Image.RetitleDirectory(disctitle,dirtitle);
+    end;
    //Now we import everything inside this
    FindFirst(dirname+pathdelim+'*',faDirectory,Dir);
    repeat
@@ -1338,6 +1362,7 @@ begin
       if(saver)and(selectroot)then //Root was selected, so create the directory
       begin
        CreateDir(SaveImage.FileName);
+       CreateRootInf(SaveImage.FileName,Image.Disc[dir].Partition);
        SaveImage.Filename:=SaveImage.Filename+PathDelim+'root';
       end;
      end;
@@ -1458,6 +1483,7 @@ end;
 procedure TMainForm.CreateINFFile(dir,entry: Integer; path: String;filename: String='');
 var
  F              : TFileStream;
+ title,
  inffile,
  imagefilename,
  windowsfilename: String;
@@ -1506,6 +1532,13 @@ begin
                                         Image.GetDirSep(Image.Disc[dir].Partition)+
                                         Image.Disc[dir].Entries[entry].Filename,
                                         entry);
+    //Directory?
+    if Image.Disc[dir].Entries[entry].DirRef<>-1 then
+    begin
+     title:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
+     if Pos(' ',title)>0 then title:='"'+title+'"';
+     inffile:=inffile+' DIRTITLE='+PadRight(LeftStr(title,21),21);
+    end;
     //Create the inf file
     try
      F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
@@ -1517,6 +1550,35 @@ begin
     end;
    end;
   end;
+end;
+
+{------------------------------------------------------------------------------}
+//Create an inf file for a root
+{------------------------------------------------------------------------------}
+procedure TMainForm.CreateRootInf(filename: String; dir: Integer);
+var
+ F        : TFileStream;
+ title,
+ dirtitle,
+ inffile  : String;
+begin
+ title:=Image.Title(Image.Disc[dir].Partition);
+ if Pos(' ',title)>0 then title:='"'+title+'"';
+ dirtitle:=Image.Disc[dir].Title;
+ if Pos(' ',dirtitle)>0 then dirtitle:='"'+dirtitle+'"';
+ inffile:=PadRight(LeftStr(Image.Disc[dir].Directory,12),12)
+         +' OPT='+IntToHex(Image.BootOpt[Image.Disc[dir].Partition],2)
+         +' TITLE='+PadRight(LeftStr(title,12),12)
+         +' DIRTITLE='+PadRight(LeftStr(dirtitle,21),21);
+ //Create the inf file
+ try
+  F:=TFileStream.Create(filename+'.inf',fmCreate OR fmShareDenyNone);
+  F.Position:=0;
+  F.Write(inffile[1],Length(inffile));
+  F.Free;
+ except
+  //Could not create
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1773,7 +1835,7 @@ begin
    //Finished on this directory structure, so increase the highdir
    inc(highdir);
    //and continue until we have everything on the disc. This will, in effect,
-   //add the second root for double sided discs.
+   //add the roots for multi-partition images.
   until highdir=Length(ImageToUse.Disc);
   TMyTreeNode(Tree.Items[0]).ParentDir:=-1;
   //Expand the top level of the tree (but not MMB)
@@ -1810,6 +1872,7 @@ begin
   ImageDetails.Panels[1].Text:=Image.FormatString;
   //Disc name
   title:=Image.Title(partition);
+  if title='' then title:=' ';
   RemoveTopBit(title);//Ensure top bit not set
   ImageDetails.Panels[2].Text:=title;
   if(lb_title.Visible)and(DirTitleLabel.Caption='Disc Title')then
@@ -1865,12 +1928,12 @@ begin
  if DirList.SelectionCount=1 then
  begin
   //And it is not the root
-  if DirList.Selected.Parent<>nil then
+  if DirList.Selections[0].Parent<>nil then
   begin
    //Set the flag to show the attributes
    attr:=True;
    //And make a note of the AFS and DOS flags, for ADFS
-   dir:=TMyTreeNode(DirList.Selected.Parent).DirRef; //Directory reference of the parent
+   dir:=TMyTreeNode(DirList.Selections[0].Parent).DirRef; //Directory reference of the parent
    if(dir>=0)and(dir<Length(Image.Disc))then
    begin
     afs:=Image.Disc[dir].AFSPartition;
@@ -2290,21 +2353,21 @@ begin
    if(Image.MajorFormatNumber=diAcornDFS)
    or(Image.MajorFormatNumber=diAcornUEF)then
     //Tick/untick it
-    cb_DFS_l.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_DFS_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
    //ADFS and SparkFS
    if((Image.MajorFormatNumber=diAcornADFS)
    or(Image.MajorFormatNumber=diSpark))
    and(not afspart)and(not dospart)then
    begin
     //Tick/untick them
-    cb_ADFS_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_ownr.Checked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_ownl.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_owne.Checked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_pubw.Checked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_pubr.Checked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_pube.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_pubp.Checked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_ownl.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_owne.Ticked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_pube.Ticked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_ADFS_pubp.Ticked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    //Acorn FS
    if(Image.MajorFormatNumber=diAcornFS)
@@ -2312,11 +2375,11 @@ begin
    and(afspart))then
    begin
     //Tick/untick them
-    cb_AFS_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_AFS_ownr.Checked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_AFS_ownl.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_AFS_pubw.Checked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_AFS_pubr.Checked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_ownl.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_AFS_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    //DOS Plus
    if(Image.MajorFormatNumber=diDOSPlus)
@@ -2324,38 +2387,38 @@ begin
    and(dospart))then
    begin
     //Tick/untick them
-    cb_DOS_hidden.Checked :=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_DOS_read.Checked   :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_DOS_system.Checked :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_DOS_archive.Checked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_DOS_hidden.Ticked :=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_DOS_read.Ticked   :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_DOS_system.Ticked :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_DOS_archive.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    //Commodore 64
    if Image.MajorFormatNumber=diCommodore then
    begin
     //Tick/untick them
-    cb_C64_l.Checked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_C64_c.Checked:=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_C64_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_C64_c.Ticked:=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    //Amiga
    if Image.MajorFormatNumber=diAmiga then
    begin
     //Tick/untick them
-    cb_Amiga_ownw.Checked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_ownr.Checked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_ownd.Checked:=Pos('D',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_owne.Checked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_pubw.Checked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_pubr.Checked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_pubd.Checked:=Pos('d',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_pube.Checked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_othw.Checked:=Pos('i',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_othr.Checked:=Pos('a',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_othd.Checked:=Pos('l',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_othe.Checked:=Pos('x',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_arch.Checked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_pure.Checked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_scri.Checked:=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_hold.Checked:=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_ownd.Ticked:=Pos('D',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_owne.Ticked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_pubd.Ticked:=Pos('d',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_pube.Ticked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_othw.Ticked:=Pos('i',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_othr.Ticked:=Pos('a',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_othd.Ticked:=Pos('l',Image.Disc[dir].Entries[entry].Attributes)=0;
+    cb_Amiga_othe.Ticked:=Pos('x',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_arch.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_pure.Ticked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_scri.Ticked:=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
+    cb_Amiga_hold.Ticked:=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
    end;
    DoNotUpdate   :=False;  //Re-enable the event firing
    //Filetype
@@ -2411,6 +2474,7 @@ begin
      //Title of the subdirectory
      title:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
      RemoveTopBit(title);
+     if title='' then title:=' ';
      DirTitleLabel.Caption:='Directory Title';
      lb_title.Caption:=title;
      ed_title.Enabled:=True; //Can be edited
@@ -2422,7 +2486,11 @@ begin
     filetype:='Root Directory';
     title:=Image.Disc[dr].Title;
     RemoveTopBit(title);
-    DirTitleLabel.Caption:='Disc Title';//Also see UpdateImageInfo
+    if title='' then title:=' ';
+    if Image.MajorFormatNumber=diAcornADFS then
+     DirTitleLabel.Caption:='Directory Title'
+    else
+     DirTitleLabel.Caption:='Disc Name';//Also see UpdateImageInfo
     lb_title.Caption:=title; //Title
     ed_title.Enabled:=True; //Can be edited
     //Report if directory is broken and include the error code
@@ -2595,6 +2663,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
 begin
+ WriteToDebug('DirListGetImageIndex');
  SetImageIndex(Node,Image);
 end;
 
@@ -2610,6 +2679,11 @@ var
  afspart,
  dospart  : Boolean;
 begin
+ Result:=0;
+ if AppIsClosing then exit;
+ if(not Assigned(ImageToUse))or(ImageToUse=nil)then exit;
+ if(not Assigned(ImageToUse.Disc))or(ImageToUse.Disc=nil)then exit;
+ if Node=nil then exit;
  filetype:='';
  WriteToDebug('Image index for '+Node.Text+' requested');
  //The directory and entry references, as always
@@ -2714,6 +2788,7 @@ procedure TMainForm.SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
 var
  ft: Integer;
 begin
+ WriteToDebug('SetImageIndex');
  //Tell the system what the ImageList reference is
  ft:=GetImageIndex(Node,ImageToUse);
  Node.ImageIndex:=ft;
@@ -2748,6 +2823,7 @@ procedure TMainForm.FormShow(Sender: TObject);
 var
  i: Integer;
 begin
+ Scaling;
  //Keep the application open
  KeepOpen:=True;
  //Initial width and height of form
@@ -2771,16 +2847,16 @@ begin
  ImageDetails.Visible:=menuViewStatus.Checked;
  //Image Toolbar
  menuImage.Checked:=ViewOptions AND $10=$10;
- ToolBarContainer.Bands[0].Visible:=menuImage.Checked;
+ ImageToolBarPage.TabVisible:=menuImage.Checked;
  //Files Toolbar
  menuFiles.Checked:=ViewOptions AND $20=$20;
- ToolBarContainer.Bands[1].Visible:=menuFiles.Checked;
+ FilesToolBarPage.TabVisible:=menuFiles.Checked;
  //Partition Toolbar
  menuPartition.Checked:=ViewOptions AND $40=$40;
- ToolBarContainer.Bands[2].Visible:=menuPartition.Checked;
+ PartitionToolBarPage.TabVisible:=menuPartition.Checked;
  //Tools Toolbar
  menuTools.Checked:=ViewOptions AND $80=$80;
- ToolBarContainer.Bands[3].Visible:=menuTools.Checked;
+ ToolsToolBarPage.TabVisible:=menuTools.Checked;
  //Reset the tracking variables
  PathBeforeEdit           :='';
  NameBeforeEdit           :='';
@@ -2895,6 +2971,7 @@ const DiscFormats = //Accepted format strings
   $120   ,$130   ,$140   ,$150   ,$160   ,$170   ,$200   ,$210   ,$220   ,$400,
   $410   ,$500   ,$A00   ,$A01   ,$A02   ,$A03   ,$A04   ,$A05);
 begin
+ WriteToDebug('Command Line: '+cmd);
  SetLength(fields,0);
  //Collate the parameters
  option:=cmd;
@@ -3259,22 +3336,122 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Rescale all the components
+{------------------------------------------------------------------------------}
+procedure TMainForm.Scaling;
+var
+ ppi  : Integer;
+ ratio: Real;
+begin
+ //Scaling for large DPI
+ ppi:=Screen.PixelsPerInch;//Can use TMonitor.PixelsPerInch to scale to a big monitor
+ ratio:=ppi/DesignedDPI;
+ //Form Size
+ Width:=Round(745*ratio);
+ Height:=Round(599*ratio);
+ //Status Bar
+ //ImageDetails.Height            :=Round( 18*ratio);
+ ImageDetails.Panels[0].Width   :=ImageDetails.Height;//Round( 20*ratio);
+ ImageDetails.Panels[1].Width   :=Round(175*ratio);
+ ImageDetails.Panels[2].Width   :=Round(150*ratio);
+ ImageDetails.Panels[3].Width   :=Round(200*ratio);
+ ImageDetails.Panels[4].Width   :=Round(200*ratio);
+ ImageDetails.Panels[5].Width   :=Round(100*ratio);
+ ImageDetails.Panels[6].Width   :=Round(100*ratio);
+ ImageDetails.Panels[7].Width   :=Round(130*ratio);
+ ImageDetails.Panels[8].Width   :=Round( 50*ratio);
+ //Directory Listing
+ DirList.ImagesWidth            :=Round( 17*ratio);
+ //Toolbars
+ ImageToolBar.ImagesWidth       :=Round( 32*ratio);
+ ImageToolBar.ButtonHeight      :=Round( 32*ratio);
+ ImageToolBar.ButtonWidth       :=Round( 32*ratio);
+ FilesToolBar.ImagesWidth       :=Round( 32*ratio);
+ FilesToolBar.ButtonHeight      :=Round( 32*ratio);
+ FilesToolBar.ButtonWidth       :=Round( 32*ratio);
+ PartitionToolBar.ImagesWidth   :=Round( 32*ratio);
+ PartitionToolBar.ButtonHeight  :=Round( 32*ratio);
+ PartitionToolBar.ButtonWidth   :=Round( 32*ratio);
+ ToolsToolBar.ImagesWidth       :=Round( 32*ratio);
+ ToolsToolBar.ButtonHeight      :=Round( 32*ratio);
+ ToolsToolBar.ButtonWidth       :=Round( 32*ratio);
+ //File Info Panel
+ FileInfoPanel.Width            :=Round(355*ratio);
+end;
+
+{------------------------------------------------------------------------------}
 //This is called when the form is created - i.e. when the application is created
 {------------------------------------------------------------------------------}
 procedure TMainForm.FormCreate(Sender: TObject);
+ function CreateTickBox(LCaption: String; LParent: TPanel): TGJHTickBox;
+ begin
+  Result:=TGJHTickBox.Create(LParent as TComponent);
+  Result.Parent:=LParent as TWinControl;
+  Result.Visible:=True;
+  Result.Font.Name:='Courier New';
+  Result.Font.Style:=[fsBold];
+  Result.Caption:=LCaption;
+  Result.OnClick:=@AttributeChangeClick;
+ end;
 begin
+ AppIsClosing:=False;
+ //Default Toolbar
+ ToolBarContainer.ActivePage:=ImageToolBarPage;
+ //Create the attribute panel tick boxes (ADFS)
+ cb_ADFS_ownw:=CreateTickBox('Write',ADFSAttrPanel);
+ cb_ADFS_ownr:=CreateTickBox('Read',ADFSAttrPanel);
+ cb_ADFS_ownl:=CreateTickBox('Locked',ADFSAttrPanel);
+ cb_ADFS_owne:=CreateTickBox('Execute',ADFSAttrPanel);
+ cb_ADFS_pubw:=CreateTickBox('Write',ADFSAttrPanel);
+ cb_ADFS_pubr:=CreateTickBox('Read',ADFSAttrPanel);
+ cb_ADFS_pubp:=CreateTickBox('Private',ADFSAttrPanel);
+ cb_ADFS_pube:=CreateTickBox('Execute',ADFSAttrPanel);
+ //Create the attribute panel tick boxes (DFS)
+ cb_DFS_l:=CreateTickBox('Locked',DFSAttrPanel);
+ //Create the attribute panel tick boxes (C64)
+ cb_C64_c:=CreateTickBox('Closed',C64AttrPanel);
+ cb_C64_l:=CreateTickBox('Locked',C64AttrPanel);
+ //Create the attribute panel tick boxes (AFS)
+ cb_AFS_ownw:=CreateTickBox('Write',AFSAttrPanel);
+ cb_AFS_ownr:=CreateTickBox('Read',AFSAttrPanel);
+ cb_AFS_ownl:=CreateTickBox('Locked',AFSAttrPanel);
+ cb_AFS_pubr:=CreateTickBox('Read',AFSAttrPanel);
+ cb_AFS_pubw:=CreateTickBox('Write',AFSAttrPanel);
+ //Create the attribute panel tick boxes (DOS)
+ cb_DOS_hidden:=CreateTickBox('Hidden',DOSAttrPanel);
+ cb_DOS_read:=CreateTickBox('Read',DOSAttrPanel);
+ cb_DOS_system:=CreateTickBox('System',DOSAttrPanel);
+ cb_DOS_archive:=CreateTickBox('Archive',DOSAttrPanel); 
+ //Create the attribute panel tick boxes (Amiga)
+ cb_Amiga_ownw:=CreateTickBox('Write',AmigaAttrPanel);
+ cb_Amiga_ownr:=CreateTickBox('Read',AmigaAttrPanel);
+ cb_Amiga_ownd:=CreateTickBox('Delete',AmigaAttrPanel);
+ cb_Amiga_owne:=CreateTickBox('Execute',AmigaAttrPanel);
+ cb_Amiga_pubw:=CreateTickBox('Write',AmigaAttrPanel);
+ cb_Amiga_pubr:=CreateTickBox('Read',AmigaAttrPanel);
+ cb_Amiga_pubd:=CreateTickBox('Delete',AmigaAttrPanel);
+ cb_Amiga_pube:=CreateTickBox('Execute',AmigaAttrPanel);
+ cb_Amiga_othw:=CreateTickBox('Write',AmigaAttrPanel);
+ cb_Amiga_othr:=CreateTickBox('Read',AmigaAttrPanel);
+ cb_Amiga_othd:=CreateTickBox('Delete',AmigaAttrPanel);
+ cb_Amiga_othe:=CreateTickBox('Execute',AmigaAttrPanel);
+ cb_Amiga_hold:=CreateTickBox('Hold',AmigaAttrPanel);
+ cb_Amiga_scri:=CreateTickBox('Script',AmigaAttrPanel);
+ cb_Amiga_pure:=CreateTickBox('Pure',AmigaAttrPanel);
+ cb_Amiga_arch:=CreateTickBox('Archived',AmigaAttrPanel);
+ //Platform Details
  platform:='OS?';
  arch:='CPU?';
  //Platform details - OS
- if TargetOS='Darwin'   then platform:= 'macOS';   //Apple Mac OS X
+ if TargetOS='Darwin'   then {%H-}platform:= 'macOS';   //Apple Mac OS X
  if(TargetOS='Win64')
- or(TargetOS='Win32')   then platform:= 'Windows'; //Microsoft Windows
- if TargetOS='Linux'    then platform:= 'Linux';   //Linux
+ or(TargetOS='Win32')   then {%H-}platform:= 'Windows'; //Microsoft Windows
+ if TargetOS='Linux'    then {%H-}platform:= 'Linux';   //Linux
  //Platform details - CPU
- if TargetCPU='aarch64' then arch    := 'ARM 64 bit';
- if TargetCPU='arm'     then arch    := 'ARM 32 bit';
- if TargetCPU='i386'    then arch    := 'Intel 32 bit';
- if TargetCPU='x86_64'  then arch    := 'Intel 64 bit';
+ if TargetCPU='aarch64' then {%H-}arch    := 'ARM 64 bit';
+ if TargetCPU='arm'     then {%H-}arch    := 'ARM 32 bit';
+ if TargetCPU='i386'    then {%H-}arch    := 'Intel 32 bit';
+ if TargetCPU='x86_64'  then {%H-}arch    := 'Intel 64 bit';
  //Just updates the title bar
  Caption:=ApplicationTitle;
  //Create the image instance
@@ -3442,6 +3619,7 @@ begin
  Result:=True;
  if HasChanged then
  begin
+  WriteToDebug('Close unsaved file requested');
   Result:=AskConfirm('You have unsaved changes. Do you wish to continue?',
                             'Yes','No','')=mrOK;
  end;
@@ -3452,7 +3630,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
+ WriteToDebug('Application close requested');
  CanClose:=QueryUnsaved;
+ AppIsClosing:=CanClose;
 end;
 
 {------------------------------------------------------------------------------}
@@ -3853,6 +4033,8 @@ begin
    ProgressForm.Hide;
   end;
  end;
+ //Clear the Import Selector Form List, otherwise this could cause issues later
+ ImportSelectorForm.ImportDirList.Items.Clear;
 end;
 
 {------------------------------------------------------------------------------}
@@ -3946,6 +4128,7 @@ begin
    begin //Then show it
     editcont.Visible  :=True;
     edittext:=labelcont.Caption;
+    if edittext=' ' then edittext:='';
     //For hex number, remove the intial '0x'
     if(hex)and(LeftStr(edittext,2)='0x')then edittext:=Copy(edittext,3);
     editcont.Text     :=edittext;
@@ -3984,9 +4167,9 @@ begin
  TMenuItem(Sender).Checked:=not TMenuItem(Sender).Checked;
  //Make the appropriate element visible or not
  case Item of
-  0      : FileInfoPanel.Visible                 :=TMenuItem(Sender).Checked;
-  1      : ImageDetails.Visible                  :=TMenuItem(Sender).Checked;
-  4,5,6,7: ToolBarContainer.Bands[Item-4].Visible:=TMenuItem(Sender).Checked;
+  0      : FileInfoPanel.Visible                   :=TMenuItem(Sender).Checked;
+  1      : ImageDetails.Visible                    :=TMenuItem(Sender).Checked;
+  4,5,6,7: ToolBarContainer.Page[Item-4].TabVisible:=TMenuItem(Sender).Checked;
  end;
  //And the tool splitter, if the file info panel is visible or not
  ToolSplitter.Visible:=FileInfoPanel.Visible;
@@ -4214,6 +4397,7 @@ var
  titles    : array[0..1] of TEdit;
  boots     : array[0..1] of TComboBox;
  bootlbs   : array[0..1] of TLabel;
+ partstr,
  title     : String;
  numsides,
  skip      : Byte;
@@ -4270,7 +4454,7 @@ begin
  end;
  //Logo
  t:=ImageDetailForm.DirPanel.Top+ImageDetailForm.DirPanel.Height;
- s:=ImageDetailForm.OKBtnBack.Top-t;
+ s:=ImageDetailForm.btn_OK.Top-t;
  //Centralise vertical
  ImageDetailForm.AcornLogo.Top    :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
  ImageDetailForm.CommodoreLogo.Top:=ImageDetailForm.AcornLogo.Top;
@@ -4310,9 +4494,9 @@ begin
  end;
  //Should we label the top box?
  if Image.DoubleSided then
-  ImageDetailForm.pnSide0.Caption:='Side 0'
+  ImageDetailForm.pnSide0Caption.Caption:='  Side 0 Details'
  else
-  ImageDetailForm.pnSide0.Caption:='';
+  ImageDetailForm.pnSide0Caption.Caption:='  Side Details';
  //How many sides
  numsides:=Length(Image.FreeSpaceMap);
  //Show the Free Space Map graphic
@@ -4336,13 +4520,17 @@ begin
    //Position it
    FSMlabel[side].Top:=0;
    FSMlabel[side].Left:=4+(204*side);
+   //Style it
+   FSMlabel[side].Color:=$777777;
+   FSMlabel[side].Font.Color:=$FFFFFF;
+   FSMlabel[side].Font.Style:=[fsBold];
    //We'll stretch it later
    FSM[side].Stretch:=False;
    //Work out what tracks to skip (images over 100000 pixels high will crash)
    skip:=(Length(Image.FreeSpaceMap[0])div 100000)+1;
    //Set the graphic size
    t:=Length(Image.FreeSpaceMap[side]);
-   s:=Length(Image.FreeSpaceMap[side,0]);
+   if t>0 then s:=Length(Image.FreeSpaceMap[side,0]) else s:=0;
    FSM[side].Height:=t div skip;
    FSM[side].Width:=s;
    //Initiate the canvas 
@@ -4351,21 +4539,22 @@ begin
    //Colour in the free space
    img.FillPixels(ConvertColour(ImageDetailForm.colFree.Brush.Color));
    //Now draw all the sectors in tracks
-   for t:=0 to Length(Image.FreeSpaceMap[side])-1 do
-    if t mod skip=0 then
-    for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
-     if Image.FreeSpaceMap[side,t,s]>$FC then
-     begin
-      //Other colours
-      if Image.FreeSpaceMap[side,t,s]=$FF then
-       col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
-      if Image.FreeSpaceMap[side,t,s]=$FE then
-       col:=ImageDetailForm.colSystem.Brush.Color;    //System
-      if Image.FreeSpaceMap[side,t,s]=$FD then
-       col:=ImageDetailForm.colDir.Brush.Color;       //Directories
-      //Set the colour
-      img.Colors[s,t div skip]:=ConvertColour(col);
-     end;
+   if Length(Image.FreeSpaceMap[side])>0 then
+    for t:=0 to Length(Image.FreeSpaceMap[side])-1 do
+     if(t mod skip=0)and(Length(Image.FreeSpaceMap[side,t])>0)then
+      for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
+       if Image.FreeSpaceMap[side,t,s]>$FC then
+       begin
+        //Other colours
+        if Image.FreeSpaceMap[side,t,s]=$FF then
+         col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
+        if Image.FreeSpaceMap[side,t,s]=$FE then
+         col:=ImageDetailForm.colSystem.Brush.Color;    //System
+        if Image.FreeSpaceMap[side,t,s]=$FD then
+         col:=ImageDetailForm.colDir.Brush.Color;       //Directories
+        //Set the colour
+        img.Colors[s,t div skip]:=ConvertColour(col);
+       end;
    //Copy the graphic to the display
    FSM[side].Picture.PNG.PixelFormat:=pf32bit;
    FSM[side].Picture.PNG.LoadFromIntfImage(img);
@@ -4412,17 +4601,19 @@ begin
     boots[side].Visible:=False;
    bootlbs[side].Visible:=boots[side].Visible;
   end;
-  //Is this an ADFS/AFS Hybrid?
-  if(Image.MajorFormatNumber=diAcornADFS)and(Image.AFSPresent)then
+  //Is this an ADFS Hybrid?
+  if(Image.MajorFormatNumber=diAcornADFS)
+  and((Image.AFSPresent)or(Image.DOSPresent))then
   begin
-   FSMlabel[0].Caption:=FSMlabel[0].Caption+' ADFS Partition';
-   FSMlabel[1].Caption:=FSMlabel[1].Caption+' Acorn FS Partition';
-  end;
-  //Is this an ADFS/DOS Hybrid?
-  if(Image.MajorFormatNumber=diAcornADFS)and(Image.DOSPresent)then
-  begin
-   FSMlabel[0].Caption:=FSMlabel[0].Caption+' ADFS Partition';
-   FSMlabel[1].Caption:=FSMlabel[1].Caption+' DOS Plus Partition';
+   partstr:='ADFS Partition';
+   FSMlabel[0].Caption:=FSMlabel[0].Caption+' '+partstr;
+   ImageDetailForm.pnSide0Caption.Caption:='  '+partstr+' Details';
+   //AFS
+   if Image.AFSPresent then partstr:='Acorn FS Partition';
+   //DOS
+   if Image.DOSPresent then partstr:='DOS Partition';
+   FSMlabel[1].Caption:=FSMlabel[1].Caption+' '+partstr;
+   ImageDetailForm.pnSide1Caption.Caption:='  '+partstr+' Details';
   end;
   //Change the dialogue box width
   ImageDetailForm.ClientWidth:=(Length(Image.FreeSpaceMap)*204)
@@ -4463,6 +4654,7 @@ begin
   ShowNewImage('');
   UpdateImageInfo;
   DisableControls;
+  ImageDetails.Invalidate;
  end;
 end;
 
@@ -4619,14 +4811,23 @@ end;
 procedure TMainForm.Defrag(side: Byte);
 var
  NewImage  : TDiscImage;
+ oldscan,
+ olddos,
  ok        : Boolean;
  sidecount,
  index,root: Integer;
+// Node      : TTreeNode;
 begin
  if Length(Image.Disc)>0 then
  begin
   //Create a new image, cloning the old one
+  oldscan:=Image.ScanSubDirs;
+  olddos :=Image.OpenDOSPartitions;
+  Image.ScanSubDirs:=True;
+  Image.OpenDOSPartitions:=False;
   NewImage:=TDiscImage.Create(Image);
+  Image.ScanSubDirs:=oldscan;
+  Image.OpenDOSPartitions:=olddos;
   //We need to work out the root reference
   root:=0;
   if DirList.Items.Count>0 then
@@ -4639,7 +4840,7 @@ begin
      inc(sidecount);
     end;
   end;
-  //Delete all the existing files in the root
+  //Delete all the existing objects in the root
   while Length(Image.Disc[root].Entries)>0 do
   begin
    SelectNode(Image.Disc[root].Entries[0].Parent
@@ -4688,13 +4889,14 @@ begin
  AFSPartitionForm.PartitionSize.Max     :=AFSPartitionForm.maxAFSSize; //Max partition size
  AFSPartitionForm.PartitionSize.Position:=AFSPartitionForm.maxAFSSize; //Current size
  AFSPartitionForm.PartitionSizeChange(Sender); //Update the label
- AFSPartitionForm.rad_type.ItemIndex:=0; //Set to Acorn FS by default
+ AFSPartitionForm.rad_typeAFS.Ticked:=True; //Set to Acorn FS by default
  //Display the form
  if AFSPartitionForm.ShowModal=mrOK then //If OK was clicked, then continue
  begin
   //Get the specifications
   partsize:=AFSPartitionForm.PartitionSize.Position*$100;
-  parttype:=AFSPartitionForm.rad_type.ItemIndex;
+  if AFSPartitionForm.rad_typeAFS.Ticked then parttype:=0;
+  if AFSPartitionForm.rad_typeDOS.Ticked then parttype:=1;
   //Send to the class
   if Image.AddPartition(partsize,parttype) then
   begin
@@ -4809,33 +5011,33 @@ var
  report   : TStringList;
 begin
  //Get the last used settings from the registry
- CSVPrefForm.cb_IncDir.Checked     :=DIMReg.GetRegValB('CSVIncDir'     ,False);
- CSVPrefForm.cb_IncFilename.Checked:=DIMReg.GetRegValB('CSVIncFilename',True);
- CSVPrefForm.cb_IncReport.Checked  :=DIMReg.GetRegValB('CSVIncReport'  ,True);
- CSVPrefForm.cb_Parent.Checked     :=DIMReg.GetRegValB('CSVParent'     ,True);
- CSVPrefForm.cb_Filename.Checked   :=DIMReg.GetRegValB('CSVFilename'   ,True);
- CSVPrefForm.cb_LoadAddr.Checked   :=DIMReg.GetRegValB('CSVLoadAddr'   ,True);
- CSVPrefForm.cb_ExecAddr.Checked   :=DIMReg.GetRegValB('CSVExecAddr'   ,True);
- CSVPrefForm.cb_Length.Checked     :=DIMReg.GetRegValB('CSVLength'     ,True);
- CSVPrefForm.cb_Attributes.Checked :=DIMReg.GetRegValB('CSVAttributes' ,True);
- CSVPrefForm.cb_Address.Checked    :=DIMReg.GetRegValB('CSVAddress'    ,False);
- CSVPrefForm.cb_CRC32.Checked      :=DIMReg.GetRegValB('CSVCRC32'      ,True);
+ CSVPrefForm.cb_IncDir.Ticked     :=DIMReg.GetRegValB('CSVIncDir'     ,False);
+ CSVPrefForm.cb_IncFilename.Ticked:=DIMReg.GetRegValB('CSVIncFilename',True);
+ CSVPrefForm.cb_IncReport.Ticked  :=DIMReg.GetRegValB('CSVIncReport'  ,True);
+ CSVPrefForm.cb_Parent.Ticked     :=DIMReg.GetRegValB('CSVParent'     ,True);
+ CSVPrefForm.cb_Filename.Ticked   :=DIMReg.GetRegValB('CSVFilename'   ,True);
+ CSVPrefForm.cb_LoadAddr.Ticked   :=DIMReg.GetRegValB('CSVLoadAddr'   ,True);
+ CSVPrefForm.cb_ExecAddr.Ticked   :=DIMReg.GetRegValB('CSVExecAddr'   ,True);
+ CSVPrefForm.cb_Length.Ticked     :=DIMReg.GetRegValB('CSVLength'     ,True);
+ CSVPrefForm.cb_Attributes.Ticked :=DIMReg.GetRegValB('CSVAttributes' ,True);
+ CSVPrefForm.cb_Address.Ticked    :=DIMReg.GetRegValB('CSVAddress'    ,False);
+ CSVPrefForm.cb_CRC32.Ticked      :=DIMReg.GetRegValB('CSVCRC32'      ,True);
  //Ask user what they want in the CSV file
  CSVPrefForm.ShowModal;
  if CSVPrefForm.ModalResult=mrOK then //Unless they clicked Cancel
  begin
   //Save the settings to the registry
-  DIMReg.SetRegValB('CSVIncDir'     ,CSVPrefForm.cb_IncDir.Checked);
-  DIMReg.SetRegValB('CSVIncFilename',CSVPrefForm.cb_IncFilename.Checked);
-  DIMReg.SetRegValB('CSVIncReport'  ,CSVPrefForm.cb_IncReport.Checked);
-  DIMReg.SetRegValB('CSVParent'     ,CSVPrefForm.cb_Parent.Checked);
-  DIMReg.SetRegValB('CSVFilename'   ,CSVPrefForm.cb_Filename.Checked);
-  DIMReg.SetRegValB('CSVLoadAddr'   ,CSVPrefForm.cb_LoadAddr.Checked);
-  DIMReg.SetRegValB('CSVExecAddr'   ,CSVPrefForm.cb_ExecAddr.Checked);
-  DIMReg.SetRegValB('CSVLength'     ,CSVPrefForm.cb_Length.Checked);
-  DIMReg.SetRegValB('CSVAttributes' ,CSVPrefForm.cb_Attributes.Checked);
-  DIMReg.SetRegValB('CSVAddress'    ,CSVPrefForm.cb_Address.Checked);
-  DIMReg.SetRegValB('CSVCRC32'      ,CSVPrefForm.cb_CRC32.Checked);
+  DIMReg.SetRegValB('CSVIncDir'     ,CSVPrefForm.cb_IncDir.Ticked);
+  DIMReg.SetRegValB('CSVIncFilename',CSVPrefForm.cb_IncFilename.Ticked);
+  DIMReg.SetRegValB('CSVIncReport'  ,CSVPrefForm.cb_IncReport.Ticked);
+  DIMReg.SetRegValB('CSVParent'     ,CSVPrefForm.cb_Parent.Ticked);
+  DIMReg.SetRegValB('CSVFilename'   ,CSVPrefForm.cb_Filename.Ticked);
+  DIMReg.SetRegValB('CSVLoadAddr'   ,CSVPrefForm.cb_LoadAddr.Ticked);
+  DIMReg.SetRegValB('CSVExecAddr'   ,CSVPrefForm.cb_ExecAddr.Ticked);
+  DIMReg.SetRegValB('CSVLength'     ,CSVPrefForm.cb_Length.Ticked);
+  DIMReg.SetRegValB('CSVAttributes' ,CSVPrefForm.cb_Attributes.Ticked);
+  DIMReg.SetRegValB('CSVAddress'    ,CSVPrefForm.cb_Address.Ticked);
+  DIMReg.SetRegValB('CSVCRC32'      ,CSVPrefForm.cb_CRC32.Ticked);
   //Remove the existing part of the original filename
   filename:=ExtractFileName(Image.Filename);
   ext:=ExtractFileExt(filename);
@@ -4860,10 +5062,10 @@ begin
    //Open a new file
    F:=TFileStream.Create(SaveImage.FileName,fmCreate OR fmShareDenyNone);
    //Write the image details
-   if CSVPrefForm.cb_IncFilename.Checked then
+   if CSVPrefForm.cb_IncFilename.Ticked then
     WriteLine(F,'"'+Image.Filename+'","0x'+Image.CRC32+'"');
    //Write the report
-   if CSVPrefForm.cb_IncReport.Checked then
+   if CSVPrefForm.cb_IncReport.Ticked then
    begin
     report:=Image.ImageReport(True);
     if report.Count>0 then
@@ -4872,14 +5074,14 @@ begin
    end;
    //Write the headers
    line:='';
-   if CSVPrefForm.cb_Parent.Checked     then line:=line+'"Parent",';
-   if CSVPrefForm.cb_Filename.Checked   then line:=line+'"Filename",';
-   if CSVPrefForm.cb_LoadAddr.Checked   then line:=line+'"Load Address",';
-   if CSVPrefForm.cb_ExecAddr.Checked   then line:=line+'"Execution Address",';
-   if CSVPrefForm.cb_Length.Checked     then line:=line+'"Length",';
-   if CSVPrefForm.cb_Attributes.Checked then line:=line+'"Attributes",';
-   if CSVPrefForm.cb_Address.Checked    then line:=line+'"Address",';
-   if CSVPrefForm.cb_CRC32.Checked      then line:=line+'"CRC32,"';
+   if CSVPrefForm.cb_Parent.Ticked     then line:=line+'"Parent",';
+   if CSVPrefForm.cb_Filename.Ticked   then line:=line+'"Filename",';
+   if CSVPrefForm.cb_LoadAddr.Ticked   then line:=line+'"Load Address",';
+   if CSVPrefForm.cb_ExecAddr.Ticked   then line:=line+'"Execution Address",';
+   if CSVPrefForm.cb_Length.Ticked     then line:=line+'"Length",';
+   if CSVPrefForm.cb_Attributes.Ticked then line:=line+'"Attributes",';
+   if CSVPrefForm.cb_Address.Ticked    then line:=line+'"Address",';
+   if CSVPrefForm.cb_CRC32.Ticked      then line:=line+'"CRC32,"';
    line:=LeftStr(line,Length(line)-1);
    WriteLine(F,line);
    //Go through each directory
@@ -4888,24 +5090,24 @@ begin
     for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
      //write out each entry
      if(Image.Disc[dir].Entries[entry].DirRef=-1) //Exclude directories?
-     or(CSVPrefForm.cb_IncDir.Checked)then        //Or include them?
+     or(CSVPrefForm.cb_IncDir.Ticked)then        //Or include them?
      begin
       line:='';
-      if CSVPrefForm.cb_Parent.Checked     then
+      if CSVPrefForm.cb_Parent.Ticked     then
        line:=line+'"'+Image.GetParent(dir)+'",';
-      if CSVPrefForm.cb_Filename.Checked   then
+      if CSVPrefForm.cb_Filename.Ticked   then
        line:=line+'"'+Image.Disc[dir].Entries[entry].Filename+'",';
-      if CSVPrefForm.cb_LoadAddr.Checked   then
+      if CSVPrefForm.cb_LoadAddr.Ticked   then
        line:=line+'"0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+'",';
-      if CSVPrefForm.cb_ExecAddr.Checked   then
+      if CSVPrefForm.cb_ExecAddr.Ticked   then
        line:=line+'"0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+'",';
-      if CSVPrefForm.cb_Length.Checked     then
+      if CSVPrefForm.cb_Length.Ticked     then
        line:=line+'"0x'+IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen)+'",';
-      if CSVPrefForm.cb_Attributes.Checked then
+      if CSVPrefForm.cb_Attributes.Ticked then
        line:=line+'"'+Image.Disc[dir].Entries[entry].Attributes+'",';
-      if CSVPrefForm.cb_Address.Checked    then
+      if CSVPrefForm.cb_Address.Ticked    then
        line:=line+'"0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,hexlen)+'",';
-      if CSVPrefForm.cb_CRC32.Checked      then
+      if CSVPrefForm.cb_CRC32.Ticked      then
        line:=line+'"0x'+Image.GetFileCRC(Image.GetParent(dir)
                                       +Image.GetDirSep(Image.Disc[dir].Partition)
                                       +Image.Disc[dir].Entries[entry].Filename)+',"';
@@ -4931,51 +5133,59 @@ end;
 procedure TMainForm.btn_SettingsClick(Sender: TObject);
 begin
  //Set the preferences - Texture
- SettingsForm.NoTile.Checked    :=False;
- SettingsForm.TileRO5.Checked   :=False;
- SettingsForm.TileRO4.Checked   :=False;
- SettingsForm.TileRO3.Checked   :=False;
- SettingsForm.TileIyonix.Checked:=False;
- SettingsForm.TileROPi.Checked  :=False;
+ SettingsForm.NoTile.Ticked    :=False;
+ SettingsForm.TileRO5.Ticked   :=False;
+ SettingsForm.TileRO4.Ticked   :=False;
+ SettingsForm.TileRO3.Ticked   :=False;
+ SettingsForm.TileIyonix.Ticked:=False;
+ SettingsForm.TileROPi.Ticked  :=False;
  case TextureType of
-  0: SettingsForm.NoTile.Checked    :=True;
-  1: SettingsForm.TileRO5.Checked   :=True;
-  2: SettingsForm.TileRO4.Checked   :=True;
-  3: SettingsForm.TileRO3.Checked   :=True;
-  4: SettingsForm.TileIyonix.Checked:=True;
-  5: SettingsForm.TileROPi.Checked  :=True;
+  0: SettingsForm.NoTile.Ticked    :=True;
+  1: SettingsForm.TileRO5.Ticked   :=True;
+  2: SettingsForm.TileRO4.Ticked   :=True;
+  3: SettingsForm.TileRO3.Ticked   :=True;
+  4: SettingsForm.TileIyonix.Ticked:=True;
+  5: SettingsForm.TileROPi.Ticked  :=True;
  end;
  //ADFS Interleaving
- SettingsForm.InterleaveGroup.ItemIndex:=ADFSInterleave;
+ case ADFSInterleave of
+  0: SettingsForm.ilAuto.Ticked    :=True;
+  1: SettingsForm.ilSeq.Ticked     :=True;
+  2: SettingsForm.ilInter.Ticked   :=True;
+  3: SettingsForm.ilMPX.Ticked     :=True;
+ end;
  //Miscellaneous
- SettingsForm.CreateINF.Checked             :=DoCreateInf;
- SettingsForm.WriteDebug.Checked            :=Fdebug;
- SettingsForm.AllowDFSZeroSecs.Checked      :=FDFSZeroSecs;
- SettingsForm.DFSBeyondEdge.Checked         :=FDFSBeyondEdge;
- SettingsForm.AllowDFSBlankFilenames.Checked:=FDFSAllowBlank;
- SettingsForm.CompressUEF.Checked           :=FUEFCompress;
- SettingsForm.ScanSubDirs.Checked           :=FScanSubDirs;
- SettingsForm.OpenDOS.Checked               :=FOpenDOS;
+ SettingsForm.CreateINF.Ticked             :=DoCreateInf;
+ SettingsForm.WriteDebug.Ticked            :=Fdebug;
+ SettingsForm.AllowDFSZeroSecs.Ticked      :=FDFSZeroSecs;
+ SettingsForm.DFSBeyondEdge.Ticked         :=FDFSBeyondEdge;
+ SettingsForm.AllowDFSBlankFilenames.Ticked:=FDFSAllowBlank;
+ SettingsForm.CompressUEF.Ticked           :=FUEFCompress;
+ SettingsForm.ScanSubDirs.Ticked           :=FScanSubDirs;
+ SettingsForm.OpenDOS.Ticked               :=FOpenDOS;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
  begin
   //Get the preferences
-  if SettingsForm.NoTile.Checked     then TextureType:=0;
-  if SettingsForm.TileRO5.Checked    then TextureType:=1;
-  if SettingsForm.TileRO4.Checked    then TextureType:=2;
-  if SettingsForm.TileRO3.Checked    then TextureType:=3;
-  if SettingsForm.TileIyonix.Checked then TextureType:=4;
-  if SettingsForm.TileROPi.Checked   then TextureType:=5;
-  ADFSInterleave:=SettingsForm.InterleaveGroup.ItemIndex;
-  DoCreateInf   :=SettingsForm.CreateINF.Checked;
-  Fdebug        :=SettingsForm.WriteDebug.Checked;
-  FDFSZeroSecs  :=SettingsForm.AllowDFSZeroSecs.Checked;
-  FDFSBeyondEdge:=SettingsForm.DFSBeyondEdge.Checked;
-  FDFSAllowBlank:=SettingsForm.AllowDFSBlankFilenames.Checked;
-  FUEFCompress  :=SettingsForm.CompressUEF.Checked;
-  FScanSubDirs  :=SettingsForm.ScanSubDirs.Checked;
-  FOpenDOS      :=SettingsForm.OpenDOS.Checked;
+  if SettingsForm.NoTile.Ticked     then TextureType:=0;
+  if SettingsForm.TileRO5.Ticked    then TextureType:=1;
+  if SettingsForm.TileRO4.Ticked    then TextureType:=2;
+  if SettingsForm.TileRO3.Ticked    then TextureType:=3;
+  if SettingsForm.TileIyonix.Ticked then TextureType:=4;
+  if SettingsForm.TileROPi.Ticked   then TextureType:=5;
+  if SettingsForm.ilAuto.Ticked     then ADFSInterleave:=0;
+  if SettingsForm.ilSeq.Ticked      then ADFSInterleave:=1;
+  if SettingsForm.ilInter.Ticked    then ADFSInterleave:=2;
+  if SettingsForm.ilMPX.Ticked      then ADFSInterleave:=3;
+  DoCreateInf   :=SettingsForm.CreateINF.Ticked;
+  Fdebug        :=SettingsForm.WriteDebug.Ticked;
+  FDFSZeroSecs  :=SettingsForm.AllowDFSZeroSecs.Ticked;
+  FDFSBeyondEdge:=SettingsForm.DFSBeyondEdge.Ticked;
+  FDFSAllowBlank:=SettingsForm.AllowDFSBlankFilenames.Ticked;
+  FUEFCompress  :=SettingsForm.CompressUEF.Ticked;
+  FScanSubDirs  :=SettingsForm.ScanSubDirs.Ticked;
+  FOpenDOS      :=SettingsForm.OpenDOS.Ticked;
   //Save the settings
   SaveConfigSettings;
   //Change the tile under the filetype
@@ -5148,6 +5358,7 @@ var
  imgidx   : Integer;
  TV       : TTreeView;
 begin
+ WriteToDebug('DirListCustomDrawItem');
  if Sender is TTreeView then
  begin
   TV:=TTreeView(Sender);
@@ -5193,6 +5404,7 @@ begin
     NodeRect.Height:=NodeRect.Width;
     //Get the correct image
     imgidx:=Node.ImageIndex;
+    WriteToDebug('DirListCustomDrawItem: imgidx='+IntToStr(imgidx));
     if imgidx=-1 then imgidx:=GetImageIndex(Node,Image);
     TImageList(TV.Images).StretchDraw(TV.Canvas,imgidx,NodeRect);
     //Write out the text
@@ -5247,16 +5459,11 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.FileInfoPanelPaint(Sender: TObject);
 begin
- if Sender is TPanel then
-  TileCanvas(TPanel(Sender).Canvas); //for a TPanel
- if Sender is TToolBar then
-  TileCanvas(TToolBar(Sender).Canvas); //for a TToolBar
- if Sender is TForm then
-  TileCanvas(TForm(Sender).Canvas); //For a TForm
- if Sender is TScrollBox then
-  TileCanvas(TScrollBox(Sender).Canvas); //For a TScrollBox
- if Sender is TControlBar then
-  TileCanvas(TControlBar(Sender).Canvas); //For a TControlBar
+ if Sender is TPanel      then TileCanvas(TPanel(Sender).Canvas);
+ if Sender is TToolBar    then TileCanvas(TToolBar(Sender).Canvas);
+ if Sender is TForm       then TileCanvas(TForm(Sender).Canvas);
+ if Sender is TScrollBox  then TileCanvas(TScrollBox(Sender).Canvas);
+ if Sender is TControlBar then TileCanvas(TControlBar(Sender).Canvas);
 end;
 
 {------------------------------------------------------------------------------}
@@ -5799,6 +6006,13 @@ end;
 //Create a new blank image
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
+function SelectMinor(LOptions: array of TGJHRadioBox): Byte;
+var Index: Byte;
+begin
+ Result:=0;
+ for Index:=0 to Length(LOptions)-1 do
+  if LOptions[index].Ticked then Result:=Index;
+end;
 var
  major    : Word;
  minor,
@@ -5817,33 +6031,36 @@ begin
    CloseAllHexDumps; //From this point, all loaded data will be dumped
    //Get the main format
    major:=$FFF;
-   case NewImageForm.MainFormat.ItemIndex of
-    0: major:=diAcornDFS;
-    1: major:=diAcornADFS;
-    2: major:=diCommodore;
-    3: major:=diSinclair;
-    4: major:=diAmiga;
-    5: major:=diAcornUEF;
-    6: major:=diSpark;
-    7: major:=diAcornFS;
-    8: major:=diDOSPlus;
-   end;
+   if NewImageForm.SystemOptions[0].Ticked then major:=diAcornDFS;
+   if NewImageForm.SystemOptions[1].Ticked then major:=diAcornADFS;
+   if NewImageForm.SystemOptions[2].Ticked then major:=diCommodore;
+   if NewImageForm.SystemOptions[3].Ticked then major:=diSinclair;
+   if NewImageForm.SystemOptions[4].Ticked then major:=diAmiga;
+   if NewImageForm.SystemOptions[5].Ticked then major:=diAcornUEF;
+   if NewImageForm.SystemOptions[6].Ticked then major:=diSpark;
+   if NewImageForm.SystemOptions[7].Ticked then major:=diAcornFS;
+   if NewImageForm.SystemOptions[8].Ticked then major:=diDOSPlus;
    //Get the sub-format
    minor:=$F;
-   case NewImageForm.MainFormat.ItemIndex of
-    0: minor:=NewImageForm.DFS.ItemIndex;
-    1: minor:=NewImageForm.ADFS.ItemIndex;
-    2: minor:=NewImageForm.C64.ItemIndex;
-    3: minor:=NewImageForm.Spectrum.ItemIndex;
-    4: minor:=NewImageForm.Amiga.ItemIndex;
-    5: minor:=$0;
-    7: minor:=NewImageForm.AFS.ItemIndex;
-    8: minor:=NewImageForm.DOS.ItemIndex;
-   end;
+   if NewImageForm.SystemOptions[0].Ticked then //DFS
+    minor:=SelectMinor(NewImageForm.DFSOptions);
+   if NewImageForm.SystemOptions[1].Ticked then //ADFS
+    minor:=SelectMinor(NewImageForm.ADFSOptions);
+   if NewImageForm.SystemOptions[2].Ticked then //C64
+    minor:=SelectMinor(NewImageForm.C64Options);
+   if NewImageForm.SystemOptions[3].Ticked then //Spectrum
+    minor:=SelectMinor(NewImageForm.SpecOptions);
+   if NewImageForm.SystemOptions[4].Ticked then //Amiga
+    minor:=SelectMinor(NewImageForm.AmigaOptions);
+   if NewImageForm.SystemOptions[5].Ticked then minor:=$0;//CFS
+   if NewImageForm.SystemOptions[6].Ticked then minor:=$0;//!Spark
+   if NewImageForm.SystemOptions[7].Ticked then //AFS
+    minor:=SelectMinor(NewImageForm.AFSOptions);
+   if NewImageForm.SystemOptions[8].Ticked then //DOS
+    minor:=SelectMinor(NewImageForm.DOSOptions);
    tracks:=0; //Default
    //Number of tracks (DFS only)
-   if major=diAcornDFS then
-    tracks:=NewImageForm.DFSTracks.ItemIndex;
+   if major=diAcornDFS then tracks:=SelectMinor(NewImageForm.DFSTOptions);
    //Now create the image
    ok:=False;
    //Get the filename for a new Spark
@@ -5884,7 +6101,7 @@ begin
     ok:=Image.FormatHDD(diAcornFS,
                         NewImageForm.AFSImageSize.Position*10*1024,
                         True,False,minor+2,False);
-    if(ok)and(NewImageForm.cb_AFScreatepword.Checked)then
+    if(ok)and(NewImageForm.cb_AFScreatepword.Ticked)then
      //Create blank password file for AFS
      if Image.CreatePasswordFile(nil)<0 then //If fails, report an error
       ReportError('Failed to create a password file');
@@ -5952,65 +6169,65 @@ begin
   //Attributes - DFS and UEF
   if(Image.MajorFormatNumber=diAcornDFS)
   or(Image.MajorFormatNumber=diAcornUEF)then
-   if cb_DFS_l.Checked then att:=att+'L';
+   if cb_DFS_l.Ticked then att:=att+'L';
   //Attributes - ADFS
   if((Image.MajorFormatNumber=diAcornADFS)
   or(Image.MajorFormatNumber=diSpark))
   and(not afs)and(not dos)then
   begin
-   if cb_ADFS_ownw.Checked then att:=att+'W';
-   if cb_ADFS_ownr.Checked then att:=att+'R';
-   if cb_ADFS_ownl.Checked then att:=att+'L';
-   if cb_ADFS_owne.Checked then att:=att+'E';
-   if cb_ADFS_pubw.Checked then att:=att+'w';
-   if cb_ADFS_pubr.Checked then att:=att+'r';
-   if cb_ADFS_pube.Checked then att:=att+'e';
-   if cb_ADFS_pubp.Checked then att:=att+'P';
+   if cb_ADFS_ownw.Ticked then att:=att+'W';
+   if cb_ADFS_ownr.Ticked then att:=att+'R';
+   if cb_ADFS_ownl.Ticked then att:=att+'L';
+   if cb_ADFS_owne.Ticked then att:=att+'E';
+   if cb_ADFS_pubw.Ticked then att:=att+'w';
+   if cb_ADFS_pubr.Ticked then att:=att+'r';
+   if cb_ADFS_pube.Ticked then att:=att+'e';
+   if cb_ADFS_pubp.Ticked then att:=att+'P';
   end;
   //Attributes - AFS
   if(Image.MajorFormatNumber=diAcornFS)
   or((Image.MajorFormatNumber=diAcornADFS)and(afs))then
   begin
-   if cb_AFS_ownw.Checked then att:=att+'W';
-   if cb_AFS_ownr.Checked then att:=att+'R';
-   if cb_AFS_ownl.Checked then att:=att+'L';
-   if cb_AFS_pubw.Checked then att:=att+'w';
-   if cb_AFS_pubr.Checked then att:=att+'r';
+   if cb_AFS_ownw.Ticked then att:=att+'W';
+   if cb_AFS_ownr.Ticked then att:=att+'R';
+   if cb_AFS_ownl.Ticked then att:=att+'L';
+   if cb_AFS_pubw.Ticked then att:=att+'w';
+   if cb_AFS_pubr.Ticked then att:=att+'r';
   end;
   //Attributes - Commodore 64
   if Image.MajorFormatNumber=diCommodore then
   begin
-   if cb_C64_c.Checked then att:=att+'C';
-   if cb_C64_l.Checked then att:=att+'L';
+   if cb_C64_c.Ticked then att:=att+'C';
+   if cb_C64_l.Ticked then att:=att+'L';
   end;
   //Attributes - DOS Plus
   if(Image.MajorFormatNumber=diDOSPlus)
   or((Image.MajorFormatNumber=diAcornADFS)and(dos))then
   begin
-   if cb_DOS_hidden.Checked  then att:=att+'H';
-   if cb_DOS_read.Checked    then att:=att+'R';
-   if cb_DOS_system.Checked  then att:=att+'S';
-   if cb_DOS_archive.Checked then att:=att+'A';
+   if cb_DOS_hidden.Ticked  then att:=att+'H';
+   if cb_DOS_read.Ticked    then att:=att+'R';
+   if cb_DOS_system.Ticked  then att:=att+'S';
+   if cb_DOS_archive.Ticked then att:=att+'A';
   end;
   //Attributes - Amiga
   if Image.MajorFormatNumber=diAmiga then
   begin
-   if not cb_Amiga_ownd.Checked  then att:=att+'D';
-   if not cb_Amiga_owne.Checked  then att:=att+'E';
-   if not cb_Amiga_ownw.Checked  then att:=att+'W';
-   if not cb_Amiga_ownr.Checked  then att:=att+'R';
-   if cb_Amiga_arch.Checked  then att:=att+'A';
-   if cb_Amiga_pure.Checked  then att:=att+'P';
-   if cb_Amiga_scri.Checked  then att:=att+'S';
-   if cb_Amiga_hold.Checked  then att:=att+'H';
-   if not cb_Amiga_pubd.Checked  then att:=att+'d';
-   if cb_Amiga_pube.Checked  then att:=att+'e';
-   if cb_Amiga_pubw.Checked  then att:=att+'w';
-   if cb_Amiga_pubr.Checked  then att:=att+'r';
-   if not cb_Amiga_othd.Checked  then att:=att+'l';
-   if cb_Amiga_othe.Checked  then att:=att+'x';
-   if cb_Amiga_othw.Checked  then att:=att+'i';
-   if cb_Amiga_othr.Checked  then att:=att+'a';
+   if not cb_Amiga_ownd.Ticked  then att:=att+'D';
+   if not cb_Amiga_owne.Ticked  then att:=att+'E';
+   if not cb_Amiga_ownw.Ticked  then att:=att+'W';
+   if not cb_Amiga_ownr.Ticked  then att:=att+'R';
+   if cb_Amiga_arch.Ticked  then att:=att+'A';
+   if cb_Amiga_pure.Ticked  then att:=att+'P';
+   if cb_Amiga_scri.Ticked  then att:=att+'S';
+   if cb_Amiga_hold.Ticked  then att:=att+'H';
+   if not cb_Amiga_pubd.Ticked  then att:=att+'d';
+   if cb_Amiga_pube.Ticked  then att:=att+'e';
+   if cb_Amiga_pubw.Ticked  then att:=att+'w';
+   if cb_Amiga_pubr.Ticked  then att:=att+'r';
+   if not cb_Amiga_othd.Ticked  then att:=att+'l';
+   if cb_Amiga_othe.Ticked  then att:=att+'x';
+   if cb_Amiga_othw.Ticked  then att:=att+'i';
+   if cb_Amiga_othr.Ticked  then att:=att+'a';
   end;
   //Add the directory attribute
   if TMyTreeNode(DirList.Selected).IsDir then
@@ -6467,17 +6684,17 @@ begin
  DOSAttrPanel.Visible :=False;
  AmigaAttrPanel.Visible:=False;
  //And untick them
- cb_ADFS_ownw.Checked:=False;
- cb_ADFS_ownr.Checked:=False;
- cb_ADFS_ownl.Checked:=False;
- cb_ADFS_owne.Checked:=False;
- cb_ADFS_pubw.Checked:=False;
- cb_ADFS_pubr.Checked:=False;
- cb_ADFS_pube.Checked:=False;
- cb_ADFS_pubp.Checked:=False;
- cb_DFS_l.Checked    :=False;
- cb_C64_l.Checked    :=False;
- cb_C64_c.Checked    :=False;
+ cb_ADFS_ownw.Ticked:=False;
+ cb_ADFS_ownr.Ticked:=False;
+ cb_ADFS_ownl.Ticked:=False;
+ cb_ADFS_owne.Ticked:=False;
+ cb_ADFS_pubw.Ticked:=False;
+ cb_ADFS_pubr.Ticked:=False;
+ cb_ADFS_pube.Ticked:=False;
+ cb_ADFS_pubp.Ticked:=False;
+ cb_DFS_l.Ticked    :=False;
+ cb_C64_l.Ticked    :=False;
+ cb_C64_c.Ticked    :=False;
  //Allow the OnChange to fire again
  DoNotUpdate         :=False;
  //Hide all the labels
@@ -6543,15 +6760,15 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Order of the toolbars has changed
+//Order of the ToolBarContainer has changed
 {------------------------------------------------------------------------------}
 procedure TMainForm.ToolBarContainerChange(Sender: TObject);
-var
- index: Integer;
+{var
+ index: Integer;}
 begin
- for index:=0 to ToolBarContainer.Bands.Count-1 do
+{ for index:=0 to ToolBarContainer.Bands.Count-1 do
   DIMReg.SetRegValS('ToolBar'+IntToStr(index)
-            ,ToolBarContainer.Bands[index].Control.Name);
+            ,ToolBarContainer.Bands[index].Control.Name);}
 end;
 
 {------------------------------------------------------------------------------}
@@ -6810,6 +7027,21 @@ begin
   WriteLine(F,FormatDateTime(TimeDateFormat,Now)+': '+line);
   F.Free;
  end;
+end;
+
+{------------------------------------------------------------------------------}
+//Create a RISC OS button
+{------------------------------------------------------------------------------}
+function TMainForm.CreateButton(Lparent: TControl; Lcaption: String;LDef: Boolean;
+                         LLeft,LTop: Integer; LModal: TModalResult): TGJHButton;
+begin
+ Result:=TGJHButton.Create(Lparent as TControl);
+ Result.Parent:=Lparent as TWinControl;
+ Result.Default:=LDef;
+ Result.Caption:=Lcaption;
+ Result.Left:=LLeft;
+ Result.Top:=LTop;
+ Result.ModalResult:=LModal;
 end;
 
 end.

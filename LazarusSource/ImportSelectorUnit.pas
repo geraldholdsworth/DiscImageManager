@@ -1,7 +1,7 @@
 unit ImportSelectorUnit;
 
 {
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -25,21 +25,20 @@ interface
 
 uses
  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ComCtrls, ExtCtrls,
- LCLIntf, Buttons,DiscImage;
+ LCLIntf, GJHCustomComponents,DiscImage;
 
 type
 
  { TImportSelectorForm }
 
  TImportSelectorForm = class(TForm)
-  CancelButton: TBitBtn;
-  OKBtnBack: TPanel;
-  OKButton: TBitBtn;
   TickIcons: TImageList;
   ImageList2: TImageList;
-  Panel1: TPanel;
+  ButtonPanel: TPanel;
   ImportDirList: TTreeView;
-  procedure CancelButtonClick(Sender: TObject);
+  OKButton,
+  CancelButton: TGJHButton;
+  procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
   procedure ImportDirListCreateNodeClass(Sender: TCustomTreeView;
@@ -47,14 +46,14 @@ type
   procedure ImportDirListCustomDraw(Sender: TCustomTreeView;
    const ARect: TRect; var DefaultDraw: Boolean);
   procedure ImportDirListGetImageIndex(Sender: TObject; Node: TTreeNode);
-  procedure OKButtonClick(Sender: TObject);
-  procedure Panel1Resize(Sender: TObject);
+  procedure ButtonPanelResize(Sender: TObject);
   procedure TickNode(Node: TTreeNode; Ticked: Boolean);
   procedure ToggleTreeViewTickBoxes(Node: TTreeNode);
   function IsNodeTicked(ANode:TTreeNode): Boolean;
   function IsNodeTicked(dir,entry: Integer): Boolean; overload;
   procedure TreeView1Click(Sender: TObject);
  private
+   ratio  : Real;
   const
    //Tick, Untick or Indeterminate graphics
    ImgIndexTicked  = 0;
@@ -147,24 +146,23 @@ end;
 procedure TImportSelectorForm.ImportDirListGetImageIndex(Sender: TObject;
  Node: TTreeNode);
 begin
+ MainForm.WriteToDebug('Selector Form -> ImportDirList');
+ if Visible then MainForm.WriteToDebug('Selector Form Visible')
+ else MainForm.WriteToDebug('Selector Form not Visible');
  MainForm.GetImageIndex(Node,FImage);
-end;
-
-{------------------------------------------------------------------------------}
-//OK has been clicked
-{------------------------------------------------------------------------------}
-procedure TImportSelectorForm.OKButtonClick(Sender: TObject);
-begin
- ModalResult:=mrOK;
 end;
 
 {------------------------------------------------------------------------------}
 //The button panel is being resized
 {------------------------------------------------------------------------------}
-procedure TImportSelectorForm.Panel1Resize(Sender: TObject);
+procedure TImportSelectorForm.ButtonPanelResize(Sender: TObject);
 begin
- OKBtnBack.Left:=Panel1.ClientWidth-OKBtnBack.Width-4;
- CancelButton.Left:=OKBtnBack.Left-CancelButton.Width-16;
+ if ButtonPanel.ClientWidth<OKButton.Width+CancelButton.Width+3*Round(8*ratio)then
+  ButtonPanel.ClientWidth:=OKButton.Width+CancelButton.Width+3*Round(8*ratio);
+ if ButtonPanel.ClientHeight<OKButton.Height+2*Round(8*ratio)then
+  ButtonPanel.ClientHeight:=OKButton.Height+2*Round(8*ratio);
+ OKButton.Left:=ButtonPanel.ClientWidth-OKButton.Width-Round(8*ratio);
+ CancelButton.Left:=OKButton.Left-CancelButton.Width-Round(8*ratio);
 end;
 
 {------------------------------------------------------------------------------}
@@ -176,11 +174,18 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Cancel has been clicked
+//Create the form
 {------------------------------------------------------------------------------}
-procedure TImportSelectorForm.CancelButtonClick(Sender: TObject);
+procedure TImportSelectorForm.FormCreate(Sender: TObject);
 begin
- ModalResult:=mrCancel;
+ ratio:=PixelsPerInch/DesignTimePPI;
+ //Create the buttons
+ OKButton:=MainForm.CreateButton(ButtonPanel as TControl,'OK',True,0,0,mrOK);
+ CancelButton:=MainForm.CreateButton(ButtonPanel as TControl,'Cancel',False,0,
+                                     Round(4*ratio),mrCancel);
+ //Set the default minimum sizes
+ Constraints.MinHeight:=Round(456*ratio);
+ Constraints.MinWidth :=Round(400*ratio);
 end;
 
 {------------------------------------------------------------------------------}

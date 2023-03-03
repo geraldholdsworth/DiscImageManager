@@ -1,7 +1,7 @@
 unit ImageDetailUnit;
 
 {
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -25,16 +25,16 @@ interface
 
 uses
  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
- Buttons;
+ GJHCustomComponents;
 
 type
 
  { TImageDetailForm }
 
  TImageDetailForm = class(TForm)
+  pnSide1: TPanel;
+  pnSide0Caption: TLabel;
   MicrosoftLogo: TImage;
-  btn_Cancel: TBitBtn;
-  btn_OK: TBitBtn;
   cbBootOption0: TComboBox;
   cbBootOption1: TComboBox;
   DirLabel: TLabel;
@@ -45,6 +45,8 @@ type
   lbInterleave: TLabel;
   InterleaveLabel: TLabel;
   InterleavePanel: TPanel;
+  pnSide0: TPanel;
+  pnSide1Caption: TLabel;
   SinclairLogo: TImage;
   lbDirType: TLabel;
   MapLabel: TLabel;
@@ -62,20 +64,20 @@ type
   CRCPanel: TPanel;
   lbMap: TLabel;
   lbImgFormat: TLabel;
-  OKBtnBack: TPanel;
-  pnSide0: TGroupBox;
   FreeLabel: TLabel;
   BBCMasterLogo: TImage;
   SystemLabel: TLabel;
   DirectoryLabel: TLabel;
   FileLabel: TLabel;
-  Label5: TLabel;
+  LegendLabel: TLabel;
   Legend: TPanel;
   colFree: TShape;
   colSystem: TShape;
   colDir: TShape;
   colFile: TShape;
-  pnSide1: TGroupBox;
+  btn_OK,
+  btn_Cancel: TGJHButton;
+  procedure FormCreate(Sender: TObject);
   procedure LegendPaint(Sender: TObject);
  private
 
@@ -97,6 +99,21 @@ uses MainUnit;
 procedure TImageDetailForm.LegendPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
+end;
+
+procedure TImageDetailForm.FormCreate(Sender: TObject);
+var
+ ratio: Real;
+begin
+ ratio:=PixelsPerInch/DesignTimePPI;
+ btn_OK:=MainForm.CreateButton(Legend as TControl,'Update',True,0,0,mrOK);
+ btn_Cancel:=MainForm.CreateButton(Legend as TControl,'Cancel',False,0,0,mrCancel);
+ btn_OK.Width:=(Legend.ClientWidth div 2)-Round(16*ratio);
+ btn_Cancel.Width:=btn_OK.Width-Round(8*ratio);
+ btn_OK.Top:=LegendLabel.Top-Round(8*ratio)-btn_OK.Height;
+ btn_OK.Left:=Legend.ClientWidth-Round(8*ratio)-btn_OK.Width;
+ btn_Cancel.Top:=btn_OK.Top+Round(4*ratio);
+ btn_Cancel.Left:=Round(8*ratio);
 end;
 
 end.

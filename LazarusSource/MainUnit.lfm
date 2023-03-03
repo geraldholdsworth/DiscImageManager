@@ -4296,12 +4296,12 @@ object MainForm: TMainForm
   LCLVersion = '2.2.0.4'
   object ImageContentsPanel: TPanel
     Left = 0
-    Height = 505
-    Top = 76
+    Height = 519
+    Top = 62
     Width = 385
     Align = alClient
     BevelColor = 15527148
-    ClientHeight = 505
+    ClientHeight = 519
     ClientWidth = 385
     TabOrder = 0
     OnPaint = FileInfoPanelPaint
@@ -4320,7 +4320,7 @@ object MainForm: TMainForm
     end
     object DirList: TTreeView
       Left = 1
-      Height = 487
+      Height = 501
       Top = 17
       Width = 383
       Align = alClient
@@ -4342,6 +4342,7 @@ object MainForm: TMainForm
       MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
       ParentFont = False
       PopupMenu = File_Menu
+      ScrollBars = ssAutoBoth
       SelectionColor = clNavy
       SelectionFontColorUsed = True
       SeparatorColor = clNone
@@ -4478,8 +4479,8 @@ object MainForm: TMainForm
   end
   object ToolSplitter: TSplitter
     Left = 385
-    Height = 505
-    Top = 76
+    Height = 519
+    Top = 62
     Width = 5
     Align = alRight
     Beveled = True
@@ -4488,12 +4489,12 @@ object MainForm: TMainForm
   end
   object FileInfoPanel: TPanel
     Left = 390
-    Height = 505
-    Top = 76
+    Height = 519
+    Top = 62
     Width = 355
     Align = alRight
     BevelColor = 15527148
-    ClientHeight = 505
+    ClientHeight = 519
     ClientWidth = 355
     Constraints.MinWidth = 200
     TabOrder = 3
@@ -4515,7 +4516,7 @@ object MainForm: TMainForm
     object ADFSAttrPanel: TPanel
       Left = 1
       Height = 88
-      Top = 504
+      Top = 518
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -4524,100 +4525,6 @@ object MainForm: TMainForm
       TabOrder = 0
       Visible = False
       OnPaint = FileInfoPanelPaint
-      object cb_ADFS_ownw: TCheckBox
-        Left = 128
-        Height = 20
-        Top = 16
-        Width = 59
-        Caption = 'Write'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 0
-      end
-      object cb_ADFS_ownr: TCheckBox
-        Left = 190
-        Height = 20
-        Top = 16
-        Width = 56
-        Caption = 'Read'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 1
-      end
-      object cb_ADFS_ownl: TCheckBox
-        Left = 253
-        Height = 20
-        Top = 16
-        Width = 69
-        Caption = 'Locked'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 2
-      end
-      object cb_ADFS_owne: TCheckBox
-        Left = 324
-        Height = 20
-        Top = 16
-        Width = 74
-        Caption = 'Execute'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 3
-      end
-      object cb_ADFS_pubr: TCheckBox
-        Tag = 1
-        Left = 190
-        Height = 20
-        Top = 56
-        Width = 56
-        Caption = 'Read'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 4
-      end
-      object cb_ADFS_pubw: TCheckBox
-        Tag = 1
-        Left = 128
-        Height = 20
-        Top = 56
-        Width = 59
-        Caption = 'Write'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 5
-      end
-      object cb_ADFS_pube: TCheckBox
-        Tag = 1
-        Left = 253
-        Height = 20
-        Top = 56
-        Width = 74
-        Caption = 'Execute'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 6
-      end
       object OAAttributeLabel: TLabel
         Left = 4
         Height = 16
@@ -4642,25 +4549,11 @@ object MainForm: TMainForm
         Font.Style = [fsBold]
         ParentFont = False
       end
-      object cb_ADFS_pubp: TCheckBox
-        Tag = 2
-        Left = 324
-        Height = 20
-        Top = 56
-        Width = 69
-        Caption = 'Private'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 7
-      end
     end
     object DFSAttrPanel: TPanel
       Left = 1
       Height = 50
-      Top = 504
+      Top = 518
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -4670,19 +4563,6 @@ object MainForm: TMainForm
       TabOrder = 1
       Visible = False
       OnPaint = FileInfoPanelPaint
-      object cb_DFS_l: TCheckBox
-        Left = 253
-        Height = 20
-        Top = 16
-        Width = 69
-        Caption = 'Locked'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 0
-      end
       object DFSAttributeLabel: TLabel
         Left = 44
         Height = 16
@@ -4699,7 +4579,7 @@ object MainForm: TMainForm
     object C64AttrPanel: TPanel
       Left = 1
       Height = 50
-      Top = 504
+      Top = 518
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -4709,32 +4589,6 @@ object MainForm: TMainForm
       TabOrder = 2
       Visible = False
       OnPaint = FileInfoPanelPaint
-      object cb_C64_c: TCheckBox
-        Left = 324
-        Height = 20
-        Top = 16
-        Width = 66
-        Caption = 'Closed'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 0
-      end
-      object cb_C64_l: TCheckBox
-        Left = 253
-        Height = 20
-        Top = 16
-        Width = 69
-        Caption = 'Locked'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 1
-      end
       object C64AttributeLabel: TLabel
         Left = 44
         Height = 16
@@ -5124,6 +4978,7 @@ object MainForm: TMainForm
       ClientHeight = 34
       ClientWidth = 353
       TabOrder = 10
+      OnClick = lb_titleClick
       OnPaint = FileInfoPanelPaint
       object lb_title: TLabel
         Left = 0
@@ -5256,7 +5111,7 @@ object MainForm: TMainForm
     object AFSAttrPanel: TPanel
       Left = 1
       Height = 88
-      Top = 504
+      Top = 518
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5265,73 +5120,6 @@ object MainForm: TMainForm
       TabOrder = 13
       Visible = False
       OnPaint = FileInfoPanelPaint
-      object cb_AFS_ownw: TCheckBox
-        Left = 128
-        Height = 20
-        Top = 16
-        Width = 59
-        Caption = 'Write'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 0
-      end
-      object cb_AFS_ownr: TCheckBox
-        Left = 190
-        Height = 20
-        Top = 16
-        Width = 56
-        Caption = 'Read'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 1
-      end
-      object cb_AFS_ownl: TCheckBox
-        Left = 253
-        Height = 20
-        Top = 16
-        Width = 69
-        Caption = 'Locked'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 2
-      end
-      object cb_AFS_pubr: TCheckBox
-        Tag = 1
-        Left = 190
-        Height = 20
-        Top = 56
-        Width = 56
-        Caption = 'Read'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 3
-      end
-      object cb_AFS_pubw: TCheckBox
-        Tag = 1
-        Left = 128
-        Height = 20
-        Top = 56
-        Width = 59
-        Caption = 'Write'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 4
-      end
       object AFSOAAttributeLabel: TLabel
         Left = 4
         Height = 16
@@ -5360,7 +5148,7 @@ object MainForm: TMainForm
     object DOSAttrPanel: TPanel
       Left = 1
       Height = 21
-      Top = 504
+      Top = 518
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5369,58 +5157,6 @@ object MainForm: TMainForm
       TabOrder = 14
       Visible = False
       OnPaint = FileInfoPanelPaint
-      object cb_DOS_hidden: TCheckBox
-        Left = 1
-        Height = 20
-        Top = 0
-        Width = 69
-        Caption = 'Hidden'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 0
-      end
-      object cb_DOS_read: TCheckBox
-        Left = 63
-        Height = 20
-        Top = 0
-        Width = 56
-        Caption = 'Read'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 1
-      end
-      object cb_DOS_system: TCheckBox
-        Left = 126
-        Height = 20
-        Top = 0
-        Width = 70
-        Caption = 'System'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 2
-      end
-      object cb_DOS_archive: TCheckBox
-        Left = 201
-        Height = 20
-        Top = 0
-        Width = 71
-        Caption = 'Archive'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 3
-      end
       object DOSAttributeLabel: TLabel
         Left = 108
         Height = 16
@@ -5446,100 +5182,6 @@ object MainForm: TMainForm
       TabOrder = 15
       Visible = False
       OnPaint = FileInfoPanelPaint
-      object cb_Amiga_ownd: TCheckBox
-        Left = 128
-        Height = 20
-        Top = 16
-        Width = 65
-        Caption = 'Delete'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 0
-      end
-      object cb_Amiga_owne: TCheckBox
-        Left = 190
-        Height = 20
-        Top = 16
-        Width = 74
-        Caption = 'Execute'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 1
-      end
-      object cb_Amiga_ownw: TCheckBox
-        Left = 253
-        Height = 20
-        Top = 16
-        Width = 59
-        Caption = 'Write'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 2
-      end
-      object cb_Amiga_ownr: TCheckBox
-        Left = 324
-        Height = 20
-        Top = 16
-        Width = 56
-        Caption = 'Read'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 3
-      end
-      object cb_Amiga_pubd: TCheckBox
-        Tag = 1
-        Left = 190
-        Height = 20
-        Top = 56
-        Width = 65
-        Caption = 'Delete'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 4
-      end
-      object cb_Amiga_pube: TCheckBox
-        Tag = 1
-        Left = 128
-        Height = 20
-        Top = 56
-        Width = 74
-        Caption = 'Execute'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 5
-      end
-      object cb_Amiga_pubw: TCheckBox
-        Tag = 1
-        Left = 253
-        Height = 20
-        Top = 56
-        Width = 59
-        Caption = 'Write'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 6
-      end
       object OAAttrLabelAmiga: TLabel
         Left = 4
         Height = 16
@@ -5564,20 +5206,6 @@ object MainForm: TMainForm
         Font.Style = [fsBold]
         ParentFont = False
       end
-      object cb_Amiga_pubr: TCheckBox
-        Tag = 2
-        Left = 324
-        Height = 20
-        Top = 56
-        Width = 56
-        Caption = 'Read'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 7
-      end
       object OthAttrLabelAmiga: TLabel
         Left = 15
         Height = 16
@@ -5589,110 +5217,6 @@ object MainForm: TMainForm
         Font.Name = 'Tahoma'
         Font.Style = [fsBold]
         ParentFont = False
-      end
-      object cb_Amiga_othd: TCheckBox
-        Left = 48
-        Height = 20
-        Top = 92
-        Width = 65
-        Caption = 'Delete'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 8
-      end
-      object cb_Amiga_othe: TCheckBox
-        Left = 110
-        Height = 20
-        Top = 92
-        Width = 74
-        Caption = 'Execute'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 9
-      end
-      object cb_Amiga_othw: TCheckBox
-        Left = 196
-        Height = 20
-        Top = 92
-        Width = 59
-        Caption = 'Write'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 10
-      end
-      object cb_Amiga_othr: TCheckBox
-        Left = 264
-        Height = 20
-        Top = 92
-        Width = 56
-        Caption = 'Read'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 11
-      end
-      object cb_Amiga_hold: TCheckBox
-        Left = 280
-        Height = 20
-        Top = 128
-        Width = 53
-        Caption = 'Hold'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 12
-      end
-      object cb_Amiga_scri: TCheckBox
-        Left = 213
-        Height = 20
-        Top = 128
-        Width = 61
-        Caption = 'Script'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 13
-      end
-      object cb_Amiga_pure: TCheckBox
-        Left = 126
-        Height = 20
-        Top = 128
-        Width = 53
-        Caption = 'Pure'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 14
-      end
-      object cb_Amiga_arch: TCheckBox
-        Left = 44
-        Height = 20
-        Top = 128
-        Width = 80
-        Caption = 'Archived'
-        Font.Color = clBlack
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        OnClick = AttributeChangeClick
-        ParentFont = False
-        TabOrder = 15
       end
       object MiscAttrLabelAmiga: TLabel
         Left = 4
@@ -9565,350 +9089,322 @@ object MainForm: TMainForm
       Visible = False
     end
   end
-  object ToolBarContainer: TCoolBar
+  object ToolBarContainer: TPageControl
     Left = 0
-    Height = 76
+    Height = 62
     Top = 0
     Width = 745
+    ActivePage = ImageToolBarPage
+    Align = alTop
     AutoSize = True
-    BandBorderStyle = bsNone
-    BandMaximize = bmNone
-    Bands = <    
-      item
-        Break = False
-        Color = 15527148
-        Control = ImageToolBar
-        FixedSize = True
-        MinWidth = 274
-        ParentColor = False
-        Width = 311
-      end    
-      item
-        Break = False
-        Color = 15527148
-        Control = FilesToolBar
-        FixedSize = True
-        MinWidth = 274
-        ParentColor = False
-        Width = 274
-      end    
-      item
-        Break = False
-        Color = 15527148
-        Control = PartitionToolBar
-        FixedSize = True
-        MinWidth = 196
-        ParentColor = False
-        Width = 196
-      end    
-      item
-        Break = False
-        Color = 15527148
-        Control = ToolsToolBar
-        FixedSize = True
-        MinWidth = 200
-        ParentColor = False
-        Width = 200
-      end>
-    EdgeInner = esNone
-    EdgeOuter = esNone
-    HorizontalSpacing = 0
-    ShowText = False
-    VerticalSpacing = 0
-    OnChange = ToolBarContainerChange
-    object ToolsToolBar: TToolBar
-      AnchorSideLeft.Control = ToolBarContainer
-      AnchorSideTop.Control = ToolBarContainer
-      Left = 208
-      Height = 37
-      Top = 39
-      Width = 186
-      Align = alNone
+    TabIndex = 0
+    TabOrder = 5
+    object ImageToolBarPage: TTabSheet
       AutoSize = True
-      BorderSpacing.Left = 208
-      BorderSpacing.Top = 39
-      ButtonHeight = 37
-      ButtonWidth = 37
-      Caption = 'Tools'
-      EdgeBorders = []
-      EdgeInner = esNone
-      EdgeOuter = esNone
-      Images = ToolBarImages
-      ImagesWidth = 32
-      TabOrder = 0
-      Transparent = True
-      Wrapable = False
-      object btn_FixADFS: TToolButton
-        Left = 1
-        Hint = 'Repair ADFS Broken Directories'
-        Top = 0
-        AutoSize = True
-        Enabled = False
-        ImageIndex = 12
-        OnClick = btn_FixADFSClick
-      end
-      object btn_Settings: TToolButton
-        Left = 112
-        Hint = 'Preferences'
-        Top = 0
-        ImageIndex = 16
-        OnClick = btn_SettingsClick
-      end
-      object btn_About: TToolButton
-        Left = 149
-        Hint = 'About Disc Image Manager'
-        Top = 0
-        AutoSize = True
-        ImageIndex = 0
-        OnClick = btn_AboutClick
-      end
-      object btn_ChangeInterleave: TToolButton
-        Left = 38
-        Hint = 'Change Interleave'
-        Top = 0
-        Enabled = False
-        ImageIndex = 13
-        OnClick = btn_ChangeInterleaveClick
-      end
-      object btn_Defrag: TToolButton
-        Left = 75
-        Hint = 'Perform a Defrag (Compact)'
-        Top = 0
-        Enabled = False
-        ImageIndex = 23
-        OnClick = btn_DefragClick
-      end
-    end
-    object ImageToolBar: TToolBar
-      AnchorSideLeft.Control = ToolBarContainer
-      AnchorSideTop.Control = ToolBarContainer
-      Left = 12
-      Height = 37
-      Top = 0
-      Width = 297
-      Align = alNone
-      AutoSize = True
-      BorderSpacing.Left = 12
-      ButtonHeight = 37
-      ButtonWidth = 37
       Caption = 'Image'
-      EdgeBorders = []
-      EdgeInner = esNone
-      EdgeOuter = esNone
-      Images = ToolBarImages
-      ImagesWidth = 32
-      TabOrder = 1
-      Transparent = True
-      Wrapable = False
-      object btn_NewImage: TToolButton
-        Left = 1
-        Hint = 'New Image'
+      ClientHeight = 32
+      ClientWidth = 739
+      object ImageToolBar: TToolBar
+        Left = 0
         Top = 0
+        Width = 739
         AutoSize = True
-        ImageIndex = 7
-        OnClick = btn_NewImageClick
-      end
-      object btn_OpenImage: TToolButton
-        Left = 38
-        Hint = 'Open Existing Image'
-        Top = 0
-        AutoSize = True
-        ImageIndex = 2
-        OnClick = btn_OpenImageClick
-      end
-      object btn_CloseImage: TToolButton
-        Left = 75
-        Hint = 'Close Image File'
-        Top = 0
-        AutoSize = True
-        ImageIndex = 10
-        OnClick = btn_CloseImageClick
-      end
-      object btn_SaveImage: TToolButton
-        Left = 112
-        Hint = 'Save Image As'
-        Top = 0
-        AutoSize = True
-        ImageIndex = 3
-        OnClick = btn_SaveImageClick
-      end
-      object btn_SaveAsCSV: TToolButton
-        Left = 149
-        Hint = 'Save File Details as CSV'
-        Top = 0
-        AutoSize = True
-        Caption = 'Save Details As CSV'
-        Enabled = False
-        ImageIndex = 11
-        OnClick = btn_SaveAsCSVClick
-      end
-      object btn_ImageDetails: TToolButton
-        Left = 186
-        Hint = 'View/Edit Image Details'
-        Top = 0
-        AutoSize = True
-        Caption = 'btn_ImageDetails'
-        ImageIndex = 15
-        OnClick = btn_ImageDetailsClick
-      end
-      object btn_FileSearch: TToolButton
-        Left = 223
-        Hint = 'Open File Search Window'
-        Top = 0
-        AutoSize = True
-        ImageIndex = 8
-        OnClick = btn_FileSearchClick
-      end
-      object btn_ShowReport: TToolButton
-        Left = 260
-        Hint = 'Show Image Report'
-        Top = 0
-        AutoSize = True
-        ImageIndex = 24
-        OnClick = btn_ShowReportClick
+        ButtonHeight = 32
+        ButtonWidth = 32
+        EdgeBorders = []
+        EdgeInner = esNone
+        EdgeOuter = esNone
+        Images = ToolBarImages
+        ImagesWidth = 32
+        TabOrder = 0
+        OnPaint = FileInfoPanelPaint
+        object btn_NewImage: TToolButton
+          Left = 1
+          Hint = 'New Image'
+          Top = 0
+          Caption = 'btn_NewImage'
+          ImageIndex = 7
+          OnClick = btn_NewImageClick
+        end
+        object btn_OpenImage: TToolButton
+          Left = 37
+          Hint = 'Open Existing Image'
+          Top = 0
+          Caption = 'btn_OpenImage'
+          ImageIndex = 2
+          OnClick = btn_OpenImageClick
+        end
+        object btn_CloseImage: TToolButton
+          Left = 73
+          Hint = 'Close Image File'
+          Top = 0
+          Caption = 'btn_CloseImage'
+          Enabled = False
+          ImageIndex = 10
+          OnClick = btn_CloseImageClick
+        end
+        object btn_SaveImage: TToolButton
+          Left = 109
+          Hint = 'Save Image As'
+          Top = 0
+          Caption = 'btn_SaveImage'
+          Enabled = False
+          ImageIndex = 3
+          OnClick = btn_SaveImageClick
+        end
+        object btn_SaveAsCSV: TToolButton
+          Left = 145
+          Hint = 'Save File Details as CSV'
+          Top = 0
+          Caption = 'btn_SaveAsCSV'
+          Enabled = False
+          ImageIndex = 11
+          OnClick = btn_SaveAsCSVClick
+        end
+        object btn_ImageDetails: TToolButton
+          Left = 181
+          Hint = 'View/Edit Image Details'
+          Top = 0
+          Caption = 'btn_ImageDetails'
+          Enabled = False
+          ImageIndex = 15
+          OnClick = btn_ImageDetailsClick
+        end
+        object btn_FileSearch: TToolButton
+          Left = 217
+          Hint = 'Open File Search Window'
+          Top = 0
+          Caption = 'btn_FileSearch'
+          Enabled = False
+          ImageIndex = 8
+          OnClick = btn_FileSearchClick
+        end
+        object btn_ShowReport: TToolButton
+          Left = 253
+          Hint = 'Show Image Report'
+          Top = 0
+          Caption = 'btn_ShowReport'
+          Enabled = False
+          ImageIndex = 24
+          OnClick = btn_ShowReportClick
+        end
       end
     end
-    object FilesToolBar: TToolBar
-      AnchorSideLeft.Control = ToolBarContainer
-      AnchorSideTop.Control = ToolBarContainer
-      Left = 323
-      Height = 37
-      Top = 0
-      Width = 260
-      Align = alNone
-      BorderSpacing.Left = 323
-      ButtonHeight = 37
-      ButtonWidth = 37
+    object FIlesToolBarPage: TTabSheet
+      AutoSize = True
       Caption = 'Files'
-      EdgeBorders = []
-      EdgeInner = esNone
-      EdgeOuter = esNone
-      Images = ToolBarImages
-      ImagesWidth = 32
-      TabOrder = 2
-      Transparent = True
-      Wrapable = False
-      object btn_DuplicateFile: TToolButton
-        Left = 223
-        Hint = 'Duplicate File'
+      ClientHeight = 32
+      ClientWidth = 739
+      object FilesToolBar: TToolBar
+        Left = 0
         Top = 0
-        Enabled = False
-        ImageIndex = 17
-        OnClick = DuplicateFile1Click
-      end
-      object btn_Delete: TToolButton
-        Left = 186
-        Hint = 'Delete File(s)'
-        Top = 0
+        Width = 739
         AutoSize = True
-        ImageIndex = 4
-        OnClick = DeleteFile1Click
-      end
-      object btn_NewDirectory: TToolButton
-        Left = 149
-        Hint = 'New Directory'
-        Top = 0
-        AutoSize = True
-        Caption = 'btn_NewDirectory'
-        Enabled = False
-        ImageIndex = 9
-        OnClick = btn_NewDirectoryClick
-      end
-      object btn_HexDump: TToolButton
-        Left = 112
-        Hint = 'Show File Viewer'
-        Top = 0
-        AutoSize = True
-        Enabled = False
-        ImageIndex = 14
-        OnClick = DirListDblClick
-      end
-      object btn_Rename: TToolButton
-        Left = 75
-        Hint = 'Rename File'
-        Top = 0
-        AutoSize = True
-        ImageIndex = 5
-        OnClick = RenameFile1Click
-      end
-      object btn_AddFiles: TToolButton
-        Left = 38
-        Hint = 'Add File(s)'
-        Top = 0
-        AutoSize = True
-        Caption = 'btn_AddFiles'
-        ImageIndex = 6
-        OnClick = AddFile1Click
-      end
-      object btn_download: TToolButton
-        Left = 1
-        Hint = 'Download File(s)'
-        Top = 0
-        AutoSize = True
-        ImageIndex = 1
-        OnClick = btn_downloadClick
+        ButtonHeight = 32
+        ButtonWidth = 32
+        Caption = 'FilesToolBar'
+        EdgeBorders = []
+        EdgeInner = esNone
+        EdgeOuter = esNone
+        Images = ToolBarImages
+        ImagesWidth = 32
+        TabOrder = 0
+        OnPaint = FileInfoPanelPaint
+        object btn_download: TToolButton
+          Left = 1
+          Hint = 'Download File(s)'
+          Top = 0
+          Caption = 'btn_download'
+          Enabled = False
+          ImageIndex = 1
+          OnClick = btn_downloadClick
+        end
+        object btn_AddFiles: TToolButton
+          Left = 37
+          Hint = 'Add File(s)'
+          Top = 0
+          Caption = 'btn_AddFiles'
+          Enabled = False
+          ImageIndex = 6
+          OnClick = AddFile1Click
+        end
+        object btn_Rename: TToolButton
+          Left = 73
+          Hint = 'Rename File'
+          Top = 0
+          Caption = 'btn_Rename'
+          Enabled = False
+          ImageIndex = 5
+          OnClick = RenameFile1Click
+        end
+        object btn_HexDump: TToolButton
+          Left = 109
+          Hint = 'Show File Viewer'
+          Top = 0
+          Caption = 'btn_HexDump'
+          Enabled = False
+          ImageIndex = 14
+          OnClick = DirListDblClick
+        end
+        object btn_NewDirectory: TToolButton
+          Left = 145
+          Hint = 'New Directory'
+          Top = 0
+          Caption = 'btn_NewDirectory'
+          Enabled = False
+          ImageIndex = 9
+          OnClick = btn_NewDirectoryClick
+        end
+        object btn_Delete: TToolButton
+          Left = 181
+          Hint = 'Delete File(s)'
+          Top = 0
+          Caption = 'btn_Delete'
+          Enabled = False
+          ImageIndex = 4
+          OnClick = DeleteFile1Click
+        end
+        object btn_DuplicateFile: TToolButton
+          Left = 217
+          Hint = 'Duplicate File'
+          Top = 0
+          Caption = 'btn_DuplicateFile'
+          Enabled = False
+          ImageIndex = 17
+          OnClick = DuplicateFile1Click
+        end
       end
     end
-    object PartitionToolBar: TToolBar
-      AnchorSideLeft.Control = ToolBarContainer
-      AnchorSideTop.Control = ToolBarContainer
-      Left = 12
-      Height = 37
-      Top = 39
-      Width = 182
-      Align = alNone
-      BorderSpacing.Left = 12
-      BorderSpacing.Top = 39
-      ButtonHeight = 37
-      ButtonWidth = 37
+    object PartitionToolBarPage: TTabSheet
+      AutoSize = True
       Caption = 'Partition'
-      EdgeBorders = []
-      EdgeInner = esNone
-      EdgeOuter = esNone
-      Images = ToolBarImages
-      ImagesWidth = 32
-      TabOrder = 3
-      Transparent = True
-      Wrapable = False
-      object btn_AddPassword: TToolButton
-        Left = 1
-        Hint = 'Add Password File'
+      ClientHeight = 32
+      ClientWidth = 739
+      object PartitionToolBar: TToolBar
+        Left = 0
         Top = 0
-        Enabled = False
-        ImageIndex = 18
-        OnClick = btn_AddPasswordClick
+        Width = 739
+        AutoSize = True
+        ButtonHeight = 32
+        ButtonWidth = 32
+        Caption = 'PartitionToolBar'
+        EdgeBorders = []
+        EdgeInner = esNone
+        EdgeOuter = esNone
+        Images = ToolBarImages
+        ImagesWidth = 32
+        TabOrder = 0
+        OnPaint = FileInfoPanelPaint
+        object btn_AddPassword: TToolButton
+          Left = 1
+          Hint = 'Add Password File'
+          Top = 0
+          Caption = 'btn_AddPassword'
+          Enabled = False
+          ImageIndex = 18
+          OnClick = btn_AddPasswordClick
+        end
+        object btn_EditPassword: TToolButton
+          Left = 37
+          Hint = 'Edit Password File'
+          Top = 0
+          Caption = 'btn_EditPassword'
+          Enabled = False
+          ImageIndex = 20
+          OnClick = btn_EditPasswordClick
+        end
+        object btn_SavePartition: TToolButton
+          Left = 73
+          Hint = 'Save Partition As'
+          Top = 0
+          Caption = 'btn_SavePartition'
+          Enabled = False
+          ImageIndex = 21
+          OnClick = btn_SavePartitionClick
+        end
+        object btn_DeletePartition: TToolButton
+          Left = 109
+          Hint = 'Delete Partition'
+          Top = 0
+          Caption = 'btn_DeletePartition'
+          Enabled = False
+          ImageIndex = 19
+          OnClick = btn_DeletePartitionClick
+        end
+        object btn_AddPartition: TToolButton
+          Left = 145
+          Hint = 'Add Partition'
+          Top = 0
+          Caption = 'btn_AddPartition'
+          Enabled = False
+          ImageIndex = 22
+          OnClick = btn_AddPartitionClick
+        end
       end
-      object btn_EditPassword: TToolButton
-        Left = 38
-        Hint = 'Edit Password File'
+    end
+    object ToolsToolBarPage: TTabSheet
+      AutoSize = True
+      Caption = 'Tools'
+      ClientHeight = 32
+      ClientWidth = 739
+      object ToolsToolBar: TToolBar
+        Left = 0
         Top = 0
-        Enabled = False
-        ImageIndex = 20
-        OnClick = btn_EditPasswordClick
-      end
-      object btn_DeletePartition: TToolButton
-        Left = 112
-        Hint = 'Delete Partition'
-        Top = 0
-        Enabled = False
-        ImageIndex = 19
-        OnClick = btn_DeletePartitionClick
-      end
-      object btn_SavePartition: TToolButton
-        Left = 75
-        Hint = 'Save Partition As'
-        Top = 0
-        Enabled = False
-        ImageIndex = 21
-        OnClick = btn_SavePartitionClick
-      end
-      object btn_AddPartition: TToolButton
-        Left = 149
-        Hint = 'Add Partition'
-        Top = 0
-        Enabled = False
-        ImageIndex = 22
-        OnClick = btn_AddPartitionClick
+        Width = 739
+        AutoSize = True
+        ButtonHeight = 32
+        ButtonWidth = 32
+        Caption = 'ToolsToolBar'
+        EdgeBorders = []
+        EdgeInner = esNone
+        EdgeOuter = esNone
+        Images = ToolBarImages
+        ImagesWidth = 32
+        TabOrder = 0
+        OnPaint = FileInfoPanelPaint
+        object btn_FixADFS: TToolButton
+          Left = 1
+          Hint = 'Repair ADFS Broken Directories'
+          Top = 0
+          Caption = 'btn_FixADFS'
+          Enabled = False
+          ImageIndex = 12
+          OnClick = btn_FixADFSClick
+        end
+        object btn_ChangeInterleave: TToolButton
+          Left = 37
+          Hint = 'Change Interleave'
+          Top = 0
+          Caption = 'btn_ChangeInterleave'
+          Enabled = False
+          ImageIndex = 13
+          OnClick = btn_ChangeInterleaveClick
+        end
+        object btn_Defrag: TToolButton
+          Left = 73
+          Hint = 'Perform a Defrag (Compact)'
+          Top = 0
+          Caption = 'btn_Defrag'
+          Enabled = False
+          ImageIndex = 23
+          OnClick = btn_DefragClick
+        end
+        object btn_Settings: TToolButton
+          Left = 109
+          Hint = 'Preferences'
+          Top = 0
+          Caption = 'btn_Settings'
+          ImageIndex = 16
+          OnClick = btn_SettingsClick
+        end
+        object btn_About: TToolButton
+          Left = 145
+          Hint = 'About Disc Image Manager'
+          Top = 0
+          Caption = 'btn_About'
+          ImageIndex = 0
+          OnClick = btn_AboutClick
+        end
       end
     end
   end
@@ -32604,12 +32100,14 @@ object MainForm: TMainForm
     object CopyToClipboard: TAction
       Category = 'Clipboard'
       Caption = 'CopyToClipboard'
+      Enabled = False
       OnExecute = CopyToClipboardExecute
       ShortCut = 16451
     end
     object PasteFromClipboard: TAction
       Category = 'Clipboard'
       Caption = 'PasteFromClipboard'
+      Enabled = False
       OnExecute = PasteFromClipboardExecute
       ShortCut = 16470
     end

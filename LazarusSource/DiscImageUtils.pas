@@ -315,22 +315,22 @@ begin
  begin //Yes
   attr2:=StrToInt('$'+attr);
   attr1:='';
- end;
- //Read each attribute and build the string
- if(format>>4=diAcornDFS)
- or(format>>4=diAcornADFS)
- or(format>>4=diAcornUEF) then //ADFS, DFS and CFS
-  if (Pos('L',attr1)>0)OR(attr2 AND$08=$08) then Result:=Result+'L';
- if format=diAcornADFS then //ADFS only
- begin
-  if (Pos('R',attr1)>0)OR(attr2 AND$01=$01) then Result:=Result+'R';
-  if (Pos('W',attr1)>0)OR(attr2 AND$02=$02) then Result:=Result+'W';
-  if (Pos('E',attr1)>0)OR(attr2 AND$04=$04) then Result:=Result+'E';//Also P
-  if (Pos('r',attr1)>0)OR(attr2 AND$10=$10) then Result:=Result+'r';
-  if (Pos('w',attr1)>0)OR(attr2 AND$20=$20) then Result:=Result+'w';
-  if (Pos('e',attr1)>0)OR(attr2 AND$40=$40) then Result:=Result+'e';
-  if (Pos('l',attr1)>0)OR(attr2 AND$80=$80) then Result:=Result+'l';
- end;
+  //Read each attribute and build the string
+  if(format>>4=diAcornDFS)
+  or(format>>4=diAcornADFS)
+  or(format>>4=diAcornUEF) then //ADFS, DFS and CFS
+   if (Pos('L',attr1)>0)OR(attr2 AND$08=$08) then Result:=Result+'L';
+  if format=diAcornADFS then //ADFS only
+  begin
+   if (Pos('R',attr1)>0)OR(attr2 AND$01=$01) then Result:=Result+'R';
+   if (Pos('W',attr1)>0)OR(attr2 AND$02=$02) then Result:=Result+'W';
+   if (Pos('E',attr1)>0)OR(attr2 AND$04=$04) then Result:=Result+'E';//Also P
+   if (Pos('r',attr1)>0)OR(attr2 AND$10=$10) then Result:=Result+'r';
+   if (Pos('w',attr1)>0)OR(attr2 AND$20=$20) then Result:=Result+'w';
+   if (Pos('e',attr1)>0)OR(attr2 AND$40=$40) then Result:=Result+'e';
+   if (Pos('l',attr1)>0)OR(attr2 AND$80=$80) then Result:=Result+'l';
+  end;
+ end else Result:=attr; //Not a hex, so just return what was passed
 end;
 
 {------------------------------------------------------------------------------}

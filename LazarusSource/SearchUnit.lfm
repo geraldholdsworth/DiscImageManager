@@ -9,8 +9,8 @@ object SearchForm: TSearchForm
   ClientHeight = 335
   ClientWidth = 451
   Color = 15527148
+  OnCreate = FormCreate
   OnPaint = FormPaint
-  OnShow = FormShow
   Position = poMainFormCenter
   ShowHint = True
   LCLVersion = '2.2.0.4'
@@ -27,9 +27,9 @@ object SearchForm: TSearchForm
     OnPaint = FormPaint
     object SearchFiletypeLabel: TLabel
       Left = 16
-      Height = 17
+      Height = 16
       Top = 37
-      Width = 67
+      Width = 57
       Alignment = taRightJustify
       Caption = 'Filetype:'
       Font.Color = clWindowText
@@ -63,9 +63,9 @@ object SearchForm: TSearchForm
     end
     object SearchFilenameLabel: TLabel
       Left = 8
-      Height = 17
+      Height = 16
       Top = 10
-      Width = 74
+      Width = 64
       Alignment = taRightJustify
       Caption = 'Filename:'
       Font.Color = clWindowText
@@ -82,21 +82,12 @@ object SearchForm: TSearchForm
       Alignment = taCenter
       AutoSize = False
       Caption = 'Number of results found: 0'
-      Font.Color = clWindowText
+      Color = 7829367
+      Font.Color = clWhite
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
       ParentFont = False
-    end
-    object sb_SearchButton: TBitBtn
-      Left = 348
-      Height = 30
-      Top = 32
-      Width = 100
-      Caption = 'Search'
-      Color = 15527148
-      Default = True
-      OnClick = sb_searchClick
-      TabOrder = 2
+      Transparent = False
     end
   end
   object lb_searchresults: TListBox
@@ -114,6 +105,5 @@ object SearchForm: TSearchForm
     ParentFont = False
     Sorted = True
     TabOrder = 1
-    TopIndex = -1
   end
 end

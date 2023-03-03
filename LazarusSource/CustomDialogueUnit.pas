@@ -1,7 +1,7 @@
 unit CustomDialogueUnit;
 
 {
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -25,23 +25,23 @@ interface
 
 uses
  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
- Buttons;
+ GJHCustomComponents;
 
 type
 
  { TCustomDialogue }
 
  TCustomDialogue = class(TForm)
-  IgnoreButton: TBitBtn;
-  CancelButton: TBitBtn;
-  OKButton: TBitBtn;
   MainBevel: TBevel;
   ErrorImg: TImage;
   MessageLabel: TLabel;
   MessagePanel: TPanel;
-  OKBtnBack: TPanel;
   QuestionImg: TImage;
   InfoImg: TImage;
+  IgnoreButton,
+  CancelButton,
+  OKButton: TGJHButton;
+  procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure ShowError(msg,BtnTxt: String);
   procedure ShowConfirm(msg,OKBtnTxt,CancelBtnTxt,IgnoreBtnTxt: String);
@@ -70,6 +70,35 @@ uses MainUnit;
 procedure TCustomDialogue.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
+end;
+
+{------------------------------------------------------------------------------}
+//Create the buttons and move things around for scaling
+{------------------------------------------------------------------------------}
+procedure TCustomDialogue.FormCreate(Sender: TObject);
+var
+ ratio: Real;
+begin
+ ratio:=PixelsPerInch/DesignTimePPI;
+ //Set width: buttons width + gap either side + gap between buttons
+ Width:=Round((120*3+8*4)*ratio);
+ MainBevel.Width:=Width;
+ MessagePanel.Width:=Width-MessagePanel.Left-Round(8*ratio);
+ //Create the buttons
+ IgnoreButton:=MainForm.CreateButton(CustomDialogue as TControl,'Ignore',False,
+                                     Round(8*ratio),
+                                 MainBevel.Top+MainBevel.Height+Round(12*ratio),
+                                 mrIgnore);
+ CancelButton:=MainForm.CreateButton(CustomDialogue as TControl,'Cancel',False,
+                               0,MainBevel.Top+MainBevel.Height+Round(12*ratio),
+                               mrCancel);
+ CancelButton.Left:=(Width-CancelButton.Width)div 2;
+ OKButton:=MainForm.CreateButton(CustomDialogue as TControl,'OK',True,0,
+                                 MainBevel.Top+MainBevel.Height+Round(8*ratio),
+                                 mrOK);
+ OKButton.Left:=Width-OKButton.Width-Round(8*ratio);
+ //Adjust the form height
+ Height:=OKButton.Top+OKButton.Height+Round(8*ratio);
 end;
 
 {------------------------------------------------------------------------------}

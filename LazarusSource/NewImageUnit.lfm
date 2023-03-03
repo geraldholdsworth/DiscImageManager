@@ -9,325 +9,258 @@ object NewImageForm: TNewImageForm
   ClientHeight = 230
   ClientWidth = 532
   Color = 15527148
+  OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
   LCLVersion = '2.2.0.4'
-  object MainFormat: TRadioGroup
+  object MainFormatPanel: TPanel
     Left = 0
-    Height = 181
+    Height = 178
     Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'System'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 162
-    ClientWidth = 250
-    ItemIndex = 0
-    Items.Strings = (
-      'Disc Filing System (DFS)'
-      'Advanced Disc Filing System (ADFS)'
-      'Commodore 64/128'
-      'Sinclair Spectrum +3/Amstrad'
-      'Commodore Amiga'
-      'Cassette Filing System (CFS)'
-      '!Spark archive'
-      'Acorn File Server (AFS0)'
-      'DOS Plus/DOS'
-    )
-    OnClick = MainFormatClick
+    Width = 264
+    BevelOuter = bvNone
+    ClientHeight = 178
+    ClientWidth = 264
     TabOrder = 0
-  end
-  object DFS: TRadioGroup
-    Left = 268
-    Height = 91
-    Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'Disc Filing System'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 72
-    ClientWidth = 250
-    ItemIndex = 0
-    Items.Strings = (
-      'Acorn single sided'
-      'Acorn double sided'
-      'Watford single sided'
-      'Watford double sided'
-    )
-    TabOrder = 1
-  end
-  object ADFS: TRadioGroup
-    Left = 268
-    Height = 181
-    Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'Advanced Disc Filing System'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 162
-    ClientWidth = 250
-    ItemIndex = 0
-    Items.Strings = (
-      'S (160K, Old Map, Old Directory)'
-      'M (320K, Old Map, Old Directory)'
-      'L (640K, Old Map, Old Directory)'
-      'D (800K, Old Map, New Directory)'
-      'E (800K, New Map, New Directory)'
-      'E+ (800K, New Map, Big Directory)'
-      'F (1.6M, New Map, New Directory)'
-      'F+ (1.6M, New Map, Big Directory)'
-      'Hard Disc'
-    )
-    TabOrder = 2
-    Visible = False
-  end
-  object C64: TRadioGroup
-    Left = 268
-    Height = 73
-    Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'Commodore 64/128'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 54
-    ClientWidth = 250
-    ItemIndex = 0
-    Items.Strings = (
-      '1541'
-      '1571'
-      '1581'
-    )
-    TabOrder = 3
-    Visible = False
-  end
-  object Spectrum: TRadioGroup
-    Left = 268
-    Height = 55
-    Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'Sinclair Spectrum +3/Amstrad'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 36
-    ClientWidth = 250
-    ItemIndex = 0
-    Items.Strings = (
-      'DSK'
-      'Extended DSK'
-    )
-    TabOrder = 4
-    Visible = False
-  end
-  object Amiga: TRadioGroup
-    Left = 268
-    Height = 73
-    Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'Commodore Amiga'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 54
-    ClientWidth = 250
-    ItemIndex = 0
-    Items.Strings = (
-      'AmigaDOS DD'
-      'AmigaDOS HD'
-      'AmigaDOS Hard Disc'
-    )
-    TabOrder = 5
-    Visible = False
-  end
-  object DFSTracks: TRadioGroup
-    Left = 268
-    Height = 55
-    Top = 105
-    Width = 260
-    AutoFill = True
-    Caption = 'Tracks'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 36
-    ClientWidth = 250
-    ItemIndex = 1
-    Items.Strings = (
-      '40 Track'
-      '80 Track'
-    )
-    TabOrder = 6
-  end
-  object OKBtnBack: TPanel
-    Left = 420
-    Height = 30
-    Top = 192
-    Width = 100
-    BevelColor = clYellow
-    BevelInner = bvLowered
-    BevelOuter = bvLowered
-    BevelWidth = 4
-    ClientHeight = 30
-    ClientWidth = 100
-    Color = clYellow
-    ParentColor = False
-    TabOrder = 7
-    object btn_OK: TBitBtn
+    OnPaint = FormPaint
+    object SystemLabel: TLabel
       Left = 0
-      Height = 30
+      Height = 16
       Top = 0
-      Width = 100
-      Caption = 'Create'
-      Color = 15527148
-      Default = True
-      OnClick = btn_OKClick
-      TabOrder = 0
+      Width = 264
+      Align = alTop
+      Caption = '  System'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
     end
   end
-  object btn_Cancel: TBitBtn
-    Left = 8
-    Height = 30
-    Top = 192
-    Width = 100
-    Caption = 'Cancel'
-    Color = 15527148
-    ModalResult = 2
+  object DFS: TPanel
+    Left = 264
+    Height = 112
+    Top = 0
+    Width = 266
+    BevelOuter = bvNone
+    ClientHeight = 112
+    ClientWidth = 266
+    TabOrder = 1
+    OnPaint = FormPaint
+    object DFSLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 266
+      Align = alTop
+      Caption = '  Disc Filing System'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
+    end
+  end
+  object DFSTracks: TPanel
+    Left = 264
+    Height = 50
+    Top = 112
+    Width = 266
+    BevelOuter = bvNone
+    ClientHeight = 50
+    ClientWidth = 266
+    TabOrder = 2
+    OnPaint = FormPaint
+    object DFSTracksLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 266
+      Align = alTop
+      Caption = '  Tracks'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
+    end
+  end
+  object ADFS: TPanel
+    Left = 264
+    Height = 162
+    Top = 0
+    Width = 264
+    BevelOuter = bvNone
+    ClientHeight = 162
+    ClientWidth = 264
+    TabOrder = 3
+    OnPaint = FormPaint
+    object ADFSLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 264
+      Align = alTop
+      Caption = '  Advanced Disc Filing System'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
+    end
+  end
+  object C64: TPanel
+    Left = 264
+    Height = 138
+    Top = 0
+    Width = 268
+    BevelOuter = bvNone
+    ClientHeight = 138
+    ClientWidth = 268
+    TabOrder = 4
+    OnPaint = FormPaint
+    object C64Label: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 268
+      Align = alTop
+      Caption = '  Commodore 64/128'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
+    end
+  end
+  object Spectrum: TPanel
+    Left = 264
+    Height = 138
+    Top = 0
+    Width = 268
+    BevelOuter = bvNone
+    ClientHeight = 138
+    ClientWidth = 268
+    TabOrder = 5
+    OnPaint = FormPaint
+    object SpectrumLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 268
+      Align = alTop
+      Caption = '  Sinclair Spectrum +3/Amstrad'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
+    end
+  end
+  object Amiga: TPanel
+    Left = 264
+    Height = 138
+    Top = 0
+    Width = 268
+    BevelOuter = bvNone
+    ClientHeight = 138
+    ClientWidth = 268
+    TabOrder = 6
+    OnPaint = FormPaint
+    object AmigaLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 268
+      Align = alTop
+      Caption = '  Commodore Amiga'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
+    end
+  end
+  object DOS: TPanel
+    Left = 264
+    Height = 138
+    Top = 0
+    Width = 268
+    BevelOuter = bvNone
+    ClientHeight = 138
+    ClientWidth = 268
+    TabOrder = 7
+    OnPaint = FormPaint
+    object DOSLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 268
+      Align = alTop
+      Caption = '  DOS Plus/DOS'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
+    end
+  end
+  object AFS: TPanel
+    Left = 264
+    Height = 138
+    Top = 0
+    Width = 268
+    BevelOuter = bvNone
+    ClientHeight = 138
+    ClientWidth = 268
     TabOrder = 8
-  end
-  object AFSSize: TGroupBox
-    Left = 268
-    Height = 104
-    Top = 64
-    Width = 260
-    Caption = 'Acorn FS Image Size'
-    ClientHeight = 85
-    ClientWidth = 250
-    TabOrder = 10
-    Visible = False
-    object AFSImageSize: TTrackBar
-      Left = 8
-      Height = 32
-      Top = 8
-      Width = 236
-      Max = 52428
-      Min = 40
-      OnChange = AFSImageSizeChange
-      Position = 40
-      TickStyle = tsNone
-      TabOrder = 0
+    OnPaint = FormPaint
+    object AFSLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 268
+      Align = alTop
+      Caption = '  Acorn File Server'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
     end
-    object cb_AFScreatepword: TCheckBox
-      Left = 8
-      Height = 18
-      Top = 56
-      Width = 138
-      Caption = 'Create password file'
-      TabOrder = 1
+  end
+  object AFSSize: TPanel
+    Left = 264
+    Height = 98
+    Top = 64
+    Width = 268
+    BevelOuter = bvNone
+    ClientHeight = 98
+    ClientWidth = 268
+    TabOrder = 9
+    OnPaint = FormPaint
+    object AFSSizeLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 268
+      Align = alTop
+      Caption = '  Image Size'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
     end
     object AFSImageSizeLabel: TLabel
-      Left = 8
+      Left = 0
       Height = 16
-      Top = 40
-      Width = 232
+      Top = 16
+      Width = 268
+      Align = alTop
       Alignment = taCenter
-      AutoSize = False
       Caption = 'AFSImageSizeLabel'
     end
-  end
-  object DOS: TRadioGroup
-    Left = 268
-    Height = 144
-    Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'DOS and DOS Plus'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclLeftToRightThenTopToBottom
-    ChildSizing.ControlsPerLine = 1
-    ClientHeight = 125
-    ClientWidth = 250
-    ItemIndex = 0
-    Items.Strings = (
-      '640KB ADFS/DOS Plus'
-      '800KB DOS Plus'
-      '360KB'
-      '720KB'
-      '1.44MB'
-      '2.88MB'
-      'DOS Hard Drive'
-    )
-    TabOrder = 11
-    Visible = False
-  end
-  object AFS: TRadioGroup
-    Left = 268
-    Height = 55
-    Top = 0
-    Width = 260
-    AutoFill = True
-    Caption = 'Acorn File Server'
-    ChildSizing.LeftRightSpacing = 6
-    ChildSizing.EnlargeHorizontal = crsHomogenousChildResize
-    ChildSizing.EnlargeVertical = crsHomogenousChildResize
-    ChildSizing.ShrinkHorizontal = crsScaleChilds
-    ChildSizing.ShrinkVertical = crsScaleChilds
-    ChildSizing.Layout = cclTopToBottomThenLeftToRight
-    ChildSizing.ControlsPerLine = 2
-    ClientHeight = 36
-    ClientWidth = 250
-    ColumnLayout = clVerticalThenHorizontal
-    Columns = 2
-    ItemIndex = 0
-    Items.Strings = (
-      'Level 2'
-      'Level 3 (<1988)'
-      'Level 3 (>1988)'
-    )
-    OnClick = AFSClick
-    TabOrder = 9
-    Visible = False
   end
 end

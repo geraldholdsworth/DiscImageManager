@@ -2450,9 +2450,8 @@ begin
    for index:=afshead to GetDataLength-1 do WriteByte(0,index);
    //Create the partition
    WriteAFSPartition(disc_name[0],GetDataLength);
-   //Update the checksums
-   WriteByte(ByteCheckSum($0000,$100,False),$0FF);//Checksum sector 0
-   WriteByte(ByteCheckSum($0100,$100,False),$1FF);//Checksum sector 1
+   //Sort out the FSM
+   ConsolidateADFSFreeSpaceMap;
    //Now we re-ID and re-read the data
    oldfilename:=imagefilename;
    IDImage;

@@ -10,9 +10,10 @@ object PwordEditorForm: TPwordEditorForm
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Acorn FS User Account Editor'
-  ClientHeight = 254
+  ClientHeight = 267
   ClientWidth = 500
   Color = 15527148
+  OnCreate = FormCreate
   OnHide = FormHide
   OnPaint = FormPaint
   OnShow = FormShow
@@ -20,11 +21,12 @@ object PwordEditorForm: TPwordEditorForm
   LCLVersion = '2.2.0.4'
   object AccountsPanel: TPanel
     Left = 0
-    Height = 216
+    Height = 217
     Top = 0
     Width = 500
+    Align = alClient
     BevelOuter = bvNone
-    ClientHeight = 216
+    ClientHeight = 217
     ClientWidth = 500
     TabOrder = 0
     object HeaderPanel: TPanel
@@ -146,14 +148,14 @@ object PwordEditorForm: TPwordEditorForm
     end
     object AccountsScroll: TScrollBox
       Left = 0
-      Height = 196
+      Height = 197
       Top = 20
       Width = 500
       HorzScrollBar.Page = 23
       VertScrollBar.Page = 22
       Align = alClient
       BorderStyle = bsNone
-      ClientHeight = 196
+      ClientHeight = 197
       ClientWidth = 500
       TabOrder = 1
       OnPaint = FormPaint
@@ -206,49 +208,10 @@ object PwordEditorForm: TPwordEditorForm
   object ControlsPanel: TPanel
     Left = 0
     Height = 50
-    Top = 204
+    Top = 217
     Width = 500
     Align = alBottom
-    ClientHeight = 50
-    ClientWidth = 500
     TabOrder = 1
     OnPaint = FormPaint
-    object CancelButton: TBitBtn
-      Left = 4
-      Height = 30
-      Top = 8
-      Width = 100
-      Cancel = True
-      Caption = 'Cancel'
-      Color = 15527148
-      ModalResult = 2
-      TabOrder = 0
-    end
-    object OKBtnBack: TPanel
-      Left = 120
-      Height = 30
-      Top = 8
-      Width = 100
-      BevelColor = clYellow
-      BevelInner = bvLowered
-      BevelOuter = bvLowered
-      BevelWidth = 4
-      ClientHeight = 30
-      ClientWidth = 100
-      Color = clYellow
-      ParentColor = False
-      TabOrder = 1
-      object OKButton: TBitBtn
-        Left = 0
-        Height = 30
-        Top = 0
-        Width = 100
-        Caption = '&OK'
-        Color = 15527148
-        ModalResult = 1
-        OnClick = OKButtonClick
-        TabOrder = 0
-      end
-    end
   end
 end

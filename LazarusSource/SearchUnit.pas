@@ -1,7 +1,7 @@
 unit SearchUnit;
 
 {
-Copyright (C) 2018-2022 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -24,15 +24,14 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ExtCtrls,StdCtrls,Buttons,
- DiscImageUtils;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ExtCtrls,StdCtrls,
+ DiscImageUtils,GJHCustomComponents;
 
 type
 
  { TSearchForm }
 
  TSearchForm = class(TForm)
-  sb_SearchButton: TBitBtn;
   ed_filenamesearch: TEdit;
   ed_filetypesearch: TEdit;
   lb_searchresults: TListBox;
@@ -40,8 +39,9 @@ type
   SearchFilenameLabel: TLabel;
   SearchFiletypeLabel: TLabel;
   searchresultscount: TLabel;
+  sb_SearchButton: TGJHButton;
+  procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
-  procedure FormShow(Sender: TObject);
   procedure sb_searchClick(Sender: TObject);
   procedure ed_filenamesearchKeyPress(Sender: TObject; var Key: char);
   procedure lb_searchresultsClick(Sender: TObject);
@@ -110,16 +110,38 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Re-arrange the controls
+//Create the form
 {------------------------------------------------------------------------------}
-procedure TSearchForm.FormShow(Sender: TObject);
+procedure TSearchForm.FormCreate(Sender: TObject);
+var
+ ratio: Real;
 begin
- ed_filenamesearch.Left:=(SearchFilenameLabel.Left+SearchFilenameLabel.Width)+4;
- ed_filenamesearch.Width:=(SearchEntryPanel.Width-ed_filenamesearch.Left)-4;
- SearchFiletypeLabel.Left:=(ed_filenamesearch.Left-4)-SearchFiletypeLabel.Width;
+ ratio:=PixelsPerInch/DesignTimePPI;
+ //Move the fields to account for scaling
+ ed_filenamesearch.Left:=SearchFilenameLabel.Left
+                        +SearchFilenameLabel.Width
+                        +Round(4*ratio);
+ ed_filenamesearch.Width:=SearchEntryPanel.Width
+                         -ed_filenamesearch.Left
+                         -Round(4*ratio);
+ SearchFiletypeLabel.Left:=ed_filenamesearch.Left
+                          -Round(4*ratio)
+                          -SearchFiletypeLabel.Width;
  ed_filetypesearch.Left:=ed_filenamesearch.Left;
+ //Create the button
+ sb_SearchButton:=MainForm.CreateButton(SearchEntryPanel as TControl,'Search',
+                                        False,0,0,mrNone);
+ //And position it
  sb_SearchButton.Top:=ed_filetypesearch.Top;
- sb_SearchButton.Left:=(SearchEntryPanel.Width-sb_SearchButton.Width)-4;
+ sb_SearchButton.Left:=SearchEntryPanel.Width
+                      -sb_SearchButton.Width
+                      -Round(4*ratio);
+ sb_SearchButton.OnClick:=@sb_searchClick;
+ //Adjust the panel height to account for scaling
+ SearchEntryPanel.Height:=sb_SearchButton.Top
+                        +sb_SearchButton.Height
+                        +Round(4*ratio)
+                        +searchresultscount.Height;
 end;
 
 {------------------------------------------------------------------------------}

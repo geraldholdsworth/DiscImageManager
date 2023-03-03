@@ -1151,17 +1151,18 @@ begin
    SetLength(free_space_map,1);
    //Number of tracks
    SetLength(free_space_map[0],disc_size[0]div(secspertrack*secsize));
-   for c:=0 to Length(free_space_map[0])-1 do
-   begin
-    //Number of sectors per track
-    if FMap then
-     SetLength(free_space_map[0,c],(secspertrack*secsize)DIV bpmb)
-    else
-     SetLength(free_space_map[0,c],secspertrack{*(secsize div $100)});
-    //Set them all to be uesd, for now.
-    for d:=0 to Length(free_space_map[0,c])-1 do
-     free_space_map[0,c,d]:=$FF;
-   end;
+   if Length(free_space_map[0])>0 then
+    for c:=0 to Length(free_space_map[0])-1 do
+    begin
+     //Number of sectors per track
+     if FMap then
+      SetLength(free_space_map[0,c],(secspertrack*secsize)DIV bpmb)
+     else
+      SetLength(free_space_map[0,c],secspertrack{*(secsize div $100)});
+     //Set them all to be uesd, for now.
+     for d:=0 to Length(free_space_map[0,c])-1 do
+      free_space_map[0,c,d]:=$FF;
+    end;
    //Update progress
 //   UpdateProgress('Reading ADFS Free Space Map..');
   end;
@@ -2355,7 +2356,7 @@ begin
    //Then decrease the FreeEnd
    dec(ptr,3);
    //and write back
-   Write24b(ptr,$1FE);
+   WriteByte(ptr,$1FE);
   end;
   //Update the checksums
   WriteByte(ByteCheckSum($0000,$100,False),$0FF);
@@ -3119,7 +3120,7 @@ var
  changed : Boolean;
 begin
  if not FMap then //Old map only
- begin
+ begin //Bug here - deleting multiple files does not update the FSM
   SetLength(fslinks,0);
   //Just make sure the current FS Map is in order, not fragmented and FreeEnd is correct
   //Total number of entries
@@ -3133,10 +3134,10 @@ begin
    start:=Read24b($000+ref);
    //FreeLen
    len  :=Read24b($100+ref);
-   //Add a new entry, in order using insertion sort
-   SetLength(fslinks,Length(fslinks)+1);
    if len>0 then //Only if the length isn't zero
    begin
+    //Add a new entry, in order using insertion sort
+    SetLength(fslinks,Length(fslinks)+1);
     pos:=Length(fslinks)-1;
     if pos>0 then
      for i:=pos-1 downto 0 do
@@ -3161,20 +3162,21 @@ begin
     if fslinks[i].Offset+fslinks[i].Length=fslinks[i+1].Offset then
     begin
      //Add them together
-     inc(fslinks[i].Length,fslinks[i+1].Length);
+     inc(fslinks[i+1].Length,fslinks[i].Length);
+     fslinks[i+1].Offset:=fslinks[i].Offset;
      //And remove the next entry
-    end;
-    if i<Length(fslinks)-2 then
-    begin
-     //Iterate through the above entries
-     for ref:=i to Length(fslinks)-2 do
+     if i<Length(fslinks)-2 then
      begin
-      //Move each one down by one
-      fslinks[ref].Offset:=fslinks[ref+1].Offset;
-      fslinks[ref].Length:=fslinks[ref+1].Length;
+      //Iterate through the above entries
+      for ref:=i to Length(fslinks)-2 do
+      begin
+       //Move each one down by one
+       fslinks[ref].Offset:=fslinks[ref+1].Offset;
+       fslinks[ref].Length:=fslinks[ref+1].Length;
+      end;
+      //And decrease the length
+      SetLength(fslinks,Length(fslinks)-1);
      end;
-     //And decrease the length
-     SetLength(fslinks,Length(fslinks)-1);
     end;
     inc(i);
    end;
@@ -3386,6 +3388,11 @@ begin
              filename
             +dir_sep
             +FDisc[FDisc[dir].Entries[entry].DirRef].Entries[0].Filename);
+    //Remove the directory from the internal array
+    if FDisc[dir].Entries[entry].DirRef<Length(FDisc)-2 then
+     for i:=FDisc[dir].Entries[entry].DirRef+1 to Length(FDisc)-1 do
+      FDisc[i]:=FDisc[i+1];
+    SetLength(FDisc,Length(FDisc)-1);
    end;
   end;
   //Only continue if we are successful

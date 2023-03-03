@@ -44,6 +44,16 @@ begin
  FSparkAsFS   :=Clone.SparkAsFS;
  //Allow DFS images which report number of sectors as zero
  FDFSzerosecs :=Clone.AllowDFSZeroSectors;
+ //Allow files to go beyond the edge of the disc
+ FDFSBeyondEdge:=Clone.DFSBeyondEdge;
+ //Allow blank filenames in DFS
+ FDFSAllowBlank:=Clone.DFSAllowBlanks;
+ //Scan sub directories in ADFS, Amiga, DOS, Spark
+ FScanSubDirs  :=Clone.ScanSubDirs;
+ //Use short filenames in DOS even if long filenames exist
+ FDOSUseSFN    :=Clone.FDOSUseSFN;
+ //Open DOS Partitions on ADFS
+ FOpenDOSPart  :=Clone.OpenDOSPartitions;
  //Filename
  FFilename    :=Clone.Filename;
  //Just read the data in
@@ -1488,38 +1498,40 @@ begin
  ResetDir(NewDir);
  //Is it a valid directory?
  if FileExists(dirname,dir,entry) then //Does it exist? (and grab the references)
-  if FDisc[dir].Entries[entry].DirRef>-1 then //Valid directory
-   if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then //Hasn't already been read?
-   begin
-    sector:=FDisc[dir].Entries[entry].Sector;
-    //Divert to the appropriate function
-    case GetMajorFormatNumber of
-     diAcornADFS: NewDir:=ReadADFSDir(dirname,sector);
-     diAcornFS  : NewDir:=ReadAFSDirectory(dirname,sector);
-     diAmiga    : NewDir:=ReadAmigaDir(dirname,sector);
-     diDOSPlus  : NewDir:=ReadDOSDirectory(dirname,sector,len);
-    end;
-    //Did it return something?
-    if NewDir.Directory<>'' then
-    begin
-     //Return an index (the previously saved directory reference
-     Result:=FDisc[dir].Entries[entry].DirRef;
-     //Then add it to the list
-     FDisc[Result]:=NewDir;
-     FDisc[Result].Parent:=dir;
-     FDisc[Result].BeenRead:=True;
-     //Now go through the entries and see if there are any sub dirs
-     if Length(FDisc[Result].Entries)>0 then //Make sure we have some entries
-      for f:=0 to Length(FDisc[Result].Entries)-1 do
-       if(Pos('D',FDisc[Result].Entries[f].Attributes)>0) //Found a directory
-       or(Pos('F',FDisc[Result].Entries[f].Attributes)>0)then
-       //D is for ADFS, AFS and DOS Plus, F is for Amiga
-       begin
-        SetLength(FDisc,Length(FDisc)+1); //Make space for it
-        FDisc[Result].Entries[f].DirRef:=Length(FDisc)-1; //And set the directory reference
-       end;
-    end;
-   end;
+  if dir<Length(FDisc) then
+   if entry<Length(FDisc[dir].Entries) then
+    if FDisc[dir].Entries[entry].DirRef>-1 then //Valid directory
+     if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then //Hasn't already been read?
+     begin
+      sector:=FDisc[dir].Entries[entry].Sector;
+      //Divert to the appropriate function
+      case GetMajorFormatNumber of
+       diAcornADFS: NewDir:=ReadADFSDir(dirname,sector);
+       diAcornFS  : NewDir:=ReadAFSDirectory(dirname,sector);
+       diAmiga    : NewDir:=ReadAmigaDir(dirname,sector);
+       diDOSPlus  : NewDir:=ReadDOSDirectory(dirname,sector,len);
+      end;
+      //Did it return something?
+      if NewDir.Directory<>'' then
+      begin
+       //Return an index (the previously saved directory reference
+       Result:=FDisc[dir].Entries[entry].DirRef;
+       //Then add it to the list
+       FDisc[Result]:=NewDir;
+       FDisc[Result].Parent:=dir;
+       FDisc[Result].BeenRead:=True;
+       //Now go through the entries and see if there are any sub dirs
+       if Length(FDisc[Result].Entries)>0 then //Make sure we have some entries
+        for f:=0 to Length(FDisc[Result].Entries)-1 do
+         if(Pos('D',FDisc[Result].Entries[f].Attributes)>0) //Found a directory
+         or(Pos('F',FDisc[Result].Entries[f].Attributes)>0)then
+         //D is for ADFS, AFS and DOS Plus, F is for Amiga
+         begin
+          SetLength(FDisc,Length(FDisc)+1); //Make space for it
+          FDisc[Result].Entries[f].DirRef:=Length(FDisc)-1; //And set the directory reference
+         end;
+      end;
+     end;
 end;
 
 {-------------------------------------------------------------------------------
