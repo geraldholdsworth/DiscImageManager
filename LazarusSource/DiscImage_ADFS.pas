@@ -3027,14 +3027,14 @@ var
 begin
  //Is this on the AFS partition
  if FAFSPresent then
-  if LeftStr(filename,Length(afsrootname))=afsrootname then
+  if LeftStr(oldfilename,Length(afsrootname))=afsrootname then
   begin
    Result:=RenameAFSFile(oldfilename,newfilename);
    exit;
   end;
  //Is this on the DOS partition
  if FDOSPresent then
-  if LeftStr(filename,Length(dosrootname))=dosrootname then
+  if LeftStr(oldfilename,Length(dosrootname))=dosrootname then
   begin
    Result:=RenameDOSFile(oldfilename,newfilename);
    exit;
