@@ -920,7 +920,7 @@ Bug fixes
 * When writing a file to ADFS New Map, the end of free space marker on a zone would be beyond the zone and trample the following zone. When subsequent files where then written, this would continue into the following zone(s).
 * On ADFS New Map, the free space would sometimes be incorrectly reported meaning that some files were stored where there was not enough space to store the file.
 * On ADFS New Map, the smallest possible space to contain a fragment ID and the stop bit was not taken into consideration, meaning that a file stored could then not be retrieved.
-* Some ADFS New and Big directory object's attributes, that only had a single attribute, where having '00' appended to the end.
+* Some ADFS New and Big directory object's attributes, that only had a single attribute, were having '00' appended to the end.
 
 1.45 - 3rd March 2023
 ---------------------
@@ -947,6 +947,17 @@ Bug fixes
 * The Image Details status bar was not getting fully repainted after a non-saved image was closed.
 * The application would crash if an ADFS image had zero free space.
 * Creating a 640KB ADFS L image, then adding a DOS partition would not result in the partition being visible.
+
+1.45.1
+---------------------
+New or improved features
+* Image report now lists the free space map for ADFS.
+
+Bug fixes
+* When deleting directories, the internal directory references were not getting updated.
+* When deallocating free space on a New Map ADFS, the wrong idlen was sometimes being used.
+* The New Map ADFS free space map was not getting read correctly.
+* Renaming an ADFS file in a ADFS/DOS hybrid image could crash the application on Windows. Renames on the DOS or Acorn FS side could also fail.
 
 Platform History
 ----------------

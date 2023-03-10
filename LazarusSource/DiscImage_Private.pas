@@ -704,6 +704,7 @@ begin
   Sector      :=0;
   Parent      :=-1;
   BeenRead    :=False;
+  Deleted     :=False;
  end;
 end;
 
@@ -1019,4 +1020,24 @@ begin
  time:=Now; //Based on the current time
  DecodeDateTime(time,year,month,day,hour,minute,second,ms);
  Result:=(month+second)<<24+(day+ms)<<16+hour<<8+minute+year;
+end;
+
+{-------------------------------------------------------------------------------
+Update directory references
+-------------------------------------------------------------------------------}
+procedure TDiscImage.UpdateDirRef(dirref: Cardinal);
+var
+ d,e: Cardinal;
+begin
+ //Update all the directory references
+ if Length(FDisc)>0 then
+  for d:=0 to Length(FDisc)-1 do
+  begin
+   //Update any parents
+   if FDisc[d].Parent>dirref then dec(FDisc[d].Parent);
+   if Length(FDisc[d].Entries)>0 then
+    for e:=0 to Length(FDisc[d].Entries)-1 do
+     if FDisc[d].Entries[e].DirRef>dirref then
+      dec(FDisc[d].Entries[e].DirRef); //And the DirRef
+  end;
 end;

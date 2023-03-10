@@ -2122,6 +2122,7 @@ Delete a file/directory
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteAFSFile(filename: String): Boolean;
 var
+ dirref   : Integer;
  dir,
  entry    : Cardinal;
  success  : Boolean;
@@ -2132,9 +2133,12 @@ begin
   if FileExists(filename,dir,entry) then
   begin
    success:=True;
+   dirref:=-1;
    //Is this a directory being deleted?
    if FDisc[dir].Entries[entry].DirRef>=0 then
    begin
+    dirref:=FDisc[dir].Entries[entry].DirRef;
+    FDisc[dirref].Deleted:=True;
     //Make sure it has been read in
     if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then
      ReadDirectory(filename);
@@ -2146,6 +2150,8 @@ begin
    end;
    //Remove the entry from the directory
    if success then Result:=RemoveAFSEntry(dir,entry);
+   //Update all the directory references 
+   if dirref>=0 then UpdateDirRef(dirref);
   end;
 end;
 

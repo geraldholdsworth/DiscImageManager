@@ -724,7 +724,8 @@ end;
 {-------------------------------------------------------------------------------
 Convert an ADFS New Map address to buffer offset address, with fragment lengths
 -------------------------------------------------------------------------------}
-function TDiscImage.NewDiscAddrToOffset(addr: Cardinal;offset:Boolean=True): TFragmentArray;
+function TDiscImage.NewDiscAddrToOffset(addr: Cardinal;
+                                           offset:Boolean=True): TFragmentArray;
 var
  i,j,sector,id,
  allmap,len,off,
@@ -1229,7 +1230,7 @@ begin
     end;
    end;
    //We'll add in the directories
-   if Length(FDisc)>0 then
+{   if Length(FDisc)>0 then
     for d:=0 to Length(FDisc)-1 do
      if Length(FDisc[d].Entries)>0 then
       for p:=0 to Length(FDisc[d].Entries)-1 do
@@ -1240,7 +1241,7 @@ begin
          for f:=0 to Length(fsfragments)-1 do
           for address:=0 to fsfragments[f].Length-1 do
            ADFSFillFreeSpaceMap(fsfragments[0].Offset+address,$FD);
-       end;
+       end;}
    //Mark the system area
    for address:=bootmap to bootmap+(nzones*secsize*2) do //Two copies of the map
     ADFSFillFreeSpaceMap(address,$FE);
@@ -1794,7 +1795,8 @@ end;
 {-------------------------------------------------------------------------------
 Retrieve all the free space fragments on ADFS New Map
 -------------------------------------------------------------------------------}
-function TDiscImage.ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
+function TDiscImage.ADFSGetFreeFragments(offset:Boolean=True;
+                                          whichzone:Integer=-1): TFragmentArray;
 var
  zonecounter  : Integer;
  zone,
@@ -1824,24 +1826,27 @@ begin
   if i<>0 then //If the freelink is zero, then there are no free spaces
   begin
    repeat
-    SetLength(fragments,Length(fragments)+1);
-    if offset then
+    if(whichzone=-1)or(whichzone=zone)then
     begin
-     //Mark the offset - number of bits from the start of the bootmap
-     fragments[Length(fragments)-1].Offset:=i+8+(zone*secsize*8);
-     //But we need it as an absolute address in order to write the data
-     fragments[Length(fragments)-1].Offset:=
-                    ((fragments[Length(fragments)-1].Offset-$200)
-                   -(zone_spare*zone))*bpmb;
-    end
-    else //Unless the flag calls for number of bits since last free space
-     fragments[Length(fragments)-1].Offset:=freelink;
-    //Make a note of the zone
-    fragments[Length(fragments)-1].Zone  :=zone;
+     SetLength(fragments,Length(fragments)+1);
+     if offset then
+     begin
+      //Mark the offset - number of bits from the start of the bootmap
+      fragments[Length(fragments)-1].Offset:=i+8+(zone*secsize*8);
+      //But we need it as an absolute address in order to write the data
+      fragments[Length(fragments)-1].Offset:=
+                     ((fragments[Length(fragments)-1].Offset-$200)
+                    -(zone_spare*zone))*bpmb;
+     end
+     else //Unless the flag calls for number of bits since last free space
+      fragments[Length(fragments)-1].Offset:=freelink;
+     //Make a note of the zone
+     fragments[Length(fragments)-1].Zone  :=zone;
+    end;
     //Read in the next free link number of bits - this can be idlen bits
     freelink:=ReadBits(bootmap+(zone*secsize)+1+(i DIV 8),i mod 8,idlen);
     //Now find the end of the fragment length
-    j:=i-1; //Start after the freelink
+    j:=(i+idlen)-1; //Start after the freelink
     repeat
      inc(j); //Length counter
     //Continue until we find a set bit
@@ -1849,10 +1854,11 @@ begin
     until(IsBitSet(ReadByte(bootmap+(zone*secsize)+1+(j div 8)),j mod 8))
        or(j>=32+(secsize*8-zone_spare));
     //Make a note of the length (the 1 is for the set bit marking the end)
-    if offset then
-     fragments[Length(fragments)-1].Length:=((j-i)+1)*bpmb
-    else
-     fragments[Length(fragments)-1].Length:=(j-i)+1;
+    if(whichzone=-1)or(whichzone=zone)then
+     if offset then
+      fragments[Length(fragments)-1].Length:=((j-i)+1)*bpmb
+     else
+      fragments[Length(fragments)-1].Length:=(j-i)+1;
     //Move the pointer on, after the '1'
     inc(i,freelink);
    until (freelink=0)                   //Unless the next link is zero,
@@ -3027,14 +3033,14 @@ var
 begin
  //Is this on the AFS partition
  if FAFSPresent then
-  if LeftStr(filename,Length(afsrootname))=afsrootname then
+  if LeftStr(oldfilename,Length(afsrootname))=afsrootname then
   begin
    Result:=RenameAFSFile(oldfilename,newfilename);
    exit;
   end;
  //Is this on the DOS partition
  if FDOSPresent then
-  if LeftStr(filename,Length(dosrootname))=dosrootname then
+  if LeftStr(oldfilename,Length(dosrootname))=dosrootname then
   begin
    Result:=RenameDOSFile(oldfilename,newfilename);
    exit;
@@ -3337,13 +3343,15 @@ Delete an ADFS file/directory
 function TDiscImage.DeleteADFSFile(filename: String;
                     TreatAsFile:Boolean=False;extend:Boolean=True):Boolean;
 var
+ dirref,
  entry,
  dir,
  addr,
  len,i     : Cardinal;
  success   : Boolean;
  fileparent: String;
-begin
+begin 
+ UpdateProgress('Deleting '+filename);
  Result:=False;
  //Is this an AFS file?
  if FAFSPresent then
@@ -3371,28 +3379,35 @@ begin
   success:=True;
   if filename<>root_name then
   begin
+   //Make a note of the parent - these will become invalid soon
+   fileparent:=FDisc[dir].Entries[entry].Parent;//GetParent(dir);
+   //Take a note of where it is on disc
+   addr:=FDisc[dir].Entries[entry].Sector;
+   //And how much space it took up
+   len:=FDisc[dir].Entries[entry].Length;
    //Is this file the currently open DOS Partition?
    if FDisc[dir].Entries[entry].isDOSPart then exit(False); //Then fail
    //If directory, delete contents first
    if(FDisc[dir].Entries[entry].DirRef>0)and(not TreatAsFile)then
    begin
+    dirref:=FDisc[dir].Entries[entry].DirRef;
+    FDisc[dirref].Deleted:=True;
     //Has it been read in?
-    if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then
+    if not FDisc[dirref].BeenRead then
      ReadDirectory(filename);
     //We'll do a bit of recursion to remove each entry one by one. If it
     //encounters a directory, that will get it's contents deleted, then itself.
-    while(Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
-      and(success)do
+    if entry<Length(FDisc[dir].Entries) then
+    while(Length(FDisc[dirref].Entries)>0)and(success)do
      //If any fail for some reason, the whole thing fails
-     success:=DeleteADFSFile(
-             filename
-            +dir_sep
-            +FDisc[FDisc[dir].Entries[entry].DirRef].Entries[0].Filename);
+     success:=DeleteADFSFile(filename+dir_sep+FDisc[dirref].Entries[0].Filename);
     //Remove the directory from the internal array
-    if FDisc[dir].Entries[entry].DirRef<Length(FDisc)-2 then
-     for i:=FDisc[dir].Entries[entry].DirRef+1 to Length(FDisc)-1 do
+    if dirref<Length(FDisc)-2 then
+     for i:=dirref to Length(FDisc)-2 do
       FDisc[i]:=FDisc[i+1];
     SetLength(FDisc,Length(FDisc)-1);
+    //Update all the directory references
+    UpdateDirRef(dirref);
    end;
   end;
   //Only continue if we are successful
@@ -3400,12 +3415,6 @@ begin
   begin
    if filename<>root_name then
    begin
-    //Make a note of the parent - these will become invalid soon
-    fileparent:=GetParent(dir);
-    //Take a note of where it is on disc
-    addr:=FDisc[dir].Entries[entry].Sector;
-    //And how much space it took up
-    len:=FDisc[dir].Entries[entry].Length;
     //Round up to the next whole sector
     i:=len DIV$100;
     if len MOD$100>0 then inc(i);
@@ -3486,6 +3495,12 @@ end;
 De-allocates new map fragments
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ADFSDeAllocateFreeSpace(addr: Cardinal);
+function GetLinkLen(Loffset: Cardinal): Byte;
+begin
+ //Adjust number of bits to write
+ Result:=idlen; //In the map
+ if Loffset DIV 8=0 then Result:=15; //In the header
+end;
 var
  linklen    : Byte;
  fragments,
@@ -3493,6 +3508,7 @@ var
  fs,i,ptr,
  dir,entry  : Cardinal;
  delfsm     : Boolean;
+ lastzone   : Integer;
 begin
  if FMap then //New Map
  begin
@@ -3505,7 +3521,8 @@ begin
     for dir:=0 to Length(FDisc)-1 do //Go through each directory
      if Length(FDisc[dir].Entries)>0 then
       for entry:=0 to Length(FDisc[dir].Entries)-1 do //And each file within
-       if FDisc[dir].Entries[entry].Sector div $100=addr div$100 then
+       if(FDisc[dir].Entries[entry].Sector div $100=addr div$100)
+       and(FDisc[dir].Entries[entry].Sector<>addr)then
         delfsm:=False; //If we find another, then we shall not remove the fragment
   //Only continue if it is OK
   if delfsm then
@@ -3513,25 +3530,19 @@ begin
    //Get all the fragments - we do this every time as we will be updating the
    //list each time
    fragments:=NewDiscAddrToOffset(addr,False);
+   lastzone:=-1;
+  if Length(fragments)=0 then//ERROR - WE SHOULD HAVE FRAGMENTS ****************
+   addr:=addr; //***************************************************************
    //Go through each one
    if Length(fragments)>0 then
     for i:=0 to Length(fragments)-1 do
     begin
-     //Get all the free space fragments
-     fsfragments:=ADFSGetFreeFragments(False);
-     fs:=0;
-     ptr:=fragments[i].Zone+1;//Set to a random value
-     //Find the zone (the first fragment in the zone)
-     if Length(fsfragments)>0 then
-     begin
-      while (fs<Length(fsfragments)-1)
-         AND(fsfragments[fs].Zone<>fragments[i].Zone) do
-       inc(fs);
-      //We using ptr just in case fsfragments has no entries
-      ptr:=fsfragments[fs].Zone;
-     end;
+     //Get all the free space fragments from the zone we are looking at
+     if fragments[i].Zone<>lastzone then
+      fsfragments:=ADFSGetFreeFragments(False,fragments[i].Zone);
+     lastzone:=fragments[i].Zone;
      //There are no free fragments in this zone
-     if(ptr<>fragments[i].Zone)or(Length(fsfragments)=0)then
+     if Length(fsfragments)=0 then
      begin
       //So write the pointer to our fragment in the zone header
       //The zone header's freelink is always 15 bits long. The freelinks in the
@@ -3545,51 +3556,44 @@ begin
      //We do have some free fragments in this zone
      if Length(fsfragments)>0 then
      begin
-      if fsfragments[fs].Zone=fragments[i].Zone then
+      fs:=0;
+      ptr:=fsfragments[fs].Offset;//Use as a counter
+      while(fs<Length(fsfragments)-1)AND(ptr<fragments[i].Offset)do
+      begin //We'll now find the first pointer past this fragment
+       inc(fs);
+       inc(ptr,fsfragments[fs].Offset);
+      end;
+      //We exit the loop with ptr more than the offset so we adjust the previous entry
+      if ptr>fragments[i].Offset then
       begin
-       ptr:=fsfragments[fs].Offset;//Use as a counter
-       while (fs<Length(fsfragments)-1)
-         AND (fsfragments[fs].Zone=fragments[i].Zone)
-         AND (ptr<fragments[i].Offset) do
-       begin //We'll now find the first pointer past this fragment
-        inc(fs);
-        if fsfragments[fs].Zone=fragments[i].Zone then
-         inc(ptr,fsfragments[fs].Offset);
-       end;
-       //We exit the loop with ptr more than the offset so we adjust the previous entry
-       if ptr>fragments[i].Offset then
-       begin
-        //Write the pointer to our fragment
-        WriteBits(fragments[i].Offset-(ptr-fsfragments[fs].Offset),
-                                      ((ptr-fsfragments[fs].Offset)DIV 8)
-                                      +(fsfragments[fs].Zone*secsize)+bootmap+1,
-                                      (ptr-fsfragments[fs].Offset)MOD 8,
-                                      15);
-        //Now replace the fragment ID and add the distance to the next.
-        dec(ptr,fragments[i].Offset);
-        //Adjust number of bits to write
-        linklen:=idlen; //In the map
-        if fragments[i].Offset DIV 8=0 then linklen:=15; //In the header
-        WriteBits(ptr,(fragments[i].Offset DIV 8)
-                     +(fragments[i].Zone*secsize)+bootmap+1,
-                     fragments[i].Offset MOD 8,
-                     15);
-       end
-       else  //We exit the loop with ptr not as high, so we need to add an entry
-       begin // and update the final fragment
-        //Write the new pointer to our fragment
-        //Adjust number of bits to write
-        linklen:=idlen; //In the map
-        if ptr DIV 8=0 then linklen:=15; //In the header
-        WriteBits(fragments[i].Offset-ptr,(ptr DIV 8)
-                                         +(fragments[i].Zone*secsize)+bootmap+1,
-                                         ptr MOD 8,linklen);
-        //Now write zero in place of our fragid
-        WriteBits(0,(fragments[i].Offset DIV 8)
-                   +(fragments[i].Zone*secsize)+bootmap+1,
-                   fragments[i].Offset MOD 8,
-                   idlen);
-       end;
+       linklen:=GetLinkLen(ptr-fsfragments[fs].Offset);
+       //Write the pointer to our fragment
+       WriteBits(fragments[i].Offset-(ptr-fsfragments[fs].Offset),
+                                     ((ptr-fsfragments[fs].Offset)DIV 8)
+                                     +(fsfragments[fs].Zone*secsize)+bootmap+1,
+                                     (ptr-fsfragments[fs].Offset)MOD 8,
+                                     linklen);
+       //Now replace the fragment ID and add the distance to the next.
+       dec(ptr,fragments[i].Offset);
+       linklen:=GetLinkLen(fragments[i].Offset);
+       WriteBits(ptr,(fragments[i].Offset DIV 8)
+                    +(fragments[i].Zone*secsize)+bootmap+1,
+                    (fragments[i].Offset) MOD 8,
+                    linklen);
+      end
+      else  //We exit the loop with ptr not as high, so we need to add an entry
+      begin // and update the final fragment
+       //Write the new pointer to our fragment
+       linklen:=GetLinkLen(ptr);
+       WriteBits(fragments[i].Offset-ptr,(ptr DIV 8)
+                                        +(fragments[i].Zone*secsize)+bootmap+1,
+                                        ptr MOD 8,linklen);
+       linklen:=GetLinkLen(fragments[i].Offset);
+       //Now write zero in place of our fragid
+       WriteBits(0,(fragments[i].Offset DIV 8)
+                  +(fragments[i].Zone*secsize)+bootmap+1,
+                  fragments[i].Offset MOD 8,
+                  linklen);
       end;
      end;
     end;
@@ -3599,12 +3603,8 @@ begin
     //Ensure the top bit is set on the first link for each zone
     WriteByte(ReadByte(bootmap+2+i*secsize)OR$80,bootmap+2+i*secsize);
     //Zone checks
-    WriteByte(
-          GeneralChecksum(bootmap+$00+(i*secsize),
-                          secsize,
-                          secsize+4,
-                          $4,
-                          true),
+    WriteByte(GeneralChecksum(bootmap+$00+(i*secsize),
+                              secsize,secsize+4,$4,true),
               bootmap+(i*secsize)+$00);
    end;
    //Make a copy
@@ -4671,7 +4671,11 @@ Produce a report of the image's details
 -------------------------------------------------------------------------------}
 function TDiscImage.ADFSReport(CSV: Boolean): TStringList;
 var
- temp: String;
+ temp   : String;
+ fsmoff,
+ fsm    : TFragmentArray;
+ Index,
+ Zone   : Integer;
 begin
  Result:=TStringList.Create;
  if FMap then
@@ -4739,4 +4743,54 @@ begin
  Result.Add('Free Space: '+IntToStr(free_space[0])+' bytes');
  Result.Add('Cylinders: '+IntToStr(Length(free_space_map[0])));
  Result.Add('Broken Directory Count: '+IntToStr(brokendircount));
+ if not CSV then Result.Add('');
+ Result.Add('Free Space Map');
+ if not CSV then Result.Add('==============');
+ temp     :='Disc Address';
+ if CSV then temp:=temp+',' else temp:=temp+'  ';
+ temp:=temp+'Length';
+ if FMap then
+ begin
+  if CSV then temp:=temp+',' else temp:=temp+'        ';
+  temp:=temp+'Map Address';
+  if CSV then temp:=temp+',' else temp:=temp+'   ';
+  temp:=temp+'Length';
+  if CSV then temp:=temp+',' else temp:=temp+'        ';
+  temp:=temp+'Zone';
+  Result.Add(temp);
+  if not CSV then Result.Add('--------------------------------------------------------------');
+  fsmoff:=ADFSGetFreeFragments(False);
+  fsm:=ADFSGetFreeFragments;
+  for Zone:=0 to nzones-1 do
+   for Index:=0 to Length(fsmoff)-1 do
+    if fsm[Index].Zone=Zone then
+    begin
+     temp     :='0x'+IntToHex(fsm[Index].Offset,10);
+     if CSV then temp:=temp+',' else temp:=temp+'  ';
+     temp:=temp+'0x'+IntToHex(fsm[Index].Length,10);
+     if CSV then temp:=temp+',' else temp:=temp+'  ';
+     temp:=temp+'0x'+IntToHex(fsmoff[Index].Offset,10);
+     if CSV then temp:=temp+',' else temp:=temp+'  ';
+     temp:=temp+'0x'+IntToHex(fsmoff[Index].Length,10);
+     if CSV then temp:=temp+',' else temp:=temp+'  ';
+     temp:=temp+'0x'+IntToHex(fsmoff[Index].Zone,4);
+     Result.Add(temp);
+    end;
+ end
+ else
+ begin
+  Result.Add(temp);
+  if not CSV then Result.Add('--------------------------');
+  Index:=ReadByte($1FE); //Number of free space entries
+  Zone:=0;
+  while Zone<Index do
+  begin
+   //Fill in the details
+   temp     :='0x'+IntToHex(Read24b($000+Zone)*$100,10);
+   if CSV then temp:=temp+',' else temp:=temp+'  ';
+   temp:=temp+'0x'+IntToHex(Read24b($100+Zone)*$100,10);
+   Result.Add(temp);
+   inc(Zone,3);
+  end;
+ end;
 end;

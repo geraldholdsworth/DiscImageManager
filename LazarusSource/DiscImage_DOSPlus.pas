@@ -1554,10 +1554,12 @@ begin
   if FileExists(filename,dir,entry) then
   begin
    success:=True;
+   index:=-1;
    //Is this a directory being deleted?
    if FDisc[dir].Entries[entry].DirRef>=0 then
    begin
     index:=FDisc[dir].Entries[entry].DirRef;
+    FDisc[index].Deleted:=True;
     //Make sure it has been read in
     if not FDisc[index].BeenRead then ReadDirectory(filename);
     //Recursively delete the contents
@@ -1572,6 +1574,8 @@ begin
     DeAllocateDOSClusters(0,clusters);
     //Remove the entry
     RemoveDOSEntry(dir,entry);
+    //Update all the directory references
+    if index>=0 then UpdateDirRef(index);
    end;
    //Return a result
    Result:=success;

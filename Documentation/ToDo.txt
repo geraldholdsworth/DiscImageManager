@@ -8,7 +8,7 @@ Bugs
 * 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. - UNABLE TO REPLICATE
 * Some SS DFS images are IDed as DS images when 'Allow zero sectors' is selected in the preferences. - UNABLE TO REPLICATE
 * Access violation has been reported when creating an ADFS HDD image (default options) on Windows. - UNABLE TO REPLICATE
-* Does not work on Windows 11. - UNABLE TO REPLICATE
+* Need to adjust the Amiga, DOS and AFS directory references when a directory is deleted (as per ADFS).
 
 General - Ideas, currently unlikely to be added
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform. This will need to be done using 'code-per-platform' directives.
@@ -24,6 +24,8 @@ General - Ideas which are maybe possible
 * For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
 * Ablity to add/remove/delete partitions using the command line.
 * Allow for multiple (>2) partitions - i.e. two or more DOS partitions on an ADFS structure, or ADFS/AFS/DOS hybrid.
+* DFS: Import a single sided disc onto another single sided disc to create a double sided disc.
+* DFS: Create a second side to a single sided image.
 * ADFS: When a DOS image file is added to an ADFS image (and the "Open DOS Partition" setting is set), automatically open as the second partition (if there isn't one already).
 * ADFS: Rebuild the Old Map FS Map by scanning the files and rebuilding from scratch (in the class definition).
 * ADFS: Use the above, along with other functions, to create a new function to fix ADFS Old Map images which otherwise won't load.
@@ -41,3 +43,4 @@ General - Ideas which are maybe possible
 * File Viewer: ability to export contents in a different format (e.g. BASIC -> Text, or Sprite -> PNG).
 * Function (and button) to check every file and directory on a volume and produce a report detailing number of files with error (CRC32) and number of broken directories (ADFS), and list them, with option to save to a text file.
 * Function (and button) to consolidate the free space map for ADFS and AFS (using the functions built into the class).
+* Progress window for defrag.

@@ -570,7 +570,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.45';
+    ApplicationVersion = '1.45.1';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -1737,6 +1737,7 @@ var
  Node: TTreeNode;
  Tree: TTreeView;
 begin
+ if ImageToUse.Disc[dir].Deleted then exit;
  Tree:=TTreeView(CurrDir.Owner.Owner);
  //Make a note of the dir ref, it is the highest
  if dir>highdir then highdir:=dir;
@@ -4787,6 +4788,9 @@ var
 begin
  if Length(Image.Disc)>0 then
  begin
+  ProgressForm.Show;
+  Application.ProcessMessages;
+  UpdateProgress('Preparing to defrag');
   //Determine which side/partition
   side:=0;
   if DirList.SelectionCount>0 then
@@ -4802,6 +4806,7 @@ begin
   end;
   //Call the defrag procedure
   Defrag(side);
+  ProgressForm.Hide;
  end;
 end;
 
@@ -4820,6 +4825,10 @@ var
 begin
  if Length(Image.Disc)>0 then
  begin
+  Image.ProgressIndicator:=nil;
+  ProgressForm.Show;
+  UpdateProgress('Preparing to defrag');
+  Application.ProcessMessages;
   //Create a new image, cloning the old one
   oldscan:=Image.ScanSubDirs;
   olddos :=Image.OpenDOSPartitions;
@@ -4840,15 +4849,29 @@ begin
      inc(sidecount);
     end;
   end;
+  sidecount:=Length(Image.Disc[root].Entries);
+  NewImage.ProgressIndicator:=nil;
   //Delete all the existing objects in the root
+  Image.BeginUpdate;
   while Length(Image.Disc[root].Entries)>0 do
   begin
+   ProgressForm.Show;
+   Application.ProcessMessages;
+//   UpdateProgress('Preparing '
+//      +IntToStr(100-Round(Length(Image.Disc[root].Entries)/sidecount)*100)+'%');
    SelectNode(Image.Disc[root].Entries[0].Parent
+             +Image.GetDirSep(Image.Disc[root].Partition)
+             +Image.Disc[root].Entries[0].Filename);
+   UpdateProgress('Preparing '+Image.Disc[root].Entries[0].Parent
              +Image.GetDirSep(Image.Disc[root].Partition)
              +Image.Disc[root].Entries[0].Filename);
    DeleteFile(False);
   end;
+  Image.EndUpdate;
   ok:=Length(Image.Disc[root].Entries)=0;
+  ProgressForm.Show;
+  Application.ProcessMessages;
+  Image.ProgressIndicator:=@UpdateProgress;
   if ok then //Deleted all the files OK, so import again
   begin
    SelectNode(Image.Disc[root].Directory);
@@ -4866,6 +4889,8 @@ begin
    Image:=TDiscImage.Create(NewImage);
   end;
   NewImage.Free;
+  ProgressForm.Hide;
+  Image.ProgressIndicator:=nil;
  end;
 end;
 
@@ -5203,7 +5228,7 @@ begin
  ImageReportForm.Report.Clear;
  ImageReportForm.Report.Lines:=Image.ImageReport(False);
  //Add a footer
- ImageReportForm.Report.Lines.Add('__________________________________________');
+ ImageReportForm.Report.Lines.Add('______________________________________________________________');
  ImageReportForm.Report.Lines.Add(ApplicationTitle+' v'+ApplicationVersion);
  ImageReportForm.Report.Lines.Add('by Gerald J Holdsworth');
  ImageReportForm.Report.Lines.Add('gerald@geraldholdsworth.co.uk');
@@ -6293,8 +6318,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DeleteFile(confirm: Boolean);
 var
+ LDirRef,
  j,
  nodes   : Integer;
+ LIsDir,
  R,ok    : Boolean;
  filepath: String;
 begin
@@ -6315,9 +6342,29 @@ begin
    //If so, then delete
    if R then
    begin
+    ProgressForm.Show;
+    Application.ProcessMessages;
+    //Make a note if we are deleting a directory
+    LIsDir:=TMyTreeNode(DirList.Selections[0]).IsDir;
+    if LIsDir then
+     LDirRef:=TMyTreeNode(DirList.Selections[0]).DirRef;
+    //Perform the deletion
     ok:=Image.DeleteFile(filepath);
     if ok then
     begin
+     //Update the directory references
+     if LIsDir then
+     begin
+      for j:=0 to DirList.Items.Count-1 do
+      begin
+       if TMyTreeNode(DirList.Items[j]).DirRef>LDirRef then
+        TMyTreeNode(DirList.Items[j]).DirRef:=
+                                         TMyTreeNode(DirList.Items[j]).DirRef-1;
+       if TMyTreeNode(DirList.Items[j]).ParentDir>LDirRef then
+        TMyTreeNode(DirList.Items[j]).ParentDir:=
+                                      TMyTreeNode(DirList.Items[j]).ParentDir-1;
+      end;
+     end;
      if Image.MajorFormatNumber<>diSpark then HasChanged:=True;
      //Update the status bar
      UpdateImageInfo;
@@ -6341,7 +6388,8 @@ begin
         if HexDumpMenu.Items[j].Caption=filepath then
          HexDumpMenu.Items[j].Free;
       end;
-    end;
+    end;           
+    ProgressForm.Hide;
    end else ok:=False;
   end;
  end;

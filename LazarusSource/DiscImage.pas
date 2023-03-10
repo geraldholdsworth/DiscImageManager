@@ -48,6 +48,7 @@ type
    Title       : String;            //Directory title (DFS/ADFS)
    Entries     : array of TDirEntry;//Entries (see DiscImageUtils unit)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
+   Deleted,                         //Used to indicate if this directory has been deleted
    Broken,                          //Flag if directory is broken (ADFS)
    Locked,                          //Flag if disc is locked (MMFS)
    BeenRead,                        //Flag if directory has been reed in
@@ -238,6 +239,7 @@ type
   function Inflate(filename: String): TDIByteArray;
   function InterleaveString: String;
   function VolumeSerialNumber: Cardinal;
+  procedure UpdateDirRef(dirref: Cardinal);
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
@@ -260,7 +262,8 @@ type
                                                ide,addheader: Boolean): Boolean;
   function UpdateADFSDiscTitle(title: String): Boolean;
   function UpdateADFSBootOption(option: Byte): Boolean;
-  function ADFSGetFreeFragments(offset:Boolean=True): TFragmentArray;
+  function ADFSGetFreeFragments(offset:Boolean=True;
+                                          whichzone:Integer=-1): TFragmentArray;
   function WriteADFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
                          extend:Boolean=True): Integer;
   function ADFSFindFreeSpace(filelen: Cardinal;

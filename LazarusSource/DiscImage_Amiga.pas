@@ -775,6 +775,7 @@ Delete a file
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteAmigaFile(filename: String):Boolean;
 var
+ dirref   : Integer;
  dir,
  entry,
  hashval  : Cardinal;
@@ -788,17 +789,18 @@ begin
  //Does the file exist?
  if FileExists(filename,dir,entry) then
  begin
+  dirref:=-1;
   //Is this a directory?
   if FDisc[dir].Entries[entry].DirRef<>-1 then
   begin
+   dirref:=FDisc[dir].Entries[entry].DirRef;
+   FDisc[dirref].Deleted:=True;
    //Has it been read in?
-   if not FDisc[FDisc[dir].Entries[entry].DirRef].BeenRead then
-    ReadDirectory(filename);
+   if not FDisc[dirref].BeenRead then ReadDirectory(filename);
    success:=True;
    //Recusively delete the contents.
-   while(Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)and(success)do
-    success:=DeleteAmigaFile(filename+dir_sep
-              +FDisc[FDisc[dir].Entries[entry].DirRef].Entries[0].Filename);
+   while(Length(FDisc[dirref].Entries)>0)and(success)do
+    success:=DeleteAmigaFile(filename+dir_sep+FDisc[dirref].Entries[0].Filename);
   end;
   //Remove the entry from the chain
   if AmigaRemoveFromChain(Copy(filename,Length(GetParent(dir))+2),
@@ -822,6 +824,7 @@ begin
       FDisc[dir].Entries[hashval]:=FDisc[dir].Entries[hashval+1];
    //And lose the last entry
    SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);
+   if dirref>=-1 then UpdateDirRef(dirref);
    //Set as positive result
    Result:=True;
   end;
