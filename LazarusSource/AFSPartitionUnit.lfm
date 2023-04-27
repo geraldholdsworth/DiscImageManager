@@ -22,4 +22,10 @@ object AFSPartitionForm: TAFSPartitionForm
     Alignment = taCenter
     Caption = 'PartitionSizeLabel'
   end
+  object OpenDFSFile: TOpenDialog
+    Title = 'Add DFS Single Sided Image'
+    Filter = 'Acorn DFS Single Sided File|*.ssd'
+    Left = 136
+    Top = 48
+  end
 end

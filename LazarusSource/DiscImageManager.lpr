@@ -7,7 +7,7 @@ This has grown beyond all my imagination.
 {$MODE objFPC}{$H+}
 
 uses
-  Forms, datetimectrls,Interfaces,DiscImageUtils,Global,Spark,
+  Forms, datetimectrls,Interfaces,Global,
   MainUnit in 'MainUnit.pas',
   DiscImage in 'DiscImage.pas',
   AboutUnit in 'AboutUnit.pas',

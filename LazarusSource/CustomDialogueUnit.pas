@@ -24,7 +24,7 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ExtCtrls,StdCtrls,
  GJHCustomComponents;
 
 type

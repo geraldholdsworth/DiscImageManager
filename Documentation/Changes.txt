@@ -948,16 +948,21 @@ Bug fixes
 * The application would crash if an ADFS image had zero free space.
 * Creating a 640KB ADFS L image, then adding a DOS partition would not result in the partition being visible.
 
-1.45.1
+1.45.2
 ---------------------
 New or improved features
 * Image report now lists the free space map for ADFS.
+* Add Partition button now works for DFS single sided images to add a second side.
+* Exporting files now includes a date/time stamp field in the *.inf file if set.
+* Importing files, where the *.inf file has a date/time stamp field, updates the date/time for the file.
 
 Bug fixes
 * When deleting directories, the internal directory references were not getting updated.
 * When deallocating free space on a New Map ADFS, the wrong idlen was sometimes being used.
 * The New Map ADFS free space map was not getting read correctly.
 * Renaming an ADFS file in a ADFS/DOS hybrid image could crash the application on Windows. Renames on the DOS or Acorn FS side could also fail.
+* Broken ADFS directories were getting displayed with the 'Not Read' colours.
+* A corrupt 'JesMap' sector, on Acorn FS, can cause the application to crash. Additional checks have been put in place.
 
 Platform History
 ----------------

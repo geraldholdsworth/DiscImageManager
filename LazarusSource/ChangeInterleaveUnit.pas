@@ -5,8 +5,8 @@ unit ChangeInterleaveUnit;
 interface
 
 uses
- Classes, SysUtils, Forms, Controls, Graphics, Dialogs, GJHCustomComponents,
- ExtCtrls, StdCtrls;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,GJHCustomComponents,ExtCtrls,
+ StdCtrls;
 
 type
 

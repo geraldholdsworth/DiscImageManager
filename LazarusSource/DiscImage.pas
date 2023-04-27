@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.45
+TDiscImage class V1.46 and TSpark class V1.05
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -30,11 +30,179 @@ Boston, MA 02110-1335, USA.
 
 interface
 
-uses Classes,DiscImageUtils,Math,crc,ZStream,StrUtils,Spark;
+uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,ExtCtrls,DateUtils;
 
 {$M+}
 
-//The class definition
+type
+//Define the TDIByteArray - saves using the System.Types unit for TByteDynArray
+ TDIByteArray = array of Byte;
+//Define the records to hold the catalogue
+ TDirEntry     = record     //Not all fields are used on all formats
+  Parent,                   //Complete path for parent directory (ALL)
+  Filename,                 //Filename (ALL)
+  ShortFilename,            //Long Filename (DOS)
+  Attributes,               //File attributes (ADFS/DFS/D64/D71/D81/AmigaDOS)
+  Filetype,                 //Full name filetype (ADFS/D64/D71/D81)
+  ShortFileType: String;    //Filetype shortname (ADFS/D64/D71/D81)
+  LoadAddr,                 //Load Address (ADFS/DFS)
+  ExecAddr,                 //Execution Address (ADFS/DFS)
+  Length,                   //Total length (ALL)
+  Side,                     //Side of disc of location of data (DFS)
+  Track       : Cardinal;   //Track of location of data (D64/D71/D81)
+  Sector,                   //Sector of disc of location of data (DFS/D64/D71/D81/AmigaDOS file)
+                            //Sector of disc of location of header (AmigaDOS directory)
+                            //Address of location of data (ADFS S/M/L/D)
+                            //Indirect disc address of data (ADFS E/F/E+/F+)
+  DirRef      : Integer;    //Reference to directory, if directory (ADFS/AmigaDOS)
+  TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
+  isDOSPart   : Boolean;    //This file is the DOS partition
+ end;
+
+ type
+//Define the records for an Acorn File Server password file
+  TUserAccount = record
+   Username,
+   Password   : String;
+   FreeSpace  : Cardinal;
+   System,
+   Locked     : Boolean;
+   BootOption,
+   AccessLevel: Byte;
+ end;
+
+ TUserAccounts  =array of TUserAccount;
+ TSearchResults =array of TDirEntry;
+
+ //General purpose procedures
+ procedure ResetDirEntry(var Entry: TDirEntry);
+ procedure RemoveTopBit(var title: String);
+ function AddTopBit(title:String):String;
+ procedure BBCtoWin(var f: String);
+ procedure WintoBBC(var f: String);
+ procedure RemoveSpaces(var s: String);
+ procedure RemoveControl(var s: String);
+ function IsBitSet(v,b: Integer): Boolean;
+ function BreakDownInf(s: String): TStringArray;
+ function FilenameToASCII(s: String): String;
+ function GetAttributes(attr: String;format: Byte): String;
+ function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
+ function DateTimeToAFS(timedate: TDateTime): Word;
+ function AFSToDateTime(date: Word):TDateTime;
+ //Some constants
+ const
+  diAcornDFS   = $000;
+  diAcornADFS  = $001;
+  diCommodore  = $002;
+  diSinclair   = $003;
+  diAmiga      = $004;
+  diAcornUEF   = $005;
+  diMMFS       = $006;
+  diAcornFS    = $007;
+  diSpark      = $008;
+  diSJMDFS     = $009;
+  diDOSPlus    = $00A;
+  diInvalidImg = $00FF; //Needs to be changed to $FFFF
+  diADFSOldMap = $00;
+  diADFSNewMap = $01;
+  diAmigaOFS   = $02;
+  diAmigaFFS   = $03;
+  diMaster512  = $01;
+  diFAT12      = $12;
+  diFAT16      = $16;
+  diFAT32      = $32;
+  diADFSOldDir = $00;
+  diADFSNewDir = $01;
+  diADFSBigDir = $02;
+  diAmigaDir   = $10;
+  diAmigaCache = $11;
+  diUnknownDir = $FF;
+
+ type
+  TFileEntry = record
+   LoadAddr,                 //Load Address
+   ExecAddr,                 //Execution Address
+   Length,                   //Uncompressed size
+   Size,                     //Compressed size
+   NumEntries,               //Number of directory entries
+   Attributes,               //File attributes (hex)
+   DataOffset : Cardinal;    //Where to find the data
+   Filename,                 //RISC OS filename
+   Parent,                   //RISC OS parent
+   ArchiveName: String;      //Name (and path) in archive
+   Directory  : Boolean;     //Is it a directory?
+ end;
+
+ //TSpark class definition
+ type
+  TSpark = Class
+  private
+  type
+   TFileList = array of TFileEntry;
+   TProgressProc = procedure(Sender: TObject;const Fupdate: Double) of Object;
+   private
+   Fcache,                     //Data cache for receiving uncompressed file
+   Fbuffer     : TDIByteArray;//Buffer to hold the archive
+   ZipFilename : String;       //Filename of the archive
+   FIsSpark    : Boolean;      //Is it a valid !Spark archive?
+   FIsPack     : Boolean;      //Is it a valid !Pack archive?
+   FFileList   : TFileList;    //List of files in archive
+   FProgress   : TProgressProc;//Progress feedback
+   Fversion    : String;       //Version of this class
+   FTimeOut    : Cardinal;     //Length of time out, in seconds
+   FMaxDirEnt  : Integer;      //Maximum size of directory
+   FBitLength  : Integer;      //Bit length (for LZW)
+   //Private methods
+   function ExtractFiles: TFileList;
+   function ExtractSparkFiles: TFileList;
+   function ExtractPackFiles: TFileList;
+   procedure DoCreateOutZipStream(Sender: TObject; var AStream: TStream;
+                                                      AItem: TFullZipFileEntry);
+   procedure DoDoneOutZipStream(Sender: TObject; var AStream: TStream;
+                                                      AItem: TFullZipFileEntry);
+   function GetUncompressedSize: Cardinal;
+   function IsItSpark: Boolean;
+   function FindEoCL(var CL: Cardinal): Cardinal;
+   procedure UpdateCL(CL,EoCL: Cardinal);
+   function ExtractFileDataFromSpark(index: Integer):TDIByteArray;
+   function ExtractFileDataFromPack(index: Integer):TDIByteArray;
+   procedure SaveData;
+   function FindEntry(path: String;matchpath: Boolean;var CLptr: Cardinal;
+                                                  var dataptr: Cardinal): Boolean;
+   function RenameTheFile(oldpath, newpath: String): Boolean;
+   function DeleteTheFile(filename: String):Boolean;
+   //Private constants
+   const
+    NewAtts: array[0..7] of Char = ('R','W','L','D','r','w',' ',' ');
+  published
+   //Published methods
+   constructor Create(filename: String;blank: Boolean=false);
+   constructor Create(stream: TStream); overload;
+   function ExtractFileData(Index: Integer):TDIByteArray;
+   procedure WriteFile(var filetozip: TFileEntry;var buffer: TDIByteArray);
+   procedure CreateDirectory(path: String);
+   function RenameFile(oldpath, newpath: String): Boolean;
+   function UpdateLoadExecAddress(path: String;load, exec: Cardinal): Boolean;
+   function UpdateAttributes(path: String; attributes: Word): Boolean;
+   function DeleteFile(filename: String):Boolean;
+   procedure RISCOSFilename(path: String;addroot: Boolean;var filename: String;
+                                                            var parent: String);
+   procedure SwapDirSep(var path: String);
+   function ConvertAttribute(attr: Byte): String;
+   function ConvertAttribute(attr: String): Byte; overload;
+   //Published properties
+   property IsSpark:           Boolean       read IsItSpark;
+   property FileList:          TFileList     read FFileList;
+   property UncompressedSize:  Cardinal      read GetUncompressedSize;
+   property ProgressIndicator: TProgressProc write FProgress;
+   property Version:           String        read Fversion;
+   property TimeOut:           Cardinal      read FTimeOut write FTimeOut;
+   property MaxDirEnt:         Integer       read FMaxDirEnt;
+  public
+   destructor Destroy; override;
+  end;
+
+//DiscImage class definition
 type
  TDiscImage    = Class
  private
@@ -46,7 +214,7 @@ type
   TDir          = record
    Directory,                       //Directory name (ALL)
    Title       : String;            //Directory title (DFS/ADFS)
-   Entries     : array of TDirEntry;//Entries (see DiscImageUtils unit)
+   Entries     : array of TDirEntry;//Entries
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
    Deleted,                         //Used to indicate if this directory has been deleted
    Broken,                          //Flag if directory is broken (ADFS)
@@ -344,7 +512,6 @@ type
   function UpdateAFSFileAddr(filename: String; newaddr: Cardinal;
                                                         load: Boolean): Boolean;
   function UpdateAFSTimeStamp(filename: String; newtimedate: TDateTime):Boolean;
-  function AFSTimeToWord(timedate: TDateTime): Word;
   function UpdateAFSAttributes(filename,attributes: String): Boolean;
   function UpdateAFSDiscTitle(title: String): Boolean;
   function AddAFSPartition(size: Cardinal): Boolean;
@@ -369,6 +536,7 @@ type
   function UpdateDFSFileAddr(filename: String; newaddr: Cardinal;
                                                          load: Boolean):Boolean;
   function ExtractDFSPartition(side: Cardinal): TDIByteArray;
+  function AddDFSBlankSide(tracks: Byte): Boolean;
   function AddDFSSide(var buffer: TDIByteArray): Boolean;
   function AddDFSSide(filename: String): Boolean; overload;
   function MoveDFSFile(filename,directory: String): Integer;
@@ -611,6 +779,7 @@ type
   function SeparatePartition(side: Cardinal;filename: String=''): Boolean;
   function GetMaxLength: Cardinal;
   function AddPartition(size: Cardinal;format: Byte): Boolean;
+  function AddPartition(tracks: Byte): Boolean; overload;
   function AddPartition(filename: String): Boolean; overload;
   function ChangeInterleaveMethod(NewMethod: Byte): Boolean;
   function GetDirSep(partition: Byte): Char;
@@ -665,10 +834,9 @@ type
 
 implementation
 
-uses
- SysUtils,DateUtils;
 {This unit is split into sub units. Some code is replicated in the different
 sub units. This is so each filing system can have it's own methods.}
+{$INCLUDE 'DiscImageUtils.pas'}     //General purpose methods
 {$INCLUDE 'DiscImage_Private.pas'}  //Module for private methods
 {$INCLUDE 'DiscImage_Published.pas'}//Module for published methods
 {$INCLUDE 'DiscImage_ADFS.pas'}     //Module for Acorn ADFS

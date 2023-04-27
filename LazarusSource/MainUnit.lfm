@@ -9094,10 +9094,10 @@ object MainForm: TMainForm
     Height = 62
     Top = 0
     Width = 745
-    ActivePage = ImageToolBarPage
+    ActivePage = PartitionToolBarPage
     Align = alTop
     AutoSize = True
-    TabIndex = 0
+    TabIndex = 2
     TabOrder = 5
     object ImageToolBarPage: TTabSheet
       AutoSize = True

@@ -167,6 +167,7 @@ Delete a file from a Spark archive
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteSparkFile(filename: String): Boolean;
 var
+ dirref : Integer;
  index,
  dir,
  entry  : Cardinal;
@@ -178,7 +179,8 @@ begin
  begin
   //Convert the filename
   SparkFile.SwapDirSep(filename);
-  if FDisc[dir].Entries[entry].DirRef<>-1 then filename:=filename+'/';
+  dirref:=FDisc[dir].Entries[entry].DirRef;
+  if dirref<>-1 then filename:=filename+'/';
   if filename[1]='$' then filename:=Copy(filename,3);
   //Delete the file/directory
   SparkFile.DeleteFile(filename);
@@ -186,10 +188,12 @@ begin
   Result:=True;
   //This needs to replicate when the Spark class is doing for the local copy
   //i.e., for directories, delete all contents as well as the directory
-  if entry<Length(FDisc[dir].Entries)-1 then
+  if entry<Length(FDisc[dir].Entries)-2 then
    for index:=entry to Length(FDisc[dir].Entries)-2 do
     FDisc[dir].Entries[index]:=FDisc[dir].Entries[index+1];
   SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);
+  //Update all the directory references
+  if dirref<>-1 then UpdateDirRef(dirref);
   //Did we remove the last child of the directory?
   if Length(FDisc[dir].Entries)=0 then
   begin

@@ -3,12 +3,8 @@ To Do
 In no particular order
 
 Bugs
-* Scaling - there is a report that icons 'grow' on scaled screens. I have been unable to reproduce this.
-  + This appears to happen on Windows (and probably Linux), with single screen only (dual or more it does not do this), resolution of 1400 by anything (or more), and scaled to more than 100%. The icons in the Directory Listing grow as the mouse moves. - UNABLE TO REPLICATE. This may have been fixed by the upgrade to Lazarus 2.2.0.
-* 'Bad FS Map' from BeebEm when loading an ADFS/AFS hybrid image after making a change to the ADFS partition. - UNABLE TO REPLICATE
 * Some SS DFS images are IDed as DS images when 'Allow zero sectors' is selected in the preferences. - UNABLE TO REPLICATE
 * Access violation has been reported when creating an ADFS HDD image (default options) on Windows. - UNABLE TO REPLICATE
-* Need to adjust the Amiga, DOS and AFS directory references when a directory is deleted (as per ADFS).
 
 General - Ideas, currently unlikely to be added
 * Drag and Drop facilities out of the application...currently looking unlikely for cross platform. This will need to be done using 'code-per-platform' directives.
@@ -24,15 +20,15 @@ General - Ideas which are maybe possible
 * For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
 * Ablity to add/remove/delete partitions using the command line.
 * Allow for multiple (>2) partitions - i.e. two or more DOS partitions on an ADFS structure, or ADFS/AFS/DOS hybrid.
-* DFS: Import a single sided disc onto another single sided disc to create a double sided disc.
-* DFS: Create a second side to a single sided image.
 * ADFS: When a DOS image file is added to an ADFS image (and the "Open DOS Partition" setting is set), automatically open as the second partition (if there isn't one already).
 * ADFS: Rebuild the Old Map FS Map by scanning the files and rebuilding from scratch (in the class definition).
 * ADFS: Use the above, along with other functions, to create a new function to fix ADFS Old Map images which otherwise won't load.
+* ADFS: Change the interleave, without moving data around.
 * AFS: AFS0 images do not get created correctly (in particular the free space allocation maps) - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: Add option to new Level 3 images for pre-1988 or post-1988 format - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: When extracting the AFS partition, remove the ADFS partition and re-address all the objects, instead of just blanking out the ADFS part - IN PROGRESS.
 * AFS: Consolidate the JesMap fragments which are concurrent (as per Old Map ADFS).
+* AFS: Expand the reading of objects to include the extended JesMap.
 * Amiga: Add in support for Rigid Disks (multi-partition hard discs) - NEED TO IMPLEMENT MULTI-PARTITION SUPPORT FIRST.
 * Amiga: Add in support for Professional File System - AWAITING FORMAT DETAILS AND SAMPLE(S).
 * Amiga: Add in support for Smart File System - AWAITING SAMPLE(S).
@@ -43,4 +39,3 @@ General - Ideas which are maybe possible
 * File Viewer: ability to export contents in a different format (e.g. BASIC -> Text, or Sprite -> PNG).
 * Function (and button) to check every file and directory on a volume and produce a report detailing number of files with error (CRC32) and number of broken directories (ADFS), and list them, with option to save to a text file.
 * Function (and button) to consolidate the free space map for ADFS and AFS (using the functions built into the class).
-* Progress window for defrag.

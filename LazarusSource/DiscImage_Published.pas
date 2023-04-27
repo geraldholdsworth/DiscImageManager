@@ -1425,6 +1425,14 @@ begin
    1: Result:=AddDOSPartition(size); //Add DOS Plus partition
   end;
 end;
+function TDiscImage.AddPartition(tracks: Byte): Boolean;
+begin
+ Result:=False;
+ if(tracks<>40)and(tracks<>80)then exit; //40 or 80 not specified, so quit
+ //Only for Acorn DFS, given a number of tracks
+ if(GetMajorFormatNumber=diAcornDFS)and(not FDSD)then //Single sided images only
+  Result:=AddDFSBlankSide(tracks);
+end;
 function TDiscImage.AddPartition(filename: String): Boolean;
 begin
  Result:=False;
@@ -1580,4 +1588,575 @@ begin
    for side:=0 to Result.Count-1 do
     Result[side]:='"'+StringReplace(Result[side],': ','","',[rfReplaceAll])+'"';
  end;
+end;
+
+//++++++++++++++++++ TSpark Published Methods ++++++++++++++++++++++++++++++++++
+
+{-------------------------------------------------------------------------------
+Create the instance
+-------------------------------------------------------------------------------}
+constructor TSpark.Create(filename: String;blank: Boolean=false);
+var
+ F: TFileStream;
+begin
+ //Set the filename
+ ZipFilename:=filename;
+ //Create a blank file
+ if blank then
+ begin
+  F:=TFileStream.Create(ZipFilename,fmCreate or fmShareDenyNone);
+  F.Free;
+ end;
+ //Create a stream
+ F:=TFileStream.Create(ZipFilename,fmOpenRead or fmShareDenyNone);
+ //Read it using the overloaded constructor
+ Create(F);
+ //And free it up
+ F.Free;
+end;
+constructor TSpark.Create(Stream: TStream);
+begin
+ inherited Create;
+ //Initialise the variables
+ Fbuffer    :=nil;
+ Fversion   :='1.05';
+ FTimeOut   :=30;
+ FIsSpark   :=False;
+ FIsPack    :=False;
+ //Read the zip file into memory from the stream
+ SetLength(Fbuffer,Stream.Size);
+ Stream.Position:=0;
+ Stream.Read(Fbuffer[0],Stream.Size);
+ if Length(Fbuffer)<5 then exit;
+ //Check it is a !Spark file (or just a zip file)
+ if (Fbuffer[0]=$50)
+ and(Fbuffer[1]=$4B)
+ and(Fbuffer[2]=$03)
+ and(Fbuffer[3]=$04)then FIsSpark:=True;
+ //Is it a !PackDir file
+ if (Fbuffer[0]=$50)
+ and(Fbuffer[1]=$41)
+ and(Fbuffer[2]=$43)
+ and(Fbuffer[3]=$4B)
+ and(Fbuffer[4]=$00)then FIsPack:=True;
+ //It is neither
+ if(not FIsSpark)and(not FIsPack)then SetLength(Fbuffer,0);//Clear the buffer
+ //The extract the file details - the function will select the appropriate algorithm
+ FFileList:=ExtractFiles;
+end;
+
+{-------------------------------------------------------------------------------
+Destroy (free) the instance
+-------------------------------------------------------------------------------}
+destructor TSpark.Destroy;
+begin
+ inherited;
+end;
+
+{-------------------------------------------------------------------------------
+Write a file to the archive
+-------------------------------------------------------------------------------}
+procedure TSpark.WriteFile(var filetozip: TFileEntry;var buffer: TDIByteArray);
+var
+ tempname : String;
+ tempfile : TFileStream;
+ zipfile  : TZipper;
+ EoCL,
+ CL,ptr,
+ dataptr  : Cardinal;
+ fnL,exL  : Word;
+ index,
+ adjust   : Integer;
+const newExL = $18;
+begin
+ if FIsPack then exit;
+ if filetozip.Directory then CreateDirectory(filetozip.ArchiveName)
+ else
+ begin
+  //Zipper will only zip up existing files, so we'll need to save the data to a
+  //temporary file first, then zip that.
+  tempname:=GetTempFileName;//Get a temporary name
+  tempfile:=TFileStream.Create(tempname,fmCreate);//Create the file
+  tempfile.Position:=0;
+  tempfile.Write(buffer[0],Length(buffer)); //Write the file data to it
+  tempfile.Free; //Close the file
+  //Now we can open the zipfile
+  zipfile:=TZipper.Create;
+  try
+   zipfile.Filename:=ZipFilename; //Set the zipfile name
+   zipfile.Entries.AddFileEntry(tempname,filetozip.ArchiveName); //Add the file
+   zipfile.ZipAllFiles; //Then zip all the files
+  finally
+   zipfile.Free; //And close it
+  end;
+  //Finally, delete the temporary file
+  DeleteFile(tempname);
+  //Then we will need to load the zip file in and change the values and add to
+  //the library at the end.
+  tempfile:=TFileStream.Create(ZipFilename,fmOpenRead or fmShareDenyNone);
+  SetLength(Fbuffer,tempfile.Size);
+  tempfile.Position:=0;
+  tempfile.Read(Fbuffer[0],tempfile.Size);
+  tempfile.Free;
+  CL:=0;
+  EoCL:=FindEoCL(CL); //Get the end of central library marker
+  if EoCL<>0 then
+  begin
+   //Find the entry for this file
+   if FindEntry(filetozip.ArchiveName,false,ptr,dataptr) then
+   begin
+    //Get the variable length fields lengths
+    fnL:=Fbuffer[ptr+$1C]+Fbuffer[ptr+$1D]<<8;
+    exL:=Fbuffer[ptr+$1E]+Fbuffer[ptr+$1F]<<8;
+    //We need to add up to 24 bytes, so everything from the next entry needs to shift along
+    adjust:=0;
+    if exL<newExL then adjust:=newExL-exL;
+    if adjust>0 then
+    begin
+     SetLength(Fbuffer,Length(Fbuffer)+adjust);
+     for index:=Length(Fbuffer)-1 downto ptr+$2E+fnL+exL+adjust do
+      Fbuffer[index]:=Fbuffer[index-adjust];
+    end;
+    //Update the OS type to RISC OS
+    Fbuffer[ptr+$05]:=13;
+    //Update the extra field length
+    Fbuffer[ptr+$1E]:=(exL+adjust)mod$100;
+    Fbuffer[ptr+$1F]:=(exL+adjust)>>8;
+    //Fill in the extra field
+    Fbuffer[ptr+$2E+fnL]:=$41;//A
+    Fbuffer[ptr+$2F+fnL]:=$43;//C
+    //Length of extra -4
+    Fbuffer[ptr+$30+fnL]:=((exL+adjust)-4)mod$100;
+    Fbuffer[ptr+$31+fnL]:=((exL+adjust)-4)>>8;
+    Fbuffer[ptr+$32+fnL]:=$41;//A
+    Fbuffer[ptr+$33+fnL]:=$52;//R
+    Fbuffer[ptr+$34+fnL]:=$43;//C
+    Fbuffer[ptr+$35+fnL]:=$30;//0
+    //Load address
+    Fbuffer[ptr+$36+fnL]:=filetozip.LoadAddr mod $100;
+    Fbuffer[ptr+$37+fnL]:=(filetozip.LoadAddr>>8)mod $100;
+    Fbuffer[ptr+$38+fnL]:=(filetozip.LoadAddr>>16)mod $100;
+    Fbuffer[ptr+$39+fnL]:=(filetozip.LoadAddr>>24)mod $100;
+    //Exec address
+    Fbuffer[ptr+$3A+fnL]:=filetozip.ExecAddr mod $100;
+    Fbuffer[ptr+$3B+fnL]:=(filetozip.ExecAddr>>8)mod $100;
+    Fbuffer[ptr+$3C+fnL]:=(filetozip.ExecAddr>>16)mod $100;
+    Fbuffer[ptr+$3D+fnL]:=(filetozip.ExecAddr>>24)mod $100;
+    //Attributes
+    Fbuffer[ptr+$3E+fnL]:=filetozip.Attributes;
+    //Blank off the rest
+    if adjust>0 then
+    begin
+     for index:=17 to adjust-1 do Fbuffer[ptr+fnL+index+$2E]:=0;
+     //Now we need to replicate this extra field into the main header
+     SetLength(Fbuffer,Length(Fbuffer)+adjust);//First, extend again
+     for index:=Length(Fbuffer)-1 downto dataptr+$1E+fnL+exL+adjust do
+      Fbuffer[index]:=Fbuffer[index-adjust];
+    end;
+    //Now just replicate from above
+    inc(ptr,adjust);//Don't forget this has moved too
+    for index:=0 to newExL-1 do
+     Fbuffer[dataptr+$1E+fnL+index]:=Fbuffer[ptr+$2E+fnL+index];
+    //And update the field in the main header
+    Fbuffer[dataptr+$1C]:=(exL+adjust)mod$100;
+    Fbuffer[dataptr+$1D]:=(exL+adjust)>>8;
+    //Get the compressed size of the file
+    filetozip.Length:=Length(buffer);
+    filetozip.Size:=Fbuffer[dataptr+$12]
+                   +Fbuffer[dataptr+$13]<<8
+                   +Fbuffer[dataptr+$14]<<16
+                   +Fbuffer[dataptr+$15]<<24;
+    //And the data offset
+    filetozip.DataOffset:=dataptr;
+    //Update the End of Central Library
+    inc(EoCL,adjust*2);
+    //Update Offset of CL
+    inc(CL,adjust);
+    UpdateCL(CL,EoCL); //Write both fields
+    //Save it back again
+    SaveData;
+    //And now add it to the overall list
+    SetLength(FFileList,Length(FFileList)+1);
+    FFileList[Length(FFileList)-1]:=filetozip;
+    //Set the spark flag
+    FIsSpark:=True;
+   end;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Create an empty directory
+-------------------------------------------------------------------------------}
+procedure TSpark.CreateDirectory(path: String);
+var
+ index,
+ ctr      : Integer;
+ buffer   : TDIByteArray;
+ EoCL,CL,
+ offset   : Cardinal;
+ datetime : QWord;
+ year,
+ month,
+ day,
+ hour,
+ minute,
+ second,
+ ms       : Word;
+ filetozip: TFileEntry;
+const
+ headersig: array[0..3] of Byte = ($50,$4B,$03,$04);
+ clsig    : array[0..3] of Byte = ($50,$4B,$01,$02);
+ eoclsig  : array[0..3] of Byte = ($50,$4B,$05,$06);
+begin
+ if FIsPack then exit;
+ //Make sure that the path is not empty
+ if path<>'' then
+ begin
+  //Ensure it ends with a directory specifier
+  if path[Length(path)]<>'/' then path:=path+'/';
+  //And does not start with the root
+  if Length(path)>2 then if path[1]='$' then path:=Copy(path,3);
+  //Set up the buffer for the header entry
+  SetLength(buffer,Length(path)+$36);
+  for index:=0 to 3 do buffer[index]:=headersig[index];
+  //Version
+  buffer[4]:=$0A;
+  //Blank the rest
+  for index:=5 to $1D do buffer[index]:=$00;
+  //Modification time $0A/$0B
+  DecodeDateTime(Now,year,month,day,hour,minute,second,ms);
+  datetime:=(hour<<$B)OR(minute<<5)OR(second div 2);
+  buffer[$0A]:=datetime mod $100;
+  buffer[$0B]:=datetime>>8;
+  //Modification date $0C/$0D
+  datetime:=((year-1980)<<9)OR(month<<5)OR day;
+  buffer[$0C]:=datetime mod $100;
+  buffer[$0D]:=datetime>>8;
+  //Filename length
+  buffer[$1A]:=Length(path)mod$100;
+  buffer[$1B]:=Length(path)>>8;
+  //Extra length
+  buffer[$1C]:=$18;
+  //Filename
+  for index:=1 to Length(path) do buffer[$1D+index]:=Ord(path[index]);
+  //Fill in the extra field
+  buffer[$1E+Length(path)]:=$41;//A
+  buffer[$1F+Length(path)]:=$43;//C
+  //Length of extra -4
+  buffer[$20+Length(path)]:=$14;
+  buffer[$21+Length(path)]:=$00;
+  buffer[$22+Length(path)]:=$41;//A
+  buffer[$23+Length(path)]:=$52;//R
+  buffer[$24+Length(path)]:=$43;//C
+  buffer[$25+Length(path)]:=$30;//0
+  //Load address
+  datetime:=((Floor(Now)-2)*8640000)+Floor((Now-Floor(Now))*8640000);
+  buffer[$26+Length(path)]:=(datetime>>32)mod$100;//last byte of the time/date
+  buffer[$27+Length(path)]:=$FD;
+  buffer[$28+Length(path)]:=$FF;
+  buffer[$29+Length(path)]:=$FF;
+  //Exec address
+  buffer[$2A+Length(path)]:= datetime mod $100; //RISC OS time/date
+  buffer[$2B+Length(path)]:=(datetime>>8)mod $100;
+  buffer[$2C+Length(path)]:=(datetime>>16)mod $100;
+  buffer[$2D+Length(path)]:=(datetime>>24)mod $100;
+  //Attributes
+  buffer[$2E+Length(path)]:=$0F;
+  //Blank off the rest
+  for index:=0 to 7 do buffer[$2F+Length(path)+index]:=$00;
+  //Find the end of the list
+  CL:=0;
+  EoCL:=FindEoCL(CL);
+  //Increase the archive size
+  SetLength(Fbuffer,Length(Fbuffer)+Length(buffer));
+  //Move the data up
+  if EoCL>0 then
+   for index:=Length(Fbuffer)-1 downto CL do
+    Fbuffer[index]:=Fbuffer[index-Length(buffer)];
+  //There is no EoCL, so we need to create one
+  if EoCL=0 then
+  begin
+   EoCL:=Length(Fbuffer);
+   SetLength(Fbuffer,Length(Fbuffer)+$16);
+   //Write the signature
+   for index:=0 to 3 do Fbuffer[EoCL+index]:=eoclsig[index];
+   //Reset the EoCL back to 0, for now
+   EoCL:=0;
+  end;
+  //Then insert where the CL was
+  for index:=0 to Length(buffer)-1 do Fbuffer[CL+index]:=buffer[index];
+  //Remember where we put it
+  offset:=CL;
+  //Adjust the CL and EoCL
+  inc(EoCL,Length(buffer));
+  inc(CL,Length(buffer));
+  //Update the CL location
+  UpdateCL(CL,EoCL);
+  //Now add the entry to the central database
+  SetLength(buffer,Length(buffer)+$10);
+  //Now move data around - start at the end so we don't overwrite anything
+  for index:=Length(buffer)-1 downto $2E do buffer[index]:=buffer[index-$10];
+  //Middle part
+  for index:=$1F downto $06 do buffer[index]:=buffer[index-2];
+  //CL signature
+  for index:=0 to 3 do buffer[index]:=clsig[index];
+  //Version
+  buffer[$04]:=$14;
+  //OS
+  buffer[$05]:=$0D;
+  //Zero out the non-required fields
+  for index:=$20 to $29 do buffer[index]:=$00;
+  //Offset of main entry
+  buffer[$2A]:=offset mod$100;
+  buffer[$2B]:=(offset>>8)mod$100;
+  buffer[$2C]:=(offset>>16)mod$100;
+  buffer[$2D]:=(offset>>24)mod$100;
+  //Now to insert this into the Central Library
+  //Increase the archive size
+  SetLength(Fbuffer,Length(Fbuffer)+Length(buffer));
+  //Move the data up
+  for index:=Length(Fbuffer)-1 downto EoCL do
+   Fbuffer[index]:=Fbuffer[index-Length(buffer)];
+  //Then insert where the EoCL was
+  for index:=0 to Length(buffer)-1 do Fbuffer[EoCL+index]:=buffer[index];
+  //And update again
+  inc(EoCL,Length(buffer));
+  UpdateCL(CL,EoCL);
+  //Count the number of entries
+  ctr:=0;
+  for index:=CL to EoCL do
+   if (Fbuffer[index]=$50)
+   and(Fbuffer[index+1]=$4B)
+   and(Fbuffer[index+2]=$01)
+   and(Fbuffer[index+3]=$02)then inc(ctr);
+  //Number of entries
+  Fbuffer[EoCL+$8]:=ctr mod$100;
+  Fbuffer[EoCL+$9]:=(ctr>>8)mod$100;
+  Fbuffer[EoCL+$A]:=ctr mod $100;
+  Fbuffer[EoCL+$B]:=(ctr>>8)mod$100;
+  //Save it back again
+  SaveData;
+  //Populate the entry
+  filetozip.ArchiveName:=path;
+  filetozip.Attributes:=$0F;
+  filetozip.LoadAddr:=((datetime>>32)mod$100)+$FFFFFD00;
+  filetozip.ExecAddr:=datetime and $FFFFFFFF;
+  filetozip.DataOffset:=offset;
+  filetozip.Directory:=True;
+  filetozip.Size:=0;
+  filetozip.Length:=0;
+  filetozip.NumEntries:=0;
+  //Sort the filename and path out for RISC OS
+  RISCOSFilename(path,True,filetozip.Filename,filetozip.Parent);
+  //And now add it to the overall list
+  SetLength(FFileList,Length(FFileList)+1);
+  FFileList[Length(FFileList)-1]:=filetozip;
+  //Set the spark flag
+  FIsSpark:=True;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Rename, or move, a file or directory (published)
+-------------------------------------------------------------------------------}
+function TSpark.RenameFile(oldpath, newpath: String): Boolean;
+begin
+ Result:=False;
+ //We do this to eliminate any false positives. Some will still get through
+ if(oldpath<>'')and(newpath<>'')and(oldpath<>newpath)and(Length(Fbuffer)>0)then
+ begin
+  //Fire off the function
+  Result:=RenameTheFile(oldpath,newpath);
+  //A directory will return a false result, whatever
+  if oldpath[Length(oldpath)]='/' then Result:=True;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Delete a file/directory (published)
+-------------------------------------------------------------------------------}
+function TSpark.DeleteFile(filename: String):Boolean;
+begin
+ Result:=False;
+ //We do this to eliminate any false positives. Some will still get through
+ if(filename<>'')and(Length(Fbuffer)>0)then
+ begin
+  //Fire off the function
+  Result:=DeleteTheFile(filename);
+  //A directory will return a false result, whatever
+  if filename[Length(filename)]='/' then Result:=True;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update the load and execution address
+-------------------------------------------------------------------------------}
+function TSpark.UpdateLoadExecAddress(path: String;load, exec: Cardinal): Boolean;
+var
+ ptr,
+ dataptr : Cardinal;
+ fnL     : Word;
+ index   : Integer;
+begin
+ Result:=False;
+ if FIsPack then exit;
+ //No blanks
+ if path<>'' then
+ begin
+  //Remove the root, if present
+  if Length(path)>2 then if path[1]='$' then path:=Copy(path,3);
+  //Set up our variables
+  ptr:=0;
+  dataptr:=0;
+  fnL:=Length(path);
+  //Find the entry
+  if FindEntry(path,False,ptr,dataptr) then
+  begin
+   //Update the entries (CL)
+   Fbuffer[ptr+fnL+$36]:=load mod$100;
+   Fbuffer[ptr+fnL+$37]:=(load>>8)mod$100;
+   Fbuffer[ptr+fnL+$38]:=(load>>16)mod$100;
+   Fbuffer[ptr+fnL+$39]:=(load>>24)mod$100;
+   Fbuffer[ptr+fnL+$3A]:=exec mod$100;
+   Fbuffer[ptr+fnL+$3B]:=(exec>>8)mod$100;
+   Fbuffer[ptr+fnL+$3C]:=(exec>>16)mod$100;
+   Fbuffer[ptr+fnL+$3D]:=(exec>>24)mod$100;
+   //Update the entries (header)
+   Fbuffer[dataptr+fnL+$26]:=load mod$100;
+   Fbuffer[dataptr+fnL+$27]:=(load>>8)mod$100;
+   Fbuffer[dataptr+fnL+$28]:=(load>>16)mod$100;
+   Fbuffer[dataptr+fnL+$29]:=(load>>24)mod$100;
+   Fbuffer[dataptr+fnL+$2A]:=exec mod$100;
+   Fbuffer[dataptr+fnL+$2B]:=(exec>>8)mod$100;
+   Fbuffer[dataptr+fnL+$2C]:=(exec>>16)mod$100;
+   Fbuffer[dataptr+fnL+$2D]:=(exec>>24)mod$100;
+   //Save the data
+   SaveData;
+   //Update the entry in the list of files
+   if Length(FFileList)>0 then
+    for index:=0 to Length(FFileList)-1 do
+     if FFileList[index].ArchiveName=path then
+     begin
+      FFileList[index].LoadAddr:=load;
+      FFileList[index].ExecAddr:=exec;
+     end;
+   Result:=True;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update a file's attributes
+-------------------------------------------------------------------------------}
+function TSpark.UpdateAttributes(path: String; attributes: Word): Boolean;
+var
+ ptr,
+ dataptr : Cardinal;
+ fnL     : Word;
+ index   : Integer;
+begin
+ Result:=False;
+ if FIsPack then exit;
+ //No blanks
+ if path<>'' then
+ begin
+  //Remove the root if present
+  if Length(path)>2 then if path[1]='$' then path:=Copy(path,3);
+  //Set up our variables
+  ptr:=0;
+  dataptr:=0;
+  fnL:=Length(path);
+  //Find the entry
+  if FindEntry(path,False,ptr,dataptr) then
+  begin
+   //Update the entries (CL)
+   Fbuffer[ptr+fnL+$3E]:=attributes mod$100;
+   //Update the entries (header)
+   Fbuffer[dataptr+fnL+$2E]:=attributes mod$100;
+   //Save the data
+   SaveData;
+   //Update the entry in the list of files
+   if Length(FFileList)>0 then
+    for index:=0 to Length(FFileList)-1 do
+     if FFileList[index].ArchiveName=path then
+      FFileList[index].Attributes:=attributes;
+   Result:=True;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Split a path into parent and filename for RISC OS
+-------------------------------------------------------------------------------}
+procedure TSpark.RISCOSFilename(path: String;addroot: Boolean;
+                                       var filename: String;var parent: String);
+var
+ index: Integer;
+begin
+ filename:='';
+ if addroot then parent:='$' else parent:='';
+ //Remove any trailing '/'
+ if path[Length(path)]='/' then path:=LeftStr(path,Length(path)-1);
+ //Swap the '/' for '.' and vice versa
+ SwapDirSep(path);
+ //Is there a directory separator?
+ if Pos('.',path)=0 then //No
+  filename:=path
+ else
+ begin
+  //Yes, find the last one
+  index:=Length(path);
+  while(path[index]<>'.')and(index>1)do dec(index);
+  filename:=Copy(path,index+1);
+  if addroot then parent:=parent+'.';
+  parent:=parent+Copy(path,1,index-1);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Swap directory separators
+-------------------------------------------------------------------------------}
+procedure TSpark.SwapDirSep(var path: String);
+var
+ index: Integer;
+begin
+ for index:=1 to Length(path) do
+  if path[index]='/' then path[index]:='.'
+  else if path[index]='.' then path[index]:='/';
+end;
+
+{-------------------------------------------------------------------------------
+Convert an attribute byte to a string (ADFS compatible)
+-------------------------------------------------------------------------------}
+function TSpark.ConvertAttribute(attr: Byte): String;
+var
+ cnt : Byte;
+ temp: String;
+begin
+ Result:='';
+ //Collate the attributes
+ for cnt:=0 to 7 do
+  if attr AND(1<<cnt)=1<<cnt then
+   Result:=Result+NewAtts[cnt];
+ //Reverse the attribute order to match actual ADFS
+ temp:='';
+ if Length(Result)>0 then
+  for cnt:=Length(Result) downto 1 do
+   temp:=temp+Result[cnt];
+ Result:=temp;
+end;
+
+{-------------------------------------------------------------------------------
+Convert an attribute string to a byte (ADFS compatible)
+-------------------------------------------------------------------------------}
+function TSpark.ConvertAttribute(attr: String): Byte;
+var
+ cnt : Byte;
+begin
+ //Convert the attributes from a string to a byte
+ Result:=0;
+ for cnt:=0 to Length(NewAtts)-1 do
+  if Pos(NewAtts[cnt],attr)>0 then
+   Result:=Result OR 1<<cnt;
 end;

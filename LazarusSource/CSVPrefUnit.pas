@@ -5,8 +5,8 @@ unit CSVPrefUnit;
 interface
 
 uses
- Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls,
- ExtCtrls, GJHCustomComponents;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,StdCtrls,ExtCtrls,
+ GJHCustomComponents;
 
 type
 

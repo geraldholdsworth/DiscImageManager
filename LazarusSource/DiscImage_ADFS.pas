@@ -2134,8 +2134,16 @@ begin
           GetFiletypeFromNumber(StrToIntDef('$'+FDisc[dir].Entries[ptr].ShortFileType,0));
         end;
         //Timestamp it, if not already done
-        timestamp:=TimeDateToRISCOS(Now);
-        FDisc[dir].Entries[ptr].TimeStamp:=Now;
+        if file_details.TimeStamp=0 then
+        begin
+         timestamp:=TimeDateToRISCOS(Now);
+         FDisc[dir].Entries[ptr].TimeStamp:=Now;
+        end
+        else
+        begin
+         timestamp:=TimeDateToRISCOS(file_details.TimeStamp);
+         FDisc[dir].Entries[ptr].TimeStamp:=file_details.TimeStamp;
+        end;
         FDisc[dir].Entries[ptr].LoadAddr:=FDisc[dir].Entries[ptr].LoadAddr OR
             (timestamp DIV $100000000);
         FDisc[dir].Entries[ptr].ExecAddr:=timestamp MOD $100000000;
@@ -3398,9 +3406,9 @@ begin
     //We'll do a bit of recursion to remove each entry one by one. If it
     //encounters a directory, that will get it's contents deleted, then itself.
     if entry<Length(FDisc[dir].Entries) then
-    while(Length(FDisc[dirref].Entries)>0)and(success)do
-     //If any fail for some reason, the whole thing fails
-     success:=DeleteADFSFile(filename+dir_sep+FDisc[dirref].Entries[0].Filename);
+     while(Length(FDisc[dirref].Entries)>0)and(success)do
+      //If any fail for some reason, the whole thing fails
+      success:=DeleteADFSFile(filename+dir_sep+FDisc[dirref].Entries[0].Filename);
     //Remove the directory from the internal array
     if dirref<Length(FDisc)-2 then
      for i:=dirref to Length(FDisc)-2 do

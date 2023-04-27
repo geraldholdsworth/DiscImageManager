@@ -5,16 +5,19 @@ unit AFSPartitionUnit;
 interface
 
 uses
- Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ComCtrls, StdCtrls,
- ExtCtrls, GJHCustomComponents;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,ComCtrls,StdCtrls,ExtCtrls,
+ GJHCustomComponents;
 
 type
 
  { TAFSPartitionForm }
 
  TAFSPartitionForm = class(TForm)
+  OpenDFSFile: TOpenDialog;
   PartitionSizeLabel: TLabel;
   PartitionSize: TGJHSlider;
+  rad_type40T,
+  rad_type80T,
   rad_typeAFS,
   rad_typeDOS: TGJHRadioBox;
   FromFileButton,
@@ -24,11 +27,13 @@ type
   procedure FormPaint(Sender: TObject);
   procedure PartitionSizeChange(Sender: TObject);
   procedure rad_typeClick(Sender: TObject);
+  procedure FromFileClick(Sender: TObject);
  private
 
  public
   maxAFSSize,
   maxDOSSize : Cardinal;
+  fromFile   : Boolean;
  end;
 
 var
@@ -99,12 +104,15 @@ begin
  //Create the radio boxes
  rad_typeAFS:=CreateRadioBox('Acorn File Server');
  rad_typeDOS:=CreateRadioBox('DOS Plus');
+ rad_type40T:=CreateRadioBox('40 Track');
+ rad_type80T:=CreateRadioBox('80 Track');
  //Create the buttons
  FromFileButton:=MainForm.CreateButton(AFSPartitionForm as TControl,
                                        'From File...',False,Round(8*ratio),
                               rad_typeAFS.Top+rad_typeAFS.Height+Round(8*ratio),
                                        mrNone);
  FromFileButton.Enabled:=False;
+ FromFileButton.OnClick:=@FromFileClick;
  CancelButton:=MainForm.CreateButton(AFSPartitionForm as TControl,'Cancel',
                                      False,
                         FromFileButton.Left+FromFileButton.Width+Round(8*ratio),
@@ -116,8 +124,24 @@ begin
  //Adjust the radio button positions
  rad_typeAFS.Left:=Round(8*ratio);
  rad_typeDOS.Left:=Width div 2;
+ rad_type40T.Left:=rad_typeAFS.Left;
+ rad_type80T.Left:=rad_typeDOS.Left;
  //Adjust the form height
  Height:=OKButton.Top+OKButton.Height+Round(8*ratio);
+end;
+
+{------------------------------------------------------------------------------}
+//User clicked on 'From File'
+{------------------------------------------------------------------------------}
+procedure TAFSPartitionForm.FromFileClick(Sender: TObject);
+begin
+ FromFileButton.ModalResult:=mrNone;
+ //Currently only for adding DFS image
+ if OpenDFSFile.Execute then
+ begin
+  fromFile:=True;
+  FromFileButton.ModalResult:=mrOK;
+ end;
 end;
 
 end.

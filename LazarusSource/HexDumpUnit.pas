@@ -25,7 +25,7 @@ interface
 
 uses
  Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Grids,ExtCtrls,Buttons,
- StdCtrls,ComCtrls, IpHtml,DiscImageUtils,Global,StrUtils,SpriteFile;
+ StdCtrls,ComCtrls,IpHtml,Global,StrUtils,SpriteFile,DiscImage;
 
 type
 

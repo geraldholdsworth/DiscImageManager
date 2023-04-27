@@ -1,116 +1,8 @@
-unit DiscImageUtils;
+//++++++++++++++++++ General Purpose Methods +++++++++++++++++++++++++++++++++++
 
-{
-DiscImageUtils V1.45 - part of TDiscImage class
-
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
-
-This source is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public Licence as published by the Free
-Software Foundation; either version 3 of the Licence, or (at your option)
-any later version.
-
-This code is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more
-details.
-
-A copy of the GNU General Public Licence is available on the World Wide Web
-at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
-to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
-Boston, MA 02110-1335, USA.
-}
-
-{$mode objfpc}{$H+}
-
-interface
-
-uses
- SysUtils,StrUtils;
-
-type
-//Define the TDIByteArray - saves using the System.Types unit for TByteDynArray
- TDIByteArray = array of Byte;
-//Define the records to hold the catalogue
- TDirEntry     = record     //Not all fields are used on all formats
-  Parent,                   //Complete path for parent directory (ALL)
-  Filename,                 //Filename (ALL)
-  ShortFilename,            //Long Filename (DOS)
-  Attributes,               //File attributes (ADFS/DFS/D64/D71/D81/AmigaDOS)
-  Filetype,                 //Full name filetype (ADFS/D64/D71/D81)
-  ShortFileType: String;    //Filetype shortname (ADFS/D64/D71/D81)
-  LoadAddr,                 //Load Address (ADFS/DFS)
-  ExecAddr,                 //Execution Address (ADFS/DFS)
-  Length,                   //Total length (ALL)
-  Side,                     //Side of disc of location of data (DFS)
-  Track       : Cardinal;   //Track of location of data (D64/D71/D81)
-  Sector,                   //Sector of disc of location of data (DFS/D64/D71/D81/AmigaDOS file)
-                            //Sector of disc of location of header (AmigaDOS directory)
-                            //Address of location of data (ADFS S/M/L/D)
-                            //Indirect disc address of data (ADFS E/F/E+/F+)
-  DirRef      : Integer;    //Reference to directory, if directory (ADFS/AmigaDOS)
-  TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
-  isDOSPart   : Boolean;    //This file is the DOS partition
- end;
- type
-//Define the records for an Acorn File Server password file
-  TUserAccount = record
-   Username,
-   Password   : String;
-   FreeSpace  : Cardinal;
-   System,
-   Locked     : Boolean;
-   BootOption,
-   AccessLevel: Byte;
- end;
- TUserAccounts  =array of TUserAccount;
- TSearchResults =array of TDirEntry;
- //General purpose procedures
- procedure ResetDirEntry(var Entry: TDirEntry);
- procedure RemoveTopBit(var title: String);
- function AddTopBit(title:String):String;
- procedure BBCtoWin(var f: String);
- procedure WintoBBC(var f: String);
- procedure RemoveSpaces(var s: String);
- procedure RemoveControl(var s: String);
- function IsBitSet(v,b: Integer): Boolean;
- function BreakDownInf(s: String): TStringArray;
- function FilenameToASCII(s: String): String;
- function GetAttributes(attr: String;format: Byte): String;
- function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
- //Some constants
- const
-  diAcornDFS   = $000;
-  diAcornADFS  = $001;
-  diCommodore  = $002;
-  diSinclair   = $003;
-  diAmiga      = $004;
-  diAcornUEF   = $005;
-  diMMFS       = $006;
-  diAcornFS    = $007;
-  diSpark      = $008;
-  diSJMDFS     = $009;
-  diDOSPlus    = $00A;
-  diInvalidImg = $00FF; //Needs to be changed to $FFFF
-  diADFSOldMap = $00;
-  diADFSNewMap = $01;
-  diAmigaOFS   = $02;
-  diAmigaFFS   = $03;
-  diMaster512  = $01;
-  diFAT12      = $12;
-  diFAT16      = $16;
-  diFAT32      = $32;
-  diADFSOldDir = $00;
-  diADFSNewDir = $01;
-  diADFSBigDir = $02;
-  diAmigaDir   = $10;
-  diAmigaCache = $11;
-  diUnknownDir = $FF;
-implementation
-
-{------------------------------------------------------------------------------}
-//Reset a TDirEntry to blank
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Reset a TDirEntry to blank
+-------------------------------------------------------------------------------}
 procedure ResetDirEntry(var Entry: TDirEntry);
 begin
  with Entry do
@@ -133,9 +25,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-//Remove top bit set characters
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Remove top bit set characters
+-------------------------------------------------------------------------------}
 procedure RemoveTopBit(var title: String);
 var
  t: Integer;
@@ -143,9 +35,9 @@ begin
  for t:=1 to Length(title) do title[t]:=chr(ord(title[t])AND$7F);
 end;
 
-{------------------------------------------------------------------------------}
-//Add top bit to spaces
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Add top bit to spaces
+-------------------------------------------------------------------------------}
 function AddTopBit(title:String):String;
 var
  i: Integer;
@@ -156,9 +48,9 @@ begin
  Result:=title;
 end;
 
-{------------------------------------------------------------------------------}
-//Convert BBC to Windows filename
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Convert BBC to Windows filename
+-------------------------------------------------------------------------------}
 procedure BBCtoWin(var f: String);
 var
  i: Integer;
@@ -175,9 +67,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-//Convert Windows to BBC filename
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Convert Windows to BBC filename
+-------------------------------------------------------------------------------}
 procedure WintoBBC(var f: String);
 var
  i: Integer;
@@ -194,9 +86,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-//Removes trailing spaces from a string
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Removes trailing spaces from a string
+-------------------------------------------------------------------------------}
 procedure RemoveSpaces(var s: String);
 var
  x: Integer;
@@ -211,9 +103,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-//Removes control characters from a string
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Removes control characters from a string
+-------------------------------------------------------------------------------}
 procedure RemoveControl(var s: String);
 var
  x: Integer;
@@ -229,9 +121,9 @@ begin
  s:=o;
 end;
 
-{------------------------------------------------------------------------------}
-//Check to see if bit b is set in word v
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Check to see if bit b is set in word v
+------------------------------------------------------------------------------}
 function IsBitSet(v,b: Integer): Boolean;
 var
  x: Integer;
@@ -244,9 +136,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-//Break down an *.inf file entry
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Break down an *.inf file entry
+-------------------------------------------------------------------------------}
 function BreakDownInf(s: String): TStringArray;
 var
  i: Integer;
@@ -284,9 +176,9 @@ begin
  if f<>'' then Result[0]:=f;
 end;
 
-{------------------------------------------------------------------------------}
-//Ensures a string contains only visible ASCII characters
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Ensures a string contains only visible ASCII characters
+-------------------------------------------------------------------------------}
 function FilenameToASCII(s: String): String;
 var
  i: Integer;
@@ -296,9 +188,9 @@ begin
  Result:=s;
 end;
 
-{------------------------------------------------------------------------------}
-//Convert a attribute byte into a string
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Convert a attribute byte into a string
+-------------------------------------------------------------------------------}
 function GetAttributes(attr: String;format: Byte):String;
 var
  attr1 : String;
@@ -333,9 +225,9 @@ begin
  end else Result:=attr; //Not a hex, so just return what was passed
 end;
 
-{------------------------------------------------------------------------------}
-//Wildcard string comparison
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Wildcard string comparison
+-------------------------------------------------------------------------------}
 function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
 var
  sIndex,
@@ -396,4 +288,33 @@ begin
  end;
 end;
 
-end.
+{-------------------------------------------------------------------------------
+Convert a TDateTime to an AFS compatible Word
+-------------------------------------------------------------------------------}
+function DateTimeToAFS(timedate: TDateTime):Word;
+var
+ y,m,d: Byte;
+begin
+ y:=StrToIntDef(FormatDateTime('yyyy',timedate),1981)-1981;//Year
+ m:=StrToIntDef(FormatDateTime('m',timedate),1);           //Month
+ d:=StrToIntDef(FormatDateTime('d',timedate),1);           //Date
+ Result:=((y AND$F)<<12)OR((y AND$F0)<<1)OR(d AND$1F)OR((m AND$F)<<8);
+end;
+
+{-------------------------------------------------------------------------------
+Convert an AFS date to a TDateTime
+-------------------------------------------------------------------------------}
+function AFSToDateTime(date: Word):TDateTime;
+var
+ day,
+ month,
+ year       : Integer;
+begin
+ Result:=0;
+ if date=0 then exit;
+ day:=date AND$1F;//Day;
+ month:=(date AND$F00)>>8; //Month
+ year:=((date AND$F000)>>12)+((date AND$E0)>>1)+1981; //Year
+ if(day>0)and(day<32)and(month>0)and(month<13)then
+  Result:=EncodeDate(year,month,day);
+end;

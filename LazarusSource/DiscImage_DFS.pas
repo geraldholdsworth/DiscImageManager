@@ -925,6 +925,41 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Add a blank side to a single sided image
+-------------------------------------------------------------------------------}
+function TDiscImage.AddDFSBlankSide(tracks: Byte): Boolean;
+var
+ Lbuffer    : TDIByteArray;
+ side_size,t: Cardinal;
+begin
+ Result:=False;
+ if not FDSD then
+ begin
+  //Create an blank single sided image
+  //Setup the data area
+  SetLength(Lbuffer,$200*(GetMinorFormatNumber+1)); // $200 for the header. $400 for Watford
+  //Fill with zeros
+  for t:=0 to Length(Lbuffer)-1 do Lbuffer[t]:=0;
+  side_size:=0;
+  if tracks=40 then side_size:=$190; //40T
+  if tracks=80 then side_size:=$320; //80T
+  SetLength(Lbuffer,side_size<<8);
+  //Initialise the disc
+  Lbuffer[$106]:=side_size div $100;
+  Lbuffer[$107]:=side_size mod $100;
+  //Watford ID
+  if GetMinorFormatNumber>1 then
+  begin
+   for t:=0 to 7 do Lbuffer[$200+t]:=$AA;
+   Lbuffer[$306]:=side_size div $100;
+   Lbuffer[$307]:=side_size mod $100;
+  end;
+  //Add the data to the image
+  Result:=AddDFSSide(Lbuffer);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
 Add a side to a single sided image
 -------------------------------------------------------------------------------}
 function TDiscImage.AddDFSSide(var buffer: TDIByteArray): Boolean;

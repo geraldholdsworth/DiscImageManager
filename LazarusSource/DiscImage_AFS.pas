@@ -251,10 +251,7 @@ Reads an AFS directory
 function TDiscImage.ReadAFSDirectory(dirname:String;addr: Cardinal):TDir;
 var
  numentries,
- index,
- day,
- month,
- year       : Integer;
+ index      : Integer;
  side,
  entry,
  objaddr,
@@ -322,13 +319,7 @@ begin
     Result.Entries[index].Attributes:=attr;
     //Modification Date
     segaddr:=Read16b(entry+$15,buffer);
-    day:=segaddr AND$1F;//Day;
-    month:=(segaddr AND$F00)>>8; //Month
-    year:=((segaddr AND$F000)>>12)+((segaddr AND$E0)>>1)+1981; //Year
-    if(day>0)and(day<32)and(month>0)and(month<13)then
-     Result.Entries[index].TimeStamp:=EncodeDate(year,month,day)
-    else
-     Result.Entries[index].TimeStamp:=0;
+    Result.Entries[Index].TimeStamp:=AFSToDateTime(segaddr);
     //Location  of the object
     objaddr:=Read24b(entry+$17,buffer)*secsize;
     if(ReadString(objaddr,-6)='JesMap')or(FFormat=diAcornFS<<4+1)then
@@ -386,7 +377,8 @@ begin
  Result:=nil;
  //Make sure it is a valid allocation map for Level 3
  if(ReadString(offset,-6)='JesMap')
- and((FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS))then
+ and((FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS))
+ and(ReadByte(offset+6)=ReadByte(offset+$FF))then
  begin
   //Start of the list
   ptr:=$0A;
@@ -396,11 +388,14 @@ begin
   begin
    addr:=Read24b(offset+ptr)*secsize;
    len:=Read16b(offset+ptr+3)*secsize;
-   bufptr:=Length(Result);
-   //Copy into the buffer
-   SetLength(Result,Length(Result)+len);
-   for index:=0 to len-1 do
-    Result[bufptr+index]:=ReadByte(addr+index);
+   if(addr<>0)and(len<>0)then
+   begin
+    bufptr:=Length(Result);
+    //Copy into the buffer
+    SetLength(Result,Length(Result)+len);
+    for index:=0 to len-1 do
+     Result[bufptr+index]:=ReadByte(addr+index);
+   end;
    //Move onto the next entry
    inc(ptr,5);
   end;
@@ -1110,7 +1105,7 @@ begin
    Fafsroot:=afshead+$200;
    Write24b(Fafsroot>>8,afshead+$16);
    //Creation Date at $19
-   Write16b(AFSTimeToWord(Now),afshead+$19);
+   Write16b(DateTimeToAFS(Now),afshead+$19);
    //Map A location at $1B
    allocmap1:=afshead2+$100;
    Write24b(allocmap1>>8,afshead+$1B);
@@ -1263,7 +1258,7 @@ begin
  else Fafsroot:=afshead2+$100;
  Write24b(Fafsroot>>8,afshead+$1F);
  //Creation Date at $22
- Write16b(AFSTimeToWord(Now),afshead+$22);
+ Write16b(DateTimeToAFS(Now),afshead+$22);
  //First free cylinder at $24
  Write16b(1,afshead+$24); //Not sure why it is always 1
  // $04 at $26
@@ -1813,7 +1808,7 @@ begin
       else //Mark as not a directory
        file_details.DirRef:=-1;
       //Set the date
-      file_details.TimeStamp:=Floor(Now);
+      if file_details.TimeStamp=0 then file_details.TimeStamp:=Floor(Now);
       //Write the file data
       if(FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS)then
       begin
@@ -2073,7 +2068,7 @@ begin
      Write32b(FDisc[dir].Entries[index].LoadAddr,ptr+$0C,buffer);
      Write32b(FDisc[dir].Entries[index].ExecAddr,ptr+$10,buffer);
      WriteByte(AFSAttrToByte(FDisc[dir].Entries[index].Attributes),ptr+$14,buffer);
-     Write16b(AFSTimeToWord(FDisc[dir].Entries[index].TimeStamp),ptr+$15,buffer);
+     Write16b(DateTimeToAFS(FDisc[dir].Entries[index].TimeStamp),ptr+$15,buffer);
     end;
    end;
    //Add the terminating zero
@@ -2252,7 +2247,7 @@ begin
  //Attributes
  Write32b(AFSAttrToByte(file_details.Attributes),freeaddr+$14,block);
  //Modification Date
- Write16b(AFSTimeToWord(file_details.TimeStamp),freeaddr+$15,block);
+ Write16b(DateTimeToAFS(file_details.TimeStamp),freeaddr+$15,block);
  //SIN of object
  Write24b(file_details.Sector,freeaddr+$17,block);
  //Now we can write it back out again
@@ -2351,19 +2346,6 @@ begin
     UpdateAFSDirectory(GetParent(dir));
     Result:=True;
    end;
-end;
-
-{-------------------------------------------------------------------------------
-Convert a TDateTime to an AFS compatible Word
--------------------------------------------------------------------------------}
-function TDiscImage.AFSTimeToWord(timedate: TDateTime):Word;
-var
- y,m,d: Byte;
-begin
- y:=StrToIntDef(FormatDateTime('yyyy',timedate),1981)-1981;//Year
- m:=StrToIntDef(FormatDateTime('m',timedate),1);           //Month
- d:=StrToIntDef(FormatDateTime('d',timedate),1);           //Date
- Result:=((y AND$F)<<12)OR((y AND$F0)<<1)OR(d AND$1F)OR((m AND$F)<<8);
 end;
 
 {-------------------------------------------------------------------------------

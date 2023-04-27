@@ -32,10 +32,10 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls, DiscImage,
-  Global, DiscImageUtils, ExtCtrls, Buttons, ComCtrls, Menus, DateUtils,
-  ImgList, StrUtils, Clipbrd, HexDumpUnit, Spark, FPImage, IntfGraphics,
-  ActnList, GraphType, DateTimePicker, Types, GJHCustomComponents;
+  SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
+  ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,Clipbrd,HexDumpUnit,
+  FPImage,IntfGraphics,ActnList,GraphType,DateTimePicker,Types,
+  GJHCustomComponents;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -570,7 +570,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.45.1';
+    ApplicationVersion = '1.45.2';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -941,6 +941,7 @@ var
   attr1,
   attributes,
   filetype,p     : String;
+  timestamp      : TDateTime;
   fields         : array of String;
   chr            : Char;
   F              : TFileStream;
@@ -998,10 +999,11 @@ begin
     if LowerCase(RightStr(importfilename,4))<>'.inf' then
     begin
      //Initialise the strings
-     execaddr:='00000000';
-     loadaddr:='00000000';
-     attr1   :='';
-     filetype:='';
+     execaddr :='00000000';
+     loadaddr :='00000000';
+     attr1    :='';
+     filetype :='';
+     timestamp:=0;
      //Does the filename contain the filetype?
      if ((Pos(',',importfilename)>0)
      or  (Pos('.',importfilename)>0))
@@ -1052,6 +1054,19 @@ begin
         if Length(fields)>1 then loadaddr      :=fields[1];
         if length(fields)>2 then execaddr      :=fields[2];
         if Length(fields)>4 then attr1         :=fields[4];
+        //Parse the extra fields
+        if Length(fields)>0 then
+         for Index:=0 to Length(fields)-1 do
+          if LeftStr(fields[Index],9)='DATETIME=' then
+           timestamp:=EncodeDate(StrToIntDef(Copy(fields[Index],10,4),2023),
+                                 StrToIntDef(Copy(fields[Index],14,2),4),
+                                 StrToIntDef(Copy(fields[Index],16,2),9))
+                     +EncodeTime(StrToIntDef(Copy(fields[Index],18,2),0),
+                                 StrToIntDef(Copy(fields[Index],20,2),0),
+                                 StrToIntDef(Copy(fields[Index],22,2),0),0);
+        //Full time and date overrides the AFS word
+        if(Length(fields)>5)and(timestamp=0)then //If this is not a hex number
+         timestamp:=AFSToDateTime(StrToIntDef('$'+fields[5],0));//0 will be passed
        except
         //Could not load
        end;
@@ -1064,6 +1079,7 @@ begin
      if filedetails.Attributes<>'' then attr1:=filedetails.Attributes;
      if filedetails.LoadAddr  <>0  then loadaddr:=IntToHex(filedetails.LoadAddr,8);
      if filedetails.ExecAddr  <>0  then execaddr:=IntToHex(filedetails.ExecAddr,8);
+     if filedetails.TimeStamp <>0  then timestamp:=filedetails.TimeStamp;
      //Decode the attributes
      attributes:=''; //Default
      if attr1='' then
@@ -1104,6 +1120,7 @@ begin
      NewFile.Filename     :=importfilename;
      NewFile.ExecAddr     :=StrToInt('$'+execaddr);
      NewFile.LoadAddr     :=StrToInt('$'+loadaddr);
+     NewFile.TimeStamp    :=timestamp;
      NewFile.Side         :=side;
      NewFile.Attributes   :=attributes;
      NewFile.DirRef       :=-1; //Not a directory
@@ -1527,11 +1544,20 @@ begin
      for t:=0 to 7 do
       if Pos(adfsattr[t+1],Image.Disc[dir].Entries[entry].Attributes)>0 then
        inc(attributes,1<<t);
-    inffile:=inffile+' '+IntToHex(attributes,2)
-            +' CRC32='+Image.GetFileCRC(Image.GetParent(dir)+
-                                        Image.GetDirSep(Image.Disc[dir].Partition)+
-                                        Image.Disc[dir].Entries[entry].Filename,
-                                        entry);
+    inffile:=inffile+' '+IntToHex(attributes,2);
+    //Timestamp word (for AFS compatibility)
+    if Image.Disc[dir].Entries[entry].TimeStamp<>0 then
+     inffile:=inffile+' '
+             +IntToHex(DateTimeToAFS(Image.Disc[dir].Entries[entry].TimeStamp),4);
+    //CRC
+    inffile:=inffile+' CRC32='+Image.GetFileCRC(Image.GetParent(dir)+
+                                     Image.GetDirSep(Image.Disc[dir].Partition)+
+                                     Image.Disc[dir].Entries[entry].Filename,
+                                     entry);
+    //Timestamp (for RISC OS and DOS compatibility)
+    if Image.Disc[dir].Entries[entry].TimeStamp<>0 then
+     inffile:=inffile+' DATETIME='+FormatDateTime('yyyymmddhhnnss',
+                                      Image.Disc[dir].Entries[entry].TimeStamp);
     //Directory?
     if Image.Disc[dir].Entries[entry].DirRef<>-1 then
     begin
@@ -2234,12 +2260,14 @@ begin
  menuDeletePartition.Enabled:=btn_DeletePartition.Enabled;
  btn_SavePartition.Enabled  :=(afspart)and(DirList.SelectionCount=1);
  menuSavePartition.Enabled  :=btn_SavePartition.Enabled;
- //Check for 8 bit ADFS
- btn_AddPartition.Enabled   :=(Image.MajorFormatNumber=diAcornADFS)
+ //Check for 8 bit ADFS or single sided DFS
+ btn_AddPartition.Enabled   :=((Image.MajorFormatNumber=diAcornADFS)
                            and(Image.DirectoryType=diADFSOldDir)
                            and(Image.MapType=diADFSOldMap)
                            and(not Image.AFSPresent)
-                           and(not Image.DOSPresent);
+                           and(not Image.DOSPresent))
+                            or((Image.MajorFormatNumber=diAcornDFS)
+                           and(not Image.DoubleSided));
  menuAddPartition.Enabled   :=btn_AddPartition.Enabled;
  //Defrag (Compact) button
  btn_defrag.Enabled:=Length(Image.Disc)>0;
@@ -4895,48 +4923,97 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Adds a new AFS partition to an ADFS image
+//Adds a new AFS or DOS partition to an ADFS image, or a second side to a DFS SS
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_AddPartitionClick(Sender: TObject);
 var
  partsize,
  parttype : Integer;
  part     : String;
+ success  : Boolean;
 begin
- //Set up the form
- AFSPartitionForm.PartitionSize.Min:=9; //Minimum partition size
- AFSPartitionForm.maxAFSSize:=Image.GetMaxLength div $100;
- if AFSPartitionForm.maxAFSSize>$7F000 then //   <----- TO BE REMOVED
-  AFSPartitionForm.maxAFSSize:=$7F000; //Max AFS is, currently, 127MB
- AFSPartitionForm.maxDOSSize:=Image.GetMaxLength div $100;
- if AFSPartitionForm.maxDOSSize>$1F4000 then
-  AFSPartitionForm.maxDOSSize:=$1F4000; //Max DOS FAT12 is 500MB
- AFSPartitionForm.PartitionSize.Max     :=AFSPartitionForm.maxAFSSize; //Max partition size
- AFSPartitionForm.PartitionSize.Position:=AFSPartitionForm.maxAFSSize; //Current size
- AFSPartitionForm.PartitionSizeChange(Sender); //Update the label
- AFSPartitionForm.rad_typeAFS.Ticked:=True; //Set to Acorn FS by default
- //Display the form
- if AFSPartitionForm.ShowModal=mrOK then //If OK was clicked, then continue
+ //ADFS
+ if Image.MajorFormatNumber=diAcornADFS then
  begin
-  //Get the specifications
-  partsize:=AFSPartitionForm.PartitionSize.Position*$100;
-  if AFSPartitionForm.rad_typeAFS.Ticked then parttype:=0;
-  if AFSPartitionForm.rad_typeDOS.Ticked then parttype:=1;
-  //Send to the class
-  if Image.AddPartition(partsize,parttype) then
+  //Set up the form
+  AFSPartitionForm.Caption                   :='Add a new partition';
+  AFSPartitionForm.PartitionSize.Visible     :=True;
+  AFSPartitionForm.PartitionSizeLabel.Visible:=True;
+  AFSPartitionForm.rad_typeAFS.Visible       :=True;
+  AFSPartitionForm.rad_typeDOS.Visible       :=True;
+  AFSPartitionForm.rad_type40T.Visible       :=False;
+  AFSPartitionForm.rad_type80T.Visible       :=False;
+  AFSPartitionForm.PartitionSize.Min:=9; //Minimum partition size
+  AFSPartitionForm.maxAFSSize:=Image.GetMaxLength div $100;
+  if AFSPartitionForm.maxAFSSize>$7F000 then //   <----- TO BE REMOVED
+   AFSPartitionForm.maxAFSSize:=$7F000; //Max AFS is, currently, 127MB
+  AFSPartitionForm.maxDOSSize:=Image.GetMaxLength div $100;
+  if AFSPartitionForm.maxDOSSize>$1F4000 then
+   AFSPartitionForm.maxDOSSize:=$1F4000; //Max DOS FAT12 is 500MB
+  AFSPartitionForm.PartitionSize.Max     :=AFSPartitionForm.maxAFSSize; //Max partition size
+  AFSPartitionForm.PartitionSize.Position:=AFSPartitionForm.maxAFSSize; //Current size
+  AFSPartitionForm.PartitionSizeChange(Sender); //Update the label
+  AFSPartitionForm.rad_typeAFS.Ticked        :=True; //Set to Acorn FS by default
+  AFSPartitionForm.FromFileButton.Enabled    :=False;
+  AFSPartitionForm.fromFile                  :=False;
+  //Display the form
+  if AFSPartitionForm.ShowModal=mrOK then //If OK was clicked, then continue
   begin
-   //If successful, mark as changed
-   HasChanged:=True;
-   //Update the display
-   ShowNewImage(Image.Filename);
-   UpdateImageInfo;
-  end
-  else
+   //Get the specifications
+   partsize:=AFSPartitionForm.PartitionSize.Position*$100;
+   if AFSPartitionForm.rad_typeAFS.Ticked then parttype:=0;
+   if AFSPartitionForm.rad_typeDOS.Ticked then parttype:=1;
+   //Send to the class
+   if Image.AddPartition(partsize,parttype) then
+   begin
+    //If successful, mark as changed
+    HasChanged:=True;
+    //Update the display
+    ShowNewImage(Image.Filename);
+    UpdateImageInfo;
+   end
+   else
+   begin
+    //If unsuccessful then report an error
+    if parttype=0 then part:='Acorn File Server'
+    else part:='DOS Plus';
+    ReportError('Failed to create '+part+' partition');
+   end;
+  end;
+ end;
+ //DFS Single sided
+ if Image.MajorFormatNumber=diAcornDFS then
+ begin
+  //Set up the form
+  AFSPartitionForm.Caption                   :='Add a new or existing side';
+  AFSPartitionForm.PartitionSize.Visible     :=False;
+  AFSPartitionForm.PartitionSizeLabel.Visible:=False;
+  AFSPartitionForm.rad_typeAFS.Visible       :=False;
+  AFSPartitionForm.rad_typeDOS.Visible       :=False;
+  AFSPartitionForm.rad_type40T.Visible       :=True;
+  AFSPartitionForm.rad_type80T.Visible       :=True;
+  AFSPartitionForm.rad_type40T.Ticked        :=True; //Set to 40T by default
+  AFSPartitionForm.FromFileButton.Enabled    :=True;
+  AFSPartitionForm.fromFile                  :=False;
+  //Display the form
+  if AFSPartitionForm.ShowModal=mrOK then //If OK was clicked, then continue
   begin
-   //If unsuccessful then report an error
-   if parttype=0 then part:='Acorn File Server'
-   else part:='DOS Plus';
-   ReportError('Failed to create '+part+' partition');
+   success:=False;
+   //Add an existing file
+   if AFSPartitionForm.fromFile then
+    success:=Image.AddPartition(AFSPartitionForm.OpenDFSFile.Filename)
+   else //Create a new, blank, side
+    if AFSPartitionForm.rad_type40T.Ticked then success:=Image.AddPartition(40)
+    else success:=Image.AddPartition(80);
+   //Success? then update the display, otherwise report an error
+   if success then
+   begin
+    //Update the changed flag
+    HasChanged:=True;
+    //And the directory display
+    ShowNewImage(Image.Filename);
+    UpdateImageInfo;
+   end else ReportError('Failed to add a side to the current image.');
   end;
  end;
 end;
@@ -5390,8 +5467,9 @@ begin
   //Default font style
   TV.Font.Style:=[fsBold];
   //If it is a directory that hasn't been read in yet
-  if(TMyTreeNode(Node).IsDir)and(not TMyTreeNode(Node).BeenRead)then
-   TV.Font.Style:=[fsBold,fsItalic];
+  if(TMyTreeNode(Node).IsDir)
+  and(not TMyTreeNode(Node).BeenRead)
+  and(not TMyTreeNode(Node).Broken)then TV.Font.Style:=[fsBold,fsItalic];
   //Only concerned if it is selected, or a directory not read in, or broken
   if(cdsSelected in State)
   or(TMyTreeNode(Node).IsDOSPart)
@@ -5422,41 +5500,30 @@ begin
      DirListCustomDrawArrow(Sender,NodeRect,not Node.Expanded);
     end;
     //Draw the Image
-    NodeRect:=Node.DisplayRect(False);
-    NodeRect.Left:=NodeRect.Left+indent;
-    NodeRect.Top:=NodeRect.Top+2;
-    NodeRect.Width:=TV.ImagesWidth;
-    NodeRect.Height:=NodeRect.Width;
+    NodeRect:=Node.DisplayRect(False); //Image boundary rectangle
+    NodeRect.Left:=NodeRect.Left+indent; //Left pos
+    NodeRect.Top:=NodeRect.Top+2;        //Top pos
+    NodeRect.Width:=TV.ImagesWidth;      //Width
+    NodeRect.Height:=NodeRect.Width;     //Height
     //Get the correct image
     imgidx:=Node.ImageIndex;
     WriteToDebug('DirListCustomDrawItem: imgidx='+IntToStr(imgidx));
     if imgidx=-1 then imgidx:=GetImageIndex(Node,Image);
+    //And draw it
     TImageList(TV.Images).StretchDraw(TV.Canvas,imgidx,NodeRect);
     //Write out the text
-    NodeRect:=Node.DisplayRect(False);
-    NodeRect.Left:=NodeRect.Left+indent+TV.ImagesWidth+4;
-    NodeRect.Top:=NodeRect.Top+2;
+    NodeRect:=Node.DisplayRect(False); //Text boundary rectangle
+    NodeRect.Left:=NodeRect.Left+indent+TV.ImagesWidth+4; //Left pos
+    NodeRect.Top:=NodeRect.Top+2;                         //Top pos
     //Change the colour - directory not been read in
-    if(not TMyTreeNode(Node).BeenRead)and(TMyTreeNode(Node).IsDir)then
-    begin
-     //Directories not read in
-     Brush.Style:=bsClear;
-     Font.Color:=clBlue;
-    end;
+    if(not TMyTreeNode(Node).BeenRead)
+    and(TMyTreeNode(Node).IsDir)
+    and(not TMyTreeNode(Node).Broken)then Font.Color:=$FF0000;
     //Change the colour - file is the DOS Partition
-    if TMyTreeNode(Node).isDOSPart then
-    begin
-     //Directories not read in
-     Brush.Style:=bsClear;
-     Font.Color:=clGreen;
-    end;
+    if TMyTreeNode(Node).isDOSPart   then Font.Color:=$007700;
     //Change the colour - directory broken
-    if(TMyTreeNode(Node).Broken)and(TMyTreeNode(Node).IsDir)then
-    begin
-     //Directories not read in
-     Brush.Style:=bsClear;
-     Font.Color:=clRed;
-    end;
+    if(TMyTreeNode(Node).Broken)
+    and(TMyTreeNode(Node).IsDir)     then Font.Color:=$0000FF;
     //Change the colour - selected item
     if cdsSelected in State then
     begin
@@ -5464,7 +5531,8 @@ begin
      Brush.Style:=bsSolid; //Solid background
      Brush.Color:=TV.SelectionColor; //Background
      Font.Color:=TV.SelectionFontColor; //Foreground
-    end;
+    end else Brush.Style:=bsClear; //Clear background for everything else
+    //Finally, write out the text
     TextOut(NodeRect.Left,NodeRect.Top,Node.Text);
    end;
   end;
