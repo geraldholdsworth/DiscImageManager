@@ -1451,11 +1451,12 @@ var
 begin
  Result:=False;
  //Are we actually changing, and is it within range?
- if(NewMethod<>Finterleave)and(NewMethod>0)and(NewMethod<4)then
+ if (NewMethod<>Finterleave)
+ and(NewMethod>=Low(Fints)+1)
+ and(NewMethod<=High(Fints)+1)then
   //Only works with ADFS L and Acorn FS, or ADFS with non-auto interleave
   if(FFormat=diAcornADFS<<4+2)
   or(FFormat=diAcornADFS<<4+$E)
-  or((GetMajorFormatNumber=diAcornADFS)and(FForceInter>0))
   or(GetMajorFormatNumber=diAcornFS) then
   begin
    //Set up the buffer
@@ -1467,7 +1468,6 @@ begin
    Finterleave:=NewMethod;
    for index:=0 to Length(buffer) do
     WriteByte(buffer[index],index);
-   Result:=True;
   end;
 end;
 
@@ -1588,6 +1588,26 @@ begin
    for side:=0 to Result.Count-1 do
     Result[side]:='"'+StringReplace(Result[side],': ','","',[rfReplaceAll])+'"';
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Convert an interleave into a string
+-------------------------------------------------------------------------------}
+function TDiscImage.GetInterleaveString(Inter: Byte): String;
+begin
+ Result:='';
+ if(FFormat=diAcornADFS<<4+2)
+ or(FFormat=diAcornADFS<<4+$E)
+ or(GetMajorFormatNumber=diAcornFS)then
+  if Inter<=High(FInts)then Result:=FInts[Inter];
+end;
+
+{-------------------------------------------------------------------------------
+Get the total number of interleave types
+-------------------------------------------------------------------------------}
+function TDiscImage.GetNumberOfInterleaves: Byte;
+begin
+ Result:=Length(FInts);
 end;
 
 //++++++++++++++++++ TSpark Published Methods ++++++++++++++++++++++++++++++++++

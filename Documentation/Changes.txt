@@ -948,13 +948,14 @@ Bug fixes
 * The application would crash if an ADFS image had zero free space.
 * Creating a 640KB ADFS L image, then adding a DOS partition would not result in the partition being visible.
 
-1.45.2
+1.45.3
 ---------------------
 New or improved features
 * Image report now lists the free space map for ADFS.
 * Add Partition button now works for DFS single sided images to add a second side.
 * Exporting files now includes a date/time stamp field in the *.inf file if set.
 * Importing files, where the *.inf file has a date/time stamp field, updates the date/time for the file.
+* The ADFS interleave can now be changed without re-organising the data. This method then re-reads the file using the new method.
 
 Bug fixes
 * When deleting directories, the internal directory references were not getting updated.

@@ -105,6 +105,7 @@ type
   spriteh,
   formwidth,
   formheight      : Integer;
+  BasicTxtOutput  : TStringList;
  public
   buffer          : TDIByteArray;
  end;
@@ -171,7 +172,7 @@ begin
  edJump.Enabled         :=True;
  edXOR.Enabled          :=True;
  btnSaveText.Enabled    :=True;
- ScrollBar.Enabled     :=True;
+ ScrollBar.Enabled      :=True;
  //Empty the grid
  HexDumpDisplay.RowCount:=1;
 end;
@@ -203,6 +204,7 @@ procedure THexDumpForm.FormCreate(Sender: TObject);
 begin
  formwidth:=Width;
  formheight:=Height;
+ BasicTxtOutput:=TStringList.Create;
 end;
 
 {------------------------------------------------------------------------------}
@@ -705,12 +707,13 @@ var
  lineptr,
  c,cn,t,
  basicver: Byte;
+ tmp,
+ basictxt,
  linetxt : String;
  detok,
  rem,
  isbasic : Boolean;
  fs      : TStringStream;
- pHTML   : TIpHtml;
 const
  // $80 onwards, single token per keyword
  tokens: array[0..127] of String = (
@@ -755,6 +758,7 @@ begin
  if isbasic then
  begin
   //Clear the output container and write the headers
+  BasicTxtOutput.Clear;
   fs:=TStringStream.Create('<html><head><title>Basic Listing</title></head>');
   fs.WriteString('<body style="background-color:#0000FF;color:#FFFFFF;font-weight:bold">');
   //BBC BASIC version
@@ -767,9 +771,9 @@ begin
    begin
     //Line number
     linenum:=buffer[ptr+2]+buffer[ptr+1]<<8;
-    linetxt:='<span '+linenumstyle+'>'
-            +StringReplace(PadLeft(IntToStr(linenum),5),' ','&nbsp;',[rfReplaceAll])
-            +'</span>&nbsp;';
+    tmp:=StringReplace(PadLeft(IntToStr(linenum),5),' ','&nbsp;',[rfReplaceAll]);
+    linetxt:='<span '+linenumstyle+'>'+tmp+'</span>&nbsp;';
+    basictxt:=tmp;
     //Line length
     linelen:=buffer[ptr+3];
     //Move our line pointer one
@@ -802,18 +806,17 @@ begin
       begin
        if c-$80<=High(tokens) then
         if c-$80<>$D then
-         linetxt:=linetxt+'<span '+keywordstyle+'>'+tokens[c-$80]+'</span>'
+         tmp:=tokens[c-$80]
         else
         begin //Line number
-         linetxt:=linetxt+'<span '+keywordstyle+'>'
-                 +IntToStr(
-                     ((buffer[ptr+lineptr  ]XOR$54)AND$30)<< 2
-                   OR((buffer[ptr+lineptr  ]XOR$54)AND$03)<<14
-                   OR (buffer[ptr+lineptr+1]       AND$3F)
-                   OR (buffer[ptr+lineptr+2]       AND$3F)<< 8)
-                 +'</span>';
+         tmp:=IntToStr(((buffer[ptr+lineptr  ]XOR$54)AND$30)<< 2
+                     OR((buffer[ptr+lineptr  ]XOR$54)AND$03)<<14
+                     OR (buffer[ptr+lineptr+1]       AND$3F)
+                     OR (buffer[ptr+lineptr+2]       AND$3F)<< 8);
          inc(lineptr,3);
         end;
+       linetxt:=linetxt+'<span '+keywordstyle+'>'+tmp+'</span>';
+       basictxt:=basictxt+tmp;
       end
       else //Extended tokens (BASIC V)
       begin
@@ -826,14 +829,13 @@ begin
        if t>$8D then
        begin
         if c=$C6 then
-         if t-$8E<=High(exttokens1)then
-          linetxt:=linetxt+'<span '+keywordstyle+'>'+exttokens1[t-$8E]+'</span>';
+         if t-$8E<=High(exttokens1)then tmp:=exttokens1[t-$8E];
         if c=$C7 then
-         if t-$8E<=High(exttokens2)then
-          linetxt:=linetxt+'<span '+keywordstyle+'>'+exttokens2[t-$8E]+'</span>';
+         if t-$8E<=High(exttokens2)then tmp:=exttokens2[t-$8E];
         if c=$C8 then
-         if t-$8E<=High(exttokens3)then
-          linetxt:=linetxt+'<span '+keywordstyle+'>'+exttokens3[t-$8E]+'</span>';
+         if t-$8E<=High(exttokens3)then tmp:=exttokens3[t-$8E];
+        linetxt:=linetxt+'<span '+keywordstyle+'>'+tmp+'</span>';
+        basictxt:=basictxt+tmp;
        end;
       end;
       //Reset c
@@ -851,12 +853,14 @@ begin
       if c=60 then linetxt:=linetxt+'&lt;';
       if c=62 then linetxt:=linetxt+'&gt;';
       if not rem then if(c=34)and(not detok)then linetxt:=linetxt+'</span>';
+      basictxt:=basictxt+Chr(c AND$7F);
       //Do not detokenise within quotes
       if(c=34)and(not rem)then detok:=not detok;
      end;
     end;
     //Add the complete line to the output container
     fs.WriteString(linetxt+'<br>');
+    BasicTxtOutput.Add(basictxt);
     //And move onto the next line
     inc(ptr,linelen);
    end;
@@ -877,11 +881,9 @@ begin
   //Finish off the HTML
   fs.WriteString('</body></html>');
   //Now upload the document to the display
-  pHTML:=TIpHtml.Create;
   fs.Position:=0;
-  pHTML.LoadFromStream(fs);
+  BasicOutput.SetHtmlFromStream(fs);
   fs.Free;
-  BasicOutput.SetHtml(pHTML);
   //Make the tab visible
   BasicViewer.TabVisible:=True;
   //And switch to it

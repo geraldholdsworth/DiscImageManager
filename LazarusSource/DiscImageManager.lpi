@@ -63,7 +63,7 @@
           </Linking>
         </CompilerOptions>
       </Item2>
-      <Item3 Name="Release platform native">
+      <Item3 Name="Release macOS 64 bit">
         <CompilerOptions>
           <Version Value="11"/>
           <SearchPaths>
@@ -73,6 +73,8 @@
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
+            <TargetCPU Value="x86_64"/>
+            <TargetOS Value="darwin"/>
             <Optimizations>
               <OptimizationLevel Value="3"/>
             </Optimizations>

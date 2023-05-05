@@ -570,7 +570,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.45.2';
+    ApplicationVersion = '1.45.3';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -4468,8 +4468,21 @@ begin
  ImageDetailForm.lbDirType.Caption  :=Image.DirectoryTypeString;
  ImageDetailForm.DirPanel.Visible   :=ImageDetailForm.lbDirType.Caption<>'';
  //Interleave type
+ if ImageDetailForm.cbInterleave.Items.Count=0 then //Populate the dropdown
+  for t:=0 to Image.GetNumberOfInterleaves-1 do
+   ImageDetailForm.cbInterleave.Items.Add(Image.GetInterleaveString(t));
  ImageDetailForm.lbInterleave.Caption:=Image.InterleaveInUse;
+ ImageDetailForm.cbInterleave.ItemIndex:=Image.InterleaveInUseNum-1;
  ImageDetailForm.InterleavePanel.Visible:=ImageDetailForm.lbInterleave.Caption<>'';
+ if ImageDetailForm.InterleavePanel.Visible then //If this is visible
+ begin
+  if HasChanged then //Make the appropriate control visible
+   ImageDetailForm.lbInterleave.Visible:=True
+  else
+   ImageDetailForm.lbInterleave.Visible:=False;
+  //Can't change the interleave if the image has been modified
+  ImageDetailForm.cbInterleave.Visible:=not ImageDetailForm.lbInterleave.Visible;
+ end;
  //Arrange the panels
  with ImageDetailForm do
  begin
@@ -4653,13 +4666,31 @@ begin
   Cursor:=crDefault;
   if ImageDetailForm.ShowModal=mrOK then
   begin
-   for side:=0 to numsides-1 do
+   //Update the interleave
+   if(ImageDetailForm.cbInterleave.ItemIndex<>Image.InterleaveInUseNum-1)
+   and(ImageDetailForm.cbInterleave.Visible)then
    begin
-    //Update Disc Title
-    if Image.UpdateDiscTitle(titles[side].Text,side)      then HasChanged:=True;
-    //Update Boot Option
-    if Image.UpdateBootOption(boots[side].ItemIndex,side) then HasChanged:=True;
+    //Remember the previous settings
+    title:=Image.Filename;
+    t:=ADFSInterleave;
+    //Close the image
+    btn_CloseImageClick(Sender);
+    //Change the interleave
+    ADFSInterleave:=ImageDetailForm.cbInterleave.ItemIndex+1;
+    //Re-open
+    OpenImage(title);
+    //Change the interleave back
+    ADFSInterleave:=t;
    end;
+   //Still a valid image?
+   if Image.FormatNumber<>diInvalidImg then
+    for side:=0 to numsides-1 do
+    begin
+     //Update Disc Title
+     if Image.UpdateDiscTitle(titles[side].Text,side)      then HasChanged:=True;
+     //Update Boot Option
+     if Image.UpdateBootOption(boots[side].ItemIndex,side) then HasChanged:=True;
+    end;
    UpdateImageInfo;
   end;
   //Clear up and close

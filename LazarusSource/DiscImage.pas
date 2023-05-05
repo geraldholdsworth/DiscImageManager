@@ -706,6 +706,8 @@ type
    CDRFileTypes : array[0.. 5] of String = (
                                    'DELDeleted'  ,'SEQSequence' ,'PRGProgram'  ,
                                    'USRUser File','RELRelative' ,'CBMCBM'      );
+   //Interleave types
+   Fints        : array[0..2] of String=('Sequential','Interleave','Multiplex');
    //Disc title for new images
    disctitle     = 'DiscImgMgr';
    afsdisctitle  = 'DiscImageManager'; //AFS has longer titles
@@ -785,6 +787,8 @@ type
   function GetDirSep(partition: Byte): Char;
   function ReadDirectory(dirname: String): Integer;
   function ImageReport(CSV: Boolean): TStringList;
+  function GetInterleaveString(Inter: Byte): String;
+  function GetNumberOfInterleaves: Byte;
   //Published properties
   property AFSPresent:          Boolean       read FAFSPresent;
   property AFSRoot:             Cardinal      read Fafsroot;

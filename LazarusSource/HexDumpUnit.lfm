@@ -20,11 +20,11 @@ object HexDumpForm: THexDumpForm
     Height = 603
     Top = 0
     Width = 635
-    ActivePage = HexDump
+    ActivePage = BasicViewer
     Align = alClient
     Images = MainForm.ToolBarImages
     ImagesWidth = 16
-    TabIndex = 0
+    TabIndex = 1
     TabOrder = 0
     OnChange = PageControlChange
     object HexDump: TTabSheet

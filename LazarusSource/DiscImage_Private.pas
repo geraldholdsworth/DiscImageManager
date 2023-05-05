@@ -991,16 +991,14 @@ end;
 Convert the interleave into a string
 -------------------------------------------------------------------------------}
 function TDiscImage.InterleaveString: String;
-const
- ints:array[0..2] of String=('Sequential','Interleave','Multiplex');
 begin
  Result:='';
- if(GetMajorFormatNumber=diAcornDFS)and(FDSD)then Result:=ints[1];
+ if(GetMajorFormatNumber=diAcornDFS)and(FDSD)then Result:=Fints[1];
  {if(FFormat=diAcornADFS<<4+2)
  or(FFormat=diAcornADFS<<4+$E)}
  if(GetMajorFormatNumber=diAcornADFS)
  or(GetMajorFormatNumber=diAcornFS)then
-  if FInterleave-1<=High(ints) then Result:=ints[FInterleave-1];
+  if FInterleave-1<=High(Fints) then Result:=Fints[FInterleave-1];
 end;
 
 {-------------------------------------------------------------------------------

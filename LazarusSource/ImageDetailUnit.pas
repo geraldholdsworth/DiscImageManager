@@ -32,6 +32,7 @@ type
  { TImageDetailForm }
 
  TImageDetailForm = class(TForm)
+  cbInterleave: TComboBox;
   pnSide1: TPanel;
   pnSide0Caption: TLabel;
   MicrosoftLogo: TImage;

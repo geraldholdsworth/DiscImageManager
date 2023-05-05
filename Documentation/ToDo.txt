@@ -23,7 +23,6 @@ General - Ideas which are maybe possible
 * ADFS: When a DOS image file is added to an ADFS image (and the "Open DOS Partition" setting is set), automatically open as the second partition (if there isn't one already).
 * ADFS: Rebuild the Old Map FS Map by scanning the files and rebuilding from scratch (in the class definition).
 * ADFS: Use the above, along with other functions, to create a new function to fix ADFS Old Map images which otherwise won't load.
-* ADFS: Change the interleave, without moving data around.
 * AFS: AFS0 images do not get created correctly (in particular the free space allocation maps) - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: Add option to new Level 3 images for pre-1988 or post-1988 format - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: When extracting the AFS partition, remove the ADFS partition and re-address all the objects, instead of just blanking out the ADFS part - IN PROGRESS.
