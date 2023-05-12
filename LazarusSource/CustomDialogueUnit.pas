@@ -153,7 +153,7 @@ begin
  MessageLabel.Left:=(MessagePanel.Width-MessageLabel.Width)div 2;
  MessageLabel.Top:=(MessagePanel.Height-MessageLabel.Height)div 2;
  //Label the default button
- if OKBtnTxt='' then OKBtnTxt:='&OK';
+ if OKBtnTxt='' then OKBtnTxt:='OK';
  OKButton.Caption:=OKBtnTxt;
  //Label the cancel button, and then show or hide it
  if CancelBtnTxt='' then CancelButton.Visible:=False

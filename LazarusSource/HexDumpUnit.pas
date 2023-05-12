@@ -39,6 +39,7 @@ type
   btnMoveUp: TSpeedButton;
   btnMoveUpLine: TSpeedButton;
   btnSaveText: TSpeedButton;
+  btnSaveBasic: TSpeedButton;
   ButtonImages: TImageList;
   edJump: TEdit;
   edXOR: TEdit;
@@ -46,6 +47,7 @@ type
   ImageDisplay: TImage;
   BasicOutput: TIpHtmlPanel;
   JumpToLabel: TLabel;
+  BasicPanel: TPanel;
   TextOutput: TMemo;
   PageControl: TPageControl;
   HexDump: TTabSheet;
@@ -69,6 +71,7 @@ type
   procedure btnMoveToTopClick(Sender: TObject);
   procedure btnMoveUpClick(Sender: TObject);
   procedure btnMoveUpLineClick(Sender: TObject);
+  procedure btnSaveBasicClick(Sender: TObject);
   procedure edXORKeyPress(Sender: TObject; var Key: char);
   procedure FormCreate(Sender: TObject);
   procedure ImagePanelPaint(Sender: TObject);
@@ -350,6 +353,24 @@ begin
   //Hide the progress bar
   pbProgress.Visible:=False;
  end;
+end;
+
+{------------------------------------------------------------------------------}
+{ User has clicked on the Save As Text File button on the BASIC viewer tab     }
+{------------------------------------------------------------------------------}
+procedure THexDumpForm.btnSaveBasicClick(Sender: TObject);
+var
+ line  : String;
+ i     : Integer;
+begin
+ //Adapt the filename
+ line:=Caption;
+ BBCToWin(line);
+ //Remove any dots
+ for i:=1 to Length(line) do if line[i]='.' then line[i]:='-';
+ SaveFile.Filename:=line+'-basic.txt';
+ //And open the dialogue box to save the file
+ if SaveFile.Execute then BasicTxtOutput.SaveToFile(SaveFile.Filename);
 end;
 
 {------------------------------------------------------------------------------}
@@ -745,9 +766,9 @@ const
   'CASE' ,'CIRCLE','FILL'  ,'ORIGIN','PSET'   ,'RECT'   ,'SWAP','WHILE',
   'WAIT' ,'MOUSE' ,'QUIT'  ,'SYS'   ,'INSTALL','LIBRARY','TINT','ELLIPSE',
   'BEATS','TEMPO' ,'VOICES','VOICE' ,'STEREO' ,'OVERLAY');
- keywordstyle = 'style="color:#FFFF00"';
+ keywordstyle = 'style="color:#FFFF00;font-weight: bold"';
  linenumstyle = 'style="color:#00FF00"';
- quotestyle   = 'style="color:#00FFFF"';
+ quotestyle   = 'style="color:#00FFFF;font-style: italic"';
 begin
  basiclength:=Length(buffer);
  //First we'll analyse the data to see if it is a BBC BASIC file
@@ -760,7 +781,7 @@ begin
   //Clear the output container and write the headers
   BasicTxtOutput.Clear;
   fs:=TStringStream.Create('<html><head><title>Basic Listing</title></head>');
-  fs.WriteString('<body style="background-color:#0000FF;color:#FFFFFF;font-weight:bold">');
+  fs.WriteString('<body style="background-color:#0000FF;color:#FFFFFF">');
   //BBC BASIC version
   basicver:=1;
   //Continue until the end of the file
@@ -771,9 +792,10 @@ begin
    begin
     //Line number
     linenum:=buffer[ptr+2]+buffer[ptr+1]<<8;
-    tmp:=StringReplace(PadLeft(IntToStr(linenum),5),' ','&nbsp;',[rfReplaceAll]);
-    linetxt:='<span '+linenumstyle+'>'+tmp+'</span>&nbsp;';
-    basictxt:=tmp;
+    linetxt:='<span '+linenumstyle+'>'
+            +StringReplace(PadLeft(IntToStr(linenum),5),' ','&nbsp;',[rfReplaceAll])
+            +'</span>&nbsp;';
+    basictxt:=PadLeft(IntToStr(linenum),5);
     //Line length
     linelen:=buffer[ptr+3];
     //Move our line pointer one

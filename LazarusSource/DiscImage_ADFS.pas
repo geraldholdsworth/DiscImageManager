@@ -1921,17 +1921,18 @@ var
  procedure CheckForShared(start: Integer);
  var
   entry2  : Cardinal;
-  currfile: String;
+//  currfile: String;
  begin
   //Don't check the current file, as this will be the same (obvs)
-  if start>=0 then currfile:=FDisc[dir].Entries[start].Filename
-  else currfile:='';
+//  if start>=0 then currfile:=FDisc[dir].Entries[start].Filename
+//  else currfile:='';
   //Iterate through the other files in the directory
   if Length(FDisc[dir].Entries)>0 then
    for entry2:=0 to Length(FDisc[dir].Entries)-1 do
     if (FDisc[dir].Entries[entry2].Sector>>8=fragid)
     and(FDisc[dir].Entries[entry2].Sector mod$100>=sharedbyte)
-    and(FDisc[dir].Entries[entry2].Filename<>currfile)then
+    {and(entry2<>start)}then
+//    and(FDisc[dir].Entries[entry2].Filename<>currfile)then
     begin
      //Work out the shared byte
      sharedbyte:=(ADFSSectorAlignLength(FDisc[dir].Entries[entry2].Length
@@ -1941,7 +1942,8 @@ var
      SetSharedByte(FDisc[dir].Entries[entry2].Length,False);
     end;
    //No space sharing with siblings, so reset the flag
-   if safilelen>fragments[0].Length-sharedbyte*secsize then
+   if((safilelen>fragments[0].Length-(sharedbyte-1)*secsize)and(sharedbyte>0))
+   or((safilelen>fragments[0].Length-sharedbyte*secsize)and(sharedbyte=0))then
    begin
     sharedbyte:=$00;
     SetLength(fragments,0);
@@ -2034,6 +2036,7 @@ begin
         fragid:=FDisc[dir].Sector>>8;
         //And the sharing offset
         SetSharedByte(FDisc[dir].Length,True);
+        inc(sharedbyte,FDisc[dir].Sector AND$FF);
         //And check the children for the same ID
         CheckForShared(-1);
        end;
@@ -2042,7 +2045,7 @@ begin
       if(sharedbyte=$00)and(Length(FDisc[dir].Entries)>0)then
        for entry:=0 to Length(FDisc[dir].Entries)-1 do
         if(FDisc[dir].Entries[entry].Sector mod$100=$01)
-        and(entry<Length(FDisc[dir].Entries)-1)then
+        and(entry<Length(FDisc[dir].Entries))then
         begin
          //Get the fragments for this object
          fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
@@ -2119,6 +2122,7 @@ begin
        ptr:=ExtendADFSCat(dir,file_details);
        //Not a directory
        FDisc[dir].Entries[ptr].DirRef:=-1;
+       FDisc[dir].Entries[ptr].Side:=0; //Not used by ADFS, so reset
        //Filetype and Timestamp for Arthur and RISC OS ADFS
        if (FDisc[dir].Entries[ptr].LoadAddr=0)
        and(FDisc[dir].Entries[ptr].ExecAddr=0)
@@ -3461,33 +3465,34 @@ begin
  begin
   FreeEnd:=ReadByte($1FE); //FSM pointer
   //Go through each pointer and length and see if we can add to it
-  for i:=0 to (FreeEnd div 3)-1 do
-  begin
-   fs:=Read24b($000+i*3); //FreeStart
-   fl:=Read24b($100+i*3); //FreeLen
-   if fs+fl=addr then //New space is immediately after this one
+  if FreeEnd>0 then
+   for i:=0 to (FreeEnd div 3)-1 do
    begin
-    //Add to FreeLen
-    inc(fl,len);
-    //and update
-    Write24b(fl,$100+i*3);
-    //Clear our pointers
-    addr:=0;
-    len:=0;
+    fs:=Read24b($000+i*3); //FreeStart
+    fl:=Read24b($100+i*3); //FreeLen
+    if fs+fl=addr then //New space is immediately after this one
+    begin
+     //Add to FreeLen
+     inc(fl,len);
+     //and update
+     Write24b(fl,$100+i*3);
+     //Clear our pointers
+     addr:=0;
+     len:=0;
+    end;
+    if addr+len=fs then //New space is immediately before this one
+    begin
+     //Update FreeStart to new address
+     Write24b(addr,$000+i*3);
+     //Add to FreeLen
+     inc(fl,len);
+     //and update
+     Write24b(fl,$100+i*3);
+     //Clear our pointers
+     addr:=0;
+     len:=0;
+    end;
    end;
-   if addr+len=fs then //New space is immediately before this one
-   begin
-    //Update FreeStart to new address
-    Write24b(addr,$000+i*3);
-    //Add to FreeLen
-    inc(fl,len);
-    //and update
-    Write24b(fl,$100+i*3);
-    //Clear our pointers
-    addr:=0;
-    len:=0;
-   end;
-  end;
   //Could not find an entry, so add a new one, if there is space
   if(addr+len>0)and(FreeEnd div 3<82)then
   begin

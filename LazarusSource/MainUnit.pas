@@ -570,7 +570,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.45.3';
+    ApplicationVersion = '1.45.4';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -974,7 +974,18 @@ begin
   end;
   //Make sure that there is a destination selected - should be after last command
   if DirList.SelectionCount=1 then
-   //And it is a directory
+  begin
+   //If the selection is not a directory
+   if not TMyTreeNode(DirList.Selected).IsDir then
+   begin
+    //Remember the selection
+    Node:=DirList.Selected;
+    //Unselect everything
+    DirList.ClearSelection;
+    //Now select the parent, which should be a directory
+    Node.Parent.Selected:=True;
+   end;
+   //Make sure that the selection is a directory
    if TMyTreeNode(DirList.Selected).IsDir then
    begin
     //Make sure the directory has been read in
@@ -1187,7 +1198,8 @@ begin
      end else Result:=-3;
     end;
    end
-   else ReportError('"'+DirList.Selected.Text+'" is not a directory')
+   else ReportError('"'+DirList.Selected.Text+'" is not a directory');
+  end
   else
    if DirList.SelectionCount=0 then
     ReportError('No destination directory selected')
@@ -5332,14 +5344,45 @@ end;
 //Produces a report on the image
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_ShowReportClick(Sender: TObject);
+var
+ dir,entry,
+ errorcount: Integer;
 begin
+ MainForm.Cursor:=crHourGlass;
  ImageReportForm.Report.Clear;
  ImageReportForm.Report.Lines:=Image.ImageReport(False);
+ //Add file details
+ ImageReportForm.Report.Lines.Add('');
+ ImageReportForm.Report.Lines.Add('File report');
+ ImageReportForm.Report.Lines.Add('===========');
+ errorcount:=0;
+ if Length(Image.Disc)>0 then
+  for dir:=0 to Length(Image.Disc)-1 do
+  begin
+   if Image.Disc[dir].Broken then
+   begin
+    ImageReportForm.Report.Lines.Add(Image.GetParent(dir)+' is broken');
+    inc(errorcount);
+   end;
+   if Length(Image.Disc[dir].Entries)>0 then
+    for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
+     if Image.GetFileCRC(Image.GetParent(dir)
+                        +Image.GetDirSep(Image.Disc[dir].Partition)
+                        +Image.Disc[dir].Entries[entry].Filename,entry)='error' then
+     begin
+      ImageReportForm.Report.Lines.Add(Image.GetParent(dir)
+                        +Image.GetDirSep(Image.Disc[dir].Partition)
+                        +Image.Disc[dir].Entries[entry].Filename+' could not be read');
+      inc(errorcount);
+     end;
+  end;
+ ImageReportForm.Report.Lines.Add(IntToStr(errorcount)+' error(s) found');
  //Add a footer
  ImageReportForm.Report.Lines.Add('______________________________________________________________');
  ImageReportForm.Report.Lines.Add(ApplicationTitle+' v'+ApplicationVersion);
  ImageReportForm.Report.Lines.Add('by Gerald J Holdsworth');
  ImageReportForm.Report.Lines.Add('gerald@geraldholdsworth.co.uk');
+ MainForm.Cursor:=crDefault;
  ImageReportForm.ShowModal;
 end;
 

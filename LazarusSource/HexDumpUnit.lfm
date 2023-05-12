@@ -20,11 +20,11 @@ object HexDumpForm: THexDumpForm
     Height = 603
     Top = 0
     Width = 635
-    ActivePage = BasicViewer
+    ActivePage = SpriteViewer
     Align = alClient
     Images = MainForm.ToolBarImages
     ImagesWidth = 16
-    TabIndex = 1
+    TabIndex = 2
     TabOrder = 0
     OnChange = PageControlChange
     object HexDump: TTabSheet
@@ -243,13 +243,14 @@ object HexDumpForm: THexDumpForm
       TabVisible = False
       object BasicOutput: TIpHtmlPanel
         Left = 0
-        Height = 573
-        Top = 0
+        Height = 541
+        Top = 32
         Width = 629
         Align = alClient
+        AllowTextSelect = False
         FixedTypeface = 'Courier'
         DefaultTypeFace = 'Courier New'
-        DefaultFontSize = 12
+        DefaultFontSize = 0
         FlagErrors = False
         PrintSettings.MarginLeft = 0.5
         PrintSettings.MarginTop = 0.5
@@ -261,6 +262,27 @@ object HexDumpForm: THexDumpForm
         PrintSettings.Preview.Width = 1080
         PrintSettings.Preview.Height = 675
         TabOrder = 0
+      end
+      object BasicPanel: TPanel
+        Left = 0
+        Height = 32
+        Top = 0
+        Width = 629
+        Align = alTop
+        ClientHeight = 32
+        ClientWidth = 629
+        TabOrder = 1
+        object btnSaveBasic: TSpeedButton
+          Left = 0
+          Height = 32
+          Hint = 'Save as Text File'
+          Top = 0
+          Width = 32
+          Flat = True
+          Images = ButtonImages
+          ImageIndex = 1
+          OnClick = btnSaveBasicClick
+        end
       end
     end
     object SpriteViewer: TTabSheet
