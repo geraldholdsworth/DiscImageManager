@@ -948,8 +948,8 @@ Bug fixes
 * The application would crash if an ADFS image had zero free space.
 * Creating a 640KB ADFS L image, then adding a DOS partition would not result in the partition being visible.
 
-1.45.4
----------------------
+1.46 - 18th May 2023
+--------------------
 New or improved features
 * Image report now lists the free space map for ADFS.
 * Add Partition button now works for DFS single sided images to add a second side.
@@ -960,6 +960,7 @@ New or improved features
 * BASIC file viewer now uses smaller text and no longer bold, unless it is a keyword. Text in quotes is now in italics.
 * Image report now checks every file and directory on an image and reports details of files with CRC32 error or broken directories (ADFS).
 * When importing a file to an image, it no longer complains if the selected node is not a directory. Now, it just selects the selected node's parent before importing the file.
+* The BackSpace key is now a shortcut for deleting files or directories.
 
 Bug fixes
 * When deleting directories, the internal directory references were not getting updated.
@@ -970,6 +971,8 @@ Bug fixes
 * A corrupt 'JesMap' sector, on Acorn FS, can cause the application to crash. Additional checks have been put in place.
 * An ADFS Old Map, with no free space, would hang when trying to delete a file.
 * In ADFS, when selecting a sub-directory the image details status bar would sometimes report no image title, 0 bytes used and 0 bytes free.
+* When an ADFS New Map zone is close to capacity (i.e., not enough space for a fragment id to be written in), the free space was incorrectly reported. This would cause files and directories to fail to being written but the catalogue information would still be.
+* Deleting an ADFS directory which is the penultimate directory in the catalogue would result in the last one being deleted from the internal references. This then caused confusion with the front end GUI and resulted in a crash. In addition, deleting everything from the image would leave the free space map not correctly updated.
 
 Platform History
 ----------------

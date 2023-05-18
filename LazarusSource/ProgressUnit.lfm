@@ -14,6 +14,7 @@ object ProgressForm: TProgressForm
   Position = poMainFormCenter
   LCLVersion = '2.2.0.4'
   object MainPanel: TPanel
+    Cursor = crHourGlass
     Left = 0
     Height = 200
     Top = 0

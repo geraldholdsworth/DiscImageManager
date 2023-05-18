@@ -62,6 +62,7 @@ type
   { TMainForm }
 type
   TMainForm = class(TForm)
+   DeleteAFile: TAction;
    AmigaAttrPanel: TPanel;
    AFSAttrPanel: TPanel;
    DOSAttributeLabel: TLabel;
@@ -371,7 +372,7 @@ type
    procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
    procedure CreateRootInf(filename: String; dir: Integer);
    procedure Defrag(side: Byte);
-   procedure DeleteFile(confirm: Boolean);                                      
+   procedure DeleteFile(confirm: Boolean);
    procedure DisableControls;
    procedure DoCopyMove(copymode: Boolean);
    procedure DownLoadDirectory(dir,entry: Integer; path: String);
@@ -570,7 +571,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.45.4';
+    ApplicationVersion = '1.46';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -2256,7 +2257,8 @@ begin
  menuExtractFile.Enabled  :=btn_download.Enabled;    
  btn_Delete.Enabled       :=DirList.SelectionCount>0;
  DeleteFile1.Enabled      :=btn_Delete.Enabled;
- menuDeleteFile.Enabled   :=btn_Delete.Enabled;       
+ menuDeleteFile.Enabled   :=btn_Delete.Enabled;
+ DeleteAFile.Enabled      :=btn_Delete.Enabled;
  btn_HexDump.Enabled      :=DirList.SelectionCount=1;
  HexDump1.Enabled         :=btn_HexDump.Enabled;
  menuHexDump.Enabled      :=btn_HexDump.Enabled;     
@@ -2470,6 +2472,7 @@ begin
    DeleteFile1.Enabled      :=False;
    btn_Delete.Enabled       :=False;
    menuDeleteFile.Enabled   :=False;
+   DeleteAFile.Enabled      :=False;
    RenameFile1.Enabled      :=False;
    btn_Rename.Enabled       :=False;
    menuRenameFile.Enabled   :=False;
@@ -2758,18 +2761,23 @@ begin
   and(Length(ImageToUse.Disc)>0)and(not dospart)then
   begin
    //Default
-   ft:=ROunknown;
-   //If it has a Load and/or Exec address
-   if(ImageToUse.Disc[dir].Entries[entry].LoadAddr<>0)
-   or(ImageToUse.Disc[dir].Entries[entry].ExecAddr<>0)then
-    ft:=loadexec;
-   //If it has a timestamp
-   if(ImageToUse.Disc[dir].Entries[entry].TimeStamp>0)
-   and(not afspart)and(not dospart)then
-   begin
-    i:=GetFileTypeGraphic(filetype,Low(RISCOSFileTypes),RISCOSFileTypes);
-    if i<>unknown then ft:=i;
-   end;
+   ft:=ROunknown; //Default icon
+   //Make sure we are in range
+   if dir<Length(ImageToUse.Disc)then
+    if entry<Length(ImageToUse.Disc[dir].Entries)then
+    begin
+     //If it has a Load and/or Exec address
+     if(ImageToUse.Disc[dir].Entries[entry].LoadAddr<>0)
+     or(ImageToUse.Disc[dir].Entries[entry].ExecAddr<>0)then
+      ft:=loadexec;
+     //If it has a timestamp
+     if(ImageToUse.Disc[dir].Entries[entry].TimeStamp>0)
+     and(not afspart)and(not dospart)then
+     begin
+      i:=GetFileTypeGraphic(filetype,Low(RISCOSFileTypes),RISCOSFileTypes);
+      if i<>unknown then ft:=i;
+     end;
+    end;
   end;
   //Is it a Commodore format?
   if(ImageToUse.MajorFormatNumber=diCommodore)
@@ -2977,6 +2985,8 @@ begin
  menuFixADFS.Enabled      :=False;
  menuFileSearch.Enabled   :=False;
  menuShowReport.Enabled   :=False;
+ //Shortcuts
+ DeleteAFile.Enabled      :=False;
  //Close the search window
  SearchForm.Close;
  //Disable the directory view
@@ -5345,25 +5355,40 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_ShowReportClick(Sender: TObject);
 var
+ pcent,lpcent,
  dir,entry,
  errorcount: Integer;
 begin
  MainForm.Cursor:=crHourGlass;
+ ProgressForm.Show;
+ Application.ProcessMessages;
+ UpdateProgress('Preparing report');
  ImageReportForm.Report.Clear;
  ImageReportForm.Report.Lines:=Image.ImageReport(False);
  //Add file details
  ImageReportForm.Report.Lines.Add('');
  ImageReportForm.Report.Lines.Add('File report');
  ImageReportForm.Report.Lines.Add('===========');
+ if not Image.ScanSubDirs then
+  ImageReportForm.Report.Lines.Add(
+                  'Please note that not all directories may have been read in');
  errorcount:=0;
+ lpcent:=-1;
  if Length(Image.Disc)>0 then
   for dir:=0 to Length(Image.Disc)-1 do
   begin
+   //Progress display
+   pcent:=Round(((dir+1)/Length(Image.Disc))*100);
+   if lpcent<>pcent then
+    UpdateProgress('Preparing report...'+IntToStr(pcent)+'%');
+   lpcent:=lpcent;
+   //Broken directory
    if Image.Disc[dir].Broken then
    begin
     ImageReportForm.Report.Lines.Add(Image.GetParent(dir)+' is broken');
     inc(errorcount);
    end;
+   //Check the files for errors
    if Length(Image.Disc[dir].Entries)>0 then
     for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
      if Image.GetFileCRC(Image.GetParent(dir)
@@ -5382,6 +5407,8 @@ begin
  ImageReportForm.Report.Lines.Add(ApplicationTitle+' v'+ApplicationVersion);
  ImageReportForm.Report.Lines.Add('by Gerald J Holdsworth');
  ImageReportForm.Report.Lines.Add('gerald@geraldholdsworth.co.uk');
+ ProgressForm.Hide;
+ Application.ProcessMessages;
  MainForm.Cursor:=crDefault;
  ImageReportForm.ShowModal;
 end;

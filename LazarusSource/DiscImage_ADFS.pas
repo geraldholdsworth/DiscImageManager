@@ -1803,7 +1803,7 @@ var
  startoffset,
  startzone,
  freelink,
- i,j          : Cardinal;
+ i,j,k        : Cardinal;
  fragments    : TFragmentArray;
  zonecheck    : array of Boolean;
 begin
@@ -1846,23 +1846,24 @@ begin
     //Read in the next free link number of bits - this can be idlen bits
     freelink:=ReadBits(bootmap+(zone*secsize)+1+(i DIV 8),i mod 8,idlen);
     //Now find the end of the fragment length
-    j:=(i+idlen)-1; //Start after the freelink
+    if freelink=0 then j:=i-1 else j:=(i+idlen)-1; //Start after the freelink
     repeat
      inc(j); //Length counter
-    //Continue until we find a set bit
-    //Or run out of zone (the 32 is the 4 byte zone header)
+    //Continue until we find a set bit, or run out of zone
     until(IsBitSet(ReadByte(bootmap+(zone*secsize)+1+(j div 8)),j mod 8))
-       or(j>=32+(secsize*8-zone_spare));
-    //Make a note of the length (the 1 is for the set bit marking the end)
+       or(j>=24+(secsize*8-zone_spare));//24 is the header minus initial byte
+    //Make a note of the length
     if(whichzone=-1)or(whichzone=zone)then
-     if offset then
-      fragments[Length(fragments)-1].Length:=((j-i)+1)*bpmb
-     else
-      fragments[Length(fragments)-1].Length:=(j-i)+1;
+    begin
+     if j>secsize*8-8 then j:=secsize*8-9; //This should never run
+     k:=(j-i)+1; //The 1 is for the set bit marking the end
+     if offset then fragments[Length(fragments)-1].Length:=k*bpmb
+               else fragments[Length(fragments)-1].Length:=k;
+    end;
     //Move the pointer on, after the '1'
     inc(i,freelink);
-   until (freelink=0)                   //Unless the next link is zero,
-      or (i>=32+(secsize*8-zone_spare));//or we run out of zone
+    //Unless the next link is zero, or we run out of zone
+   until(freelink=0)or(i>=24+(secsize*8-zone_spare));
   end;
   //Set this zone to having been checked
   zonecheck[zonecounter]:=True;
@@ -3414,10 +3415,7 @@ begin
       //If any fail for some reason, the whole thing fails
       success:=DeleteADFSFile(filename+dir_sep+FDisc[dirref].Entries[0].Filename);
     //Remove the directory from the internal array
-    if dirref<Length(FDisc)-2 then
-     for i:=dirref to Length(FDisc)-2 do
-      FDisc[i]:=FDisc[i+1];
-    SetLength(FDisc,Length(FDisc)-1);
+    RemoveDirectory(dirref);
     //Update all the directory references
     UpdateDirRef(dirref);
    end;
@@ -3470,7 +3468,7 @@ begin
    begin
     fs:=Read24b($000+i*3); //FreeStart
     fl:=Read24b($100+i*3); //FreeLen
-    if fs+fl=addr then //New space is immediately after this one
+    if(fs+fl=addr)and(len>0)then //New space is immediately after this one
     begin
      //Add to FreeLen
      inc(fl,len);
@@ -3480,7 +3478,7 @@ begin
      addr:=0;
      len:=0;
     end;
-    if addr+len=fs then //New space is immediately before this one
+    if(addr+len=fs)and(len>0)then //New space is immediately before this one
     begin
      //Update FreeStart to new address
      Write24b(addr,$000+i*3);

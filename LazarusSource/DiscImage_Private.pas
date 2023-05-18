@@ -1040,6 +1040,37 @@ begin
   end;
 end;
 
+{-------------------------------------------------------------------------------
+Remove a directory from the internal array
+-------------------------------------------------------------------------------}
+procedure TDiscImage.RemoveDirectory(dirref: Cardinal);
+var
+ i,entry: Cardinal;
+begin
+ if dirref<Length(FDisc)-1 then
+  for i:=dirref to Length(FDisc)-2 do
+  begin
+   FDisc[i].Directory   :=FDisc[i+1].Directory;
+   FDisc[i].Title       :=FDisc[i+1].Title;
+   FDisc[i].ErrorCode   :=FDisc[i+1].ErrorCode;
+   FDisc[i].Deleted     :=FDisc[i+1].Deleted;
+   FDisc[i].Broken      :=FDisc[i+1].Broken;
+   FDisc[i].Locked      :=FDisc[i+1].Locked;
+   FDisc[i].BeenRead    :=FDisc[i+1].BeenRead;
+   FDisc[i].DOSPartition:=FDisc[i+1].DOSPartition;
+   FDisc[i].AFSPartition:=FDisc[i+1].AFSPartition;
+   FDisc[i].Sector      :=FDisc[i+1].Sector;
+   FDisc[i].Length      :=FDisc[i+1].Length;
+   FDisc[i].Partition   :=FDisc[i+1].Partition;
+   FDisc[i].Parent      :=FDisc[i+1].Parent;
+   SetLength(FDisc[i].Entries,Length(FDisc[i+1].Entries));
+   if Length(FDisc[i].Entries)>0 then
+    for entry:=0 to Length(FDisc[i].Entries)-1 do
+     FDisc[i].Entries[entry]:=FDisc[i+1].Entries[entry];
+  end;
+ SetLength(FDisc,Length(FDisc)-1);
+end;
+
 //++++++++++++++++++ TSpark Private methods ++++++++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------

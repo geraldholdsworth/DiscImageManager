@@ -1590,7 +1590,7 @@ var
  index: Integer;
 begin
  //Remove the entry from the local copy
- if entry<Length(FDisc[dir].Entries)-2 then
+ if entry<Length(FDisc[dir].Entries)-1 then
   for index:=entry to Length(FDisc[dir].Entries)-2 do
    FDisc[dir].Entries[index]:=FDisc[dir].Entries[index+1];
  SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);

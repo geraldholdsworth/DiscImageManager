@@ -9094,10 +9094,10 @@ object MainForm: TMainForm
     Height = 62
     Top = 0
     Width = 745
-    ActivePage = ImageToolBarPage
+    ActivePage = FIlesToolBarPage
     Align = alTop
     AutoSize = True
-    TabIndex = 0
+    TabIndex = 1
     TabOrder = 5
     object ImageToolBarPage: TTabSheet
       AutoSize = True
@@ -32116,6 +32116,13 @@ object MainForm: TMainForm
       Caption = 'CancelDragDrop'
       OnExecute = CancelDragDropExecute
       ShortCut = 27
+    end
+    object DeleteAFile: TAction
+      Category = 'General'
+      Caption = 'DeleteAFile'
+      Enabled = False
+      OnExecute = DeleteFile1Click
+      ShortCut = 8
     end
   end
   object HoverTimer: TTimer

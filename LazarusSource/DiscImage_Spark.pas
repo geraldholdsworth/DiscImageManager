@@ -188,7 +188,7 @@ begin
   Result:=True;
   //This needs to replicate when the Spark class is doing for the local copy
   //i.e., for directories, delete all contents as well as the directory
-  if entry<Length(FDisc[dir].Entries)-2 then
+  if entry<Length(FDisc[dir].Entries)-1 then
    for index:=entry to Length(FDisc[dir].Entries)-2 do
     FDisc[dir].Entries[index]:=FDisc[dir].Entries[index+1];
   SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)-1);

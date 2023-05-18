@@ -377,6 +377,7 @@ type
                                       bigendian: Boolean=False): Word; overload;
   function ReadByte(offset: Cardinal): Byte;
   function ReadByte(offset: Cardinal; var buffer: TDIByteArray): Byte; overload;
+  procedure RemoveDirectory(dirref: Cardinal);
   function DiscAddrToIntOffset(disc_addr: Cardinal): Cardinal;
   procedure Write32b(value, offset: Cardinal; bigendian: Boolean=False); 
   procedure Write32b(value, offset: Cardinal; var buffer: TDIByteArray;
