@@ -25,6 +25,7 @@ object ImportSelectorForm: TImportSelectorForm
     BorderStyle = bsNone
     Color = clNone
     Font.CharSet = ANSI_CHARSET
+    Font.Color = clBlack
     Font.Name = 'Courier New'
     Font.Style = [fsBold]
     Images = MainForm.FileImages

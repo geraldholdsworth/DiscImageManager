@@ -30,6 +30,12 @@ Boston, MA 02110-1335, USA.
 
 interface
 
+{
+There is some code that is duplicated across procedures/functions, particuarly
+with different filing systems. This is done to separate the systems and make
+maintenance easier.
+}
+
 uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,ExtCtrls,DateUtils;
 
 {$M+}
@@ -102,6 +108,7 @@ type
   diSpark      = $008;
   diSJMDFS     = $009;
   diDOSPlus    = $00A;
+  diAcornRFS   = $00B;
   diInvalidImg = $00FF; //Needs to be changed to $FFFF
   diADFSOldMap = $00;
   diADFSNewMap = $01;
@@ -403,6 +410,7 @@ type
   function GetImageCrc: String;
   function GetCRC(var buffer: TDIByteArray): String;
   function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
+  function GetCRC16(start,len: Cardinal): Cardinal; overload;
   procedure UpdateProgress(Fupdate: String);
   function GetRootAddress: Cardinal;
   function Inflate(filename: String): TDIByteArray;
@@ -629,6 +637,22 @@ type
                                              var buffer: TDIByteArray): Integer;
   function RenameCFSFile(entry: Cardinal; newfilename: String): Integer;
   function UpdateCFSFileAddr(entry,newaddr: Cardinal; load: Boolean): Boolean;
+  //Acorn RFS Routines
+  function ID_RFS: Boolean;
+  function ValidRFSHeader(ptr: Cardinal;cfs: Boolean=False): Boolean;
+  function ReadRFSImage: Boolean;
+  function AdjustRFSOffsets(base: Cardinal): Boolean;
+  function FormatRFS: Boolean;
+  function FormatRFS(title: String): Boolean; overload;
+  function FormatRFS(title,copyright: String): Boolean; overload;
+  function FormatRFS(title,copyright,version: String): Boolean; overload;
+  function FormatRFS(title,copyright,version: String;binvers: Byte): Boolean; overload;
+  function ExtractRFSFile(entry: Integer;var buffer:TDIByteArray):Boolean;
+  function WriteRFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
+                                                   insert: Integer=-1): Integer;
+  function DeleteRFSFile(entry: Cardinal): Boolean;
+  procedure RFSReAdjustPointers(filepos: Cardinal;diff: Integer);
+  function MoveRFSFile(entry: Cardinal;dest: Integer): Integer;
   //MMFS Routines
   function ID_MMB: Boolean;
   function ReadMMBDisc: Boolean;
@@ -713,8 +737,23 @@ type
    disctitle     = 'DiscImgMgr';
    afsdisctitle  = 'DiscImageManager'; //AFS has longer titles
    amigadisctitle= 'Disc Image Manager';//Amiga has even longer titles
+   rfstitle      = 'Disc Image Manager';//ROM FS Header title
+   rfscopyright  = '(C)GJH Software 2023';//Copyright string for ROM FS
    //Root name to use when AFS is partition on ADFS
    afsrootname  = ':AFS$';
+   //ROM FS Signature
+   RFSsig = #$00#$00#$00#$4C;
+   //ROM FS Copyright String signature
+   RFScrt = #$28#$43#$29;
+   //ROM FS Code Header
+   ROMHDR: array[$2F..$8F] of Byte = (
+                $C9,$0D,$F0,$05,$C9,$0E,$F0,$1E,$60,$48,$20,$79,$80,$C5,$F4,$90,
+                $13,$A9,$80,$85,$F6,$A9,$80,$85,$F7,$A5,$F4,$20,$7B,$80,$85,$F5,
+                $68,$A9,$00,$60,$68,$60,$48,$98,$30,$15,$20,$79,$80,$C5,$F4,$D0,
+                $F3,$A0,$00,$B1,$F6,$A8,$E6,$F6,$D0,$E6,$E6,$F7,$4C,$4F,$80,$20,
+                $79,$80,$A8,$20,$B9,$FF,$A8,$4C,$65,$80,$A5,$F5,$49,$FF,$29,$0F,
+                $60,$44,$69,$73,$63,$49,$6D,$61,$67,$65,$4D,$61,$6E,$61,$67,$65,
+                $72);
    {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
    {$INCLUDE 'DiscImageDOSFileTypes.pas'}
  published
@@ -726,10 +765,16 @@ type
   procedure ReadImage;
   function SaveToFile(filename: String;uncompress: Boolean=False): Boolean;
   procedure Close;
-  function FormatFDD(major:Word;minor:Byte=0;tracks: Byte=0;
-                                                  filename: String=''): Boolean;
+  function FormatFDD(major: Word;minor: Byte;tracks: Byte=0): Boolean;
+  function FormatFDD(major: Word;filename: String): Boolean; overload;
+  function FormatFDD(major: Word): Boolean; overload;
+  function FormatFDD(major: Word;title: String;version: String;
+                            copyright: String;binvers: Byte): Boolean; overload;
+  function FormatHDD(major:Word;harddrivesize:Cardinal):Boolean;
+  function FormatHDD(major: Word;harddrivesize: Cardinal;
+                                              dirtype: Byte): Boolean; overload;
   function FormatHDD(major:Word;harddrivesize:Cardinal;ide,newmap:Boolean;
-                                        dirtype:Byte;addheader:Boolean):Boolean;
+                              dirtype:Byte;addheader:Boolean):Boolean; overload;
   function ExtractFile(filename:String;var buffer:TDIByteArray;
                                                      entry:Cardinal=0): Boolean;
   function ExtractFile(filename:String;Stream:TStream;entry:Cardinal=0)
@@ -745,9 +790,10 @@ type
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
   function FileSearch(search: TDirEntry): TSearchResults;
-  function RenameFile(oldfilename: String;var newfilename: String;
-                                                    entry: Cardinal=0): Integer;
-  function DeleteFile(filename: String;entry: Cardinal=0): Boolean;
+  function RenameFile(oldfilename: String;var newfilename: String): Integer;
+  function RenameFile(entry: Cardinal;var newfilename: String):Integer;overload;
+  function DeleteFile(filename: String): Boolean;
+  function DeleteFile(entry: Cardinal): Boolean; overload;
   function MoveFile(filename,directory: String): Integer;
   function MoveFile(source: Cardinal;dest: Integer): Integer; overload;
   function CopyFile(filename,directory: String): Integer;
@@ -851,6 +897,7 @@ sub units. This is so each filing system can have it's own methods.}
 {$INCLUDE 'DiscImage_Spectrum.pas'} //Module for Spectrum +3/Amstrad DSK
 {$INCLUDE 'DiscImage_Amiga.pas'}    //Module for Commodore AmigaDOS
 {$INCLUDE 'DiscImage_CFS.pas'}      //Module for Acorn Cassette Filing System (UEF)
+{$INCLUDE 'DiscImage_RFS.pas'}      //Module for Acorn ROM FS
 {$INCLUDE 'DiscImage_MMB.pas'}      //Module for MMFS - to be removed
 {$INCLUDE 'DiscImage_Spark.pas'}    //Module for SparkFS
 {$INCLUDE 'DiscImage_DOSPlus.pas'}  //Module for Acorn DOS Plus

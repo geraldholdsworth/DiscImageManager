@@ -9,6 +9,7 @@ object SearchForm: TSearchForm
   ClientHeight = 335
   ClientWidth = 451
   Color = 15527148
+  Font.Color = clBlack
   OnCreate = FormCreate
   OnPaint = FormPaint
   Position = poMainFormCenter
@@ -32,7 +33,7 @@ object SearchForm: TSearchForm
       Width = 57
       Alignment = taRightJustify
       Caption = 'Filetype:'
-      Font.Color = clWindowText
+      Font.Color = clBlack
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
       ParentFont = False
@@ -44,6 +45,7 @@ object SearchForm: TSearchForm
       Width = 121
       AutoSize = False
       Color = 15527148
+      Font.Color = clBlack
       Font.Name = 'Courier New'
       OnKeyPress = ed_filenamesearchKeyPress
       ParentFont = False
@@ -56,6 +58,7 @@ object SearchForm: TSearchForm
       Width = 369
       AutoSize = False
       Color = 15527148
+      Font.Color = clBlack
       Font.Name = 'Courier New'
       OnKeyPress = ed_filenamesearchKeyPress
       ParentFont = False
@@ -68,7 +71,7 @@ object SearchForm: TSearchForm
       Width = 64
       Alignment = taRightJustify
       Caption = 'Filename:'
-      Font.Color = clWindowText
+      Font.Color = clBlack
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
       ParentFont = False

@@ -84,6 +84,7 @@ begin
  Result.Visible:=True;
  Result.Caption:=text;
  Result.OnClick:=@rad_typeClick;
+ Result.Font.Color:=clBlack;
 end;
 var
  ratio  : Real;
@@ -101,6 +102,7 @@ begin
  PartitionSize.Pointers:=False;
  PartitionSize.Outline:=csOutInner;
  PartitionSize.OnChange:=@PartitionSizeChange;
+ PartitionSize.Font.Color:=clBlack;
  //Create the radio boxes
  rad_typeAFS:=CreateRadioBox('Acorn File Server');
  rad_typeDOS:=CreateRadioBox('DOS Plus');

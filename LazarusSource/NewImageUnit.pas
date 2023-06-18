@@ -32,6 +32,11 @@ type
 
  TNewImageForm = class(TForm)
   ADFSLabel: TLabel;
+  ROMFSBinVersLabel: TLabel;
+  ROMFSBinVers: TLabel;
+  ROMFSTitle: TLabeledEdit;
+  ROMFS: TPanel;
+  ROMFSLabel: TLabel;
   AFSSize: TPanel;
   AFSSizeLabel: TLabel;
   DOS: TPanel;
@@ -42,6 +47,8 @@ type
   AmigaLabel: TLabel;
   Amiga: TPanel;
   AFSImageSizeLabel: TLabel;
+  ROMFSCopy: TLabeledEdit;
+  ROMFSVersion: TLabeledEdit;
   SpectrumLabel: TLabel;
   Spectrum: TPanel;
   DFSTracksLabel: TLabel;
@@ -56,6 +63,7 @@ type
   cb_AFScreatepword: TGJHTickBox;
   btn_OK,
   btn_Cancel: TGJHButton;
+  ROMFSBinVersAdj: TUpDown;
   procedure AFSClick(Sender: TObject);
   procedure AFSImageSizeChange(Sender: TObject);
   procedure btn_OKClick(Sender: TObject);
@@ -63,9 +71,10 @@ type
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
   procedure MainFormatClick(Sender: TObject);
+  procedure ROMFSBinVersAdjClick(Sender: TObject; Button: TUDBtnType);
  private
   const
-   FFormats: array[0..8] of String=       ('Disc Filing System (DFS)',
+   FFormats: array[0..9] of String=       ('Disc Filing System (DFS)',
                                            'Advanced Disc Filing System (ADFS)',
                                            'Commodore 64/128',
                                            'Sinclair Spectrum +3/Amstrad',
@@ -73,7 +82,8 @@ type
                                            'Cassette Filing System (CFS)',
                                            '!Spark archive',
                                            'Acorn File Server (AFS0)',
-                                           'DOS Plus/DOS');
+                                           'DOS Plus/DOS',
+                                           'Acorn ROM FS');
    DFSFormats: array[0..3] of String=     ('Acorn single sided',
                                            'Acorn double sided',
                                            'Watford single sided',
@@ -145,6 +155,7 @@ begin
  Amiga.Visible        :=SystemOptions[4].Ticked;
  AFS.Visible          :=SystemOptions[7].Ticked;
  DOS.Visible          :=SystemOptions[8].Ticked;
+ ROMFS.Visible        :=SystemOptions[9].Ticked;
  //And tertiary panels
  DFSTracks.Visible :=DFS.Visible;
  AFSSize.Visible   :=AFS.Visible;
@@ -156,7 +167,18 @@ begin
                OR(SystemOptions[5].Ticked) //CFS
                OR(SystemOptions[6].Ticked) //Spark
                OR(SystemOptions[7].Ticked) //AFS
-               OR(SystemOptions[8].Ticked);//DOS
+               OR(SystemOptions[8].Ticked) //DOS
+               OR(SystemOptions[9].Ticked);//ROM FS
+end;
+
+{-------------------------------------------------------------------------------
+The ROM FS binary version is changing
+-------------------------------------------------------------------------------}
+procedure TNewImageForm.ROMFSBinVersAdjClick(Sender: TObject; Button: TUDBtnType
+ );
+begin
+ //Update the display
+ ROMFSBinVers.Caption:=IntToHex(ROMFSBinVersAdj.Position,2);
 end;
 
 {-------------------------------------------------------------------------------
@@ -178,6 +200,11 @@ begin
  AFSImageSize.Position:=AFSImageSize.Min;
  AFSClick(Sender);
  AFSImageSizeChange(Sender);
+ ROMFSTitle.Text     :=MainForm.ApplicationTitle;
+ ROMFSVersion.Text   :=MainForm.ApplicationVersion;
+ ROMFSCopy.Text      :='(C)GJH Software 2023';
+ ROMFSBinVersAdj.Position:=1;
+ ROMFSBinVers.Caption:=IntToHex(ROMFSBinVersAdj.Position,2);
  //Hide all the sub options, except for the first one
  DFS.Visible         :=True;
  DFSTracks.Visible   :=True;
@@ -188,6 +215,7 @@ begin
  AFS.Visible         :=False;
  AFSSize.Visible     :=False;
  DOS.Visible         :=False;
+ ROMFS.Visible       :=False;
  //Enable the create button
  btn_OK.Enabled      :=True;
 end;
@@ -269,6 +297,7 @@ begin
   LOptions[Index].Top:=LH;
   LOptions[Index].Caption:=LStrings[Index];
   LOptions[Index].Tag:=Index;
+  LOptions[Index].Font.Color:=clBlack;
   inc(LH,LOptions[Index].Height+4);
   if LOptions[Index].Width>LWid then LWid:=LOptions[Index].Width;
  end;
@@ -349,12 +378,14 @@ begin
  AFSImageSize.Orientation:=csHorizontal;
  AFSImageSize.Pointers:=False;
  AFSImageSize.Outline:=csOutInner;
+ AFSImageSize.Font.Color:=clBlack;
  cb_AFScreatepword:=TGJHTickBox.Create(AFSSize as TControl);
  cb_AFScreatepword.Parent:=AFSSize as TWinControl;
  cb_AFScreatepword.Visible:=True;
  cb_AFScreatepword.Caption:='Create password file';
  cb_AFScreatepword.Left:=Round(8*ratio);
  cb_AFScreatepword.Top:=AFSImageSize.Top+AFSImageSize.Height+Round(4*ratio);
+ cb_AFScreatepword.Font.Color:=clBlack;
  AFSSize.Height:=cb_AFScreatepword.Top+cb_AFScreatepword.Height;
  //Adjust the panel widths and left positions ----------------------------------
  inc(LWid,8);
@@ -371,9 +402,21 @@ begin
  RepositionPanel(Amiga);
  RepositionPanel(DOS);
  RepositionPanel(AFS);
+ RepositionPanel(ROMFS);
  AFSSize.Top:=AFS.Top+AFS.Height;
  AFSSize.Left:=LWid;
  AFSSize.Width:=LWid;
+ ROMFSTitle.Width:=ROMFS.Width-Round(12*ratio)-ROMFSTitle.Left;
+ ROMFSVersion.Width:=ROMFSTitle.Width;
+ ROMFSVersion.Top:=ROMFSTitle.Top+ROMFSTitle.Height+Round(8*ratio);
+ ROMFSBinVersLabel.Top:=ROMFSVersion.Top+ROMFSVersion.Height+Round(8*ratio);
+ ROMFSBinVers.Left:=ROMFSBinVersLabel.Width+ROMFSBinVersLabel.Left+Round(8*ratio);
+ ROMFSBinVers.Top:=ROMFSBinVersLabel.Top;
+ ROMFSBinVersAdj.Left:=ROMFSBinVers.Left+ROMFSBinVers.Width+Round(8*ratio);
+ ROMFSBinVersAdj.Height:=ROMFSBinVers.Height;
+ ROMFSBinVersAdj.Top:=ROMFSBinVersLabel.Top;
+ ROMFSCopy.Width:=ROMFSTitle.Width;
+ ROMFSCopy.Top:=ROMFSBinVers.Top+ROMFSBinVers.Height+Round(8*ratio);
  //Align the buttons -----------------------------------------------------------
  btn_Cancel:=MainForm.CreateButton(NewImageForm as TControl,'Cancel',False,0,
                       MainFormatPanel.Top+MainFormatPanel.Height+Round(8*ratio),

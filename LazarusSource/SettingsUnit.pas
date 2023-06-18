@@ -121,6 +121,7 @@ begin
  Result.Parent:=prt as TWinControl;
  Result.Visible:=True;
  Result.Caption:=text;
+ Result.Font.Color:=clBlack;
 end;
 function CreateTickBox(text: String;prt: TPanel): TGJHTickBox;
 begin
@@ -128,6 +129,7 @@ begin
  Result.Parent:=prt as TWinControl;
  Result.Visible:=True;
  Result.Caption:=text;
+ Result.Font.Color:=clBlack;
 end;
 var
  LRefWid: Integer;

@@ -49,6 +49,8 @@ object PwordEditorForm: TPwordEditorForm
         Caption = 'Username'
         ClientHeight = 18
         ClientWidth = 118
+        Font.Color = clBlack
+        ParentFont = False
         TabOrder = 0
         OnPaint = FormPaint
         object Label1: TLabel
@@ -59,6 +61,8 @@ object PwordEditorForm: TPwordEditorForm
           Align = alClient
           Alignment = taCenter
           Caption = 'Username'
+          Font.Color = clBlack
+          ParentFont = False
         end
       end
       object PasswordsHdr: TPanel
@@ -70,6 +74,8 @@ object PwordEditorForm: TPwordEditorForm
         Caption = 'Password'
         ClientHeight = 18
         ClientWidth = 118
+        Font.Color = clBlack
+        ParentFont = False
         TabOrder = 1
         OnPaint = FormPaint
         object Label2: TLabel
@@ -80,6 +86,8 @@ object PwordEditorForm: TPwordEditorForm
           Align = alClient
           Alignment = taCenter
           Caption = 'Password'
+          Font.Color = clBlack
+          ParentFont = False
         end
       end
       object SystemHdr: TPanel
@@ -91,6 +99,8 @@ object PwordEditorForm: TPwordEditorForm
         Caption = 'System'
         ClientHeight = 18
         ClientWidth = 54
+        Font.Color = clBlack
+        ParentFont = False
         TabOrder = 2
         OnPaint = FormPaint
         object Label3: TLabel
@@ -101,6 +111,8 @@ object PwordEditorForm: TPwordEditorForm
           Align = alClient
           Alignment = taCenter
           Caption = 'System'
+          Font.Color = clBlack
+          ParentFont = False
         end
       end
       object LockedHdr: TPanel
@@ -112,6 +124,8 @@ object PwordEditorForm: TPwordEditorForm
         Caption = 'Locked'
         ClientHeight = 18
         ClientWidth = 54
+        Font.Color = clBlack
+        ParentFont = False
         TabOrder = 3
         OnPaint = FormPaint
         object Label4: TLabel
@@ -122,6 +136,8 @@ object PwordEditorForm: TPwordEditorForm
           Align = alClient
           Alignment = taCenter
           Caption = 'Locked'
+          Font.Color = clBlack
+          ParentFont = False
         end
       end
       object BootOptionHdr: TPanel
@@ -133,6 +149,8 @@ object PwordEditorForm: TPwordEditorForm
         Caption = 'Boot Option'
         ClientHeight = 18
         ClientWidth = 118
+        Font.Color = clBlack
+        ParentFont = False
         TabOrder = 4
         OnPaint = FormPaint
         object Label5: TLabel
@@ -143,6 +161,8 @@ object PwordEditorForm: TPwordEditorForm
           Align = alClient
           Alignment = taCenter
           Caption = 'Boot Option'
+          Font.Color = clBlack
+          ParentFont = False
         end
       end
     end
@@ -157,6 +177,8 @@ object PwordEditorForm: TPwordEditorForm
       BorderStyle = bsNone
       ClientHeight = 197
       ClientWidth = 500
+      Font.Color = clBlack
+      ParentFont = False
       TabOrder = 1
       OnPaint = FormPaint
       object btnAdd: TSpeedButton
@@ -211,6 +233,8 @@ object PwordEditorForm: TPwordEditorForm
     Top = 217
     Width = 500
     Align = alBottom
+    Font.Color = clBlack
+    ParentFont = False
     TabOrder = 1
     OnPaint = FormPaint
   end

@@ -176,7 +176,7 @@ Convert a format byte to a string
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToString: String;
 const
- FS  : array[0..$A] of String = ('DFS',
+ FS  : array[0..$B] of String = ('DFS',
                                 'Acorn ADFS',
                                 'Commodore',
                                 'Sinclair Spectrum +3/Amstrad',
@@ -186,8 +186,9 @@ const
                                 'Acorn FS',
                                 'Spark Archive',
                                 'SJ Research MDFS',
-                                'DOS');
- SUB : array[0..$A] of array[0..15] of String =
+                                'DOS',
+                                'Acorn ROM FS');
+ SUB : array[0..$B] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','Acorn/Watford DSD','','Watford/Acorn DSD','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','Hybrid','Hard Disc'),
   ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
@@ -198,7 +199,8 @@ const
   ('Level 1','Level 2','Level 3','Level 4','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''),
-  ('Plus','FAT12','FAT16','FAT32','','','','','','','','','','','',''));
+  ('Plus','FAT12','FAT16','FAT32','','','','','','','','','','','',''),
+  ('','','','','','','','','','','','','','','',''));
 begin
  Result:='';
  if GetMajorFormatNumber<=High(FS) then
@@ -222,7 +224,7 @@ Convert a format byte to an extension
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToExt: String;
 const
- EXT : array[0..$A] of array[0..15] of String =
+ EXT : array[0..$B] of array[0..15] of String =
  (('ssd','dsd','ssd','dsd','','dsd','','dsd','','','','','','','',''),//DFS
   ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','dat','hdf'),//ADFS
   ('d64','d71','d81','d64','d71','','','','','','','','','','',''),//Commodore 64
@@ -233,7 +235,9 @@ const
   ('afs','afs','afs','afs','','','','','','','','','','','','afs'),//Acorn File Server
   ('zip','','','','','','','','','','','','','','',''),//!Spark
   ('dat','','','','','','','','','','','','','','',''),//SJ MDFS
-  ('img','fat12','fat16','fat32','','','','','','','','','','','',''));//DOS and DOS Plus
+  ('img','fat12','fat16','fat32','','','','','','','','','','','',''),//DOS and DOS Plus
+  ('rom','','','','','','','','','','','','','','','')//ROM FS
+  );
 begin
  Result:='img';
  if GetMajorFormatNumber<=High(EXT) then
@@ -833,6 +837,13 @@ end;
 {-------------------------------------------------------------------------------
 Calculate the CRC-16 value
 -------------------------------------------------------------------------------}
+function TDiscImage.GetCRC16(start,len: Cardinal): Cardinal;
+var
+ dummy: TDIByteArray;
+begin
+ SetLength(dummy,0);
+ Result:=GetCRC16(start,len,dummy);
+end;
 function TDiscImage.GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
 var
  addr: Cardinal;

@@ -33,6 +33,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
     Align = alTop
     Alignment = taCenter
     Caption = 'Interleave'
+    Font.Color = clBlack
     Font.Name = 'Courier New'
     ParentFont = False
   end

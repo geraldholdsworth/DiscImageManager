@@ -118,6 +118,7 @@ begin
  Result.Parent:=LPanel as TWinControl;
  Result.Visible:=True;
  Result.Caption:=text;
+ Result.Font.Color:=clBlack;
  Result.Top:=0;
 end;
 function CreateRadioBox(text: String; LPanel: TPanel): TGJHRadioBox;
@@ -126,6 +127,7 @@ begin
  Result.Parent:=LPanel as TWinControl;
  Result.Visible:=True;
  Result.Caption:=text;
+ Result.Font.Color:=clBlack;
  Result.Top:=0;
 end;
 var ratio: Real;
@@ -138,6 +140,7 @@ begin
  CapacitySlider.Min:=4;
  CapacitySlider.Max:=203;
  CapacitySlider.Position:=4;
+ CapacitySlider.Font.Color:=clBlack;
  CapacitySlider.Outline:=csOutInner;
  CapacitySlider.Height:=Round(30*ratio);
  CapacitySlider.Orientation:=csHorizontal;

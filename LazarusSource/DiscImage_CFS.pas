@@ -43,17 +43,14 @@ var
  blocklen,
  blocknum,
  lastblock,
- headcrc,
  datacrc  : Cardinal;
  temp     : String;
 // tone     : Real;
  blockst  : Byte;
  firstblck,
  crcok    : Boolean;
- dummy    : TDIByteArray;
 begin
  FDisc:=nil;
- SetLength(dummy,0);
  //Set up the TDisc structure for return
  FormatCFS;
 { SetLength(Result,1);
@@ -95,8 +92,8 @@ begin
    $0005 : //Target Machine Type ++++++++++++++++++++++++++++++++++++++++++++++
     temp:='Target Machine is '+CFSTargetMachine(ReadByte(pos));}
    $0100 : //Implicit Start/Stop Bit Tape Data Block ++++++++++++++++++++++++++
-    //Check for sync byte
-    if ReadByte(pos)=$2A then // $2A is the sync byte
+    //Check for valid header
+    if ValidRFSHeader(pos,True) then
     begin
      //Read in the filename
      temp:=ReadString(pos+1,$00,False); //Need to add in control codes
@@ -133,33 +130,28 @@ begin
      //Is it a new block, or copy protection?
      if(blocknum>0)and(firstblck)and(Length(FDisc[0].Entries)>1)then
       if (lastblock=blocknum-1)
-      and(FDisc[0].Entries[filenum-1].Filename=FDisc[0].Entries[filenum].Filename)
-       {and(files[filenum-1].LoadAddr=files[filenum].LoadAddr)
-       and(files[filenum-1].ExecAddr=files[filenum].ExecAddr)}then
+      and(FDisc[0].Entries[filenum-1].Filename
+                                        =FDisc[0].Entries[filenum].Filename)then
       begin
        SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)-1);
        dec(filenum);
        firstblck:=False;
       end;
      lastblock:=blocknum;
-     //Take a note of where we are in the file's data, as we build it up
-     ptr:=FDisc[0].Entries[filenum].Length;
      //Get the length of this block
      blocklen:=Read16B(pos+i+10);
-     //And add it to the total length
-     inc(FDisc[0].Entries[filenum].Length,blocklen);
      //Get the block status
      blockst:=ReadByte(pos+i+12);
      if IsBitSet(blockst,0) then
       FDisc[0].Entries[filenum].Attributes:='L'
      else
       FDisc[0].Entries[filenum].Attributes:='';
-     //Get the CRC16 value for the header
-     headcrc:=Read16b(pos+i+17);
-     //Check it is valid
-     if headcrc<>GetCRC16(pos+1,i+16,dummy) then crcok:=False;
      //Move our chunk pointer onto the data
      inc(i,19);//Points to the data
+     //Take a note of where we are in the file's data, as we build it up
+     ptr:=FDisc[0].Entries[filenum].Length;
+     //Add the block length to the total length
+     inc(FDisc[0].Entries[filenum].Length,blocklen);
      //Increase the file's data length to match the total length, so far
      SetLength(FilesData[filenum],FDisc[0].Entries[filenum].Length);
      //And copy in the data in this block
@@ -211,7 +203,7 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Extracts a file from the UEF
+Extracts a file from the UEF or ROM FS
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtractCFSFile(entry: Integer;var buffer:TDIByteArray):Boolean;
 var
@@ -244,11 +236,9 @@ var
  i,j     : Integer;
  blockst,
  blocknum: Byte;
- dummy   : TDIByteArray;
  F       : TGZFileStream;
  Func    : TFileStream;
 begin
- SetLength(dummy,0);
  //Only continue if there are any entries
  if Length(FDisc[0].Entries)>0 then
  begin
@@ -337,12 +327,12 @@ begin
      //Unused bytes
      Write32b($00,ptr+13);
      //Header CRC-16
-     Write16b(GetCRC16(ptr-Length(temp),Length(temp)+17,dummy),ptr+17);
+     Write16b(GetCRC16(ptr-Length(temp),Length(temp)+17),ptr+17);
      //Data
      SetDataLength(GetDataLength+len+3);
      for j:=0 to len do WriteByte(FilesData[entry][fileptr+j],ptr+19+j);
      //Data CRC-16
-     Write16b(GetCRC16(ptr+19,len,dummy),ptr+19+len);
+     Write16b(GetCRC16(ptr+19,len),ptr+19+len);
      //Move data pointer on
      inc(ptr,21+len);
      //Write the tone chunk

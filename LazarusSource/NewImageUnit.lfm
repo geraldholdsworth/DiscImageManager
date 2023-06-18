@@ -9,6 +9,7 @@ object NewImageForm: TNewImageForm
   ClientHeight = 230
   ClientWidth = 532
   Color = 15527148
+  Font.Color = clBlack
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow
@@ -261,6 +262,95 @@ object NewImageForm: TNewImageForm
       Align = alTop
       Alignment = taCenter
       Caption = 'AFSImageSizeLabel'
+    end
+  end
+  object ROMFS: TPanel
+    Left = 264
+    Height = 160
+    Top = 0
+    Width = 268
+    BevelOuter = bvNone
+    ClientHeight = 160
+    ClientWidth = 268
+    TabOrder = 10
+    Visible = False
+    OnPaint = FormPaint
+    object ROMFSLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 268
+      Align = alTop
+      Caption = '  Acorn ROM FS'
+      Color = 7829367
+      Font.Color = clWhite
+      Font.Style = [fsBold]
+      ParentFont = False
+      Transparent = False
+    end
+    object ROMFSTitle: TLabeledEdit
+      Left = 72
+      Height = 22
+      Top = 24
+      Width = 184
+      EditLabel.Height = 16
+      EditLabel.Width = 30
+      EditLabel.Caption = 'Title:'
+      LabelPosition = lpLeft
+      TabOrder = 0
+      Text = 'ROMFSTitle'
+    end
+    object ROMFSVersion: TLabeledEdit
+      Left = 72
+      Height = 22
+      Top = 56
+      Width = 184
+      EditLabel.Height = 16
+      EditLabel.Width = 49
+      EditLabel.Caption = 'Version:'
+      LabelPosition = lpLeft
+      TabOrder = 1
+      Text = 'ROMFSVersion'
+    end
+    object ROMFSCopy: TLabeledEdit
+      Left = 72
+      Height = 22
+      Top = 112
+      Width = 184
+      EditLabel.Height = 16
+      EditLabel.Width = 63
+      EditLabel.Caption = 'Copyright:'
+      LabelPosition = lpLeft
+      TabOrder = 2
+      Text = 'ROMFSCopy'
+    end
+    object ROMFSBinVersAdj: TUpDown
+      Left = 152
+      Height = 22
+      Top = 84
+      Width = 17
+      Max = 255
+      Min = 0
+      OnClick = ROMFSBinVersAdjClick
+      Position = 1
+      TabOrder = 3
+    end
+    object ROMFSBinVersLabel: TLabel
+      Left = 0
+      Height = 16
+      Top = 88
+      Width = 91
+      Caption = 'Binary Version:'
+    end
+    object ROMFSBinVers: TLabel
+      Left = 104
+      Height = 16
+      Top = 88
+      Width = 15
+      Caption = '01'
+      Font.Color = clBlack
+      Font.Style = [fsBold]
+      ParentFont = False
     end
   end
 end

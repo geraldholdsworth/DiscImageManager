@@ -21,6 +21,8 @@ object AFSPartitionForm: TAFSPartitionForm
     Align = alTop
     Alignment = taCenter
     Caption = 'PartitionSizeLabel'
+    Font.Color = clBlack
+    ParentFont = False
   end
   object OpenDFSFile: TOpenDialog
     Title = 'Add DFS Single Sided Image'

@@ -70,6 +70,7 @@ var
   Result.Visible:=True;
   Result.Top:=Ltop;
   Result.Caption:=Ltitle;
+  Result.Font.Color:=clBlack;
  end;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;

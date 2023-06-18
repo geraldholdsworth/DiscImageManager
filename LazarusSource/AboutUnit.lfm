@@ -10,7 +10,7 @@ object AboutForm: TAboutForm
   ClientHeight = 294
   ClientWidth = 520
   Color = 15527148
-  Font.Color = clWindowText
+  Font.Color = clBlack
   Font.Name = 'Tahoma'
   Position = poMainFormCenter
   LCLVersion = '2.2.0.4'
@@ -48,7 +48,7 @@ object AboutForm: TAboutForm
       Alignment = taCenter
       AutoSize = False
       Caption = 'written by Gerald J Holdsworth'
-      Font.Color = clWindowText
+      Font.Color = clBlack
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
@@ -62,7 +62,7 @@ object AboutForm: TAboutForm
       Align = alTop
       Alignment = taCenter
       Caption = 'Version 1.05.1'
-      Font.Color = clWindowText
+      Font.Color = clBlack
       Font.Height = -16
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
@@ -120,7 +120,7 @@ object AboutForm: TAboutForm
       Align = alTop
       Alignment = taCenter
       Caption = 'Liability Disclaimer: While I, Gerald Holdsworth, make every effort to deliver high quality products, I do not guarantee that my software is free from defects. My software is provided "as is," and you use my software at your own risk.'#10#10'I make no warranties as to performance, merchantability, fitness for a particular purpose, or any other warranties whether expressed or implied.'#10#10'No oral or written communication from or information provided by myself, Gerald Holdsworth, shall create a warranty.'#10#10'Under no circumstances shall I, Gerald Holdsworth, be liable for direct, indirect, special, incidental, or consequential damages resulting from the use, misuse, or inability to use this software, even if I have been advised of the possibility of such damages.'
-      Font.Color = clWindowText
+      Font.Color = clBlack
       Font.Name = 'Tahoma'
       ParentFont = False
       WordWrap = True
@@ -134,7 +134,7 @@ object AboutForm: TAboutForm
       Alignment = taCenter
       AutoSize = False
       Caption = 'RISC OS 5 graphics designed by Richard Hallas'
-      Font.Color = clWindowText
+      Font.Color = clBlack
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]

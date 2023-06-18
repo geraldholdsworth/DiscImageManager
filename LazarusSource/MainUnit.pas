@@ -549,16 +549,17 @@ type
     mmbdisclock = 201; //MMFS Locked disc
     mmbdiscempt = 200; //MMFS Empty slot
     //Icons for status bar - index into TImageList 'icons'
-    changedicon   = 0;
-    acornlogo     = 1;
-    amigalogo     = 2;
-    bbclogo       = 3;
-    commodorelogo = 4;
-    riscoslogo    = 5;
-    sinclairlogo  = 6;
-    sparklogo     = 7;
-    bbcmasterlogo = 8;
-    msdoslogo     = 9;
+    changedicon   =  0;
+    acornlogo     =  1;
+    amigalogo     =  2;
+    bbclogo       =  3;
+    commodorelogo =  4;
+    riscoslogo    =  5;
+    sinclairlogo  =  6;
+    sparklogo     =  7;
+    bbcmasterlogo =  8;
+    msdoslogo     =  9;
+    romfslogo     = 10;
     //Time and Date format
     TimeDateFormat = 'hh:nn:ss dd mmm yyyy';
   public
@@ -571,7 +572,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.46';
+    ApplicationVersion = '1.46.1';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -1044,7 +1045,8 @@ begin
      //ADFS, AFS, DFS, Spark & CFS only stuff
      if((Image.MajorFormatNumber=diAcornDFS)
       or(Image.MajorFormatNumber=diAcornADFS)
-      or(Image.MajorFormatNumber=diAcornUEF)
+      or(Image.MajorFormatNumber=diAcornUEF) 
+      or(Image.MajorFormatNumber=diAcornRFS)
       or(Image.MajorFormatNumber=diSpark)
       or(Image.MajorFormatNumber=diAcornFS))
      and(filename<>'')then
@@ -1105,7 +1107,8 @@ begin
      //Validate the filename (ADFS, AFS, DFS, Spark & CFS only)
      if(Image.MajorFormatNumber=diAcornDFS)
      or(Image.MajorFormatNumber=diAcornADFS)
-     or(Image.MajorFormatNumber=diAcornUEF)
+     or(Image.MajorFormatNumber=diAcornUEF) 
+     or(Image.MajorFormatNumber=diAcornRFS)
      or(Image.MajorFormatNumber=diSpark)
      or(Image.MajorFormatNumber=diAcornFS)then
      begin
@@ -1156,7 +1159,8 @@ begin
      NewFile.Length:=Length(buffer);
      //Does the file already exist?
      ok:=True;
-     if Image.MajorFormatNumber<>diAcornUEF then
+     if (Image.MajorFormatNumber<>diAcornUEF)
+     and(Image.MajorFormatNumber<>diAcornRFS)then
       if Image.FileExists(NewFile.Parent+Image.DirSep+NewFile.Filename,ref) then
       begin
        ok:=AskConfirm('"'+NewFile.Filename+'" already exists in the directory "'
@@ -1550,7 +1554,8 @@ begin
     //Create the attributes
     attributes:=$00;
     if(Image.MajorFormatNumber=diAcornDFS)
-    or(Image.MajorFormatNumber=diAcornUEF)then //DFS and CFS
+    or(Image.MajorFormatNumber=diAcornUEF)
+    or(Image.MajorFormatNumber=diAcornRFS)then //DFS and CFS
      if Image.Disc[dir].Entries[entry].Attributes='L' then attributes:=$08;
     if(Image.MajorFormatNumber=diAcornADFS)
     or(Image.MajorFormatNumber=diAcornFS)then //ADFS and AFS
@@ -1952,13 +1957,13 @@ var
  attr,
  afs,
  dos   : Boolean;
-procedure ArrangeComponent(c,p: TControl;l: TLabel);
-begin
- c.Visible:=l.Caption<>'';
- if c.Visible then inc(cbpos);
- c.Height :=l.Top+l.Height;
- c.Top    :=p.Top+p.Height;
-end;
+ procedure ArrangeComponent(c,p: TControl;l: TLabel);
+ begin
+  c.Visible:=l.Caption<>'';
+  if c.Visible then inc(cbpos);
+  c.Height :=l.Top+l.Height;
+  c.Top    :=p.Top+p.Height;
+ end;
 begin
  //Display the attributes section?
  attr:=False;
@@ -2004,7 +2009,8 @@ begin
  begin
   //DFS and UEF
   if(Image.MajorFormatNumber=diAcornDFS)
-  or(Image.MajorFormatNumber=diAcornUEF)then
+  or(Image.MajorFormatNumber=diAcornUEF)
+  or(Image.MajorFormatNumber=diAcornRFS)then
   begin
    //Make it visible
    DFSAttrPanel.Visible:=True;
@@ -2394,7 +2400,8 @@ begin
    DoNotUpdate   :=True; //Make sure the event doesn't fire
    //DFS and UEF
    if(Image.MajorFormatNumber=diAcornDFS)
-   or(Image.MajorFormatNumber=diAcornUEF)then
+   or(Image.MajorFormatNumber=diAcornUEF)
+   or(Image.MajorFormatNumber=diAcornRFS)then
     //Tick/untick it
     cb_DFS_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
    //ADFS and SparkFS
@@ -2668,7 +2675,8 @@ begin
    if Image.MajorFormatNumber=diAcornDFS then
     location:=location+'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side);
    //CFS - indicates offset to starting block
-   if Image.MajorFormatNumber=diAcornUEF then
+   if(Image.MajorFormatNumber=diAcornUEF)
+   or(Image.MajorFormatNumber=diAcornRFS)then
     location:='Starting Block 0x'
              +IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
   end;
@@ -4187,6 +4195,8 @@ begin
     editcont.SetFocus;
     //And hide the original label
     labelcont.Visible :=False;
+    //Disable the keyboard shortcuts
+    DeleteAFile.Enabled:=False;
    end;
 end;
 
@@ -4356,6 +4366,8 @@ var
  filename,
  newtitle  : String;
 begin
+ //Re-enable the keyboard shortcuts
+ DeleteAFile.Enabled:=True;
  //Get the filename of the directory being edited
  filename:=lb_Filename.Caption;
  //Add the path, if there is one
@@ -4388,6 +4400,8 @@ var
  entry    : Integer;
  ok       : Boolean;
 begin
+ //Re-enable the keyboard shortcuts
+ DeleteAFile.Enabled:=True;
  //Get the filename of the file being edited
  filename:=lb_Filename.Caption;
  //Add the path, if there is one
@@ -4546,6 +4560,7 @@ begin
   diAcornDFS,
   diAcornADFS,
   diAcornUEF,
+  diAcornRFS,
   diAcornFS   : ImageDetailForm.AcornLogo.Visible    :=True;
   diCommodore : ImageDetailForm.CommodoreLogo.Visible:=True;
   diAmiga     : ImageDetailForm.AmigaLogo.Visible    :=True;
@@ -5567,16 +5582,17 @@ begin
   TV:=TTreeView(Sender);
   //Default font style
   TV.Font.Style:=[fsBold];
+  TV.Font.Color:=$000000;
   //If it is a directory that hasn't been read in yet
   if(TMyTreeNode(Node).IsDir)
   and(not TMyTreeNode(Node).BeenRead)
   and(not TMyTreeNode(Node).Broken)then TV.Font.Style:=[fsBold,fsItalic];
   //Only concerned if it is selected, or a directory not read in, or broken
-  if(cdsSelected in State)
+{  if(cdsSelected in State)
   or(TMyTreeNode(Node).IsDOSPart)
   or(((not TMyTreeNode(Node).BeenRead)
   or(TMyTreeNode(Node).Broken))and(TMyTreeNode(Node).IsDir))then
-  begin
+  begin}
    with TV.Canvas do
    begin
     indent:=(Node.Level*TV.Indent)+TV.Indent+1;
@@ -5636,7 +5652,7 @@ begin
     //Finally, write out the text
     TextOut(NodeRect.Left,NodeRect.Top,Node.Text);
    end;
-  end;
+//  end;
  end;
 end;
 
@@ -5853,16 +5869,23 @@ begin
    //Are we over another node?
    Dst:=GetNodeAt(Y);//Node under the cursor
    if (DraggedItem<>nil)AND(Dst<>nil)
-   AND((DraggedItem<>Dst)or(Image.MajorFormatNumber=diAcornUEF))then
+   AND((DraggedItem<>Dst)
+     or(Image.MajorFormatNumber=diAcornUEF)
+     or(Image.MajorFormatNumber=diAcornRFS))then
    begin
     //If it is not a directory, and not CFS, then get the parent
-    if(not TMyTreeNode(Dst).IsDir)and(Image.MajorFormatNumber<>diAcornUEF)then
+    if (not TMyTreeNode(Dst).IsDir)
+    and(Image.MajorFormatNumber<>diAcornUEF)
+    and(Image.MajorFormatNumber<>diAcornRFS)then
      Dst:=Dst.Parent;
     //Clear any selections and then highlight the original item, unless it is CFS
     DirList.ClearSelection;
-    if Image.MajorFormatNumber<>diAcornUEF then DraggedItem.Selected:=True;
+    if (Image.MajorFormatNumber<>diAcornUEF)
+    and(Image.MajorFormatNumber<>diAcornRFS)then DraggedItem.Selected:=True;
     //Only allow copying if it is a different parent and not within itself
-    if(DraggedItem<>Dst)or(Image.MajorFormatNumber=diAcornUEF)then//Or UEF
+    if(DraggedItem<>Dst)
+    or(Image.MajorFormatNumber=diAcornUEF)
+    or(Image.MajorFormatNumber=diAcornRFS)then//Or UEF
     begin
      //Highlight it
      Dst.Selected:=True;
@@ -5993,7 +6016,9 @@ begin
  end;
  //If the destination is the same as the source, copy only (not UEF)
  if(DraggedItem<>nil)and(Dst<>nil)then
-  if(DraggedItem.Parent=Dst)and(Image.MajorFormatNumber<>diAcornUEF)then
+  if (DraggedItem.Parent=Dst)
+  and(Image.MajorFormatNumber<>diAcornUEF)
+  and(Image.MajorFormatNumber<>diAcornRFS)then
    Result:=True;
 end;
 
@@ -6057,13 +6082,18 @@ var
 begin
  //Are we dragging something, over something and is not the same as the source?
  if (DraggedItem<>nil)AND(Dst<>nil)
- AND((DraggedItem<>Dst)or(Image.MajorFormatNumber=diAcornUEF))then
+ AND((DraggedItem<>Dst)
+   or(Image.MajorFormatNumber=diAcornUEF)
+   or(Image.MajorFormatNumber=diAcornRFS))then
  begin
   //If it is not a directory, or CFS format, then get the parent
   if (not TMyTreeNode(Dst).IsDir)
-  and(Image.MajorFormatNumber<>diAcornUEF)then Dst:=Dst.Parent;
+  and(Image.MajorFormatNumber<>diAcornUEF)
+  and(Image.MajorFormatNumber<>diAcornRFS)then Dst:=Dst.Parent;
   //Only allow moving/copying if it is not within itself
-  if(DraggedItem<>Dst)or(Image.MajorFormatNumber=diAcornUEF)then
+  if(DraggedItem<>Dst)
+  or(Image.MajorFormatNumber=diAcornUEF)
+  or(Image.MajorFormatNumber=diAcornRFS)then
   begin
    //Read in the destination, if necessary
    if(TMyTreeNode(Dst).IsDir)and(not TMyTreeNode(Dst).BeenRead)then
@@ -6071,7 +6101,8 @@ begin
    //Take a copy of the filename
    newfn:=DraggedItem.Text;
    //Do the copy/move
-   if Image.MajorFormatNumber<>diAcornUEF then //Everything but UEF
+   if (Image.MajorFormatNumber<>diAcornUEF)
+   and(Image.MajorFormatNumber<>diAcornRFS)then //Everything but UEF
    begin
     if copymode then //copy - here we rename the file if the destination already
      if Image.ValidateFilename(GetFilePath(Dst),newfn) then //has one the same
@@ -6079,7 +6110,8 @@ begin
     if not copymode then //move
      index:=Image.MoveFile(GetFilePath(DraggedItem),GetFilePath(Dst));
    end;
-   if Image.MajorFormatNumber=diAcornUEF then //UEF only
+   if(Image.MajorFormatNumber=diAcornUEF)
+   or(Image.MajorFormatNumber=diAcornRFS)then //UEF only
    begin
     if copymode then //copy - Acorn UEF
      index:=Image.CopyFile(DraggedItem.AbsoluteIndex-1,Dst.AbsoluteIndex-1);
@@ -6093,9 +6125,11 @@ begin
     //new reference
     ref:=0;
     if(Image.FileExists(GetFilePath(Dst)+Image.DirSep+newfn,ref))
-    or(Image.MajorFormatNumber=diAcornUEF)then
+    or(Image.MajorFormatNumber=diAcornUEF)
+    or(Image.MajorFormatNumber=diAcornRFS)then
     begin
-     if Image.MajorFormatNumber<>diAcornUEF then
+     if (Image.MajorFormatNumber<>diAcornUEF)
+     and(Image.MajorFormatNumber<>diAcornRFS)then
      begin
       entry:=ref mod $10000;  //Bottom 16 bits - entry reference
       dir  :=ref div $10000;  //Top 16 bits - directory reference
@@ -6209,10 +6243,14 @@ begin
 end;
 var
  major    : Word;
+ binvers,
  minor,
  tracks   : Byte;
  ok,hdd   : Boolean;
  index    : Integer;
+ title,
+ version,
+ copyr,
  filename : String;
 begin
  if QueryUnsaved then
@@ -6234,6 +6272,7 @@ begin
    if NewImageForm.SystemOptions[6].Ticked then major:=diSpark;
    if NewImageForm.SystemOptions[7].Ticked then major:=diAcornFS;
    if NewImageForm.SystemOptions[8].Ticked then major:=diDOSPlus;
+   if NewImageForm.SystemOptions[9].Ticked then major:=diAcornRFS;
    //Get the sub-format
    minor:=$F;
    if NewImageForm.SystemOptions[0].Ticked then //DFS
@@ -6252,6 +6291,7 @@ begin
     minor:=SelectMinor(NewImageForm.AFSOptions);
    if NewImageForm.SystemOptions[8].Ticked then //DOS
     minor:=SelectMinor(NewImageForm.DOSOptions);
+   if NewImageForm.SystemOptions[9].Ticked then minor:=$0;//ROM FS
    tracks:=0; //Default
    //Number of tracks (DFS only)
    if major=diAcornDFS then tracks:=SelectMinor(NewImageForm.DFSTOptions);
@@ -6272,6 +6312,17 @@ begin
     SaveImage.DefaultExt:='.zip';
     //Show the dialogue and set the filename
     if SaveImage.Execute then filename:=SaveImage.FileName else exit;
+   end;
+   //ROM FS options
+   title:='';
+   version:='';
+   copyr:='';
+   if major=diAcornRFS then
+   begin
+    title  :=NewImageForm.ROMFSTitle.Text;
+    version:=NewImageForm.ROMFSVersion.Text;
+    binvers:=NewImageForm.ROMFSBinVersAdj.Position;
+    copyr  :=NewImageForm.ROMFSCopy.Text;
    end;
    Image.ProgressIndicator:=@UpdateProgress;
    ProgressForm.Show;
@@ -6294,7 +6345,7 @@ begin
     //Create the format
     ok:=Image.FormatHDD(diAcornFS,
                         NewImageForm.AFSImageSize.Position*10*1024,
-                        True,False,minor+2,False);
+                        minor+2);
     if(ok)and(NewImageForm.cb_AFScreatepword.Ticked)then
      //Create blank password file for AFS
      if Image.CreatePasswordFile(nil)<0 then //If fails, report an error
@@ -6304,19 +6355,28 @@ begin
    //DOS Hard Drive
    if(major=diDOSPlus)and(minor=6)then
    begin
-    ok:=Image.FormatHDD(major,NewImageForm.harddrivesize,True,False,
-                        NewImageForm.fat,False);
+    ok:=Image.FormatHDD(major,NewImageForm.harddrivesize,NewImageForm.fat);
     hdd:=True;
    end;
    //Amiga Hard Drive
    if(major=diAmiga)and(minor=2)then
    begin
-    ok:=Image.FormatHDD(major,NewImageForm.harddrivesize,True,False,0,False);
+    ok:=Image.FormatHDD(major,NewImageForm.harddrivesize);
     hdd:=True;
    end;
    //Floppy Drive
    if not hdd then
-    ok:=Image.FormatFDD(major,minor,tracks,filename);
+    case major of
+     diAcornDFS,
+     diAcornADFS,
+     diCommodore,
+     diSinclair,
+     diAmiga,
+     diDOSPlus   : ok:=Image.FormatFDD(major,minor,tracks);
+     diSpark     : ok:=Image.FormatFDD(major,filename);
+     diAcornUEF  : ok:=Image.FormatFDD(major);
+     diAcornRFS  : ok:=Image.FormatFDD(major,title,version,copyr,binvers);
+    end;
    //All OK, so load the new image
    if ok then
    begin
@@ -6362,7 +6422,8 @@ begin
   att:='';
   //Attributes - DFS and UEF
   if(Image.MajorFormatNumber=diAcornDFS)
-  or(Image.MajorFormatNumber=diAcornUEF)then
+  or(Image.MajorFormatNumber=diAcornUEF)
+  or(Image.MajorFormatNumber=diAcornRFS)then
    if cb_DFS_l.Ticked then att:=att+'L';
   //Attributes - ADFS
   if((Image.MajorFormatNumber=diAcornADFS)
@@ -6518,7 +6579,11 @@ begin
     if LIsDir then
      LDirRef:=TMyTreeNode(DirList.Selections[0]).DirRef;
     //Perform the deletion
-    ok:=Image.DeleteFile(filepath);
+    if (Image.MajorFormatNumber<>diAcornUEF)
+    and(Image.MajorFormatNumber<>diAcornRFS)then
+     ok:=Image.DeleteFile(filepath)
+    else
+     ok:=Image.DeleteFile(DirList.Selections[0].Index);
     if ok then
     begin
      //Update the directory references
@@ -6768,7 +6833,10 @@ var
  ctrl: TControl;
  pt  : TPoint;
 begin
+ //Do not allow an edit at this stage
  AllowEdit:=False;
+ //Disable the keyboard shortcuts
+ DeleteAFile.Enabled:=False;
  //Get the control under the mouse cursor
  pt:=ScreenToClient(Mouse.CursorPos);
  ctrl:=ControlAtPos(pt,[capfRecursive,capfAllowWinControls]);
@@ -6795,11 +6863,19 @@ var
  newindex,i  : Integer;
  NewNode     : TTreeNode;
 begin
+ if AppIsClosing then exit;
+ //Get the new filename
  newfilename:=Node.Text;
- if (not Cancel)and(NameBeforeEdit<>newfilename) then
+ //Re-enable the keyboard shortcuts
+ DeleteAFile.Enabled:=True;
+ //Should we be renaming?
+ if(not Cancel)and(NameBeforeEdit<>newfilename) then
  begin
   //Rename the file
-  newindex:=Image.RenameFile(PathBeforeEdit,newfilename,Node.Index);
+  if Image.MajorFormatNumber=diAcornUEF then
+   newindex:=Image.RenameFile(Node.Index,newfilename)
+  else
+   newindex:=Image.RenameFile(PathBeforeEdit,newfilename);
   if newindex<0 then
   begin
    //Revert if it cannot be renamed
@@ -7003,9 +7079,7 @@ begin
  imgRect.Left:=Rect.Left+3;
  imgRect.Height:=Rect.Height-6;
  imgRect.Width:=imgRect.Height;
-{ panwid:=StatusBar.Canvas.TextWidth(Panel.Text)+4;
- if panwid<imgRect.Width then panwid:=imgRect.Width;
- Rect.Width:=panwid;}
+ StatusBar.Canvas.Font.Color:=$000000;
  //First panel - we want to put the 'not saved' indicator here
  if(Panel.Index=0)and(HasChanged)then
   icons.StretchDraw(StatusBar.Canvas,changedicon,imgRect);
@@ -7033,6 +7107,7 @@ begin
    diMMFS     : png:=bbclogo;       //BBC Micro logo for MMFS
    diSpark    : png:=sparklogo;     //!SparkFS logo for Spark
    diAcornFS  : png:=bbclogo;       //BBC Micro logo for Acorn FS
+   diAcornRFS : png:=romfslogo;     //Chip symbol for Acorn ROM FS
    diDOSPlus  :
     if Image.MinorFormatNumber<>0 then
      png:=msdoslogo                 //MS DOS logo for DOS
@@ -7259,6 +7334,7 @@ begin
  Result.Left:=LLeft;
  Result.Top:=LTop;
  Result.ModalResult:=LModal;
+ Result.Font.Color:=clBlack;
 end;
 
 end.

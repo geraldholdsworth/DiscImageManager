@@ -90,6 +90,8 @@ object HardDriveForm: THardDriveForm
     Top = 8
     Width = 120
     Caption = 'Hard Disc Capacity:'
+    Font.Color = clBlack
+    ParentFont = False
   end
   object ADFSControls: TPanel
     Left = 80
@@ -107,6 +109,8 @@ object HardDriveForm: THardDriveForm
       Top = 1
       Width = 60
       Caption = 'Directory:'
+      Font.Color = clBlack
+      ParentFont = False
     end
   end
   object DOSControls: TPanel

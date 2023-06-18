@@ -106,7 +106,7 @@ begin
  //Save the current format
  currentformat:=FFormat;
  index:=0;
- for queryformat:=$00 to $AF do
+ for queryformat:=$00 to $BF do
  begin
   //Set the format
   FFormat:=queryformat;
@@ -176,6 +176,7 @@ begin
   if not ID_DOSPlus  then //DOS plus
   if not ID_Sinclair then //Sinclair/Amstrad
   if not ID_CFS      then //Acorn CFS
+  if not ID_RFS      then //Acorn RFS
   if not ID_MMB      then //MMFS
   if not ID_Spark    then //Spark archive
   if not ID_DFS      then //Acorn DFS
@@ -208,6 +209,7 @@ begin
   diSinclair : ReadSinclairDisc;       //Sinclair/Amstrad
   diAmiga    : ReadAmigaDisc;          //Amiga
   diAcornUEF : ReadUEFFile;            //Acorn CFS
+  diAcornRFS : ReadRFSImage;           //Acorn ROM FS
   diMMFS     : ReadMMBDisc;            //MMFS
   diSpark    : ReadSparkArchive;       //Spark archive
   diDOSPlus  : ReadDOSPartition;       //DOS Plus
@@ -273,22 +275,19 @@ end;
 {-------------------------------------------------------------------------------
 Create and format a new disc image
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatFDD(major:Word;minor:Byte=0;tracks: Byte=0;filename: String=''): Boolean;
+function TDiscImage.FormatFDD(major: Word;minor: Byte;tracks: Byte=0): Boolean;
 begin
  Result:=False;
  //Make sure the numbers are within bounds
  major :=major AND $FFF;
  minor :=minor AND $F;
- if major<>diDOSPlus then
-  tracks:=tracks MOD 2;
+ if major<>diDOSPlus then tracks:=tracks MOD 2;
  case major of
   diAcornDFS : Result:=FormatDFS(minor,tracks); //Create DFS
   diAcornADFS: Result:=FormatADFSFloppy(minor); //Create ADFS
   diCommodore: Result:=FormatCDR(minor);        //Create Commodore 64/128
   diSinclair : Result:=FormatSpectrum(minor);   //Create Sinclair/Amstrad
   diAmiga    : Result:=FormatAmigaFDD(minor);   //Create AmigaDOS
-  diAcornUEF : Result:=FormatCFS;               //Create CFS
-  diSpark    : Result:=FormatSpark(filename);   //Create Spark
   diDOSPlus  :                                  //Create DOS or DOS Plus
    begin
     case minor of
@@ -301,27 +300,81 @@ begin
     end;
    end;
  end;
+ //We've failed to create something, so reset everything
+ if not Result then ResetVariables;
+end;
+function TDiscImage.FormatFDD(major: Word; filename: String): Boolean;
+begin
+ Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major AND $FFF;
+ if major=diSpark then Result:=FormatSpark(filename);   //Create Spark
+ //We've failed to create something, so reset everything
+ if not Result then ResetVariables;
+end;
+function TDiscImage.FormatFDD(major: Word): Boolean;
+begin
+ Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major AND $FFF;
+ if major=diAcornUEF then Result:=FormatCFS;               //Create CFS
+ //We've failed to create something, so reset everything
+ if not Result then ResetVariables;
+end;
+function TDiscImage.FormatFDD(major: Word;title: String;version: String;
+                                      copyright: String;binvers: Byte): Boolean;
+begin
+ Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major AND $FFF;
+ if major=diAcornRFS then Result:=FormatRFS(title,copyright,version,binvers);//Create ROM FS
+ //We've failed to create something, so reset everything
+ if not Result then ResetVariables;
 end;
 
 {-------------------------------------------------------------------------------
 Create and format a new hard disc image
 -------------------------------------------------------------------------------}
+function TDiscimage.FormatHDD(major: Word;harddrivesize: Cardinal):Boolean;
+begin
+ Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major AND $FFF;
+ if major=diAmiga then Result:=FormatAmigaHDD(harddrivesize); //Create Amiga HDD
+ //We've failed to create something, so reset everything
+ if not Result then ResetVariables;
+end;
+function TDiscimage.FormatHDD(major: Word;harddrivesize: Cardinal;
+                                                        dirtype: Byte): Boolean;
+begin
+ Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major AND $FFF;
+ case major of
+  diAcornFS  : Result:=FormatAFS(harddrivesize,dirtype);//Create Acorn FS
+  diDOSPlus  : Result:=FormatDOS(harddrivesize,dirtype);//Create DOS HDD
+ end;
+ //We've failed to create something, so reset everything
+ if not Result then ResetVariables;
+end;
 function TDiscimage.FormatHDD(major: Word;harddrivesize: Cardinal;
                  ide,newmap: Boolean;dirtype: Byte;addheader: Boolean): Boolean;
 begin
  Result:=False;
  //Make sure the numbers are within bounds
  major :=major AND $FFF;
- case major of
+ case major of //First three are just repeats of above, so we'll call the above
+  diAcornFS  : Result:=FormatHDD(major,harddrivesize,dirtype);//Create Acorn FS
+  diDOSPlus  : Result:=FormatHDD(major,harddrivesize,dirtype);//Create DOS HDD
+  diAmiga    : Result:=FormatHDD(major,harddrivesize);        //Create Amiga HDD
   diAcornADFS: Result:=FormatADFSHDD(harddrivesize,
                                      newmap,
                                      dirtype,
                                      ide,
                                      addheader);        //Create ADFS
-  diAcornFS  : Result:=FormatAFS(harddrivesize,dirtype);//Create Acorn FS
-  diDOSPlus  : Result:=FormatDOS(harddrivesize,dirtype);//Create DOS HDD
-  diAmiga    : Result:=FormatAmigaHDD(harddrivesize);   //Create Amiga HDD
  end;
+ //We've failed to create something, so reset everything
+ if not Result then ResetVariables;
 end;
 
 {-------------------------------------------------------------------------------
@@ -339,6 +392,7 @@ begin
   diSinclair :Result:=ExtractSpectrumFile(filename,buffer);//Extract Sinclair/Amstrad
   diAmiga    :Result:=ExtractAmigaFile(filename,buffer);   //Extract AmigaDOS
   diAcornUEF :Result:=ExtractCFSFile(entry,buffer);        //Extract CFS
+  diAcornRFS :Result:=ExtractRFSFile(entry,buffer);        //Extract ROM FS
   diSpark    :Result:=ExtractSparkFile(filename,buffer);   //Extract Spark
   diAcornFS  :Result:=ExtractAFSFile(filename,buffer);     //Extract Acorn FileStore
   diDOSPlus  :Result:=ExtractDOSFile(filename,buffer);     //Extract DOS Plus
@@ -391,6 +445,7 @@ begin
     diSinclair :Result:=WriteSpectrumFile(file_details,buffer);//Write Sinclair/Amstrad
     diAmiga    :Result:=WriteAmigaFile(file_details,buffer);   //Write AmigaDOS
     diAcornUEF :Result:=WriteCFSFile(file_details,buffer);     //Write CFS
+    diAcornRFS :Result:=WriteRFSFile(file_details,buffer);     //Write ROM FS
     diSpark    :Result:=WriteSparkFile(file_details,buffer);   //Write !Spark
     diAcornFS  :Result:=WriteAFSFile(file_details,buffer);     //Write Acorn FS
     diDOSPlus  :Result:=WriteDOSFile(file_details,buffer);     //Write DOS Plus
@@ -833,8 +888,7 @@ end;
 {-------------------------------------------------------------------------------
 Rename a file - oldfilename is full path, newfilename has no path
 -------------------------------------------------------------------------------}
-function TDiscImage.RenameFile(oldfilename: String;var newfilename: String;
-                                    entry:Cardinal=0): Integer;
+function TDiscImage.RenameFile(oldfilename: String;var newfilename: String): Integer;
 begin
  Result:=-1;//Failed to rename
  case GetMajorFormatNumber of
@@ -843,17 +897,22 @@ begin
   diCommodore: Result:=RenameCDRFile(oldfilename,newfilename);     //Rename Commodore 64/128
   diSinclair : Result:=RenameSpectrumFile(oldfilename,newfilename);//Rename Sinclair/Amstrad
   diAmiga    : Result:=RenameAmigaFile(oldfilename,newfilename);   //Rename AmigaDOS
-  diAcornUEF : Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
   diAcornFS  : Result:=RenameAFSFile(oldfilename,newfilename);     //Rename AFS
   diSpark    : Result:=RenameSparkFile(oldfilename,newfilename);   //Rename Spark
   diDOSPlus  : Result:=RenameDOSFile(oldfilename,newfilename);     //Rename DOS Plus
  end;
 end;
+function TDiscImage.RenameFile(entry:Cardinal;var newfilename: String): Integer;
+begin
+ Result:=-1;//Failed to rename
+ if GetMajorFormatNumber=diAcornUEF then
+  Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
+end;
 
 {-------------------------------------------------------------------------------
 Deletes a file (given full pathname)
 -------------------------------------------------------------------------------}
-function TDiscImage.DeleteFile(filename: String;entry: Cardinal=0): Boolean;
+function TDiscImage.DeleteFile(filename: String): Boolean;
 begin
  Result:=False;
  case GetMajorFormatNumber of
@@ -862,10 +921,17 @@ begin
   diCommodore: Result:=DeleteCDRFile(filename);     //Delete Commodore 64/128
   diSinclair : Result:=DeleteSinclairFile(filename);//Delete Sinclair/Amstrad
   diAmiga    : Result:=DeleteAmigaFile(filename);   //Delete AmigaDOS
-  diAcornUEF : Result:=DeleteCFSFile(entry);        //Delete CFS
   diAcornFS  : Result:=DeleteAFSFile(filename);     //Delete Acorn FS
   diSpark    : Result:=DeleteSparkFile(filename);   //Delete SparkFS
   diDOSPlus  : Result:=DeleteDOSFile(filename);     //Delete DOS Plus
+ end;
+end;
+function TDiscImage.DeleteFile(entry: Cardinal): Boolean;
+begin
+ Result:=False;
+ case GetMajorFormatNumber of
+  diAcornUEF : Result:=DeleteCFSFile(entry);        //Delete CFS
+  diAcornRFS : Result:=DeleteRFSFile(entry);        //Delete ROM FS
  end;
 end;
 
@@ -876,7 +942,7 @@ function TDiscImage.MoveFile(filename,directory: String): Integer;
 begin
  Result:=-12;
  case GetMajorFormatNumber of
-  diAcornDFS : Result:=MoveDFSFile(filename,directory);  //Move on DFS
+  diAcornDFS : Result:=MoveDFSFile(filename,directory);  //Move DFS File
   diAcornADFS: Result:=MoveADFSFile(filename,directory); //Move ADFS File
   diAmiga    : Result:=MoveAmigaFile(filename,directory);//Move Amiga File
   diAcornFS  : Result:=MoveAFSFile(filename,directory);  //Move AFS File
@@ -887,9 +953,13 @@ end;
 function TDiscImage.MoveFile(source: Cardinal;dest: Integer): Integer;
 begin
  Result:=-12;
- //Can only move files on DFS (between drives), ADFS, Amiga, AFS and CFS
- if GetMajorFormatNumber=diAcornUEF then //Move on CFS
-  Result:=MoveCFSFile(source,dest);
+ //Make sure that the source and dest given are valid and not identical
+ if(source<>dest)and(dest>=-1)and(dest<Length(FDisc[0].Entries))
+ and(source<Length(FDisc[0].Entries))then
+  case GetMajorFormatNumber of
+   diAcornUEF: Result:=MoveCFSFile(source,dest);         //Move CFS File
+   diAcornRFS: Result:=MoveRFSFile(source,dest);         //Move ROM FS File
+  end;
 end;
 
 {-------------------------------------------------------------------------------

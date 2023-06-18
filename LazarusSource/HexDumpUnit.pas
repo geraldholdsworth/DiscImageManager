@@ -25,7 +25,7 @@ interface
 
 uses
  Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Grids,ExtCtrls,Buttons,
- StdCtrls,ComCtrls,IpHtml,Global,StrUtils,SpriteFile,DiscImage;
+ StdCtrls,ComCtrls,IpHtml,Global,StrUtils,SpriteFile,DiscImage, Types;
 
 type
 
@@ -41,6 +41,7 @@ type
   btnSaveText: TSpeedButton;
   btnSaveBasic: TSpeedButton;
   ButtonImages: TImageList;
+  edFontSize: TEdit;
   edJump: TEdit;
   edXOR: TEdit;
   HexDumpDisplay: TStringGrid;
@@ -48,6 +49,7 @@ type
   BasicOutput: TIpHtmlPanel;
   JumpToLabel: TLabel;
   BasicPanel: TPanel;
+  lbFontSize: TLabel;
   TextOutput: TMemo;
   PageControl: TPageControl;
   HexDump: TTabSheet;
@@ -58,6 +60,7 @@ type
   SpriteViewer: TTabSheet;
   ImageViewer: TTabSheet;
   TextViewer: TTabSheet;
+  udFontSize: TUpDown;
   XORLabel: TLabel;
   NavImages: TImageList;
   ToolPanel: TPanel;
@@ -72,8 +75,11 @@ type
   procedure btnMoveUpClick(Sender: TObject);
   procedure btnMoveUpLineClick(Sender: TObject);
   procedure btnSaveBasicClick(Sender: TObject);
+  procedure edFontSizeChange(Sender: TObject);
   procedure edXORKeyPress(Sender: TObject; var Key: char);
   procedure FormCreate(Sender: TObject);
+  procedure HexDumpDisplayMouseWheel(Sender: TObject; Shift: TShiftState;
+   WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
   procedure ImagePanelPaint(Sender: TObject);
   procedure PageControlChange(Sender: TObject);
   procedure ScrollBarScroll(Sender: TObject; ScrollCode: TScrollCode;
@@ -124,14 +130,13 @@ uses MainUnit;
 
 { THexDumpForm }
 
-{------------------------------------------------------------------------------}
-{ Procedure to run when the application first runs                             }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Procedure to run when the application first runs
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.FormShow(Sender: TObject);
 var
  c: Integer;
 begin
-// PageControl.ActivePage:=HexDump;
  PageControlChange(Sender);
  //Set up the String Grid
  HexDumpDisplay.FixedCols:=1;
@@ -139,18 +144,25 @@ begin
  HexDumpDisplay.RowCount :=1;
  HexDumpDisplay.Font.Size:=Round(8*Screen.PixelsPerInch/DesignTimePPI);
  //Header
- HexDumpDisplay.ColWidths[0] :=Round(80*Screen.PixelsPerInch/DesignTimePPI);
+ HexDumpDisplay.ColWidths[0] :=HexDumpDisplay.Canvas.GetTextWidth('00000000000');
  HexDumpDisplay.Cells[0,0]   :='Address';
- HexDumpDisplay.ColWidths[17]:=Round(120*Screen.PixelsPerInch/DesignTimePPI);
+ HexDumpDisplay.ColWidths[17]:=HexDumpDisplay.Canvas.GetTextWidth('XXXXXXXXXXXXXXXXX');
  HexDumpDisplay.Cells[17,0]  :='ASCII';
  for c:=1 to 16 do
  begin
-  HexDumpDisplay.ColWidths[c]:=Round(25*Screen.PixelsPerInch/DesignTimePPI);
+  HexDumpDisplay.ColWidths[c]:=HexDumpDisplay.Canvas.GetTextWidth('000');
   HexDumpDisplay.Cells[c,0]  :=IntToHex(c-1,2);
  end;
+ formwidth:=HexDumpDisplay.ColWidths[0]
+           +16*HexDumpDisplay.ColWidths[1]
+           +HexDumpDisplay.ColWidths[17];
+ HexDumpDisplay.Width:=formwidth;
+ inc(formwidth,Round(40*Screen.PixelsPerInch/DesignTimePPI));
  ResetApplication;
  //Set up the form
- Width:=Round(635*Screen.PixelsPerInch/DesignTimePPI);
+ Constraints.MaxWidth:=formwidth;
+ Constraints.MinWidth:=formwidth;
+ Width:=formwidth;
  //Show the hex display
  DisplayHex(0);
  //Setup the scrollbar
@@ -158,11 +170,18 @@ begin
  ScrollBar.Min:=0;
  ScrollBar.Position:=0;
  ScrollBar.Enabled:=True;
+ //BASIC Font Size controls
+ BasicOutput.DefaultFontSize:=Round(10*Screen.PixelsPerInch/DesignTimePPI);
+ udFontSize.Position:=BasicOutput.DefaultFontSize;
+ lbFontSize.Left:=btnSaveBasic.Left+btnSaveBasic.Width+4;
+ edFontSize.Left:=lbFontSize.Left+lbFontSize.Width;
+ edFontSize.Top:=(BasicPanel.Height-edFontSize.Height)div 2;
+ lbFontSize.Top:=(BasicPanel.Height-lbFontSize.Height)div 2;
 end;
 
-{------------------------------------------------------------------------------}
-{ Reset the application                                                        }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Reset the application
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.ResetApplication;
 begin
  //Disable the controls
@@ -180,9 +199,9 @@ begin
  HexDumpDisplay.RowCount:=1;
 end;
 
-{------------------------------------------------------------------------------}
-{ Procedure to run when the user presses a key while in the XOR key box        }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Procedure to run when the user presses a key while in the XOR key box
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.edXORKeyPress(Sender: TObject; var Key: char);
 begin
  //13 = CR...i.e. Enter key
@@ -200,9 +219,9 @@ begin
   and (Key<>chr(127)) AND (Key<>chr(8)) then Key:=#0; //If not, invalidate
 end;
 
-{------------------------------------------------------------------------------}
-{ Tile the various components                                                  }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Tile the various components
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.FormCreate(Sender: TObject);
 begin
  formwidth:=Width;
@@ -210,30 +229,56 @@ begin
  BasicTxtOutput:=TStringList.Create;
 end;
 
-{------------------------------------------------------------------------------}
-{ Tile the various components                                                  }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ User is using the scroll wheel
+-------------------------------------------------------------------------------}
+procedure THexDumpForm.HexDumpDisplayMouseWheel(Sender: TObject;
+ Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean
+ );
+var
+ Lscroll,i: Integer;
+begin
+ //Work out by how much
+ Lscroll:=WheelDelta div 240;
+ //If it is <0 then it is down, otherwise up - we just need the amount
+ if Lscroll<0 then Lscroll:=-Lscroll;
+ //If we are scrolling anything
+ if lscroll>0 then
+  //Scroll line by line
+  for i:=0 to Lscroll-1 do
+  begin
+   if WheelDelta<0 then btnMoveDownLineClick(Sender); //Down
+   if WheelDelta>0 then btnMoveUpLineClick(Sender);   //Up
+  end;
+ //Tell the OS not to do anything, as we have handled it ourselves
+ Handled:=True;
+end;
+
+{-------------------------------------------------------------------------------
+ Tile the various components
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.ImagePanelPaint(Sender: TObject);
 begin
  if Sender is TPanel then
   MainForm.TileCanvas(TPanel(Sender).Canvas); //for a TPanel
 end;
 
-{------------------------------------------------------------------------------}
-{ The active page is changing, so allow a resize                               }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ The active page is changing, so allow a resize
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.PageControlChange(Sender: TObject);
 begin
  //If swtiching to Hex Dump or Sprite Viewer, restrict the size
  if(PageControl.ActivePage=HexDump)
  or(PageControl.ActivePage=SpriteViewer)then
  begin
-  Constraints.MaxWidth:=635;
-  Constraints.MinWidth:=635;
-  Constraints.MinHeight:=290;
+  Constraints.MaxWidth:=formwidth;
+  Constraints.MinWidth:=formwidth;
+  Constraints.MinHeight:=Round(290*Screen.PixelsPerInch/DesignTimePPI);
   //Change the size, if not already changed
-  Width:=635;
-  if Height<290 then Height:=290;
+  Width:=Round(635*Screen.PixelsPerInch/DesignTimePPI);
+  if Height<Round(290*Screen.PixelsPerInch/DesignTimePPI) then
+   Height:=Round(290*Screen.PixelsPerInch/DesignTimePPI);
  end
  else
  begin
@@ -247,9 +292,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-{ User has pressed a key on the Jump edit box                                  }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ User has pressed a key on the Jump edit box
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.edJumpKeyPress(Sender: TObject; var Key: char);
 begin
  //13 = CR...i.e. Enter key
@@ -267,9 +312,9 @@ begin
   and (Key<>chr(127)) AND (Key<>chr(8)) then Key:=#0; //If not, invalidate
 end;
 
-{------------------------------------------------------------------------------}
-{ Procedure to run when the scroll bar moves                                   }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Procedure to run when the scroll bar moves
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.ScrollBarScroll(Sender: TObject; ScrollCode: TScrollCode;
  var ScrollPos: Integer);
 begin
@@ -277,9 +322,9 @@ begin
  DisplayHex((ScrollPos div $10)*$10);
 end;
 
-{------------------------------------------------------------------------------}
-{ User has clicked on the Save As Text File button                             }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ User has clicked on the Save As Text File button
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.btnSaveTextClick(Sender: TObject);
 var
  line  : String;
@@ -355,9 +400,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-{ User has clicked on the Save As Text File button on the BASIC viewer tab     }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ User has clicked on the Save As Text File button on the BASIC viewer tab
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.btnSaveBasicClick(Sender: TObject);
 var
  line  : String;
@@ -373,9 +418,9 @@ begin
  if SaveFile.Execute then BasicTxtOutput.SaveToFile(SaveFile.Filename);
 end;
 
-{------------------------------------------------------------------------------}
-{ Populates the grid, starting at address 'start'                              }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Populates the grid, starting at address 'start'
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.DisplayHex(start: Cardinal);
 var
  rows,
@@ -451,9 +496,9 @@ begin
  or (line+1=HexDumpDisplay.Height div HexDumpDisplay.DefaultRowHeight); //Or form
 end;
 
-{------------------------------------------------------------------------------}
-{ Navigation buttons - move up a page                                          }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Navigation buttons - move up a page
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveUpClick(Sender: TObject);
 var
  s,rows: Cardinal;
@@ -468,9 +513,9 @@ begin
  DisplayHex(s*$10);
 end;
 
-{------------------------------------------------------------------------------}
-{ Navigation buttons - move up a line                                          }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Navigation buttons - move up a line
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveUpLineClick(Sender: TObject);
 var
  s: Cardinal;
@@ -483,9 +528,9 @@ begin
  DisplayHex(s*$10);
 end;
 
-{------------------------------------------------------------------------------}
-{ Navigation buttons - move down a page                                        }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Navigation buttons - move down a page
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveDownClick(Sender: TObject);
 var
  s,rows: Cardinal;
@@ -500,9 +545,9 @@ begin
  DisplayHex(s*$10);
 end;
 
-{------------------------------------------------------------------------------}
-{ Navigation buttons - move down a line                                        }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Navigation buttons - move down a line
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveDownLineClick(Sender: TObject);
 var
  s: Cardinal;
@@ -515,27 +560,27 @@ begin
  DisplayHex(s*$10);
 end;
 
-{------------------------------------------------------------------------------}
-{ Navigation buttons - move to the end of the file                             }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Navigation buttons - move to the end of the file
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveToBottomClick(Sender: TObject);
 begin
  //Just update the display with the filesize
  DisplayHex(Length(buffer));
 end;
 
-{------------------------------------------------------------------------------}
-{ Navigation buttons - move to the beginning of the file                       }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Navigation buttons - move to the beginning of the file
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveToTopClick(Sender: TObject);
 begin
  //Just update the display with zero
  DisplayHex(0);
 end;
 
-{------------------------------------------------------------------------------}
-{ User is resizing the form                                                    }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ User is resizing the form
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.FormResize(Sender: TObject);
 var
  s,rows: Cardinal;
@@ -560,9 +605,9 @@ begin
  formheight:=Height;
 end;
 
-{------------------------------------------------------------------------------}
-{ This doesn't actually appear to do anything                                  }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ This doesn't actually appear to do anything
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.HexDumpDisplayGetCellHint(Sender: TObject; ACol,
  ARow: Integer; var HintText: String);
 var
@@ -573,9 +618,9 @@ begin
  else HintText:='';
 end;
 
-{------------------------------------------------------------------------------}
-{ User has pressed a key while editing a value on the grid                     }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ User has pressed a key while editing a value on the grid
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.HexDumpDisplayKeyPress(Sender: TObject; var Key: char);
 begin
  //Verify it is in hex, delete, backspace or Enter
@@ -583,9 +628,9 @@ begin
  and (Key<>chr(127)) AND (Key<>chr(8)) AND (Key<>chr(13)) then Key:=#0;
 end;
 
-{------------------------------------------------------------------------------}
-{ This recolours the individual cells                                          }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ This recolours the individual cells
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.HexDumpDisplayPrepareCanvas(sender: TObject; aCol,
  aRow: Integer; aState: TGridDrawState);
 var
@@ -617,9 +662,9 @@ begin
   end;
 end;
 
-{------------------------------------------------------------------------------}
-{ User is trying to edit a cell                                                }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ User is trying to edit a cell
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.HexDumpDisplaySelectCell(Sender: TObject; aCol,
  aRow: Integer; var CanSelect: Boolean);
 begin
@@ -628,9 +673,9 @@ begin
  else CanSelect:=True;
 end;
 
-{------------------------------------------------------------------------------}
-{ This fires everytime a change is made                                        }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ This fires everytime a change is made
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.HexDumpDisplaySetEditText(Sender: TObject; ACol,
  ARow: Integer; const Value: String);
 begin
@@ -639,9 +684,9 @@ begin
   HexDumpDisplay.Cells[ACol,ARow]:=LeftStr(value,2);
 end;
 
-{------------------------------------------------------------------------------}
-{ User has finished editing the cell, so now validate                          }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ User has finished editing the cell, so now validate
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.HexDumpDisplayValidateEntry(sender: TObject; aCol,
  aRow: Integer; const OldValue: String; var NewValue: String);
 var
@@ -672,9 +717,9 @@ begin
   NewValue:=OldValue;
 end;
 
-{------------------------------------------------------------------------------}
-{ Analysis a file to see if it is a BASIC file or not                          }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Analysis a file to see if it is a BASIC file or not
+-------------------------------------------------------------------------------}
 function THexDumpForm.IsBasicFile: Boolean;
 var
  ptr: Integer;
@@ -696,15 +741,17 @@ begin
    begin
     //Move onto the next pointer
     inc(ptr,buffer[ptr+3]);
-    if buffer[ptr]<>$0D then Result:=False;
+    if ptr<Length(buffer) then
+     if buffer[ptr]<>$0D then
+      Result:=False;
    end;
   end;
  end;
 end;
 
-{------------------------------------------------------------------------------}
-{ Analysis a file to see if it is a Text file or not                           }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Analysis a file to see if it is a Text file or not
+-------------------------------------------------------------------------------}
 function THexDumpForm.IsTextFile: Boolean;
 var
  ptr: Integer;
@@ -717,9 +764,9 @@ begin
   or(buffer[ptr]>126)then Result:=False;
 end;
 
-{------------------------------------------------------------------------------}
-{ Decodes a BBC BASIC file, or displays as text                                }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Decodes a BBC BASIC file, or displays as text
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.DecodeBasicFile;
 var
  ptr,
@@ -949,9 +996,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-{ Displays a compatible image                                                  }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Displays a compatible image
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.DisplayImage;
 var
  size,j : Integer;
@@ -1008,9 +1055,9 @@ begin
  end;
 end;
 
-{------------------------------------------------------------------------------}
-{ Displays a sprite file                                                       }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ Displays a sprite file
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.DisplaySpriteFile;
 var
  ms    : TMemoryStream;
@@ -1098,9 +1145,9 @@ begin
  sp.Free;
 end;
 
-{------------------------------------------------------------------------------}
-{ The window is getting resized                                                }
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+ The window is getting resized
+-------------------------------------------------------------------------------}
 procedure THexDumpForm.SpriteOutputResize(Sender: TObject);
 begin
  SpritePanel.Top:=0;
@@ -1110,6 +1157,16 @@ begin
  SpritePanel.Height:=SpritePanel.Height+spriteh+4;
  if SpriteOutput.ClientHeight>SpritePanel.Height then
   SpritePanel.Height:=SpriteOutput.ClientHeight;
+end;
+
+{-------------------------------------------------------------------------------
+ Font size is being changed on the BASIC output
+-------------------------------------------------------------------------------}
+procedure THexDumpForm.edFontSizeChange(Sender: TObject);
+begin
+ udFontSize.Position:=StrToIntDef(edFontSize.Text,8);
+ BasicOutput.DefaultFontSize:=udFontSize.Position;
+ DecodeBasicFile;
 end;
 
 end.
