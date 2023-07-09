@@ -2958,6 +2958,8 @@ begin
  //Make sure that the file exists, but also to get the pointer
  if FileExists(filename,dir,entry) then
  begin
+  if FDisc[dir].Entries[entry].DirRef<>-1 then attributes:=attributes+'D'
+  else attributes:=ReplaceStr(attributes,'D','');
   //Change the attributes on the local copy
   FDisc[dir].Entries[entry].Attributes:=attributes;
   //Then update the catalogue

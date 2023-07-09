@@ -1610,6 +1610,8 @@ begin
  //Make sure that the file exists
  if FileExists(filename,dir,entry) then
  begin
+  if FDisc[dir].Entries[entry].DirRef<>-1 then attributes:=attributes+'D'
+  else attributes:=ReplaceStr(attributes,'D','');
   //Update the local copy
   FDisc[dir].Entries[entry].Attributes:=attributes;
   //And update the image directory

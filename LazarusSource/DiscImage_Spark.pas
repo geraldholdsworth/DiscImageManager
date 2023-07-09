@@ -218,6 +218,8 @@ begin
  //Ensure the file actually exists
  if FileExists(filename,dir,entry) then
  begin
+  if FDisc[dir].Entries[entry].DirRef<>-1 then attributes:=attributes+'D'
+  else attributes:=ReplaceStr(attributes,'D','');
   //Convert the filename
   SparkFile.SwapDirSep(filename);
   if FDisc[dir].Entries[entry].DirRef<>-1 then filename:=filename+'/';

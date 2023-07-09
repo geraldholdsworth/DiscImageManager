@@ -695,17 +695,15 @@ Update DFS File attributes
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDFSFileAttributes(filename,attributes: String): Boolean;
 var
- ptr,
  entry,
  dir   : Cardinal;
 begin
  Result:=False;
  //Make sure that the file exists, but also to get the pointer
- if FileExists(filename,ptr) then
+ if FileExists(filename,dir,entry) then
  begin
-  //FileExists returns a pointer to the file
-  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=ptr div $10000;  //Top 16 bits - directory reference
+  if FDisc[dir].Entries[entry].DirRef<>-1 then attributes:=attributes+'D'
+  else attributes:=ReplaceStr(attributes,'D','');
   //Change the attributes on the local copy
   FDisc[dir].Entries[entry].Attributes:=attributes;
   //Then update the catalogue

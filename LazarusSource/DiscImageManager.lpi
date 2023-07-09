@@ -25,7 +25,7 @@
       <Language Value="0809"/>
       <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.44"/>
     </VersionInfo>
-    <BuildModes Count="10">
+    <BuildModes Count="11">
       <Item1 Name="Default" Default="True"/>
       <Item2 Name="Debug">
         <CompilerOptions>
@@ -282,7 +282,7 @@
           </Linking>
         </CompilerOptions>
       </Item9>
-      <Item10 Name="Release Linux ARM">
+      <Item10 Name="Release Linux ARM 32 bit">
         <CompilerOptions>
           <Version Value="11"/>
           <SearchPaths>
@@ -312,6 +312,36 @@
           </Linking>
         </CompilerOptions>
       </Item10>
+      <Item11 Name="Release Linux ARM 64 bit">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <SearchPaths>
+            <IncludeFiles Value="$(ProjOutDir)"/>
+            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomConponents"/>
+            <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <CodeGeneration>
+            <SmartLinkUnit Value="True"/>
+            <TargetCPU Value="aarch64"/>
+            <TargetOS Value="linux"/>
+            <Optimizations>
+              <OptimizationLevel Value="3"/>
+            </Optimizations>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <GenerateDebugInfo Value="False"/>
+              <DebugInfoType Value="dsDwarf2Set"/>
+            </Debugging>
+            <LinkSmart Value="True"/>
+            <Options>
+              <Win32>
+                <GraphicApplication Value="True"/>
+              </Win32>
+            </Options>
+          </Linking>
+        </CompilerOptions>
+      </Item11>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
