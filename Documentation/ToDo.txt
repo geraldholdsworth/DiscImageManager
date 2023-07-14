@@ -40,3 +40,4 @@ General - Ideas which are maybe possible
 * Function (and button) to consolidate the free space map for ADFS and AFS (using the functions built into the class).
 * Hex editor: Editable.
 * macOS: Dark mode - PARTIAL: Import image contents still needs to be looked at).
+* Console: add commands: stamp <filename> [<timedate>] - change the timestamp; type <filename> <filetype> - change the filetype; split/join - to add or remove sides/partitions

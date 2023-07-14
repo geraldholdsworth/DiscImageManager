@@ -528,6 +528,14 @@ begin
  //This will not work with CFS as you can have multiple files with the same name
  //in the same 'directory'. It will just find the first occurance.
  Result:=False;
+ //Blank filename, so quit
+ if Length(filename)=0 then exit;
+ //Ends in a DOS directory separator
+ if(filename[Length(filename)]='\')
+ or(filename[Length(filename)]='/')then
+  filename:=LeftStr(filename,Length(filename)-1);
+ //Blank filename, so quit
+ if Length(filename)=0 then exit;
  //For the root, we'll just return a default value
  if filename=root_name then
  begin
@@ -537,14 +545,16 @@ begin
   exit;
  end;
  //AFS or DOS Root
- if(filename=afsrootname)or(filename=dosrootname)then
+ if(UpperCase(filename)=UpperCase(afsrootname))
+ or(UpperCase(filename)=UpperCase(dosrootname))then
   if Length(FDisc)>0 then
    if Length(FDisc)>1 then
    begin
     i:=0;
     //Just look for the root
-    while(i<Length(FDisc))and(FDisc[i].Directory<>filename)do inc(i);
-    if FDisc[i].Directory=filename then
+    while(i<Length(FDisc))
+      and(UpperCase(FDisc[i].Directory)<>UpperCase(filename))do inc(i);
+    if UpperCase(FDisc[i].Directory)=UpperCase(filename) then
     begin
      dir:=i;
      entry:=$FFFF;
@@ -1054,6 +1064,10 @@ function TDiscImage.UpdateAttributes(filename,attributes: String;entry:Cardinal=
 begin
  Result:=False;
  if(filename<>root_name)and(filename<>afsrootname)then
+ begin
+  //Validate the attributes
+  ValidateAttributes(attributes);
+  //Set the attributes
   case GetMajorFormatNumber of
    diAcornDFS : Result:=UpdateDFSFileAttributes(filename,attributes);     //Update DFS attributes
    diAcornADFS: Result:=UpdateADFSFileAttributes(filename,attributes);    //Update ADFS attributes
@@ -1065,6 +1079,50 @@ begin
    diSpark    : Result:=UpdateSparkAttributes(filename,attributes);       //Update Spark attributes
    diDOSPlus  : Result:=UpdateDOSAttributes(filename,attributes);         //Update DOS Plus attributes
   end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Validate the attributes
+-------------------------------------------------------------------------------}
+procedure TDiscImage.ValidateAttributes(var attributes: String);
+var
+ i   : Integer;
+ new,
+ attr: String;
+begin
+ //Get the valid attributes for the current format
+ attr:='';
+ case GetMajorFormatNumber of
+  diAcornDFS : attr:='L';
+  diAcornADFS: if Fdirtype=diADFSOldDir then
+                attr:=ADFSOldAttributes else
+                attr:=ADFSNewAttributes;
+  diCommodore: attr:='LC';
+  diSinclair : ;
+  diAmiga    : attr:=AmigaAttributes;
+  diAcornUEF : attr:='L';
+  diAcornFS  : attr:='WRLwr';
+  diSpark    : attr:=ADFSNewAttributes;
+  diDOSPlus  : attr:='HRSA';
+ end;
+ //Remove any invalid characters
+ if(Length(attributes)>0)and(Length(attr)>0)then
+ begin
+  new:='';
+  for i:=1 to Length(attributes) do
+   if Pos(attributes[i],attr)>0 then
+    new:=new+attributes[i];
+  attributes:=new;
+ end;
+ //Remove any repeated characters
+ if Length(attributes)>1 then
+ begin
+  new:=attributes[1];
+  for i:=2 to Length(attributes) do
+   if Pos(attributes[i],new)=0 then new:=new+attributes[i];
+  attributes:=new;
+ end;
 end;
 
 {-------------------------------------------------------------------------------

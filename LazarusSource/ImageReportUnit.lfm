@@ -2,21 +2,21 @@ object ImageReportForm: TImageReportForm
   Left = 304
   Height = 401
   Top = 113
-  Width = 518
+  Width = 639
   Caption = 'Image Report'
   ClientHeight = 401
-  ClientWidth = 518
+  ClientWidth = 639
   Position = poMainFormCenter
   LCLVersion = '2.2.0.4'
   object Report: TMemo
     Left = 0
     Height = 401
     Top = 0
-    Width = 518
+    Width = 639
     Align = alClient
     Font.Name = 'Courier New'
     Lines.Strings = (
-      'Report'
+      '12345678901234567890123456789012345678901234567890123456789012345678901234567890'
     )
     ParentFont = False
     ReadOnly = True

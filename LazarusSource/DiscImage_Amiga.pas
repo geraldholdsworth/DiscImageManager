@@ -1043,17 +1043,11 @@ Convert an attribute number to a string
 function TDiscImage.AmigaIntToStrAttr(attr: Cardinal): String;
 var
  a: Byte;
-const
- attributes: array[0..31] of Char =
-  ('D','E','W','R','A','P','S','H',
-   'd','e','w','r','l','x','i','a',
-   ' ',' ',' ',' ',' ',' ',' ',' ',
-   ' ',' ',' ',' ',' ',' ',' ',' ');
 begin
  Result:='';
  for a:=0 to 31 do
   if IsBitSet(attr,a) then
-   Result:=Result+attributes[a];
+   Result:=Result+AmigaAttributes[a+1];
  RemoveSpaces(Result);
 end;
 
@@ -1063,16 +1057,10 @@ Convert an attribute string to a number
 function TDiscImage.AmigaStrToIntAttr(attr: String): Cardinal;
 var
  a: Byte;
-const
- attributes: array[0..31] of Char =
-  ('D','E','W','R','A','P','S','H',
-   'd','e','w','r','l','x','i','a',
-   ' ',' ',' ',' ',' ',' ',' ',' ',
-   ' ',' ',' ',' ',' ',' ',' ',' ');
 begin
  Result:=0;
  for a:=0 to 31 do
-  if Pos(attributes[a],attr)>0 then
+  if Pos(AmigaAttributes[a+1],attr)>0 then
    Result:=Result+1<<a;
 end;
 

@@ -754,6 +754,10 @@ type
                 $79,$80,$A8,$20,$B9,$FF,$A8,$4C,$65,$80,$A5,$F5,$49,$FF,$29,$0F,
                 $60,$44,$69,$73,$63,$49,$6D,$61,$67,$65,$4D,$61,$6E,$61,$67,$65,
                 $72);
+   //Attributes
+   AmigaAttributes   = 'DEWRAPSHdewrlxia                ';
+   ADFSOldAttributes = 'RWLDErweP ';//Not to be confused with what is returned from OSFILE
+   ADFSNewAttributes = 'RWLDrw';
    {$INCLUDE 'DiscImageRISCOSFileTypes.pas'}
    {$INCLUDE 'DiscImageDOSFileTypes.pas'}
  published
@@ -803,6 +807,7 @@ type
                                                      entry:Cardinal=0): Boolean;
   function UpdateDiscTitle(title: String;side: Byte): Boolean;
   function UpdateBootOption(option,side: Byte): Boolean;
+  procedure ValidateAttributes(var attributes: String);
   function CreateDirectory(var filename,parent,attributes: String): Integer;
   function RetitleDirectory(var filename,newtitle: String): Boolean;
   function GetFileCRC(filename: String;entry:Cardinal=0): String;

@@ -9,6 +9,7 @@ This has grown beyond all my imagination.
 uses
   Forms, datetimectrls,Interfaces,Global,
   Classes, SysUtils, CustApp,//For the console side of this
+ {$IFDEF Windows}Windows,{$ENDIF}
   MainUnit in 'MainUnit.pas',
   DiscImage in 'DiscImage.pas',
   AboutUnit in 'AboutUnit.pas',
@@ -38,23 +39,107 @@ type
  public
   constructor Create(TheOwner: TComponent); override;
   destructor Destroy; override;
-//  procedure ParseCommand(Command: TStringArray);
+  function UserInterface: Boolean;
+ private
   function ProcessInput(Input: String): TStringArray;
  end;
 
-{ TConsoleApp }
-
+{-------------------------------------------------------------------------------
+Create the class instance
+-------------------------------------------------------------------------------}
 constructor TConsoleApp.Create(TheOwner: TComponent);
 begin
  inherited Create(TheOwner);
  StopOnException:=True;
 end;
 
+{-------------------------------------------------------------------------------
+Destroy the class instance
+-------------------------------------------------------------------------------}
 destructor TConsoleApp.Destroy;
 begin
  inherited Destroy;
 end;
 
+{-------------------------------------------------------------------------------
+The user interface (this passes the actual code back to the GUI unit)
+-------------------------------------------------------------------------------}
+function TConsoleApp.UserInterface: Boolean;
+var
+ B         : Byte;
+ input,
+ script    : String;
+ Lparams   : TStringArray;
+ F         : TFileStream;
+begin
+ F:=nil;
+ //Write out a header
+ Write(MainForm.cmdRed+MainForm.cmdInverse);
+ WriteLn(StringOfChar('*',80));
+ Write(MainForm.cmdNormal+MainForm.cmdBold);
+ Write(MainForm.ApplicationTitle+' Console V'+MainForm.ApplicationVersion);
+ WriteLn(' by Gerald J Holdsworth');
+ WriteLn();
+ WriteLn(MainForm.platform+' '+MainForm.arch);
+ WriteLn(MainForm.cmdNormal);
+ //Did the user supply a file for commands to run?
+ script:=Application.GetOptionValue('c','console');
+ if script<>'' then
+  if not FileExists(script) then
+  begin
+   WriteLn(MainForm.cmdRed+
+           'File '''+script+''' does not exist.'+MainForm.cmdNormal);
+   script:='';
+  end
+  else
+  begin
+   WriteLn('Running script '''+script+'''.');
+   //Open the script file
+   F:=TFileStream.Create(script,fmOpenRead or fmShareDenyNone);
+  end;
+ //Intialise the array
+ Lparams:=nil;
+ WriteLn(MainForm.cmdBold+'Ready'+MainForm.cmdNormal);
+ repeat
+  //Prompt for input
+  write('>');
+  //Read a line of input from the user
+  if script='' then ReadLn(input)
+  else
+  begin //Or from the file
+   input:='';
+   B:=0;
+   repeat
+    if F.Position<F.Size then B:=F.ReadByte; //Read byte by byte
+    if(B>31)and(B<127)then input:=input+Chr(B); //Valid printable character?
+   until(B=$0A)or(F.Position=F.Size); //End of line with $0A or end of file
+   WriteLn(input); //Output the line, as if entered by the user
+  end;
+  Lparams:=ProcessInput(input);
+  //Parse the command
+  MainForm.ParseCommand(Lparams);
+  //End of the script? Then close the file
+  if script<>'' then
+   if F.Position=F.Size then
+   begin
+    F.Free;
+    script:='';
+   end;
+  //Continue until the user specifies to exit
+ until(Lparams[0]='exit')or(Lparams[0]='exittogui');
+ //Script file still open? Then close it
+ if script<>'' then F.Free;
+ //Footer at close of console
+ Write(MainForm.cmdRed+MainForm.cmdInverse);
+ Write(StringOfChar('*',80));
+ WriteLn(MainForm.cmdNormal);
+ //Exit or not?
+ Result:=LowerCase(Lparams[0])='exit';
+end;
+
+{-------------------------------------------------------------------------------
+Process the input string
+-------------------------------------------------------------------------------}
 function TConsoleApp.ProcessInput(Input: String): TStringArray;
 var
  Index,
@@ -94,18 +179,17 @@ begin
  end;
 end;
 
+{-------------------------------------------------------------------------------
+Main program execution starts here
+-------------------------------------------------------------------------------}
 var
  ConsoleApp: TConsoleApp;
- B         : Byte;
- input,
- script    : String;
- params    : TStringArray;
- F         : TFileStream;
+ exit      : Boolean;
 begin
  //Create GUI application
+ RequireDerivedFormResource:=True;
  Application.Scaled:=True;
  Application.Title:='Disc Image Manager';
-//'Disc Image Manager';
  Application.Initialize;
  Application.CreateForm(TMainForm, MainForm);
  Application.CreateForm(TAboutForm, AboutForm);
@@ -123,76 +207,37 @@ begin
  Application.CreateForm(TChangeInterleaveForm, ChangeInterleaveForm);
  Application.CreateForm(TCSVPrefForm, CSVPrefForm);
  Application.CreateForm(TImageReportForm, ImageReportForm);
- //Do we have 'console' passed as a parameter?
- input:=Application.CheckOptions('d:','console:');
- //No, we have something else so quit to the GUI
- if input<>'' then //This will also quit if 'console' was supplied, but there was other text too
+ {$IFDEF Windows}
+ if Application.HasOption('c','console') then
  begin
-  WriteLn(input); //Display the errors
-  WriteLn('Exiting to GUI.');
+  AllocConsole;
+  IsConsole:=True;
+  SysInitStdIO;
  end;
- //No errors, and 'console' passed as a parameter
- if(input='')and(Application.HasOption('c','console'))then
+ {$ENDIF}
+ //'console' passed as a parameter
+ if Application.HasOption('c','console') then
  begin
   //Create the console application
   ConsoleApp:=TConsoleApp.Create(nil);
   ConsoleApp.Title:=MainForm.ApplicationTitle+' Console';
-  //Write out a header
-  WriteLn('********************************************************************************');
-  WriteLn(MainForm.ApplicationTitle+' V'+MainForm.ApplicationVersion);
-  WriteLn('');
-  WriteLn('Entering Console');
-  //Did the user supply a file for commands to run?
-  script:=Application.GetOptionValue('c','console');
-  if script<>'' then
-   if not FileExists(script) then
-   begin
-    WriteLn('File '''+script+''' does not exist.');
-    script:='';
-   end
-   else
-   begin
-    WriteLn('Running script '''+script+'''.');
-    //Open the script file
-    F:=TFileStream.Create(script,fmOpenRead or fmShareDenyNone);
-   end;
-  //Intialise the array
-  params:=nil;
-  repeat
-   //Prompt for input
-   write('>');
-   //Read a line of input from the user
-   if script='' then ReadLn(input)
-   else
-   begin //Or from the file
-    input:='';
-    B:=0;
-    repeat
-     if F.Position<F.Size then B:=F.ReadByte; //Read byte by byte
-     if(B>31)and(B<127)then input:=input+Chr(B); //Valid printable character?
-    until(B=$0A)or(F.Position=F.Size); //End of line with $0A or end of file
-    WriteLn(input); //Output the line, as if entered by the user
-   end;
-   params:=ConsoleApp.ProcessInput(input);
-   //Parse the command
-   MainForm.ParseCommand(params);
-   //End of the script? Then close the file
-   if script<>'' then
-    if F.Position=F.Size then
-    begin
-     F.Free;
-     script:='';
-    end;
-   //Continue until the user specifies to exit
-  until(params[0]='exit')or(params[0]='exittogui');
-  //Script file still open? Then close it
-  if script<>'' then F.Free;
-  //Footer at close of console
-  WriteLn('********************************************************************************');
+  //Run the user interface
+  exit:=ConsoleApp.UserInterface;
   //Close the console application
   ConsoleApp.Free;
-  //Close the GUI application if not needed
-  if params[0]='exit' then Application.Terminate
-  else Application.Run //Otherwise open the GUI application
- end else Application.Run; //Console application not specified, so open as normal
+  //Close the GUI application if not needed, otherwise open the GUI application
+  if exit then Application.Terminate else
+  begin //Otherwise open the GUI application
+   {$IFDEF Windows}
+   IsConsole:=False;
+   {$ENDIF}
+   Application.Run;
+  end;
+ end else
+ begin
+  {$IFDEF Windows}
+  IsConsole:=False;
+  {$ENDIF}
+  Application.Run; //Open as normal
+ end;
 end.

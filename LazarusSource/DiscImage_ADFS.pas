@@ -285,11 +285,6 @@ var
  validdir,validentry,
  endofentry         : Boolean;
  dirbuffer          : TDIByteArray;
-const
- //Attributes - not to be confused with what is returned from OSFILE
- //See the function GetAttributes in DiscImageUtils
- OldAtts: array[0..9] of Char = ('R','W','L','D','E','r','w','e','P',' ');
- NewAtts: array[0..5] of Char = ('R','W','L','D','r','w');
 begin
  SetLength(dirbuffer,0);
  RemoveControl(dirname);
@@ -509,9 +504,8 @@ begin
         begin
          for amt:=0 to 9 do
          begin
-          //if ord(Entry.Filename[amt+1])>>7=1 then
           if ReadByte(offset+amt,dirbuffer)>>7=1 then
-           temp:=temp+OldAtts[amt];
+           temp:=temp+ADFSOldAttributes[amt+1];
           if amt<Length(Entry.Filename) then
           begin
            if ord(Entry.Filename[amt+1])AND$7F=$0D then endofentry:=True;
@@ -552,7 +546,7 @@ begin
     begin
      temp:='';
      for amt:=0 to 5 do
-      if IsBitSet(NewDirAtts,amt) then temp:=temp+NewAtts[amt];
+      if IsBitSet(NewDirAtts,amt) then temp:=temp+ADFSNewAttributes[amt+1];
      //Reverse the attribute order to match actual ADFS
      if Length(temp)>1 then
       for amt:=Length(temp) downto 1 do

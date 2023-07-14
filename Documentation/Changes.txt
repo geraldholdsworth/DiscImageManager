@@ -986,6 +986,7 @@ New or improved features
 * Can now delete files from Acorn ROM FS images.
 * Some minor code changes (creation of new images).
 * Command line parsing has been completely removed and replaced by a command line console.
+* Attributes are now validated before applying.
 
 Bug fixes
 * OS dark mode: most of the controls do not react to the change from light mode to dark mode. The changing of the font colour sometimes made them hard to see with the tiling selected.
@@ -994,6 +995,7 @@ Bug fixes
 * If the creation of a new image fails, the application still thought that there was an image open.
 * When renaming a file, or editing the load or execution addresses, pressing the BackSpace key would attempt to delete the file, instead of deleting the text.
 * It was possible to remove the 'D' attribute of a directory, or add one to a file.
+* If the last line in a hex dump text output was less than 16 bytes, then the position of the ASCII representation would not line up with the columns above.
 
 Platform History
 ----------------
