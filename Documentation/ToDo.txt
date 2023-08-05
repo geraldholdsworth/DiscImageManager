@@ -34,10 +34,11 @@ General - Ideas which are maybe possible
 * Spectrum/Amstrad: Write entire module - REQUIRE MORE INFO ON SPECTRUM FORMAT.
 * MMFS: Rewrite/rethink entire MMFS idea - might be more viable once multi-partitions are implemented.
 * DOS: Add in support for partitioned hard drive images - NEED TO IMPLEMENT MULTI_PARTITION SUPPORT FIRST.
+* DOS: Add option to import *.inf files, instead of ignoring them.
 * ROM FS: rename files, copy files, move files.
 * ROM FS: Retitle, change the (C) text and change the version text. - CAN BE DIFFICULT AS THIS REQUIRES MOVING THE HEADER CODE AND, THEREFORE, CHANGING THE STATIC ADDRESSES.
 * Have different TImageList components for each format.
 * Function (and button) to consolidate the free space map for ADFS and AFS (using the functions built into the class).
 * Hex editor: Editable.
 * macOS: Dark mode - PARTIAL: Import image contents still needs to be looked at).
-* Console: add commands: stamp <filename> [<timedate>] - change the timestamp; type <filename> <filetype> - change the filetype; split/join - to add or remove sides/partitions
+* Console: add commands: stamp <filename> [<timedate>] - change the timestamp; type <filename> <filetype> - change the filetype; split/join - to add or remove sides/partitions; filetocsv - load image(s) in and output csv; status - see the configuration options; configure - change a configuration option.

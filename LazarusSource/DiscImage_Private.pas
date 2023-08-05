@@ -823,15 +823,28 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Calculate a MD5 for the supplied buffer Byte array
+-------------------------------------------------------------------------------}
+function TDiscImage.GetMD5(var buffer: TDIByteArray): String;
+begin
+ if Length(buffer)>0 then Result:=MD5Print(MD5Buffer(buffer[0],Length(buffer)))
+ else Result:='error';
+end;
+
+{-------------------------------------------------------------------------------
 Calculate a CRC-32 for the supplied buffer Byte array
 -------------------------------------------------------------------------------}
 function TDiscImage.GetCRC(var buffer: TDIByteArray): String;
 var
  CRCValue: longword;
 begin
- CRCValue:=crc.crc32(0,nil,0);
- CRCValue:=crc.crc32(0,@buffer[0],Length(buffer));
- Result  :=IntToHex(CRCValue,8);
+ if Length(buffer)>0 then
+ begin
+  CRCValue:=crc.crc32(0,nil,0);
+  CRCValue:=crc.crc32(0,@buffer[0],Length(buffer));
+  Result  :=IntToHex(CRCValue,8);
+ end
+ else Result:='error';
 end;
 
 {-------------------------------------------------------------------------------

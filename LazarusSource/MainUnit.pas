@@ -72,6 +72,7 @@ type
    menuFixADFS: TMenuItem;
    menuDefrag: TMenuItem;
    menuChangeInterleave: TMenuItem;
+   menuMultiCSV: TMenuItem;
    menuShowReport: TMenuItem;
    OAAttrLabelAmiga: TLabel;
    OthAttrLabelAmiga: TLabel;
@@ -86,6 +87,7 @@ type
    btn_Defrag: TToolButton;
    btn_Settings: TToolButton;
    btn_About: TToolButton;
+   btn_MultiCSV: TToolButton;
    ToolsToolBar: TToolBar;
    ToolsToolBarPage: TTabSheet;
    ImageToolBar: TToolBar;
@@ -274,6 +276,7 @@ type
    procedure btn_FileSearchClick(Sender: TObject);
    procedure btn_FixADFSClick(Sender: TObject);
    procedure btn_ImageDetailsClick(Sender: TObject);
+   procedure btn_MultiCSVClick(Sender: TObject);
    procedure btn_NewDirectoryClick(Sender: TObject);
    procedure btn_SaveAsCSVClick(Sender: TObject);
    procedure btn_SavePartitionClick(Sender: TObject);
@@ -399,6 +402,8 @@ type
    procedure ReadInDirectory(Node: TTreeNode);
    procedure ReportError(error: String);
    procedure ResetFileFields;
+   procedure SaveAsCSV(filename: String='');
+   procedure SaveAsCSV(FileNames: TStrings; filename: String=''); overload;
    procedure SaveConfigSettings;
    procedure Scaling;
    procedure SelectNode(filename: String;casesens:Boolean=True);
@@ -570,40 +575,37 @@ type
    arch          :String;
    //Is the GUI open?
    Fguiopen      :Boolean;
+   //Command line style modifiers
+   cmdNormal,
+   cmdBold,
+   cmdItalic,
+   cmdInverse,
+   cmdRed,
+   cmdGreen,
+   cmdYellow,
+   cmdBlue,
+   cmdMagenta,
+   cmdCyan       :String;
    const
     //DPI that the application was designed in
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.46.3';
+    ApplicationVersion = '1.46.4';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
     //Command line font modifiers
-    {$IFDEF Windows}
-    cmdNormal = '';
-    cmdBold   = '';
-    cmdItalic = '';
-    cmdInverse= '';
-    cmdRed    = '';
-    cmdGreen  = '';
-    cmdYellow = '';
-    cmdBlue   = '';
-    cmdMagenta= '';
-    cmdCyan   = '';
-    {$ENDIF}
-    {$IFNDEF Windows}
-    cmdNormal = #$1B'[0m';
-    cmdBold   = #$1B'[1m';
-    cmdItalic = #$1B'[3m';
-    cmdInverse= #$1B'[7m';
-    cmdRed    = #$1B'[91m';
-    cmdGreen  = #$1B'[92m';
-    cmdYellow = #$1B'[93m';
-    cmdBlue   = #$1B'[94m';
-    cmdMagenta= #$1B'[95m';
-    cmdCyan   = #$1B'[96m';
-    {$ENDIF}
+    FcmdNormal = #$1B'[0m';
+    FcmdBold   = #$1B'[1m';
+    FcmdItalic = #$1B'[3m';
+    FcmdInverse= #$1B'[7m';
+    FcmdRed    = #$1B'[91m';
+    FcmdGreen  = #$1B'[92m';
+    FcmdYellow = #$1B'[93m';
+    FcmdBlue   = #$1B'[94m';
+    FcmdMagenta= #$1B'[95m';
+    FcmdCyan   = #$1B'[96m';
   end;
 
 var
@@ -1800,6 +1802,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_OpenImageClick(Sender: TObject);
 begin
+ OpenImageFile.Options:=[ofEnableSizing,ofViewDetail];
  if QueryUnsaved then
   //Show the open file dialogue box
   if OpenImageFile.Execute then
@@ -3042,22 +3045,6 @@ begin
  NameBeforeEdit           :='';
  //Reset the delay timer
  progsleep                :=False;
-{ //There are some commands
- if ParamCount>0 then
- begin
-  //Close the application after parsing
-  KeepOpen:=False;
-  //Parse each one
-  for i:=1 to ParamCount do ParseCommandLine(ParamStr(i));
-  //Save and close the application as there are commands
-  if HasChanged then
-  begin
-   Image.SaveToFile(Image.Filename,FUEFCompress);
-   HasChanged:=False;
-  end;
-  //Close the application, unless otherwise specified
-  if not KeepOpen then MainForm.Close;
- end;}
  if Image.Filename<>'' then ShowNewImage(Image.Filename);
  //Create the dialogue boxes
  CreateFileTypeDialogue;
@@ -4477,6 +4464,16 @@ begin
  end;
 end;
 
+{-------------------------------------------------------------------------------
+Open multiple images and output as CSV
+-------------------------------------------------------------------------------}
+procedure TMainForm.btn_MultiCSVClick(Sender: TObject);
+begin
+ OpenImageFile.Options:=[ofAllowMultiSelect,ofEnableSizing,ofViewDetail];
+ if OpenImageFile.Execute then
+  SaveAsCSV(OpenImageFile.Files);
+end;
+
 {------------------------------------------------------------------------------}
 //Close currently open image
 {------------------------------------------------------------------------------}
@@ -4905,20 +4902,64 @@ begin
   CreateDirectory(dirname,''); //Create with no protection flags for Amiga
 end;
 
-{------------------------------------------------------------------------------}
-//Save all the image's file details to a CSV file
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Save all the current image's file details to a CSV file
+-------------------------------------------------------------------------------}
 procedure TMainForm.btn_SaveAsCSVClick(Sender: TObject);
+begin
+ SaveAsCSV;
+end;
+
+{-------------------------------------------------------------------------------
+Output an image's file details to a CSV file
+-------------------------------------------------------------------------------}
+procedure TMainForm.SaveAsCSV(filename: String='');
 var
+ FileNames: TStringList;
+ ok       : Boolean;
+begin
+ //Add the current image's filename to the stringlist as the only entry
+ FileNames:=TStringList.Create;
+ FileNames.Add(Image.Filename);
+ //No filename specified, so get the current image's one
+ if filename='' then
+  filename:=LeftStr(Image.Filename,
+                    Length(Image.Filename)-Length(ExtractFileExt(Image.Filename)))
+           +'.csv';
+ //Display the save dialogue box (GUI only)
+ if Fguiopen then
+ begin
+  //Populate the save dialogue box
+  SaveImage.DefaultExt:='.csv';
+  SaveImage.Filter:='CSV File|*.csv';
+  SaveImage.FilterIndex:=1;
+  SaveImage.Title:='Save CSV of image contents';
+  //Add the csv extension
+  SaveImage.Filename:=filename;
+  ok:=SaveImage.Execute;
+  if ok then filename:=SaveImage.FileName;
+ end else ok:=True;
+ //Finally, execute the other procedure with the values calculated
+ if ok then SaveAsCSV(Filenames,filename);
+ //Free up the stringlist
+ FileNames.Free;
+end;
+procedure TMainForm.SaveAsCSV(FileNames: TStrings; filename: String='');
+var
+ ok       : Boolean;
  F        : TFileStream;
  dir,
  entry    : Integer;
- filename,
- ext,
+ currfile,
  line     : String;
  hexlen   : Byte;
  report   : TStringList;
+ LImage   : TDiscImage;
 begin
+ //More than one filename given, then blank off the filename
+ if FileNames.Count>1 then filename:='';
+ //No filenames given, then quit
+ if FileNames.Count=0 then exit;
  //Get the last used settings from the registry
  CSVPrefForm.cb_IncDir.Ticked     :=DIMReg.GetRegValB('CSVIncDir'     ,False);
  CSVPrefForm.cb_IncFilename.Ticked:=DIMReg.GetRegValB('CSVIncFilename',True);
@@ -4930,109 +4971,138 @@ begin
  CSVPrefForm.cb_Length.Ticked     :=DIMReg.GetRegValB('CSVLength'     ,True);
  CSVPrefForm.cb_Attributes.Ticked :=DIMReg.GetRegValB('CSVAttributes' ,True);
  CSVPrefForm.cb_Address.Ticked    :=DIMReg.GetRegValB('CSVAddress'    ,False);
- CSVPrefForm.cb_CRC32.Ticked      :=DIMReg.GetRegValB('CSVCRC32'      ,True);
- //Ask user what they want in the CSV file
- CSVPrefForm.ShowModal;
- if CSVPrefForm.ModalResult=mrOK then //Unless they clicked Cancel
+ CSVPrefForm.cb_CRC32.Ticked      :=DIMReg.GetRegValB('CSVCRC32'      ,True); 
+ CSVPrefForm.cb_MD5.Ticked        :=DIMReg.GetRegValB('CSVMD5'        ,False);
+ if Fguiopen then
+ begin
+  //Ask user what they want in the CSV file
+  CSVPrefForm.ShowModal;
+  ok:=CSVPrefForm.ModalResult=mrOK;
+ end else ok:=True;
+ if ok then //Unless they clicked Cancel
  begin
   //Save the settings to the registry
-  DIMReg.SetRegValB('CSVIncDir'     ,CSVPrefForm.cb_IncDir.Ticked);
-  DIMReg.SetRegValB('CSVIncFilename',CSVPrefForm.cb_IncFilename.Ticked);
-  DIMReg.SetRegValB('CSVIncReport'  ,CSVPrefForm.cb_IncReport.Ticked);
-  DIMReg.SetRegValB('CSVParent'     ,CSVPrefForm.cb_Parent.Ticked);
-  DIMReg.SetRegValB('CSVFilename'   ,CSVPrefForm.cb_Filename.Ticked);
-  DIMReg.SetRegValB('CSVLoadAddr'   ,CSVPrefForm.cb_LoadAddr.Ticked);
-  DIMReg.SetRegValB('CSVExecAddr'   ,CSVPrefForm.cb_ExecAddr.Ticked);
-  DIMReg.SetRegValB('CSVLength'     ,CSVPrefForm.cb_Length.Ticked);
-  DIMReg.SetRegValB('CSVAttributes' ,CSVPrefForm.cb_Attributes.Ticked);
-  DIMReg.SetRegValB('CSVAddress'    ,CSVPrefForm.cb_Address.Ticked);
-  DIMReg.SetRegValB('CSVCRC32'      ,CSVPrefForm.cb_CRC32.Ticked);
-  //Remove the existing part of the original filename
-  filename:=ExtractFileName(Image.Filename);
-  ext:=ExtractFileExt(filename);
-  filename:=LeftStr(filename,Length(filename)-Length(ext));
-  //Populate the save dialogue box
-  SaveImage.DefaultExt:='.csv';
-  SaveImage.Filter:='CSV File|*.csv';
-  SaveImage.FilterIndex:=1;
-  SaveImage.Title:='Save CSV of image contents';
-  //Add the csv extension
-  SaveImage.Filename:=filename+'.csv';
-  //Show the dialogue box
-  if SaveImage.Execute then
+  if Fguiopen then
   begin
-   hexlen:=8;
-   if Image.MajorFormatNumber=diAcornDFS then hexlen:=6;
-   //Show a progress message
-   Image.ProgressIndicator:=@UpdateProgress;
-   ProgressForm.Show;
-   //Process the messages to close the file dialogue box
-   Application.ProcessMessages;
-   //Open a new file
-   F:=TFileStream.Create(SaveImage.FileName,fmCreate OR fmShareDenyNone);
-   //Write the image details
-   if CSVPrefForm.cb_IncFilename.Ticked then
-    WriteLine(F,'"'+Image.Filename+'","0x'+Image.CRC32+'"');
-   //Write the report
-   if CSVPrefForm.cb_IncReport.Ticked then
-   begin
-    report:=Image.ImageReport(True);
-    if report.Count>0 then
-     for dir:=0 to report.Count-1 do
-      WriteLine(F,report[dir]);
-   end;
-   //Write the headers
-   line:='';
-   if CSVPrefForm.cb_Parent.Ticked     then line:=line+'"Parent",';
-   if CSVPrefForm.cb_Filename.Ticked   then line:=line+'"Filename",';
-   if CSVPrefForm.cb_LoadAddr.Ticked   then line:=line+'"Load Address",';
-   if CSVPrefForm.cb_ExecAddr.Ticked   then line:=line+'"Execution Address",';
-   if CSVPrefForm.cb_Length.Ticked     then line:=line+'"Length",';
-   if CSVPrefForm.cb_Attributes.Ticked then line:=line+'"Attributes",';
-   if CSVPrefForm.cb_Address.Ticked    then line:=line+'"Address",';
-   if CSVPrefForm.cb_CRC32.Ticked      then line:=line+'"CRC32,"';
-   line:=LeftStr(line,Length(line)-1);
-   WriteLine(F,line);
-   //Go through each directory
-   for dir:=0 to Length(Image.Disc)-1 do
-    //And each entry in that directory
-    for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
-     //write out each entry
-     if(Image.Disc[dir].Entries[entry].DirRef=-1) //Exclude directories?
-     or(CSVPrefForm.cb_IncDir.Ticked)then        //Or include them?
-     begin
-      line:='';
-      if CSVPrefForm.cb_Parent.Ticked     then
-       line:=line+'"'+Image.GetParent(dir)+'",';
-      if CSVPrefForm.cb_Filename.Ticked   then
-       line:=line+'"'+Image.Disc[dir].Entries[entry].Filename+'",';
-      if CSVPrefForm.cb_LoadAddr.Ticked   then
-       line:=line+'"0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+'",';
-      if CSVPrefForm.cb_ExecAddr.Ticked   then
-       line:=line+'"0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+'",';
-      if CSVPrefForm.cb_Length.Ticked     then
-       line:=line+'"0x'+IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen)+'",';
-      if CSVPrefForm.cb_Attributes.Ticked then
-       line:=line+'"'+Image.Disc[dir].Entries[entry].Attributes+'",';
-      if CSVPrefForm.cb_Address.Ticked    then
-       line:=line+'"0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,hexlen)+'",';
-      if CSVPrefForm.cb_CRC32.Ticked      then
-       line:=line+'"0x'+Image.GetFileCRC(Image.GetParent(dir)
-                                      +Image.GetDirSep(Image.Disc[dir].Partition)
-                                      +Image.Disc[dir].Entries[entry].Filename)+',"';
-      line:=LeftStr(line,Length(line)-1);
-      WriteLine(F,line);
-     end;
-   //Write a footer
-   WriteLine(F,'""');
-   WriteLine(F,'"'+ApplicationTitle+' v'+ApplicationVersion+'",'
-              +'"by Gerald J Holdsworth",'
-              +'"gerald@geraldholdsworth.co.uk"');
-   //Finally free up the file stream
-   F.Free;
-   //Close the progress window
-   ProgressForm.Hide;
+   DIMReg.SetRegValB('CSVIncDir'     ,CSVPrefForm.cb_IncDir.Ticked);
+   DIMReg.SetRegValB('CSVIncFilename',CSVPrefForm.cb_IncFilename.Ticked);
+   DIMReg.SetRegValB('CSVIncReport'  ,CSVPrefForm.cb_IncReport.Ticked);
+   DIMReg.SetRegValB('CSVParent'     ,CSVPrefForm.cb_Parent.Ticked);
+   DIMReg.SetRegValB('CSVFilename'   ,CSVPrefForm.cb_Filename.Ticked);
+   DIMReg.SetRegValB('CSVLoadAddr'   ,CSVPrefForm.cb_LoadAddr.Ticked);
+   DIMReg.SetRegValB('CSVExecAddr'   ,CSVPrefForm.cb_ExecAddr.Ticked);
+   DIMReg.SetRegValB('CSVLength'     ,CSVPrefForm.cb_Length.Ticked);
+   DIMReg.SetRegValB('CSVAttributes' ,CSVPrefForm.cb_Attributes.Ticked);
+   DIMReg.SetRegValB('CSVAddress'    ,CSVPrefForm.cb_Address.Ticked);
+   DIMReg.SetRegValB('CSVCRC32'      ,CSVPrefForm.cb_CRC32.Ticked);
+   DIMReg.SetRegValB('CSVMD5'        ,CSVPrefForm.cb_MD5.Ticked);
   end;
+  //Remove the existing part of the original filename
+  for currfile in FileNames do
+   if FileExists(currfile) then
+   begin
+    ok:=True;
+    //Is this the current file? If not calculate a new filename
+    if currfile<>Image.Filename then
+    begin
+     filename:=LeftStr(currfile,
+                       Length(currfile)-Length(ExtractFileExt(currfile)))
+              +'.csv';
+     //And create the DiscImage object
+     LImage:=TDiscimage.Create;
+     ok:=LImage.LoadFromFile(currfile);
+    end else LImage:=TDiscImage.Create(Image); //Clone the current image
+    WriteLn(ok);
+    if ok then
+    begin
+     hexlen:=8;
+     if LImage.MajorFormatNumber=diAcornDFS then hexlen:=6;
+     //Show a progress message
+     if Fguiopen then
+     begin
+      LImage.ProgressIndicator:=@UpdateProgress;
+      ProgressForm.Show;
+      //Process the messages to close the file dialogue box
+      Application.ProcessMessages;
+     end;
+     //Open a new file
+     F:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
+     //Write the image details
+     if CSVPrefForm.cb_IncFilename.Ticked then
+      WriteLine(F,'"'+LImage.Filename+'","0x'+LImage.CRC32+'"');
+     //Write the report
+     if CSVPrefForm.cb_IncReport.Ticked then
+     begin
+      report:=LImage.ImageReport(True);
+      if report.Count>0 then
+       for dir:=0 to report.Count-1 do
+        WriteLine(F,report[dir]);
+     end;
+     //Write the headers
+     line:='';
+     if CSVPrefForm.cb_Parent.Ticked     then line:=line+'"Parent",';
+     if CSVPrefForm.cb_Filename.Ticked   then line:=line+'"Filename",';
+     if CSVPrefForm.cb_LoadAddr.Ticked   then line:=line+'"Load Address",';
+     if CSVPrefForm.cb_ExecAddr.Ticked   then line:=line+'"Execution Address",';
+     if CSVPrefForm.cb_Length.Ticked     then line:=line+'"Length",';
+     if CSVPrefForm.cb_Attributes.Ticked then line:=line+'"Attributes",';
+     if CSVPrefForm.cb_Address.Ticked    then line:=line+'"Address",';
+     if CSVPrefForm.cb_CRC32.Ticked      then line:=line+'"CRC32",';
+     if CSVPrefForm.cb_MD5.Ticked        then line:=line+'"MD-5",';
+     line:=LeftStr(line,Length(line)-1);
+     WriteLine(F,line);
+     //Go through each directory
+     for dir:=0 to Length(LImage.Disc)-1 do
+      //And each entry in that directory
+      for entry:=0 to Length(LImage.Disc[dir].Entries)-1 do
+       //write out each entry
+       if(LImage.Disc[dir].Entries[entry].DirRef=-1) //Exclude directories?
+       or(CSVPrefForm.cb_IncDir.Ticked)then        //Or include them?
+       begin
+        line:='';
+        if CSVPrefForm.cb_Parent.Ticked     then
+         line:=line+'"'+LImage.GetParent(dir)+'",';
+        if CSVPrefForm.cb_Filename.Ticked   then
+         line:=line+'"'+LImage.Disc[dir].Entries[entry].Filename+'",';
+        if CSVPrefForm.cb_LoadAddr.Ticked   then
+         line:=line+'"0x'
+                  +IntToHex(LImage.Disc[dir].Entries[entry].LoadAddr,hexlen)+'",';
+        if CSVPrefForm.cb_ExecAddr.Ticked   then
+         line:=line+'"0x'
+                  +IntToHex(LImage.Disc[dir].Entries[entry].ExecAddr,hexlen)+'",';
+        if CSVPrefForm.cb_Length.Ticked     then
+         line:=line+'"0x'
+                    +IntToHex(LImage.Disc[dir].Entries[entry].Length,hexlen)+'",';
+        if CSVPrefForm.cb_Attributes.Ticked then
+         line:=line+'"'+LImage.Disc[dir].Entries[entry].Attributes+'",';
+        if CSVPrefForm.cb_Address.Ticked    then
+         line:=line+'"0x'
+                    +IntToHex(LImage.Disc[dir].Entries[entry].Sector,hexlen)+'",';
+        if CSVPrefForm.cb_CRC32.Ticked      then
+         line:=line+'"0x'+LImage.GetFileCRC(LImage.GetParent(dir)
+                                  +LImage.GetDirSep(LImage.Disc[dir].Partition)
+                                  +LImage.Disc[dir].Entries[entry].Filename)+'",';
+        if CSVPrefForm.cb_MD5.Ticked        then
+         line:=line+'"0x'+LImage.GetFileMD5(LImage.GetParent(dir)
+                                  +LImage.GetDirSep(LImage.Disc[dir].Partition)
+                                  +LImage.Disc[dir].Entries[entry].Filename)+'",';
+        line:=LeftStr(line,Length(line)-1);
+        WriteLine(F,line);
+       end;
+     //Write a footer
+     WriteLine(F,'""');
+     WriteLine(F,'"'+ApplicationTitle+' v'+ApplicationVersion+'",'
+                +'"by Gerald J Holdsworth",'
+                +'"gerald@geraldholdsworth.co.uk"');
+     //Finally free up the file stream
+     F.Free;
+     //Close the progress window
+     if Fguiopen then ProgressForm.Hide
+     else WriteLn('CSV output for '+filename+' complete.');
+     LImage.Free;
+     filename:='';
+    end;
+   end;
  end;
 end;
 

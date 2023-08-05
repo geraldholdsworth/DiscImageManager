@@ -83,6 +83,17 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Calculate a MD5 for a file
+-------------------------------------------------------------------------------}
+function TDiscImage.GetFileMD5(filename: String;entry:Cardinal=0): String;
+var
+ buffer: TDIByteArray;
+begin
+ Result:='error';
+ if ExtractFile(filename,buffer,entry) then Result:=GetMD5(buffer);
+end;
+
+{-------------------------------------------------------------------------------
 Attempt to fix directories (entry point)
 -------------------------------------------------------------------------------}
 function TDiscImage.FixDirectories: Boolean;
@@ -1714,7 +1725,10 @@ begin
   //Re-jig the output if CSV has been specified
   if(CSV)and(Result.Count>0)then
    for side:=0 to Result.Count-1 do
-    Result[side]:='"'+StringReplace(Result[side],': ','","',[rfReplaceAll])+'"';
+    if Result[side][1]<>'"' then
+     Result[side]:='"'
+                  +StringReplace(Result[side],': ','","',[rfReplaceAll])
+                  +'"';
  end;
 end;
 

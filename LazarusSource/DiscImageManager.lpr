@@ -185,6 +185,10 @@ Main program execution starts here
 var
  ConsoleApp: TConsoleApp;
  exit      : Boolean;
+ {$IFDEF Windows}
+ hwConsole : hWnd;
+ lwMode    : LongWord;
+ {$ENDIF}
 begin
  //Create GUI application
  RequireDerivedFormResource:=True;
@@ -207,17 +211,51 @@ begin
  Application.CreateForm(TChangeInterleaveForm, ChangeInterleaveForm);
  Application.CreateForm(TCSVPrefForm, CSVPrefForm);
  Application.CreateForm(TImageReportForm, ImageReportForm);
- {$IFDEF Windows}
- if Application.HasOption('c','console') then
- begin
-  AllocConsole;
-  IsConsole:=True;
-  SysInitStdIO;
- end;
- {$ENDIF}
+ exit:=False;
  //'console' passed as a parameter
  if Application.HasOption('c','console') then
  begin
+  //Windows does not create a console for GUI applications, so we need to
+  {$IFDEF Windows}
+  //Blank the styles for older versions of Windows
+  MainForm.cmdNormal :='';
+  MainForm.cmdBold   :='';
+  MainForm.cmdItalic :='';
+  MainForm.cmdInverse:='';
+  MainForm.cmdRed    :='';
+  MainForm.cmdGreen  :='';
+  MainForm.cmdYellow :='';
+  MainForm.cmdBlue   :='';
+  MainForm.cmdMagenta:='';
+  MainForm.cmdCyan   :='';
+  //Create the console
+  AllocConsole;
+  IsConsole:=True;
+  SysInitStdIO;
+  SetConsoleOutputCP(CP_UTF8);//So that the escape sequences will work
+  //Try and enable virtual terminal processing
+  hwConsole:=GetStdHandle(STD_OUTPUT_HANDLE);
+  If GetConsoleMode(hwConsole,@lwMode)then
+  begin
+   lwMode:=lwMode or ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+   if SetConsoleMode(hwConsole,lwMode)then
+   begin
+    {$ENDIF}
+  //Set the styles for Windows that does support it, as well as macOS and Linux
+  MainForm.cmdNormal :=MainForm.FcmdNormal;
+  MainForm.cmdBold   :=MainForm.FcmdBold;
+  MainForm.cmdItalic :=MainForm.FcmdItalic;//Ignored by Windows
+  MainForm.cmdInverse:=MainForm.FcmdInverse;
+  MainForm.cmdRed    :=MainForm.FcmdRed;
+  MainForm.cmdGreen  :=MainForm.FcmdGreen;
+  MainForm.cmdYellow :=MainForm.FcmdYellow;
+  MainForm.cmdBlue   :=MainForm.FcmdBlue;
+  MainForm.cmdMagenta:=MainForm.FcmdMagenta;
+  MainForm.cmdCyan   :=MainForm.FcmdCyan;
+    {$IFDEF Windows}
+   end;
+  end;
+  {$ENDIF}
   //Create the console application
   ConsoleApp:=TConsoleApp.Create(nil);
   ConsoleApp.Title:=MainForm.ApplicationTitle+' Console';
@@ -226,14 +264,10 @@ begin
   //Close the console application
   ConsoleApp.Free;
   //Close the GUI application if not needed, otherwise open the GUI application
-  if exit then Application.Terminate else
-  begin //Otherwise open the GUI application
-   {$IFDEF Windows}
-   IsConsole:=False;
-   {$ENDIF}
-   Application.Run;
-  end;
- end else
+  if exit then Application.Terminate;
+ end;
+ //By default, exit is false when using GUI. This can be set to true in the console.
+ if not exit then
  begin
   {$IFDEF Windows}
   IsConsole:=False;

@@ -20,6 +20,7 @@ var
  searchlist   : TSearchRec;
  Files        : TSearchResults;
  filedetails  : TDirEntry;
+ filelist     : TStringList;
 const
  DiscFormats = //Accepted format strings
  'DFSS80  DFSS40  DFSD80  DFSD40  WDFSS40 WDFSS40 WDFSD80 WDFSD40 ADFSS   ADFSM   '+
@@ -31,6 +32,32 @@ const
   $410   ,$500   ,$A00   ,$A01   ,$A02   ,$A03   ,$A04   ,$A05);
  Options : array[0..3] of String = ('none','load','run','exec'); //Boot options
  Inter   : array[0..3] of String = ('auto','seq', 'int','mux' ); //Interleave
+ Configs : array[0..24] of array[0..1] of String = (
+ ('Texture'          ,'I'),
+ ('ADFS_L_Interleave','I'),
+ ('Spark_Is_FS'      ,'B'),
+ ('CreateINF'        ,'B'),
+ ('Hide_CDR_DEL'     ,'B'),
+ ('DFS_Zero_Sectors' ,'B'),
+ ('DFS_Beyond_Edge'  ,'B'),
+ ('DFS_Allow_Blanks' ,'B'),
+ ('UEF_Compress'     ,'B'),
+ ('Scan_SubDirs'     ,'B'),
+ ('Open_DOS'         ,'B'),
+ ('View_Options'     ,'I'),
+ ('Debug_Mode'       ,'B'),
+ ('CSVIncDir'        ,'B'),
+ ('CSVIncFilename'   ,'B'),
+ ('CSVIncReport'     ,'B'),
+ ('CSVParent'        ,'B'),
+ ('CSVFilename'      ,'B'),
+ ('CSVLoadAddr'      ,'B'),
+ ('CSVExecAddr'      ,'B'),
+ ('CSVLength'        ,'B'),
+ ('CSVAttributes'    ,'B'),
+ ('CSVAddress'       ,'B'),
+ ('CSVCRC32'         ,'B'),
+ ('CSVMD5'           ,'B'));
  //Validate a filename, building a complete path if required
  function ValidFile(thisfile: String): Boolean;
  begin
@@ -238,6 +265,36 @@ begin
    end else error:=1;
   //Change the host directory ++++++++++++++++++++++++++++++++++++++++++++++++++
   'chdir': if Length(Command)>1 then SetCurrentDir(Command[1]) else error:=2;
+  //Set a configuration option +++++++++++++++++++++++++++++++++++++++++++++++++
+  'config':
+   if Length(Command)>2 then
+   begin
+    ok:=False;
+    for Index:=0 to Length(Configs)-1 do
+     if UpperCase(Command[1])=UpperCase(Configs[Index,0]) then
+     begin
+      ok:=True;
+      case Configs[Index,1] of
+       'B' : if LowerCase(Command[2])='true' then
+              DIMReg.SetRegValB(Configs[Index,0],True)
+             else
+              DIMReg.SetRegValB(Configs[Index,0],False);
+       'I' :
+        begin
+         dir:=0;
+         if LowerCase(LeftStr(Command[2],2))='0x' then
+          dir:=StrToIntDef('$'+Copy(Command[2],3),0);
+         if(Command[2][1]='$')or(Command[2][1]='&')then
+          dir:=StrToIntDef('$'+Copy(Command[2],2),0);
+         if dir=0 then dir:=StrToIntDef(Command[2],0);
+         DIMReg.SetRegValI(Configs[Index,0],dir);
+        end;
+       'S' : DIMReg.SetRegValS(Configs[Index,0],Command[2]);
+      end;
+    end;
+    if ok then WriteLn('Configuration option set.')
+    else WriteLn(cmdRed+'Invalid configuration option.'+cmdNormal);
+   end else error:=2;
   //Creates a directory ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'create':
    if Image.FormatNumber<>diInvalidImg then
@@ -448,19 +505,49 @@ begin
      end
     else error:=2//Nothing has been passed
    else error:=1;//No image
+  //Multi CSV output of files ++++++++++++++++++++++++++++++++++++++++++++++++++
+  'filetocsv':
+   if Length(Command)>1 then //Are there any files given?
+   begin
+    filelist:=TStringList.Create;
+    for Index:=1 to Length(Command)-1 do//Just add a file
+    begin
+     //Can contain a wild card
+     FindFirst(Command[Index],faDirectory,searchlist);
+     repeat
+      //These are previous and top directories
+      if(searchlist.Name<>'.')and(searchlist.Name<>'..')then
+       //We can't open directories
+       if(searchlist.Attr AND faDirectory)<>faDirectory then
+        //Make sure the file exists
+        if FileExists(searchlist.Name) then
+         //Add it to our list
+         filelist.Add(ExtractFilePath(Command[Index])+searchlist.Name);
+     until FindNext(searchlist)<>0;
+     FindClose(searchlist);
+    end;
+    WriteLn('Processing images.');
+    if filelist.Count>0 then SaveAsCSV(filelist) //Send to the procedure
+    else WriteLn('No images found.');
+    filelist.Free;
+   end
+   else error:=2;//Nothing has been passed
   //Get the free space +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'free':
    if Image.FormatNumber<>diInvalidImg then ReportFreeSpace
    else error:=1;//No image
   //Help command +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'help':
-   for Index:=0 to Help.Lines.Count-1 do
    begin
-    temp:=Help.Lines[Index];
-    if Length(temp)>1 then
-     if temp[1]<>' ' then temp:=cmdRed+cmdBold+temp
-     else temp:=Copy(temp,2);
-    WriteLn(temp+cmdNormal);
+    WriteLn(cmdBlue+cmdBold+'Console Help'+cmdNormal);
+    for Index:=0 to Help.Lines.Count-1 do
+    begin
+     temp:=Help.Lines[Index];
+     if Length(temp)>1 then
+      if temp[1]<>' ' then temp:=cmdRed+cmdBold+temp
+      else temp:=Copy(temp,2);
+     WriteLn(temp+cmdNormal);
+    end;
    end;
   //Open command +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'insert':
@@ -706,6 +793,39 @@ begin
     end else WriteLn(cmdRed+'Image failed to save.'+cmdNormal);
    end
    else error:=1;
+  //Save image as CSV ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  'savecsv':
+   if Image.FormatNumber<>diInvalidImg then
+   begin
+    //Get the filename
+    if Length(Command)>1 then temp:=Command[1]
+    else temp:=Image.Filename; //None given, so use the image one
+    //Make sure it has a csv extension
+    temp:=LeftStr(temp,Length(temp)-Length(ExtractFileExt(temp)))+'.csv';
+    SaveAsCSV(temp);
+    WriteLn('CSV output complete.');
+   end
+   else error:=1;
+  //Display the current configurations +++++++++++++++++++++++++++++++++++++++++
+  'status':
+   begin
+    WriteLn(cmdBold+cmdBlue+'Configuration'+cmdNormal);
+    WriteLn('Not all configurations are used by the console.');
+    //Get the longest string
+    ptr:=1;
+    for Index:=0 to Length(Configs)-1 do
+     if Length(Configs[Index,0])>ptr then ptr:=Length(Configs[Index,0]);
+    //Display the current configs
+    for Index:=0 to Length(Configs)-1 do
+    begin
+     Write(cmdRed+cmdBold+PadRight(Configs[Index,0],ptr)+cmdNormal+': ');
+     case Configs[Index,1] of
+      'B' : WriteLn(DIMReg.GetRegValB(Configs[Index,0]));
+      'I' : WriteLn('0x'+IntToHex(DIMReg.GetRegValI(Configs[Index,0]),4));
+      'S' : WriteLn(DIMReg.GetRegValS(Configs[Index,0]));
+     end;
+    end;
+   end;
   //Change the disc title ++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'title':
    if Image.FormatNumber<>diInvalidImg then

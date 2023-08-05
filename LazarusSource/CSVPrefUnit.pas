@@ -24,6 +24,7 @@ type
   cb_Attributes,
   cb_Address,
   cb_CRC32,
+  cb_MD5,
   cb_IncFilename,
   cb_IncReport   : TGJHTickBox;
   OKButton,
@@ -101,8 +102,10 @@ begin
  inc(pos,cb_Attributes.Height+Round(4*ratio));
  cb_Address    :=CreateTickBox('Address',pos);
  inc(pos,cb_Address.Height+Round(4*ratio));
- cb_CRC32      :=CreateTickBox('CRC32',pos);
+ cb_CRC32      :=CreateTickBox('CRC-32',pos);
  inc(pos,cb_CRC32.Height+Round(4*ratio));
+ cb_MD5        :=CreateTickBox('MD-5',pos);
+ inc(pos,cb_MD5.Height+Round(4*ratio));
  //Create the buttons
  CancelButton:=MainForm.CreateButton(CSVPrefForm as TControl,'Cancel',False,
                                      Round(8*ratio),pos+Round(4*ratio),mrCancel);

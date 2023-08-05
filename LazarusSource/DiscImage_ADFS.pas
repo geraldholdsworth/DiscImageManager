@@ -4754,16 +4754,17 @@ begin
  Result.Add('Free Space Map');
  if not CSV then Result.Add('==============');
  temp     :='Disc Address';
- if CSV then temp:=temp+',' else temp:=temp+'  ';
+ if CSV then temp:='"'+temp+'","' else temp:=temp+'  ';
  temp:=temp+'Length';
  if FMap then
  begin
-  if CSV then temp:=temp+',' else temp:=temp+'        ';
+  if CSV then temp:=temp+'","' else temp:=temp+'        ';
   temp:=temp+'Map Address';
-  if CSV then temp:=temp+',' else temp:=temp+'   ';
+  if CSV then temp:=temp+'","' else temp:=temp+'   ';
   temp:=temp+'Length';
-  if CSV then temp:=temp+',' else temp:=temp+'        ';
+  if CSV then temp:=temp+'","' else temp:=temp+'        ';
   temp:=temp+'Zone';
+  if CSV then temp:=temp+'"';
   Result.Add(temp);
   if not CSV then Result.Add('--------------------------------------------------------------');
   fsmoff:=ADFSGetFreeFragments(False);
@@ -4773,14 +4774,15 @@ begin
     if fsm[Index].Zone=Zone then
     begin
      temp     :='0x'+IntToHex(fsm[Index].Offset,10);
-     if CSV then temp:=temp+',' else temp:=temp+'  ';
+     if CSV then temp:='"'+temp+'","' else temp:=temp+'  ';
      temp:=temp+'0x'+IntToHex(fsm[Index].Length,10);
-     if CSV then temp:=temp+',' else temp:=temp+'  ';
+     if CSV then temp:=temp+'","' else temp:=temp+'  ';
      temp:=temp+'0x'+IntToHex(fsmoff[Index].Offset,10);
-     if CSV then temp:=temp+',' else temp:=temp+'  ';
+     if CSV then temp:=temp+'","' else temp:=temp+'  ';
      temp:=temp+'0x'+IntToHex(fsmoff[Index].Length,10);
-     if CSV then temp:=temp+',' else temp:=temp+'  ';
+     if CSV then temp:=temp+'","' else temp:=temp+'  ';
      temp:=temp+'0x'+IntToHex(fsmoff[Index].Zone,4);
+     if CSV then temp:=temp+'"';
      Result.Add(temp);
     end;
  end
@@ -4794,8 +4796,9 @@ begin
   begin
    //Fill in the details
    temp     :='0x'+IntToHex(Read24b($000+Zone)*$100,10);
-   if CSV then temp:=temp+',' else temp:=temp+'  ';
+   if CSV then temp:='"'+temp+'","' else temp:=temp+'  ';
    temp:=temp+'0x'+IntToHex(Read24b($100+Zone)*$100,10);
+   if CSV then temp:=temp+'"';
    Result.Add(temp);
    inc(Zone,3);
   end;

@@ -36,7 +36,7 @@ with different filing systems. This is done to separate the systems and make
 maintenance easier.
 }
 
-uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,ExtCtrls,DateUtils;
+uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,ExtCtrls,DateUtils,md5;
 
 {$M+}
 
@@ -408,6 +408,7 @@ type
   function GeneralChecksum(offset,length,chkloc,start: Cardinal;
                                                       carry: Boolean): Cardinal;
   function GetImageCrc: String;
+  function GetMD5(var buffer: TDIByteArray): String;
   function GetCRC(var buffer: TDIByteArray): String;
   function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
   function GetCRC16(start,len: Cardinal): Cardinal; overload;
@@ -810,7 +811,8 @@ type
   procedure ValidateAttributes(var attributes: String);
   function CreateDirectory(var filename,parent,attributes: String): Integer;
   function RetitleDirectory(var filename,newtitle: String): Boolean;
-  function GetFileCRC(filename: String;entry:Cardinal=0): String;
+  function GetFileCRC(filename: String;entry:Cardinal=0): String;   
+  function GetFileMD5(filename: String;entry:Cardinal=0): String;
   function FixDirectories: Boolean;
   function SaveFilter(var FilterIndex: Integer;thisformat: Integer=-1):String;
   function UpdateLoadAddr(filename:String;newaddr:Cardinal;

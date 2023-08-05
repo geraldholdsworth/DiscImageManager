@@ -1832,6 +1832,8 @@ var
  RootDirSectors,
  TmpVal1,
  TmpVal2    : Cardinal;
+ BPB_SecPerTrk,
+ BPB_NumHeads,
  sectorSize : Word;
  LnumFATs,
  allocSize,
@@ -1851,8 +1853,8 @@ begin
  master512:=False; //BBC Master 512 image?
  sectorSize:=$200; //Sector size. $200 is most DOS
  LnumFATs:=2; //Number of FATs. Most DOS is 2
+ Lrootsize:=0; //This will get decided later
  mdb:=$F0; //Media descriptor byte
- Lrootsize:=$200; //Root size
  reserved:=1; //Reserved sectors
  if fat=diFAT32 then reserved:=$20;
  maxCluster:=1;
@@ -1915,7 +1917,10 @@ begin
  //Number of FATs
  WriteByte(LnumFATs,offset+$10,buffer);
  //Size of root : maximum number of entries
- if fat<>diFAT32 then Write16b(Lrootsize,offset+$11,buffer);
+ if fat=diFAT12 then Lrootsize:=$00E0; //Root size FAT12
+ if fat=diFAT16 then Lrootsize:=$0200; //Root size FAT16
+ if fat=diFAT32 then Lrootsize:=$0000; //Root size FAT32
+ Write16b(Lrootsize,offset+$11,buffer);
  //Total number of blocks
  if totBlocks<=$FFFF then //If it'll fit in the original BIOS block
   Write16b(totBlocks,offset+$13,buffer)
@@ -1943,10 +1948,19 @@ begin
  //Extended BIOS block
  if not master512 then //The rest of this is not applicable to Master 512 images
  begin
+  BPB_SecPerTrk:=$0020;
+  BPB_NumHeads :=$0010;
+  if fat=diFAT12 then
+  begin
+   BPB_SecPerTrk:=$0012; //>1.2MB
+   if size<=1200*1024 then BPB_SecPerTrk:=$000F; // >720K and <=1.2MB
+   if size<= 720*1024 then BPB_SecPerTrk:=$0009; // <=720K
+   BPB_NumHeads:=$0002;
+  end;
   //Sectors per track
-  Write16b($0020,offset+$18,buffer);
+  Write16b(BPB_SecPerTrk,offset+$18,buffer);
   //Number of heads
-  Write16b($0010,offset+$1A,buffer);
+  Write16b(BPB_NumHeads, offset+$1A,buffer);
   if fat<>diFAT32 then //FAT12 and 16
   begin
    //Extended Boot Signature

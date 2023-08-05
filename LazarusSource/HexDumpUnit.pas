@@ -333,6 +333,7 @@ var
  i,pos : Integer;
  ok    : Boolean;
 begin
+ F:=nil;
  if MainForm.Fguiopen then
  begin
   //Adapt the filename
@@ -893,6 +894,7 @@ begin
       //Set the BASIC version
       if(c=$AD)or(c=$FF)then basicver:=2;
       if(c=$CA)or(c=$CB)or(c=$CD)or(c=$CE)then basicver:=5;
+      tmp:='';
       //Normal token (BASIC I,II,III and IV)
       if(c<$C6)or(c>$C8)then
       begin

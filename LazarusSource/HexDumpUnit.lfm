@@ -1,7 +1,7 @@
 object HexDumpForm: THexDumpForm
-  Left = 307
+  Left = 308
   Height = 603
-  Top = 167
+  Top = 117
   Width = 635
   Caption = 'HexDumpForm'
   ClientHeight = 603
