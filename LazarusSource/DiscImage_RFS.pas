@@ -436,6 +436,7 @@ begin
  file_details.Filename:=LeftStr(file_details.Filename,10);
  //Work out the total file length, including header and block headers
  filelen:=Length(file_details.Filename)+$14+1; //Header length, zero length file
+ if insert>=Length(FDisc[0].Entries)-1 then insert:=-1; //Ensure insert is valid
  if Length(buffer)>0 then
  begin
   //Single block
@@ -641,10 +642,70 @@ Move an RFS file
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveRFSFile(entry: Cardinal;dest: Integer): Integer;
 begin
- //NOTE: dest is where after to insert the file (-1 is at the top)
- Result:=-5; //Unknown error
- //Extract the original file into a buffer, and make a note of the file details
- //Delete the file
- //Adjust the destination to account for the deleted file
- //Write the file into the appropriate position
+ //Moving is just the same as copying, except we delete the source
+ Result:=CopyRFSFile(entry,dest);
+ if Result>=0 then
+ begin
+  //Re-adjust the entry
+  if dest<=entry then inc(entry);
+  //Delete the original file
+  DeleteRFSFile(entry);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Copy an RFS file
+-------------------------------------------------------------------------------}
+function TDiscImage.CopyRFSFile(entry: Cardinal;dest: Integer): Integer;
+var
+ buffer     : TDIByteArray;
+ filedetails: TDirEntry;
+begin
+ Result:=-1;
+ if Length(FDisc)=1 then //Check to make sure we have something
+ begin
+  //NOTE: dest is where after to insert the file (-1 is at the top)
+  Result:=-11; //Could not find source file
+  //Extract the original file into a buffer, and make a note of the file details
+  if entry<Length(FDisc[0].Entries) then
+  begin
+   Result:=-1; //Cound not load file
+   filedetails:=FDisc[0].Entries[entry];//Get the file details
+   if ExtractRFSFile(entry,buffer) then //Load the file into a temporary store
+   begin
+    Result:=-5; //Could not write file
+    //Write the file into the appropriate position
+    if dest>=Length(FDisc[0].Entries) then dest:=-1;//Make sure we have a valid
+    if dest<-1 then dest:=-1;                       //value for the destination
+    Result:=WriteRFSFile(filedetails,buffer,dest);
+   end;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Rename an RFS file
+-------------------------------------------------------------------------------}
+function TDiscImage.RenameRFSFile(entry: Cardinal;newfilename: String): Integer;
+var
+ buffer     : TDIByteArray;
+ filedetails: TDirEntry;
+begin
+ Result:=-1; //Failed to rename
+ if Length(FDisc)=1 then //Check to make sure we have something
+  if entry<Length(FDisc[0].Entries) then //And to make sure we're not overshooting
+  begin
+   //Extract the file into a buffer
+   if ExtractRFSFile(entry,buffer) then
+   begin
+    //Get the file details
+    filedetails:=FDisc[0].Entries[entry];
+    //Change the filename
+    filedetails.Filename:=newfilename;
+    //Delete the file
+    if DeleteRFSFile(entry) then
+     //Re-write the file into the same position
+     Result:=WriteRFSFile(filedetails,buffer,entry) else Result:=-5;
+   end;
+  end;
 end;

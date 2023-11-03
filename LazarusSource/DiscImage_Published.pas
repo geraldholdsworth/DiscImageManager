@@ -926,8 +926,10 @@ end;
 function TDiscImage.RenameFile(entry:Cardinal;var newfilename: String): Integer;
 begin
  Result:=-1;//Failed to rename
- if GetMajorFormatNumber=diAcornUEF then
-  Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
+ case GetMajorFormatNumber of
+  diAcornUEF : Result:=RenameCFSFile(entry,newfilename);           //Rename CFS
+  diAcornRFS : Result:=RenameRFSFile(entry,newfilename);           //Rename RFS
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1063,9 +1065,13 @@ end;
 function TDiscImage.CopyFile(source: Cardinal;dest: Integer): Integer;
 begin
  Result:=-12;
- //Can only copy files on DFS (between drives), ADFS, Amiga, AFS and CFS
- if GetMajorFormatNumber=diAcornUEF then //Copy on CFS
-  Result:=CopyCFSFile(source,dest);
+ //Make sure that the source and dest given are valid and not identical
+ if(source<>dest)and(dest>=-1)and(dest<Length(FDisc[0].Entries))
+ and(source<Length(FDisc[0].Entries))then
+  case GetMajorFormatNumber of
+   diAcornUEF: Result:=CopyCFSFile(source,dest);         //Copy CFS File
+   diAcornRFS: Result:=CopyRFSFile(source,dest);         //Copy ROM FS File
+  end;
 end;
 
 {-------------------------------------------------------------------------------

@@ -9391,7 +9391,7 @@ object MainForm: TMainForm
           OnClick = btn_DefragClick
         end
         object btn_Settings: TToolButton
-          Left = 141
+          Left = 145
           Hint = 'Preferences'
           Top = 0
           Caption = 'btn_Settings'
@@ -9399,7 +9399,7 @@ object MainForm: TMainForm
           OnClick = btn_SettingsClick
         end
         object btn_About: TToolButton
-          Left = 177
+          Left = 181
           Hint = 'About Disc Image Manager'
           Top = 0
           Caption = 'btn_About'
@@ -9455,7 +9455,7 @@ object MainForm: TMainForm
       ''
       'config <setting> <option>'
       ' Sets a configuration setting. Note that not all configuration settings are used'
-      ' by the console and could result in unpredicable behaviour.'
+      ' by the console and could result in unpredictable behaviour.'
       ' <option> can be:'
       ' Boolean : True or False.'
       ' Integer : Decimal number, unless preceded by 0x, $ or & for Hex number.'
@@ -9558,6 +9558,9 @@ object MainForm: TMainForm
       ''
       'report'
       ' Displays the image report.'
+      ''
+      'runscript <filename>'
+      ' Runs a script. Cannot be used if one is already running.'
       ''
       'save [<filename>] [<compressed>]'
       ' Saves the current loaded image to the host OS.'

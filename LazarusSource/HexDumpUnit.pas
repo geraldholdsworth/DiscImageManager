@@ -25,7 +25,7 @@ interface
 
 uses
  Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Grids,ExtCtrls,Buttons,
- StdCtrls,ComCtrls,IpHtml,Global,StrUtils,SpriteFile,DiscImage, Types;
+ StdCtrls,ComCtrls,IpHtml,Global,StrUtils,SpriteFile,DiscImage,Types;
 
 type
 
@@ -126,7 +126,7 @@ implementation
 
 {$R *.lfm}
 
-uses MainUnit;
+uses MainUnit,ConsoleAppUnit;
 
 { THexDumpForm }
 
@@ -367,14 +367,14 @@ begin
   end;
   line:='Address     00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  ASCII';
   if MainForm.Fguiopen then WriteLine(F,line)
-  else WriteLn(MainForm.cmdBold+line+MainForm.cmdNormal);
+  else WriteLn(cmdBold+line+cmdNormal);
   //Now the data
   pos:=0;//Start of the data
   repeat
    //Start the line off with the address, in hex, 10 digits long
    line:=IntToHex((pos div $10)*$10,10)+'  ';
    if not MainForm.Fguiopen then
-    line:=MainForm.cmdBold+line+MainForm.cmdNormal;
+    line:=cmdBold+line+cmdNormal;
    //Set the amount of data to read to 16 bytes
    len:=$10;
    //If this will take us over the total size, then adjust accordingly
@@ -866,7 +866,7 @@ begin
             +'</span>&nbsp;';
     basictxt:=PadLeft(IntToStr(linenum),5);
     if not MainForm.Fguiopen then
-     basictxt:=MainForm.cmdBlue+basictxt+MainForm.cmdNormal;
+     basictxt:=cmdBlue+basictxt+cmdNormal;
     //Line length
     linelen:=buffer[ptr+3];
     //Move our line pointer one
@@ -911,7 +911,7 @@ begin
         end;
        linetxt:=linetxt+'<span '+keywordstyle+'>'+tmp+'</span>';
        if not MainForm.Fguiopen then
-        tmp:=MainForm.cmdBold+MainForm.cmdMagenta+tmp+MainForm.cmdNormal;
+        tmp:=cmdBold+cmdMagenta+tmp+cmdNormal;
        basictxt:=basictxt+tmp;
       end
       else //Extended tokens (BASIC V)
@@ -932,7 +932,7 @@ begin
          if t-$8E<=High(exttokens3)then tmp:=exttokens3[t-$8E];
         linetxt:=linetxt+'<span '+keywordstyle+'>'+tmp+'</span>';
         if not MainForm.Fguiopen then
-         tmp:=MainForm.cmdBold+MainForm.cmdMagenta+tmp+MainForm.cmdNormal;
+         tmp:=cmdBold+cmdMagenta+tmp+cmdNormal;
         basictxt:=basictxt+tmp;
        end;
       end;
@@ -946,7 +946,7 @@ begin
        if MainForm.Fguiopen then
         linetxt:=linetxt+'<span '+quotestyle+'>'
        else
-        basictxt:=basictxt+MainForm.cmdRed+MainForm.cmdItalic;
+        basictxt:=basictxt+cmdRed+cmdItalic;
       if(c<>32)and(c<>38)and(c<>60)and(c<>62)then
        linetxt:=linetxt+Chr(c AND$7F);
       if c=32 then linetxt:=linetxt+'&nbsp;';
@@ -956,7 +956,7 @@ begin
       if not rem then if(c=34)and(not detok)then linetxt:=linetxt+'</span>';
       basictxt:=basictxt+Chr(c AND$7F);
       if not rem then if(c=34)and(not detok)and(not MainForm.Fguiopen)then
-       basictxt:=basictxt+MainForm.cmdNormal;
+       basictxt:=basictxt+cmdNormal;
       //Do not detokenise within quotes
       if(c=34)and(not rem)then detok:=not detok;
      end;

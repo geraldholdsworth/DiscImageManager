@@ -94,8 +94,8 @@ const
    Result:=False;
    WriteLn('Image has been modified.');
    Write('Are you sure you want to continue? (yes/no): ');
-   ReadLn(Lconfirm);
-   if Length(Lconfirm)>1 then if LowerCase(Lconfirm[1])='y' then Result:=True;
+   ConsoleApp.ReadInput(Lconfirm);
+   if Length(Lconfirm)>0 then if LowerCase(Lconfirm[1])='y' then Result:=True;
   end;
  end;
  //Get the image size
@@ -203,8 +203,8 @@ begin
      //List the catalogue
      if(Command[1]='')or(LowerCase(Command[1])='all')then
      begin
-      WriteLn(MainForm.cmdBlue+StringOfChar('-',80)+MainForm.cmdNormal);
-      WriteLn(MainForm.cmdBold+'Catalogue listing for directory '
+      WriteLn(cmdBlue+StringOfChar('-',80)+cmdNormal);
+      WriteLn(cmdBold+'Catalogue listing for directory '
               +Image.GetParent(Lcurrdir));
       Write(PadRight(Image.Disc[Lcurrdir].Title,40));
       WriteLn('Option: '+IntToStr(Image.BootOpt[Image.Disc[Lcurrdir].Partition])
@@ -213,7 +213,7 @@ begin
              +')');
       WriteLn('Number of entries: '
              +IntToStr(Length(Image.Disc[Lcurrdir].Entries)));
-      WriteLn(MainForm.cmdNormal);
+      WriteLn(cmdNormal);
       if Length(Image.Disc[Lcurrdir].Entries)>0 then
        for Index:=0 to Length(Image.Disc[Lcurrdir].Entries)-1 do
        begin
@@ -540,6 +540,8 @@ begin
   'help':
    begin
     WriteLn(cmdBlue+cmdBold+'Console Help'+cmdNormal);
+    {format:='';
+    if Length(Command)>1 then format:=Command[1];}
     for Index:=0 to Help.Lines.Count-1 do
     begin
      temp:=Help.Lines[Index];
@@ -776,6 +778,8 @@ begin
   'report':
    if Image.FormatNumber<>diInvalidImg then btn_ShowReportClick(nil)
    else error:=1;
+  //Run a script +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  'runscript': if Length(Command)<2 then error:=2;
   //Save image +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'save':
    if Image.FormatNumber<>diInvalidImg then

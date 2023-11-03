@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.46 and TSpark class V1.05
+TDiscImage class V1.47 and TSpark class V1.05
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -654,6 +654,8 @@ type
   function DeleteRFSFile(entry: Cardinal): Boolean;
   procedure RFSReAdjustPointers(filepos: Cardinal;diff: Integer);
   function MoveRFSFile(entry: Cardinal;dest: Integer): Integer;
+  function CopyRFSFile(entry: Cardinal;dest: Integer): Integer;
+  function RenameRFSFile(entry: Cardinal; newfilename: String): Integer;
   //MMFS Routines
   function ID_MMB: Boolean;
   function ReadMMBDisc: Boolean;

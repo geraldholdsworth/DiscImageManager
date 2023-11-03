@@ -575,37 +575,15 @@ type
    arch          :String;
    //Is the GUI open?
    Fguiopen      :Boolean;
-   //Command line style modifiers
-   cmdNormal,
-   cmdBold,
-   cmdItalic,
-   cmdInverse,
-   cmdRed,
-   cmdGreen,
-   cmdYellow,
-   cmdBlue,
-   cmdMagenta,
-   cmdCyan       :String;
    const
     //DPI that the application was designed in
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.46.4';
+    ApplicationVersion = '1.46.5';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
-    //Command line font modifiers
-    FcmdNormal = #$1B'[0m';
-    FcmdBold   = #$1B'[1m';
-    FcmdItalic = #$1B'[3m';
-    FcmdInverse= #$1B'[7m';
-    FcmdRed    = #$1B'[91m';
-    FcmdGreen  = #$1B'[92m';
-    FcmdYellow = #$1B'[93m';
-    FcmdBlue   = #$1B'[94m';
-    FcmdMagenta= #$1B'[95m';
-    FcmdCyan   = #$1B'[96m';
   end;
 
 var
@@ -619,7 +597,7 @@ uses
   AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SearchUnit,
   CustomDialogueUnit,ErrorLogUnit,SettingsUnit,ImportSelectorUnit,
   PWordEditorUnit,AFSPartitionUnit,ChangeInterleaveUnit,CSVPrefUnit,
-  ImageReportUnit;
+  ImageReportUnit,ConsoleAppUnit;
 
 {-------------------------------------------------------------------------------
 Add a new file to the disc image

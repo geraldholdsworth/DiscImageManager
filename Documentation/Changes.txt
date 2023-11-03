@@ -1000,6 +1000,8 @@ Bug fixes
 * If the last line in a hex dump text output was less than 16 bytes, then the position of the ASCII representation would not line up with the columns above.
 * MS-DOS 6.22 failed to properly read a floppy image created by the application. Changed a few settings in the header when formatting a new image.
 * Fixed some quote placement errors in the CSV output.
+* WINDOWS: The Cancel and Create buttons on the Hard Drive Creator dialogue box, for ADFS, did not fire when clicked.
+* WINDOWS: Disabled Radio and Tick boxes would flash.
 
 Platform History
 ----------------
