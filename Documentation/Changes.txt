@@ -974,7 +974,7 @@ Bug fixes
 * When an ADFS New Map zone is close to capacity (i.e., not enough space for a fragment id to be written in), the free space was incorrectly reported. This would cause files and directories to fail to being written but the catalogue information would still be.
 * Deleting an ADFS directory which is the penultimate directory in the catalogue would result in the last one being deleted from the internal references. This then caused confusion with the front end GUI and resulted in a crash. In addition, deleting everything from the image would leave the free space map not correctly updated.
 
-1.46.4
+1.46.6
 --------------------
 New or improved features
 * Font size on the BBC Basic Viewer can be changed.
@@ -1002,6 +1002,7 @@ Bug fixes
 * Fixed some quote placement errors in the CSV output.
 * WINDOWS: The Cancel and Create buttons on the Hard Drive Creator dialogue box, for ADFS, did not fire when clicked.
 * WINDOWS: Disabled Radio and Tick boxes would flash.
+* Files ending in a forward or back slash would not be recognised.
 
 Platform History
 ----------------
