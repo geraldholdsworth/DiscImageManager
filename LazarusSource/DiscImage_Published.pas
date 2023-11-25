@@ -542,8 +542,9 @@ begin
  //Blank filename, so quit
  if Length(filename)=0 then exit;
  //Ends in a DOS directory separator
- if(filename[Length(filename)]='\')
- or(filename[Length(filename)]='/')then
+ if((filename[Length(filename)]='\')
+ or (filename[Length(filename)]='/'))
+ and(GetMajorFormatNumber=diDOSPlus)then //But only for DOS images
   filename:=LeftStr(filename,Length(filename)-1);
  //Blank filename, so quit
  if Length(filename)=0 then exit;

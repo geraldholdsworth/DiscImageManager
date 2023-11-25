@@ -580,7 +580,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.46.5';
+    ApplicationVersion = '1.46.6';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -5457,6 +5457,9 @@ begin
      //Selected items
      Brush.Style:=bsSolid; //Solid background
      Brush.Color:=TV.SelectionColor; //Background
+     //Paint the background
+     FillRect(NodeRect.Left,NodeRect.Top,
+              NodeRect.Left+TextWidth(Node.Text),NodeRect.Bottom);
      Font.Color:=TV.SelectionFontColor; //Foreground
     end else Brush.Style:=bsClear; //Clear background for everything else
     //Finally, write out the text
