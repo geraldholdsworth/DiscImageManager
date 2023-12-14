@@ -436,7 +436,7 @@ begin
  file_details.Filename:=LeftStr(file_details.Filename,10);
  //Work out the total file length, including header and block headers
  filelen:=Length(file_details.Filename)+$14+1; //Header length, zero length file
- if insert>=Length(FDisc[0].Entries)-1 then insert:=-1; //Ensure insert is valid
+ if insert>=Length(FDisc[0].Entries) then insert:=-1; //Ensure insert is valid
  if Length(buffer)>0 then
  begin
   //Single block
@@ -469,7 +469,7 @@ begin
   FDisc[0].Entries[Result]:=file_details; //Copy the entry across
   //Override some of the settings
   FDisc[0].Entries[Result].Filename:=FilenameToASCII(file_details.Filename);//Filename
-  FDisc[0].Entries[Result].Sector  :=0;  //Where to find it (first block)
+  FDisc[0].Entries[Result].Sector  :=root;  //Where to find it (first block)
   FDisc[0].Entries[Result].Parent  :=FDisc[0].Directory;//Parent
   FDisc[0].Entries[Result].DirRef  :=-1;//Not a directory
   //Update the disc size and reduce the free space
@@ -485,8 +485,8 @@ begin
    fileptr:=FDisc[0].Entries[Result-1].Sector
            +Length(FDisc[0].Entries[Result-1].Filename)+1;
    ptr:=Read32b(fileptr+$E)-$8000;
+   FDisc[0].Entries[Result].Sector:=ptr; //Update the pointer
   end;
-  if Result=0 then ptr:=root+filelen;
   //If we are inserting, then we need to move the data & re-adjust the pointers
   if insert>=0 then
   begin
@@ -496,14 +496,12 @@ begin
    //Re-adjust the pointers
    RFSReAdjustPointers(FDisc[0].Entries[insert].Sector+filelen,filelen);
   end;
-  FDisc[0].Entries[Result].Sector:=ptr; //Update the pointer
   fn:=Length(FDisc[0].Entries[Result].Filename)+1;//Filename length
   //Where are we in the file?
   fileptr:=0;
   //Block counter
   blocknum:=0;
-  while fileptr<Length(buffer) do
-  begin
+  repeat
    //We need to know the length of this data block
    if fileptr+$100>Length(buffer) then len:=Length(buffer)-fileptr
    else len:=$100;
@@ -547,13 +545,16 @@ begin
    inc(blocknum);
    //Data
    for j:=0 to len-1 do WriteByte(buffer[fileptr+j],ptr+j);
-   //Data CRC-16
-   Write16b(GetCRC16(ptr,len),ptr+len);
-   //Move data pointer on
-   inc(ptr,2+len);
+   if len>0 then
+   begin
+     //Data CRC-16
+     Write16b(GetCRC16(ptr,len),ptr+len);
+     //Move data pointer on
+     inc(ptr,2+len);
+   end;
    //Move file pointer on
    inc(fileptr,len);
-  end;
+  until fileptr>=Length(buffer);
   WriteByte($2B,disc_size[0]-1);
  end;
 end;
@@ -585,7 +586,7 @@ begin
   disc_size[0]:=GetDataLength;
   free_space[0]:=16384-disc_size[0];
   //Re-adjust the EOF pointers in all block headers
-  RFSReAdjustPointers(filepos,diff);
+  RFSReAdjustPointers(filepos,-diff);
   //Remove from the internal array
   if entry<Length(FDisc[0].Entries)-1 then
    for i:=entry to Length(FDisc[0].Entries)-2 do
@@ -622,13 +623,16 @@ begin
    //Get the filename
    Lfile:=ReadString(filepos+1,0);
    //Update the address
-   Write32b(Read32b(filepos+Length(Lfile)+$F)-diff,filepos+Length(Lfile)+$F);
+   Write32b(Read32b(filepos+Length(Lfile)+$F)+diff,filepos+Length(Lfile)+$F);
    //Update the CRC
    Write16b(GetCRC16(filepos+1,Length(Lfile)+$12),filepos+Length(Lfile)+$13);
    //Get the block length
    len:=Read16b(filepos+Length(Lfile)+$C);
    //Move along
-   inc(filepos,len+Length(Lfile)+$17);
+   if len>0 then
+     inc(filepos,len+Length(Lfile)+$17)
+   else
+     inc(filepos,Length(Lfile)+$15);
   end;
   //Block repeater
   if H=$23 then inc(filepos,len+3);

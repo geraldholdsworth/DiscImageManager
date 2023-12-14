@@ -6685,7 +6685,8 @@ begin
  if(not Cancel)and(NameBeforeEdit<>newfilename) then
  begin
   //Rename the file
-  if Image.MajorFormatNumber=diAcornUEF then
+  if (Image.MajorFormatNumber=diAcornUEF)
+  or (Image.MajorFormatNumber=diAcornRFS) then
    newindex:=Image.RenameFile(Node.Index,newfilename)
   else
    newindex:=Image.RenameFile(PathBeforeEdit,newfilename);
