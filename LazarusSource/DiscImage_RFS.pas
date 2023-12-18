@@ -237,21 +237,21 @@ begin
  Result:=False;
  //Is it one we've created? Get the signature string
  sig:='';
- for i:=0 to $F do sig:=sig+chr(ReadByte(base+$50+i));
+ for i:=0 to $F do sig:=sig+chr(ReadByte(base+$4F+i));
  //If it isn't, we can't relocate the code
  if sig='DiscImageManager' then
  begin
   WriteByte((root+$8000)AND$FF,$15+base); //Data address low
   WriteByte((root+$8000)DIV$100,$19+base);//Data address High
-  invvar:=$807D+(base-Low(ROMHDR));
-  invrom:=$807F+(base-Low(ROMHDR));
-  baselo:=$8086+(base-Low(ROMHDR));
-  basehi:=$8087+(base-Low(ROMHDR));
+  invvar:=$807C+(base-Low(ROMHDR));
+  invrom:=$807E+(base-Low(ROMHDR));
+  baselo:=$8085+(base-Low(ROMHDR));
+  basehi:=$8086+(base-Low(ROMHDR));
   Write16b(invrom,base+$0B);
   Write16b(invvar,base+$10);
   Write16b(invvar,base+$1F);
   Write16b(basehi,base+$29);
-  Write16b(baselo,base+$30);
+  Write16b(baselo,base+$31);
   Result:=True;
  end;
 end;
@@ -282,7 +282,7 @@ var
 const
  BlkFile: array[0..$1D] of Byte=(
                 $2A,$2A,$44,$49,$4D,$2D,$52,$4F,$4D,$2A,$00,$00,$00,$00,$00,$00,
-                $00,$00,$00,$00,$00,$00,$00,$80,$B6,$80,$00,$00,$E3,$E3);
+                $00,$00,$00,$00,$00,$00,$00,$80,$B5,$80,$00,$00,$78,$3F);
 begin
  Result:=False;
  FDisc:=nil;

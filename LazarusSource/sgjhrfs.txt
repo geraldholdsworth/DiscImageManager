@@ -2,11 +2,11 @@
 NEW
 AUTO
 REM >S.GJHRFS
-REM Greg Cook 16 Dec 2023 11:40
+REM Greg Cook 18 Dec 2023 13:55
 slots%=31
 DIM label$(slots%),addr%(slots%),ref%(slots%*2),code% 255
 :
-bugfix1%=FALSE:bugfix2%=FALSE
+relocatable%=TRUE:bugfix1%=FALSE:bugfix2%=FALSE
 bbcrun%=&F30D+2:elkrun%=&F263+2
 romid=&F4:serrom=&F5:ptr=&F6
 :
@@ -42,20 +42,12 @@ O%=code%:P%=&8000:R%=0
 :
 .byte:  JSR FNr("invvar",1) \compare (serrom AND &F) - romid
         BNE notus           \if not for us then exit
-        LDA ptr+&01         \has pointer been changed?
-        BPL read            \if not then fetch byte
-        CLC                 \add MSB relocation offset
-        ADC FNr("basehi",1) \making MSB of new pointer (LSB unchanged)
-.read:  ORA #&80            \set b15 of pointer
-        STA ptr+&01
-        LDY FNr("baselo",1) \add LSB relocation offset to eff. adr.
-        LDA (ptr),Y         \get byte of stream
+        OPT FNrelocate1     \else update pointer and fetch byte
+
         INC ptr+&00         \increment data pointer
         BNE fixup           \carry out to high byte
         INC ptr+&01
-.fixup: ASL ptr+&01         \clear b15 of pointer
-        LSR ptr+&01 
-        TAY                 \return byte in Y
+.fixup: TAY                 \return byte in Y
         OPT FNbugfix2       \optional MOS bugfix
 .exus:  LDX #&00            \set call number=0, no operation
 .notus: TXA                 \restore call number to A
@@ -70,10 +62,7 @@ OPT FNd("invrom")
         CMP romid
         RTS
 :
-OPT FNd("baselo")
-        EQUB lang AND &FF
-OPT FNd("basehi")
-        EQUB lang DIV &100
+        OPT FNrelocate2     \insert base address for relocation
 :
 .sig:   EQUS "DiscImageManager"
 .data:  EQUB &2A
@@ -131,6 +120,32 @@ IF bugfix2% ELSE =pass%
         CLC                 \add high byte of block length
         ADC &03C9
         STA &CD             \store as high byte of length
+]
+=pass%
+:
+DEF FNrelocate1
+IF relocatable% ELSE [OPT pass%:LDA (ptr-&0E,X):]:=pass%
+[OPT pass%
+        LDA ptr+&01         \has pointer been changed?
+        BPL read            \if not then fetch byte
+        CLC                 \add MSB relocation offset
+        ADC FNr("basehi",1) \making MSB of new pointer (LSB unchanged)
+.read:  TAX                 \hold old MSB of pointer (b15=0)
+        ORA #&80            \set b15 of pointer
+        STA ptr+&01
+        LDY FNr("baselo",1) \add LSB relocation offset to eff. adr.
+        LDA (ptr),Y         \get byte of stream
+        STX ptr+&01         \clear b15 of pointer
+]
+=pass%
+:
+DEF FNrelocate2
+IF relocatable% ELSE =pass%
+[OPT pass%
+OPT FNd("baselo")
+        EQUB lang AND &FF
+OPT FNd("basehi")
+        EQUB lang DIV &100
 ]
 =pass%
 :
