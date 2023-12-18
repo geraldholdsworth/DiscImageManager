@@ -2,7 +2,7 @@
 NEW
 AUTO
 REM >S.GJHRFS
-REM Greg Cook 18 Dec 2023 13:55
+REM Greg Cook 18 Dec 2023 15:25
 slots%=31
 DIM label$(slots%),addr%(slots%),ref%(slots%*2),code% 255
 :
@@ -62,7 +62,7 @@ OPT FNd("invrom")
         CMP romid
         RTS
 :
-        OPT FNrelocate2     \insert base address for relocation
+.base:  OPT FNrelocate2     \insert base address for relocation
 :
 .sig:   EQUS "DiscImageManager"
 .data:  EQUB &2A
@@ -196,6 +196,8 @@ PRINT"..."'" BlkFile: array[0..$";~romend-data-&01"] of Byte=(";
 F.I%=0 TO romend-data-&02:IF I% AND &F ELSE PRINT 'SPC(16);
 PRINT"$"RIGHT$("0"+STR$~code%?(data-lang+I%),2)",";:NEXT
 PRINT"$"RIGHT$("0"+STR$~code%?(romend-lang-&01),2)");"'
+:
+IF relocatable% PRINT"=== module.pl ==="'"my $CODE_SIZE = 0x";~base-serve";"'
 ENDPROC
 :
 DEFFNcrc16(S%,X%):LOC.I%,O%:IFX%=0TH.=0

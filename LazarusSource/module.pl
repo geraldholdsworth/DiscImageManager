@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 # module.pl
-# Greg Cook, 16 December 2023
+# Greg Cook, 18 December 2023
 
 # Adds a relocation table to a modularisable RFS ROM created by
 # Disc Image Manager.  Produces a Sideways ROM module in the
@@ -20,7 +20,7 @@ use Getopt::Std;
 use Fcntl;
 use POSIX qw(SEEK_SET SEEK_CUR SEEK_END);
 
-my $CODE_SIZE = 0x4e;
+my $CODE_SIZE = 0x4D;
 my $SIG = "DiscImageManager";
 
 my %o;
