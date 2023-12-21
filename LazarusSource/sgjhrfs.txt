@@ -1,0 +1,207 @@
+*BASIC
+NEW
+AUTO
+REM >S.GJHRFS
+REM Greg Cook 18 Dec 2023 15:25
+slots%=31
+DIM label$(slots%),addr%(slots%),ref%(slots%*2),code% 255
+:
+relocatable%=TRUE:bugfix1%=FALSE:bugfix2%=FALSE
+bbcrun%=&F30D+2:elkrun%=&F263+2
+romid=&F4:serrom=&F5:ptr=&F6
+:
+firstpass%=4:secondpass%=7
+FOR pass%=firstpass% TO secondpass% STEP secondpass%-firstpass%
+O%=code%:P%=&8000:R%=0
+[OPT pass%
+.lang:  EQUB &00:EQUW &0000
+.svc:   JMP serve
+.type:  EQUB &82
+.cpptr: EQUB copyr-lang
+.bnver: EQUB &01
+.title: EQUS "Disc Image Manager"
+.vers:  EQUB &00:EQUS "1.46.6"
+.copyr: EQUB &00:EQUS "(C)GJH Software 2023":
+.eottl: EQUB &00
+:
+.serve: TAX                 \Save call number
+        CPX #&0E            \is it &E = RFS data poll?
+        BEQ byte            \if so then go to handler
+        CPX #&0D            \is it &D = RFS init?
+        BNE notus           \if not then pass call
+        TYA                 \else svc &D; cursor to A
+        JSR FNr("invrom",1) \compare (A EOR &F) - romid
+        BCC notus           \if cursor past us then exit
+        JSR FNr("invvar",1) \else invert romid
+        STA serrom          \set current RFS ROM
+        LDA #data AND &FF   \get LSB RFS stream start address
+.datalo:STA ptr+&00         \set LSB RFS data pointer
+        LDA #data DIV &100  \get MSB RFS stream start address
+.datahi:STA ptr+&01         \set MSB RFS data pointer
+        OPT FNbugfix1       \optional MOS bugfix (always branches)
+:
+.byte:  JSR FNr("invvar",1) \compare (serrom AND &F) - romid
+        BNE notus           \if not for us then exit
+        OPT FNrelocate1     \else update pointer and fetch byte
+
+        INC ptr+&00         \increment data pointer
+        BNE fixup           \carry out to high byte
+        INC ptr+&01
+.fixup: TAY                 \return byte in Y
+        OPT FNbugfix2       \optional MOS bugfix
+.exus:  LDX #&00            \set call number=0, no operation
+.notus: TXA                 \restore call number to A
+.notus1:LDX romid           \restore paged ROM slot number
+.exit:  RTS
+:
+OPT FNd("invvar")
+        LDA romid-&0D,X     \fetch romid in call &D, serrom in call &E
+OPT FNd("invrom")
+        EOR #&0F
+        AND #&0F
+        CMP romid
+        RTS
+:
+.base:  OPT FNrelocate2     \insert base address for relocation
+:
+.sig:   EQUS "DiscImageManager"
+.data:  EQUB &2A
+]
+fhead%=O%:[OPT pass%
+.fhead: EQUS "*DIM-ROM*"
+        EQUB &00            \filename terminator
+        EQUD &00000000      \load address
+        EQUD &00000000      \exec address
+        EQUW &0000          \block number
+        EQUW &0000          \block length
+        EQUB &80            \block flag; last block, unlocked
+        EQUD romend
+.fhend
+]
+hcrc%=O%:[OPT pass%
+        EQUW &0000
+.romend:EQUB &2B
+]
+NEXT
+N%=FNcrc16(fhead%,fhend-fhead):?hcrc%=N%DIV256:hcrc%?1=N%MOD256
+PROCdump
+OSCLI"SAVE R.GJHRFS "+STR$~code%+" "+STR$~O%+" FFFF8000 FFFF8000"
+END
+:
+DEF FNbugfix1
+IF bugfix1% ELSE [OPT pass%:BNE exus:]:=pass%
+[OPT pass%
+        JSR FNr("testtt",1) \test twice looking in two places in the stack
+OPT FNd("testtt")
+        TSX                 \stack pointer to X
+        LDA &0116,X         \peek high byte of a return address in the stack
+        EOR #bbcrun% DIV &100 \does it match address of *RUN in OS 1.20?
+        BEQ lobyte          \if so then test low byte (NB A=0)
+        EOR #(bbcrun% EOR elkrun%)DIV &100 \else match *RUN in Elk OS 1.00?
+        BNE exus            \if not then try next address
+        LDA #(bbcrun% EOR elkrun%)AND &FF \else compare LSB Elk address
+.lobyte:EOR #bbcrun% AND &FF\prepare LSB BBC/ELK address
+        EOR &0115,X         \is it the return address into *RUN?
+        BNE exus            \if not then try next address
+        LDX #&C2            \else A=0; initialise OSFILE pointer
+        STX &C8             \to copy file length onto itself. CE..CF cleared.
+        STA &C9             \exit A=0
+        BNE notus1          \Z=0 from LDX
+]
+=pass%
+:
+DEF FNbugfix2
+IF bugfix2% ELSE =pass%
+[OPT pass%
+       \BNE exus            \only fixup when Y=0 (esp. in link field)
+        LDA &03C8           \get low byte of block length
+        STA &CC             \store as low byte of length
+        LDA &03C6           \get low byte of block number
+        CLC                 \add high byte of block length
+        ADC &03C9
+        STA &CD             \store as high byte of length
+]
+=pass%
+:
+DEF FNrelocate1
+IF relocatable% ELSE [OPT pass%:LDA (ptr-&0E,X):]:=pass%
+[OPT pass%
+        LDA ptr+&01         \has pointer been changed?
+        BPL read            \if not then fetch byte
+        CLC                 \add MSB relocation offset
+        ADC FNr("basehi",1) \making MSB of new pointer (LSB unchanged)
+.read:  TAX                 \hold old MSB of pointer (b15=0)
+        ORA #&80            \set b15 of pointer
+        STA ptr+&01
+        LDY FNr("baselo",1) \add LSB relocation offset to eff. adr.
+        LDA (ptr),Y         \get byte of stream
+        STX ptr+&01         \clear b15 of pointer
+]
+=pass%
+:
+DEF FNrelocate2
+IF relocatable% ELSE =pass%
+[OPT pass%
+OPT FNd("baselo")
+        EQUB lang AND &FF
+OPT FNd("basehi")
+        EQUB lang DIV &100
+]
+=pass%
+:
+DEF FNd(L$)
+LOCAL I%
+I%=-1:REPEAT:I%=I%+1:UNTIL I%=slots% OR label$(I%)="" OR label$(I%)=L$
+IF label$(I%)=L$ IF addr%(I%)=P% THEN =pass%
+IF label$(I%)=L$ PRINT "Duplicate definition: "L$"=&";~addr%(I%)", P%=&";~P%:STOP
+IF label$(I%)<>"" PRINT "No space for label "L$:STOP
+label$(I%)=L$:addr%(I%)=P%
+=pass%
+:
+DEF FNr(L$,J%)
+LOCAL I%
+I%=-1:REPEAT:I%=I%+1:UNTIL I%=slots% OR label$(I%)=L$
+IF label$(I%)<>L$ IF NOT pass% AND 2 THEN =P%
+IF label$(I%)<>L$ PRINT "No such label "L$:STOP
+IF R%>slots%*2 PRINT "No space for reference":STOP
+ref%(R%)=P%+J%+I%*&10000:R%=R%+1
+=addr%(I%)
+:
+DEF PROCdump
+LOCAL I%
+PRINT'"=== DiscImage.pas ==="
+PRINT"   ROMHDR: array[$";~serve-lang"..$";~data-lang-&01"] of Byte = (";
+F.I%=0 TO data-serve-&02:IF I% AND &F ELSE PRINT 'SPC(16);
+PRINT"$"RIGHT$("0"+STR$~code%?(serve-lang+I%),2)",";:NEXT
+PRINT"$"RIGHT$("0"+STR$~code%?(data-lang-&01),2)");"
+:
+PRINT'"=== DiscImage_RFS.pas ==="
+PRINT"function TDiscImage.AdjustRFSOffsets(base: Cardinal): Boolean;"'"var"
+I%=0:REPEAT
+IF I%<slots% IF label$(I%+1)<>"" PRINT" "label$(I%)"," ELSE IF label$(I%)<>""PRINT" "label$(I%)TAB(8)": Word;"
+I%=I%+1:UNTIL I%>slots% OR label$(I%-1)=""
+:
+PRINT"..."'" for i:=0 to $";~data-sig-&01" do sig:=sig+chr(ReadByte(base+$";~sig-serve"+i));"'"..."
+:
+PRINT"  WriteByte((root+$8000)AND$FF,$";~datalo-serve-&01"+base); //Data address low"
+PRINT"  WriteByte((root+$8000)DIV$100,$";~datahi-serve-&01"+base);//Data address High"
+I%=0:REPEAT
+IF label$(I%)<>""PRINT"  "label$(I%)TAB(8)":=$";~addr%(I%)"+(base-Low(ROMHDR));"
+I%=I%+1:UNTIL I%>slots% OR label$(I%-1)=""
+FOR I%=0 TO R%-1
+PRINT"  Write16b("label$(ref%(I%)DIV&10000)TAB(17)",base+$"RIGHT$("0"+STR$~((ref%(I%)AND&FFFF)-serve),2)");"
+N.
+:
+PRINT"..."'" BlkFile: array[0..$";~romend-data-&01"] of Byte=(";
+F.I%=0 TO romend-data-&02:IF I% AND &F ELSE PRINT 'SPC(16);
+PRINT"$"RIGHT$("0"+STR$~code%?(data-lang+I%),2)",";:NEXT
+PRINT"$"RIGHT$("0"+STR$~code%?(romend-lang-&01),2)");"'
+:
+IF relocatable% PRINT"=== module.pl ==="'"my $CODE_SIZE = 0x";~base-serve";"'
+ENDPROC
+:
+DEFFNcrc16(S%,X%):LOC.I%,O%:IFX%=0TH.=0
+O%=0:F.I%=S%TOS%+X%-1:O%=(O%A.255)*256OR(O%A.65280)DIV256EOR?I%:O%=O%EOR(O%A.240)DIV16*513:O%=O%EOR(O%A.15)*4128:N.:=O%
+:
+REM Press <ESCAPE> RUN <RETURN>
+REM End of S.GJHRFS

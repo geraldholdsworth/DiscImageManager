@@ -16,8 +16,8 @@ begin
   begin
    Result:=True; //Assume a postive ID for now
    //Check the signature
-   for i:=0 to Length(RFSsig)-1 do
-    if ReadByte(i)<>Ord(RFSsig[i+1])then Result:=False;
+   if ReadByte(0)<>Ord(RFSsig[1])then Result:=False;
+   if ReadByte(3)<>Ord(RFSsig[4])then Result:=False;
    //Check the rest of the header
    if(ReadByte($6)=$82)and(Result)then
    begin
@@ -227,32 +227,31 @@ Re-adjust the offsets in the header 6502 code
 -------------------------------------------------------------------------------}
 function TDiscImage.AdjustRFSOffsets(base: Cardinal): Boolean;
 var
- invsno,
- invert,
- claim,
- claiml : Word;
+ invvar,
+ invrom,
+ baselo,
+ basehi : Word;
  sig    : String;
  i      : Byte;
 begin
  Result:=False;
  //Is it one we've created? Get the signature string
  sig:='';
- for i:=0 to $F do sig:=sig+chr(ReadByte(base+$51+i));
+ for i:=0 to $F do sig:=sig+chr(ReadByte(base+$4F+i));
  //If it isn't, we can't relocate the code
  if sig='DiscImageManager' then
  begin
-  WriteByte((root+$8000)AND$FF,$12+base); //Data address low
-  WriteByte((root+$8000)DIV$100,$16+base);//Data address High
-  invsno:=$8079+(base-$2F);
-  invert:=$807B+(base-$2F);
-  claim :=$804F+(base-$2F);
-  claiml:=$8065+(base-$2F);
-  Write16b(invsno,base+$0B);
-  Write16b(invert,base+$1C);
-  Write16b(invsno,base+$2B);
-  Write16b(claim ,base+$3D);
-  Write16b(invsno,base+$40);
-  Write16b(claiml,base+$48);
+  WriteByte((root+$8000)AND$FF,$15+base); //Data address low
+  WriteByte((root+$8000)DIV$100,$19+base);//Data address High
+  invvar:=$807C+(base-Low(ROMHDR));
+  invrom:=$807E+(base-Low(ROMHDR));
+  baselo:=$8085+(base-Low(ROMHDR));
+  basehi:=$8086+(base-Low(ROMHDR));
+  Write16b(invrom,base+$0B);
+  Write16b(invvar,base+$10);
+  Write16b(invvar,base+$1F);
+  Write16b(basehi,base+$29);
+  Write16b(baselo,base+$31);
   Result:=True;
  end;
 end;
@@ -283,7 +282,7 @@ var
 const
  BlkFile: array[0..$1D] of Byte=(
                 $2A,$2A,$44,$49,$4D,$2D,$52,$4F,$4D,$2A,$00,$00,$00,$00,$00,$00,
-                $00,$00,$00,$00,$00,$00,$00,$C0,$DE,$80,$00,$00,$2E,$9A);
+                $00,$00,$00,$00,$00,$00,$00,$80,$B5,$80,$00,$00,$78,$3F);
 begin
  Result:=False;
  FDisc:=nil;
