@@ -712,3 +712,9 @@ begin
    end;
   end;
 end;
+
+{
+  Changing the ROM FS title, copyright or version text: if the header code was
+  not produced by DIM, then remove and replace with ours so that we can achieve
+  these functions. It will also require shifting the files too.
+}
