@@ -580,7 +580,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.46.6';
+    ApplicationVersion = '1.46.7';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -6682,11 +6682,11 @@ begin
  //Re-enable the keyboard shortcuts
  DeleteAFile.Enabled:=True;
  //Should we be renaming?
- if(not Cancel)and(NameBeforeEdit<>newfilename) then
+ if(not Cancel)and(NameBeforeEdit<>newfilename)then
  begin
   //Rename the file
-  if (Image.MajorFormatNumber=diAcornUEF)
-  or (Image.MajorFormatNumber=diAcornRFS) then
+  if(Image.MajorFormatNumber=diAcornUEF)
+  or(Image.MajorFormatNumber=diAcornRFS)then
    newindex:=Image.RenameFile(Node.Index,newfilename)
   else
    newindex:=Image.RenameFile(PathBeforeEdit,newfilename);
