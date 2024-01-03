@@ -435,6 +435,8 @@ begin
  file_details.Filename:=LeftStr(file_details.Filename,10);
  //Work out the total file length, including header and block headers
  filelen:=Length(file_details.Filename)+$14+1; //Header length, zero length file
+ //'insert' is the file that this one is being inserted into *after*.
+ //-1 means at the top
  if insert>=Length(FDisc[0].Entries) then insert:=-1; //Ensure insert is valid
  if Length(buffer)>0 then
  begin
@@ -453,16 +455,16 @@ begin
   //Increase the entries
   SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)+1);
   //Are we inserting this file, or adding to the end?
-  if insert>=0 then
+  if insert+1<Length(FDisc[0].Entries)-1 then
   begin
-   for j:=Length(FDisc[0].Entries)-1 downto insert+1 do
+   for j:=Length(FDisc[0].Entries)-2 downto insert+1 do
    begin
-    FDisc[0].Entries[j]:=FDisc[0].Entries[j-1];
+    FDisc[0].Entries[j+1]:=FDisc[0].Entries[j];
     inc(FDisc[0].Entries[j].Sector,filelen);
    end;
-   Result:=insert;
+   Result:=insert+1;
   end
-  else Result:=Length(FDisc[0].Entries)-1; //Return the new pointer
+;//  else Result:=Length(FDisc[0].Entries)-1; //Return the new pointer
   //Update the entry
   ResetDirEntry(FDisc[0].Entries[Result]);
   FDisc[0].Entries[Result]:=file_details; //Copy the entry across
@@ -487,13 +489,13 @@ begin
    FDisc[0].Entries[Result].Sector:=ptr; //Update the pointer
   end;
   //If we are inserting, then we need to move the data & re-adjust the pointers
-  if insert>=0 then
+  if insert>=-1 then
   begin
    //Move the data
-   for j:=disc_size[0]-1 downto FDisc[0].Entries[insert].Sector+filelen do
+   for j:=disc_size[0]-1 downto FDisc[0].Entries[insert+1].Sector+filelen do
     WriteByte(ReadByte(j-filelen),j);
    //Re-adjust the pointers
-   RFSReAdjustPointers(FDisc[0].Entries[insert].Sector+filelen,filelen);
+   RFSReAdjustPointers(FDisc[0].Entries[insert+1].Sector+filelen,filelen);
   end;
   fn:=Length(FDisc[0].Entries[Result].Filename)+1;//Filename length
   //Where are we in the file?
