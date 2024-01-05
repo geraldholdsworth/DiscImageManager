@@ -61,6 +61,8 @@ begin
  DOSBlocks     :=0;
  SetLength(free_space_map,0);
  Fupdating     :=False;
+ Fcopyright    :='';
+ Fversion      :='';
 end;
 
 {-------------------------------------------------------------------------------
@@ -828,7 +830,7 @@ Calculate a MD5 for the supplied buffer Byte array
 function TDiscImage.GetMD5(var buffer: TDIByteArray): String;
 begin
  if Length(buffer)>0 then Result:=MD5Print(MD5Buffer(buffer[0],Length(buffer)))
- else Result:='error';
+ else Result:='00000000';
 end;
 
 {-------------------------------------------------------------------------------
@@ -844,7 +846,7 @@ begin
   CRCValue:=crc.crc32(0,@buffer[0],Length(buffer));
   Result  :=IntToHex(CRCValue,8);
  end
- else Result:='error';
+ else Result:='00000000';
 end;
 
 {-------------------------------------------------------------------------------

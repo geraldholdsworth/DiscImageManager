@@ -4294,16 +4294,17 @@ object MainForm: TMainForm
   OnShow = FormShow
   Position = poScreenCenter
   ShowHint = True
-  LCLVersion = '2.2.6.0'
+  LCLVersion = '3.0.0.3'
   object ImageContentsPanel: TPanel
     Left = 0
-    Height = 519
-    Top = 62
+    Height = 513
+    Top = 68
     Width = 385
     Align = alClient
     BevelColor = 15527148
-    ClientHeight = 519
+    ClientHeight = 513
     ClientWidth = 385
+    ParentBackground = False
     TabOrder = 0
     OnPaint = FileInfoPanelPaint
     object lb_contents: TLabel
@@ -4322,7 +4323,7 @@ object MainForm: TMainForm
     end
     object DirList: TTreeView
       Left = 1
-      Height = 501
+      Height = 495
       Top = 17
       Width = 383
       Align = alClient
@@ -4481,8 +4482,8 @@ object MainForm: TMainForm
   end
   object ToolSplitter: TSplitter
     Left = 385
-    Height = 519
-    Top = 62
+    Height = 513
+    Top = 68
     Width = 5
     Align = alRight
     Beveled = True
@@ -4491,14 +4492,15 @@ object MainForm: TMainForm
   end
   object FileInfoPanel: TPanel
     Left = 390
-    Height = 519
-    Top = 62
+    Height = 513
+    Top = 68
     Width = 355
     Align = alRight
     BevelColor = 15527148
-    ClientHeight = 519
+    ClientHeight = 513
     ClientWidth = 355
     Constraints.MinWidth = 200
+    ParentBackground = False
     TabOrder = 3
     OnPaint = FileInfoPanelPaint
     OnResize = FileInfoPanelResize
@@ -4519,12 +4521,13 @@ object MainForm: TMainForm
     object ADFSAttrPanel: TPanel
       Left = 1
       Height = 88
-      Top = 518
+      Top = 512
       Width = 353
       Align = alTop
       BevelOuter = bvNone
       ClientHeight = 88
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 0
       Visible = False
       OnPaint = FileInfoPanelPaint
@@ -4558,12 +4561,13 @@ object MainForm: TMainForm
     object DFSAttrPanel: TPanel
       Left = 1
       Height = 50
-      Top = 518
+      Top = 512
       Width = 353
       Align = alTop
       BevelOuter = bvNone
       ClientHeight = 50
       ClientWidth = 353
+      ParentBackground = False
       ParentFont = False
       TabOrder = 1
       Visible = False
@@ -4585,12 +4589,13 @@ object MainForm: TMainForm
     object C64AttrPanel: TPanel
       Left = 1
       Height = 50
-      Top = 518
+      Top = 512
       Width = 353
       Align = alTop
       BevelOuter = bvNone
       ClientHeight = 50
       ClientWidth = 353
+      ParentBackground = False
       ParentFont = False
       TabOrder = 2
       Visible = False
@@ -4618,6 +4623,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 33
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 3
       OnPaint = FileInfoPanelPaint
       object FilenameLabel: TLabel
@@ -4661,6 +4667,7 @@ object MainForm: TMainForm
       ClientHeight = 35
       ClientWidth = 353
       Color = 15527148
+      ParentBackground = False
       ParentColor = False
       TabOrder = 4
       OnPaint = FileInfoPanelPaint
@@ -4712,6 +4719,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 34
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 5
       OnPaint = FileInfoPanelPaint
       object lb_Parent: TLabel
@@ -4755,6 +4763,7 @@ object MainForm: TMainForm
       ClientHeight = 34
       ClientWidth = 353
       Color = 15527148
+      ParentBackground = False
       ParentColor = False
       TabOrder = 6
       OnPaint = FileInfoPanelPaint
@@ -4800,13 +4809,13 @@ object MainForm: TMainForm
         Enabled = False
         Font.Name = 'Courier New'
         MaxLength = 8
-        OnEditingDone = ed_execaddrEditingDone
-        OnExit = ed_execaddrEditingDone
-        OnKeyPress = ed_execaddrKeyPress
         ParentColor = True
         ParentFont = False
         TabOrder = 0
         Visible = False
+        OnEditingDone = ed_execaddrEditingDone
+        OnExit = ed_execaddrEditingDone
+        OnKeyPress = ed_execaddrKeyPress
       end
     end
     object LoadAddrPanel: TPanel
@@ -4818,6 +4827,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 33
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 7
       OnPaint = FileInfoPanelPaint
       object lb_loadaddr: TLabel
@@ -4862,13 +4872,13 @@ object MainForm: TMainForm
         Enabled = False
         Font.Name = 'Courier New'
         MaxLength = 8
-        OnEditingDone = ed_execaddrEditingDone
-        OnExit = ed_execaddrEditingDone
-        OnKeyPress = ed_execaddrKeyPress
         ParentColor = True
         ParentFont = False
         TabOrder = 0
         Visible = False
+        OnEditingDone = ed_execaddrEditingDone
+        OnExit = ed_execaddrEditingDone
+        OnKeyPress = ed_execaddrKeyPress
       end
     end
     object LengthPanel: TPanel
@@ -4880,6 +4890,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 34
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 8
       OnPaint = FileInfoPanelPaint
       object LengthLabel: TLabel
@@ -4922,6 +4933,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 36
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 9
       OnPaint = FileInfoPanelPaint
       object lb_timestamp: TLabel
@@ -4998,6 +5010,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 34
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 10
       OnClick = lb_titleClick
       OnPaint = FileInfoPanelPaint
@@ -5043,12 +5056,12 @@ object MainForm: TMainForm
         Font.Name = 'Courier New'
         Font.Style = [fsBold]
         MaxLength = 19
-        OnEditingDone = ed_titleEditingDone
-        OnExit = ed_titleEditingDone
         ParentColor = True
         ParentFont = False
         TabOrder = 0
         Visible = False
+        OnEditingDone = ed_titleEditingDone
+        OnExit = ed_titleEditingDone
       end
     end
     object LocationPanel: TPanel
@@ -5060,6 +5073,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 31
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 11
       OnPaint = FileInfoPanelPaint
       object LocationLabel: TLabel
@@ -5102,6 +5116,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 50
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 12
       OnPaint = FileInfoPanelPaint
       object lb_CRC32: TLabel
@@ -5138,12 +5153,13 @@ object MainForm: TMainForm
     object AFSAttrPanel: TPanel
       Left = 1
       Height = 88
-      Top = 518
+      Top = 512
       Width = 353
       Align = alTop
       BevelOuter = bvNone
       ClientHeight = 88
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 13
       Visible = False
       OnPaint = FileInfoPanelPaint
@@ -5177,12 +5193,13 @@ object MainForm: TMainForm
     object DOSAttrPanel: TPanel
       Left = 1
       Height = 21
-      Top = 518
+      Top = 512
       Width = 353
       Align = alTop
       BevelOuter = bvNone
       ClientHeight = 21
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 14
       Visible = False
       OnPaint = FileInfoPanelPaint
@@ -5209,6 +5226,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 150
       ClientWidth = 353
+      ParentBackground = False
       TabOrder = 15
       Visible = False
       OnPaint = FileInfoPanelPaint
@@ -5273,6 +5291,7 @@ object MainForm: TMainForm
     Width = 128
     ClientHeight = 128
     ClientWidth = 128
+    ParentBackground = False
     TabOrder = 4
     Visible = False
     object RO5TextureTile: TImage
@@ -9125,13 +9144,13 @@ object MainForm: TMainForm
   end
   object ToolBarContainer: TPageControl
     Left = 0
-    Height = 62
+    Height = 68
     Top = 0
     Width = 745
-    ActivePage = ToolsToolBarPage
+    ActivePage = ImageToolBarPage
     Align = alTop
     AutoSize = True
-    TabIndex = 3
+    TabIndex = 0
     TabOrder = 5
     object ImageToolBarPage: TTabSheet
       AutoSize = True

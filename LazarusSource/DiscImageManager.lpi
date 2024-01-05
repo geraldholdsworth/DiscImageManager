@@ -26,34 +26,23 @@
       <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.44"/>
     </VersionInfo>
     <BuildModes Count="11">
-      <Item1 Name="Default" Default="True"/>
-      <Item2 Name="Debug">
+      <Item1 Name="Native Debugger" Default="True"/>
+      <Item2 Name="Debug (macOS ARM)">
         <CompilerOptions>
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <UnitOutputDirectory Value="lib/$(BuildMode)/$(TargetCPU)-$(TargetOS)"/>
+            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomConponents"/>
+            <UnitOutputDirectory Value="lib/Debug/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
-          <Parsing>
-            <SyntaxOptions>
-              <IncludeAssertionCode Value="True"/>
-            </SyntaxOptions>
-          </Parsing>
           <CodeGeneration>
-            <Checks>
-              <IOChecks Value="True"/>
-              <RangeChecks Value="True"/>
-              <OverflowChecks Value="True"/>
-              <StackChecks Value="True"/>
-            </Checks>
-            <VerifyObjMethodCallValidity Value="True"/>
+            <TargetCPU Value="aarch64"/>
+            <TargetOS Value="darwin"/>
           </CodeGeneration>
           <Linking>
             <Debugging>
-              <DebugInfoType Value="dsDwarf2Set"/>
-              <UseHeaptrc Value="True"/>
-              <TrashVariables Value="True"/>
-              <UseExternalDbgSyms Value="True"/>
+              <DebugInfoType Value="dsDwarf3"/>
+              <UseValgrind Value="True"/>
             </Debugging>
             <Options>
               <Win32>
@@ -61,6 +50,12 @@
               </Win32>
             </Options>
           </Linking>
+          <Other>
+            <CompilerMessages>
+              <IgnoredMessages idx6018="True" idx5094="True" idx5091="True" idx5060="True" idx5057="True" idx5024="True" idx4081="True" idx4080="True" idx4079="True" idx4035="True"/>
+            </CompilerMessages>
+            <CustomOptions Value="-XR/Library/Developer/CommandLineTools/SDKs/MacOSX11.1.sdk/"/>
+          </Other>
         </CompilerOptions>
       </Item2>
       <Item3 Name="Release macOS 64 bit">
@@ -363,7 +358,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="25">
+    <Units Count="26">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -518,6 +513,12 @@
         <Filename Value="ConsoleAppUnit.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit24>
+      <Unit25>
+        <Filename Value="RFSDetailUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="RFSDetailForm"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit25>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

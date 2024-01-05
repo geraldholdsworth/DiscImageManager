@@ -341,6 +341,8 @@ type
   FATType,                      //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
   DOSVersion,                   //Version of DOS being used (0, $28 or $29)
   NumFATs       : Byte;         //Number of FATs in a DOS Plus image
+  Fcopyright,
+  Fversion,
   root_name,                    //Root title
   dosrootname,                  //DOS Plus root name
   imagefilename,                //Filename of the disc image
@@ -656,6 +658,11 @@ type
   function MoveRFSFile(entry: Cardinal;dest: Integer): Integer;
   function CopyRFSFile(entry: Cardinal;dest: Integer): Integer;
   function RenameRFSFile(entry: Cardinal; newfilename: String): Integer;
+  function GetRFSVersionNumber: Byte;
+  procedure SetRFSVersionNumber(newvalue: Byte);
+  function UpdateRFSTitle(title: String): Boolean;    
+  function UpdateRFSVersion(version: String): Boolean;
+  function UpdateRFSCopyright(copyright: String): Boolean;
   //MMFS Routines
   function ID_MMB: Boolean;
   function ReadMMBDisc: Boolean;
@@ -809,6 +816,8 @@ type
                                                      entry:Cardinal=0): Boolean;
   function UpdateDiscTitle(title: String;side: Byte): Boolean;
   function UpdateBootOption(option,side: Byte): Boolean;
+  function UpdateVersionString(version: String): Boolean;
+  function UpdateCopyright(copyright: String): Boolean;
   procedure ValidateAttributes(var attributes: String);
   function CreateDirectory(var filename,parent,attributes: String): Integer;
   function RetitleDirectory(var filename,newtitle: String): Boolean;
@@ -849,6 +858,7 @@ type
   property AFSRoot:             Cardinal      read Fafsroot;
   property AllowDFSZeroSectors: Boolean       read FDFSzerosecs
                                               write FDFSzerosecs;
+  property Copyright:           String        read Fcopyright;
   property DFSBeyondEdge:       Boolean       read FDFSBeyondEdge
                                               write FDFSBeyondEdge;
   property DFSAllowBlanks:      Boolean       read FDFSAllowBlank
@@ -887,6 +897,9 @@ type
                                               write FScanSubDirs;
   property SparkAsFS:           Boolean       read FSparkAsFS
                                               write FSparkAsFS;
+  property VersionNumber:       Byte          read GetRFSVersionNumber
+                                              write SetRFSVersionNumber;
+  property VersionString:       String        read Fversion;
  public
   destructor Destroy; override;
  End;

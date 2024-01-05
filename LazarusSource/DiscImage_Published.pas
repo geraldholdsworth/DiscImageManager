@@ -1164,6 +1164,7 @@ begin
   diAcornUEF : Result:=False;                         //Can't retitle CFS
   diAcornFS  : Result:=UpdateAFSDiscTitle(title);     //Title AFS Disc
   diDOSPlus  : Result:=UpdateDOSDiscTitle(title);     //Title DOS Plus Disc
+  diAcornRFS : Result:=UpdateRFSTitle(title);         //Title ROM FS
  end;
 end;
 
@@ -1183,6 +1184,28 @@ begin
   diAcornFS  : exit;//Can't update AFS boot option
   diDOSPlus  : exit;//Can't update DOS boot option
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Change the Version String
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateVersionString(version: String): Boolean;
+begin
+ if GetMajorFormatNumber=diAcornRFS then
+  Result:=UpdateRFSVersion(version)
+ else
+  Result:=False;
+end;
+
+{-------------------------------------------------------------------------------
+Change the copyright string
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateCopyright(copyright: String): Boolean;
+begin
+ if GetMajorFormatNumber=diAcornRFS then
+  Result:=UpdateRFSCopyright(copyright)
+ else
+  Result:=False;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1724,6 +1747,7 @@ begin
   if GetMajorFormatNumber=diAmiga     then report:=AmigaReport(CSV);//Amiga
   if GetMajorFormatNumber=diSinclair  then report:=TStringList.Create;//Not written yet
   if GetMajorFormatNumber=diAcornUEF  then report:=TStringList.Create;//Nothing to report
+  if GetMajorFormatNumber=diAcornRFS  then report:=TStringList.Create;//Nothing to report
   if GetMajorFormatNumber=diSpark     then report:=TStringList.Create;//Nothing to report
   //Incorporate the report
   if report.Count>0 then

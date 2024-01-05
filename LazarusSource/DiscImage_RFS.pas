@@ -133,6 +133,14 @@ begin
  imagefilename:='Untitled.'+FormatExt;
  //Free space
  free_space[0]:=16384-disc_size[0];
+ //Read in the header information
+ //Title
+ SetLength(disc_name,1);
+ disc_name[0]:=ReadString($9,$00);
+ //Copyright (pointed to by offset in $7 +1)
+ Fcopyright:=ReadString(ReadByte($7)+1,$00);
+ //Version String (offset $9+Length(title)+1)
+ Fversion:=ReadString($9+Length(disc_name[0])+1,$00);
  //We found the first valid block in the ID process
  pos:=root;
  //Keep track of which file we are on
@@ -715,8 +723,58 @@ begin
   end;
 end;
 
+{-------------------------------------------------------------------------------
+Get the RFS version number
+-------------------------------------------------------------------------------}
+function TDiscImage.GetRFSVersionNumber: Byte;
+begin
+ Result:=$FF; //Not an RFS image, so return invalid number
+ if GetMajorFormatNumber=diAcornRFS then Result:=ReadByte($8);
+end;
+
+{-------------------------------------------------------------------------------
+Set the RFS version number
+-------------------------------------------------------------------------------}
+procedure TDiscImage.SetRFSVersionNumber(newvalue: Byte);
+begin
+ if GetMajorFormatNumber=diAcornRFS then WriteByte(newvalue,$8);
+end;
+
+{-------------------------------------------------------------------------------
+Set the RFS Title String
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateRFSTitle(title: String): Boolean;
+begin
+ Result:=False;
 {
   Changing the ROM FS title, copyright or version text: if the header code was
   not produced by DIM, then remove and replace with ours so that we can achieve
   these functions. It will also require shifting the files too.
 }
+end;
+
+{-------------------------------------------------------------------------------
+Set the RFS Version String
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateRFSVersion(version: String): Boolean;
+begin
+ Result:=False;
+{
+  Changing the ROM FS title, copyright or version text: if the header code was
+  not produced by DIM, then remove and replace with ours so that we can achieve
+  these functions. It will also require shifting the files too.
+}
+end;
+
+{-------------------------------------------------------------------------------
+Set the RFS Title String
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateRFSCopyright(copyright: String): Boolean;
+begin
+ Result:=False;
+{
+  Changing the ROM FS title, copyright or version text: if the header code was
+  not produced by DIM, then remove and replace with ours so that we can achieve
+  these functions. It will also require shifting the files too.
+}
+end;

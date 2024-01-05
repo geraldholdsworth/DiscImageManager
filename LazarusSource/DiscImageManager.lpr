@@ -25,7 +25,7 @@ uses
   AFSPartitionUnit in 'AFSParitionUnit.pas',
   ChangeInterleaveUnit in 'ChangeInterleaveUnit.pas',
   CSVPrefUnit in 'CSVPrefUnit.pas',
-  ImageReportUnit in 'ImageReportUnit.pas';
+  ImageReportUnit in 'ImageReportUnit.pas', RFSDetailUnit;
 
 {$R *.res}
 
@@ -60,6 +60,7 @@ begin
   {$IFDEF Windows}
   IsConsole:=False;
   {$ENDIF}
+ Application.CreateForm(TRFSDetailForm, RFSDetailForm);
   Application.Run; //Open as normal
  end;
 end.

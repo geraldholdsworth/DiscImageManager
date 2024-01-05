@@ -34,7 +34,7 @@ interface
 uses
   SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
   ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,Clipbrd,HexDumpUnit,
-  FPImage,IntfGraphics,ActnList,GraphType,DateTimePicker,Types,
+  FPImage,IntfGraphics,ActnList,GraphType,DateTimePicker,Types,RFSDetailUnit,
   GJHCustomComponents;
 
 type
@@ -1942,7 +1942,8 @@ begin
  menuFileSearch.Enabled:=True;
  btn_ShowReport.Enabled:=True;
  menuShowReport.Enabled:=True;
- if Length(Image.FreeSpaceMap)>0 then
+ if(Length(Image.FreeSpaceMap)>0)
+ or(Image.MajorFormatNumber=diAcornRFS)then
  begin
   btn_ImageDetails.Enabled:=True;
   menuImageDetails.Enabled:=True;
@@ -4184,260 +4185,283 @@ var
   Result.Blue :=Result.Blue or Result.Blue<<8;
  end;
 begin
- Cursor:=crHourglass;
- //Add the editable controls to arrays - makes it easier later on
- titles[0] :=ImageDetailForm.edDiscTitle0;
- titles[1] :=ImageDetailForm.edDiscTitle1;
- boots[0]  :=ImageDetailForm.cbBootOption0;
- boots[1]  :=ImageDetailForm.cbBootOption1;
- bootlbs[0]:=ImageDetailForm.lbBootOption0;
- bootlbs[1]:=ImageDetailForm.lbBootOption1;
- //CRC32
- ImageDetailForm.lbCRC32.Caption    :=Image.CRC32;
- //Format
- ImageDetailForm.lbImgFormat.Caption:=Image.FormatString;
- //Map type
- ImageDetailForm.lbMap.Caption      :=Image.MapTypeString;
- if Image.MajorFormatNumber<>diDOSPlus then
-  ImageDetailForm.MapLabel.Caption:='Map Type'
- else
-  ImageDetailForm.MapLabel.Caption:='FAT Type';
- ImageDetailForm.MapPanel.Visible   :=ImageDetailForm.lbMap.Caption<>'';
- //Directory type
- ImageDetailForm.lbDirType.Caption  :=Image.DirectoryTypeString;
- ImageDetailForm.DirPanel.Visible   :=ImageDetailForm.lbDirType.Caption<>'';
- //Interleave type
- if ImageDetailForm.cbInterleave.Items.Count=0 then //Populate the dropdown
-  for t:=0 to Image.GetNumberOfInterleaves-1 do
-   ImageDetailForm.cbInterleave.Items.Add(Image.GetInterleaveString(t));
- ImageDetailForm.lbInterleave.Caption:=Image.InterleaveInUse;
- ImageDetailForm.cbInterleave.ItemIndex:=Image.InterleaveInUseNum-1;
- ImageDetailForm.InterleavePanel.Visible:=ImageDetailForm.lbInterleave.Caption<>'';
- if ImageDetailForm.InterleavePanel.Visible then //If this is visible
+ //ROM FS image is open
+ if Image.MajorFormatNumber=diAcornRFS then
  begin
-  if HasChanged then //Make the appropriate control visible
-   ImageDetailForm.lbInterleave.Visible:=True
+  RFSDetailForm.ROMFSTitle.Text         :=Image.Title(0);
+  RFSDetailForm.ROMFSVersion.Text       :=Image.VersionString;
+  RFSDetailForm.ROMFSBinVersAdj.Position:=Image.VersionNumber;
+  RFSDetailForm.ROMFSBinVers.Caption    :=IntToHex(Image.VersionNumber,2);
+  RFSDetailForm.ROMFSCopy.Text          :=Image.Copyright;
+  //Show the form, modally and respond if user clicks OK
+  if RFSDetailForm.ShowModal=mrOK then
+  begin
+   //Set the modified flag while updating the image
+   HasChanged:=(Image.VersionNumber<>RFSDetailForm.ROMFSBinVersAdj.Position)
+             or(Image.UpdateDiscTitle(RFSDetailForm.ROMFSTitle.Text,0))
+             or(Image.UpdateVersionString(RFSDetailForm.ROMFSVersion.Text))
+             or(Image.UpdateCopyright(RFSDetailForm.ROMFSCopy.Text));
+   //Update the version number
+   Image.VersionNumber:=RFSDetailForm.ROMFSBinVersAdj.Position;
+  end;
+ end
+ else //Every other valid format is open
+ begin
+  Cursor:=crHourglass;
+  //Add the editable controls to arrays - makes it easier later on
+  titles[0] :=ImageDetailForm.edDiscTitle0;
+  titles[1] :=ImageDetailForm.edDiscTitle1;
+  boots[0]  :=ImageDetailForm.cbBootOption0;
+  boots[1]  :=ImageDetailForm.cbBootOption1;
+  bootlbs[0]:=ImageDetailForm.lbBootOption0;
+  bootlbs[1]:=ImageDetailForm.lbBootOption1;
+  //CRC32
+  ImageDetailForm.lbCRC32.Caption    :=Image.CRC32;
+  //Format
+  ImageDetailForm.lbImgFormat.Caption:=Image.FormatString;
+  //Map type
+  ImageDetailForm.lbMap.Caption      :=Image.MapTypeString;
+  if Image.MajorFormatNumber<>diDOSPlus then
+   ImageDetailForm.MapLabel.Caption:='Map Type'
   else
-   ImageDetailForm.lbInterleave.Visible:=False;
-  //Can't change the interleave if the image has been modified
-  ImageDetailForm.cbInterleave.Visible:=not ImageDetailForm.lbInterleave.Visible;
- end;
- //Arrange the panels
- with ImageDetailForm do
- begin
-  pnSide0.Top        :=0;
-  pnSide1.Top        :=pnSide0.Top+pnSide0.Height;
-  FormatPanel.Top    :=pnSide1.Top+pnSide1.Height;
-  MapPanel.Top       :=FormatPanel.Top+FormatPanel.Height;
-  DirPanel.Top       :=MapPanel.Top+MapPanel.Height;
-  InterleavePanel.Top:=DirPanel.Top+DirPanel.Height;
-  CRCPanel.Top       :=InterleavePanel.Top+InterleavePanel.Height;
- end;
- //Logo
- t:=ImageDetailForm.DirPanel.Top+ImageDetailForm.DirPanel.Height;
- s:=ImageDetailForm.btn_OK.Top-t;
- //Centralise vertical
- ImageDetailForm.AcornLogo.Top    :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
- ImageDetailForm.CommodoreLogo.Top:=ImageDetailForm.AcornLogo.Top;
- ImageDetailForm.AmigaLogo.Top    :=ImageDetailForm.AcornLogo.Top;
- ImageDetailForm.SinclairLogo.Top :=ImageDetailForm.AcornLogo.Top;
- ImageDetailForm.BBCMasterLogo.Top:=ImageDetailForm.AcornLogo.Top;
- ImageDetailForm.MicrosoftLogo.Top:=ImageDetailForm.AcornLogo.Top;
- //Centralise horizontal
- s:=ImageDetailForm.Legend.Width;
- ImageDetailForm.AcornLogo.Left    :=(s-ImageDetailForm.AcornLogo.Width)div 2;
- ImageDetailForm.CommodoreLogo.Left:=ImageDetailForm.AcornLogo.Left;
- ImageDetailForm.AmigaLogo.Left    :=ImageDetailForm.AcornLogo.Left;
- ImageDetailForm.SinclairLogo.Left :=ImageDetailForm.AcornLogo.Left;
- ImageDetailForm.BBCMasterLogo.Left:=ImageDetailForm.AcornLogo.Left;
- ImageDetailForm.MicrosoftLogo.Left:=ImageDetailForm.AcornLogo.Left;
- //Hide them all
- ImageDetailForm.AcornLogo.Visible    :=False;
- ImageDetailForm.CommodoreLogo.Visible:=False;
- ImageDetailForm.AmigaLogo.Visible    :=False;
- ImageDetailForm.SinclairLogo.Visible :=False;
- ImageDetailForm.BBCMasterLogo.Visible:=False;
- ImageDetailForm.MicrosoftLogo.Visible:=False;
- //Now display the appropriate one
- case Image.MajorFormatNumber of
-  diAcornDFS,
-  diAcornADFS,
-  diAcornUEF,
-  diAcornRFS,
-  diAcornFS   : ImageDetailForm.AcornLogo.Visible    :=True;
-  diCommodore : ImageDetailForm.CommodoreLogo.Visible:=True;
-  diAmiga     : ImageDetailForm.AmigaLogo.Visible    :=True;
-  diSinclair  : ImageDetailForm.SinclairLogo.Visible :=True;
-  diDOSPlus   :
-   if Image.MinorFormatNumber<>0 then
-    ImageDetailForm.MicrosoftLogo.Visible:=True
-   else
-    ImageDetailForm.BBCMasterLogo.Visible:=True;
- end;
- //Should we label the top box?
- if Image.DoubleSided then
-  ImageDetailForm.pnSide0Caption.Caption:='  Side 0 Details'
- else
-  ImageDetailForm.pnSide0Caption.Caption:='  Side Details';
- //How many sides
- numsides:=Length(Image.FreeSpaceMap);
- //Show the Free Space Map graphic
- if numsides>0 then //Is there a free space map?
- begin
-  //Setup the TImage array for all sides
-  SetLength(FSM,numsides);
-  SetLength(FSMlabel,numsides);
-  for side:=0 to numsides-1 do
+   ImageDetailForm.MapLabel.Caption:='FAT Type';
+  ImageDetailForm.MapPanel.Visible   :=ImageDetailForm.lbMap.Caption<>'';
+  //Directory type
+  ImageDetailForm.lbDirType.Caption  :=Image.DirectoryTypeString;
+  ImageDetailForm.DirPanel.Visible   :=ImageDetailForm.lbDirType.Caption<>'';
+  //Interleave type
+  if ImageDetailForm.cbInterleave.Items.Count=0 then //Populate the dropdown
+   for t:=0 to Image.GetNumberOfInterleaves-1 do
+    ImageDetailForm.cbInterleave.Items.Add(Image.GetInterleaveString(t));
+  ImageDetailForm.lbInterleave.Caption:=Image.InterleaveInUse;
+  ImageDetailForm.cbInterleave.ItemIndex:=Image.InterleaveInUseNum-1;
+  ImageDetailForm.InterleavePanel.Visible:=ImageDetailForm.lbInterleave.Caption<>'';
+  if ImageDetailForm.InterleavePanel.Visible then //If this is visible
   begin
-   //Create the image and give it a parent
-   FSM[side]:=TImage.Create(ImageDetailForm);
-   FSM[side].Parent:=ImageDetailForm;
-   //FSM[side].Canvas.PixelFormat:=pf4bit;
-   //Position it
-   FSM[side].Top:=20;
-   FSM[side].Left:=4+(204*side);
-   //Create the image label and give it a parent
-   FSMlabel[side]:=TLabel.Create(ImageDetailForm);
-   FSMlabel[side].Parent:=ImageDetailForm;
-   //Position it
-   FSMlabel[side].Top:=0;
-   FSMlabel[side].Left:=4+(204*side);
-   //Style it
-   FSMlabel[side].Color:=$777777;
-   FSMlabel[side].Font.Color:=$FFFFFF;
-   FSMlabel[side].Font.Style:=[fsBold];
-   //We'll stretch it later
-   FSM[side].Stretch:=False;
-   //Work out what tracks to skip (images over 100000 pixels high will crash)
-   skip:=(Length(Image.FreeSpaceMap[0])div 100000)+1;
-   //Set the graphic size
-   t:=Length(Image.FreeSpaceMap[side]);
-   if t>0 then s:=Length(Image.FreeSpaceMap[side,0]) else s:=0;
-   FSM[side].Height:=t div skip;
-   FSM[side].Width:=s;
-   //Initiate the canvas 
-   img:=TLazIntfImage.Create(0,0,[riqfRGB, riqfAlpha]);
-   img.SetSize(FSM[side].Width,FSM[side].Height);
-   //Colour in the free space
-   img.FillPixels(ConvertColour(ImageDetailForm.colFree.Brush.Color));
-   //Now draw all the sectors in tracks
-   if Length(Image.FreeSpaceMap[side])>0 then
-    for t:=0 to Length(Image.FreeSpaceMap[side])-1 do
-     if(t mod skip=0)and(Length(Image.FreeSpaceMap[side,t])>0)then
-      for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
-       if Image.FreeSpaceMap[side,t,s]>$FC then
-       begin
-        //Other colours
-        if Image.FreeSpaceMap[side,t,s]=$FF then
-         col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
-        if Image.FreeSpaceMap[side,t,s]=$FE then
-         col:=ImageDetailForm.colSystem.Brush.Color;    //System
-        if Image.FreeSpaceMap[side,t,s]=$FD then
-         col:=ImageDetailForm.colDir.Brush.Color;       //Directories
-        //Set the colour
-        img.Colors[s,t div skip]:=ConvertColour(col);
-       end;
-   //Copy the graphic to the display
-   FSM[side].Picture.PNG.PixelFormat:=pf32bit;
-   FSM[side].Picture.PNG.LoadFromIntfImage(img);
-   //Stretch the image
-   FSM[side].Stretch:=True;
-   //And resize to fit the window
-   FSM[side].Height:=ImageDetailForm.ClientHeight-24;
-   FSM[side].Width:=200;
-   //Free the graphic container
-   img.Free;
-   //Set the label size
-   FSMlabel[side].Height:=20;
-   FSMlabel[side].Width:=200;
-   FSMlabel[side].Alignment:=taCenter;
-   FSMlabel[side].AutoSize:=False;
-   //And fill in the details
-   FSMlabel[side].Font.Style:=[fsBold];
-   FSMlabel[side].Caption:='Free Space Map';
-   if Image.DoubleSided then
-    FSMlabel[side].Caption:=FSMlabel[side].Caption+' Side '+IntToStr(side*2);
-   //Disc Title
-   title:=Image.Title(side);
-   //Remove top bit - this can cause havoc with Mac OS
-   RemoveTopBit(title);
-   //Set the edit box
-   titles[side].Text:=title;
-   titles[0].Enabled:=not Image.AFSPresent;
-   //Limit the length
-   if Image.MajorFormatNumber=diAcornDFS  then titles[side].MaxLength:=12; //DFS
-   if Image.MajorFormatNumber=diAcornADFS then
-   begin
-    if(Image.DOSPresent)and(side=1)then
-     titles[side].MaxLength:=11  //DOS Partition in an ADFS disc
+   if HasChanged then //Make the appropriate control visible
+    ImageDetailForm.lbInterleave.Visible:=True
+   else
+    ImageDetailForm.lbInterleave.Visible:=False;
+   //Can't change the interleave if the image has been modified
+   ImageDetailForm.cbInterleave.Visible:=not ImageDetailForm.lbInterleave.Visible;
+  end;
+  //Arrange the panels
+  with ImageDetailForm do
+  begin
+   pnSide0.Top        :=0;
+   pnSide1.Top        :=pnSide0.Top+pnSide0.Height;
+   FormatPanel.Top    :=pnSide1.Top+pnSide1.Height;
+   MapPanel.Top       :=FormatPanel.Top+FormatPanel.Height;
+   DirPanel.Top       :=MapPanel.Top+MapPanel.Height;
+   InterleavePanel.Top:=DirPanel.Top+DirPanel.Height;
+   CRCPanel.Top       :=InterleavePanel.Top+InterleavePanel.Height;
+  end;
+  //Logo
+  t:=ImageDetailForm.DirPanel.Top+ImageDetailForm.DirPanel.Height;
+  s:=ImageDetailForm.btn_OK.Top-t;
+  //Centralise vertical
+  ImageDetailForm.AcornLogo.Top    :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
+  ImageDetailForm.CommodoreLogo.Top:=ImageDetailForm.AcornLogo.Top;
+  ImageDetailForm.AmigaLogo.Top    :=ImageDetailForm.AcornLogo.Top;
+  ImageDetailForm.SinclairLogo.Top :=ImageDetailForm.AcornLogo.Top;
+  ImageDetailForm.BBCMasterLogo.Top:=ImageDetailForm.AcornLogo.Top;
+  ImageDetailForm.MicrosoftLogo.Top:=ImageDetailForm.AcornLogo.Top;
+  //Centralise horizontal
+  s:=ImageDetailForm.Legend.Width;
+  ImageDetailForm.AcornLogo.Left    :=(s-ImageDetailForm.AcornLogo.Width)div 2;
+  ImageDetailForm.CommodoreLogo.Left:=ImageDetailForm.AcornLogo.Left;
+  ImageDetailForm.AmigaLogo.Left    :=ImageDetailForm.AcornLogo.Left;
+  ImageDetailForm.SinclairLogo.Left :=ImageDetailForm.AcornLogo.Left;
+  ImageDetailForm.BBCMasterLogo.Left:=ImageDetailForm.AcornLogo.Left;
+  ImageDetailForm.MicrosoftLogo.Left:=ImageDetailForm.AcornLogo.Left;
+  //Hide them all
+  ImageDetailForm.AcornLogo.Visible    :=False;
+  ImageDetailForm.CommodoreLogo.Visible:=False;
+  ImageDetailForm.AmigaLogo.Visible    :=False;
+  ImageDetailForm.SinclairLogo.Visible :=False;
+  ImageDetailForm.BBCMasterLogo.Visible:=False;
+  ImageDetailForm.MicrosoftLogo.Visible:=False;
+  //Now display the appropriate one
+  case Image.MajorFormatNumber of
+   diAcornDFS,
+   diAcornADFS,
+   diAcornUEF,
+   diAcornRFS,
+   diAcornFS   : ImageDetailForm.AcornLogo.Visible    :=True;
+   diCommodore : ImageDetailForm.CommodoreLogo.Visible:=True;
+   diAmiga     : ImageDetailForm.AmigaLogo.Visible    :=True;
+   diSinclair  : ImageDetailForm.SinclairLogo.Visible :=True;
+   diDOSPlus   :
+    if Image.MinorFormatNumber<>0 then
+     ImageDetailForm.MicrosoftLogo.Visible:=True
     else
-     titles[side].MaxLength:=10; //ADFS
-   end;
-   if Image.MajorFormatNumber=diAcornFS   then titles[side].MaxLength:=10; //AFS
-   if Image.MajorFormatNumber=diDOSPlus   then titles[side].MaxLength:=11; //DOS
-   //Boot Option
-   boots[side].Visible  :=True;
-   if Length(Image.BootOpt)>side then
-    boots[side].ItemIndex:=Image.BootOpt[side]
-   else
-    boots[side].Visible:=False;
-   bootlbs[side].Visible:=boots[side].Visible;
+     ImageDetailForm.BBCMasterLogo.Visible:=True;
   end;
-  //Is this an ADFS Hybrid?
-  if(Image.MajorFormatNumber=diAcornADFS)
-  and((Image.AFSPresent)or(Image.DOSPresent))then
+  //Should we label the top box?
+  if Image.DoubleSided then
+   ImageDetailForm.pnSide0Caption.Caption:='  Side 0 Details'
+  else
+   ImageDetailForm.pnSide0Caption.Caption:='  Side Details';
+  //How many sides
+  numsides:=Length(Image.FreeSpaceMap);
+  //Show the Free Space Map graphic
+  if numsides>0 then //Is there a free space map?
   begin
-   partstr:='ADFS Partition';
-   FSMlabel[0].Caption:=FSMlabel[0].Caption+' '+partstr;
-   ImageDetailForm.pnSide0Caption.Caption:='  '+partstr+' Details';
-   //AFS
-   if Image.AFSPresent then partstr:='Acorn FS Partition';
-   //DOS
-   if Image.DOSPresent then partstr:='DOS Partition';
-   FSMlabel[1].Caption:=FSMlabel[1].Caption+' '+partstr;
-   ImageDetailForm.pnSide1Caption.Caption:='  '+partstr+' Details';
-  end;
-  //Change the dialogue box width
-  ImageDetailForm.ClientWidth:=(Length(Image.FreeSpaceMap)*204)
-                              +4+ImageDetailForm.Legend.Width;
-  //Show/Hide the second detail panel
-  ImageDetailForm.pnSide1.Visible:=numsides>1;
-  //Show the window, modally
-  Cursor:=crDefault;
-  if ImageDetailForm.ShowModal=mrOK then
-  begin
-   //Update the interleave
-   if(ImageDetailForm.cbInterleave.ItemIndex<>Image.InterleaveInUseNum-1)
-   and(ImageDetailForm.cbInterleave.Visible)then
+   //Setup the TImage array for all sides
+   SetLength(FSM,numsides);
+   SetLength(FSMlabel,numsides);
+   for side:=0 to numsides-1 do
    begin
-    //Remember the previous settings
-    title:=Image.Filename;
-    t:=ADFSInterleave;
-    //Close the image
-    btn_CloseImageClick(Sender);
-    //Change the interleave
-    ADFSInterleave:=ImageDetailForm.cbInterleave.ItemIndex+1;
-    //Re-open
-    OpenImage(title);
-    //Change the interleave back
-    ADFSInterleave:=t;
-   end;
-   //Still a valid image?
-   if Image.FormatNumber<>diInvalidImg then
-    for side:=0 to numsides-1 do
+    //Create the image and give it a parent
+    FSM[side]:=TImage.Create(ImageDetailForm);
+    FSM[side].Parent:=ImageDetailForm;
+    //FSM[side].Canvas.PixelFormat:=pf4bit;
+    //Position it
+    FSM[side].Top:=20;
+    FSM[side].Left:=4+(204*side);
+    //Create the image label and give it a parent
+    FSMlabel[side]:=TLabel.Create(ImageDetailForm);
+    FSMlabel[side].Parent:=ImageDetailForm;
+    //Position it
+    FSMlabel[side].Top:=0;
+    FSMlabel[side].Left:=4+(204*side);
+    //Style it
+    FSMlabel[side].Color:=$777777;
+    FSMlabel[side].Font.Color:=$FFFFFF;
+    FSMlabel[side].Font.Style:=[fsBold];
+    //We'll stretch it later
+    FSM[side].Stretch:=False;
+    //Work out what tracks to skip (images over 100000 pixels high will crash)
+    skip:=(Length(Image.FreeSpaceMap[0])div 100000)+1;
+    //Set the graphic size
+    t:=Length(Image.FreeSpaceMap[side]);
+    if t>0 then s:=Length(Image.FreeSpaceMap[side,0]) else s:=0;
+    FSM[side].Height:=t div skip;
+    FSM[side].Width:=s;
+    //Initiate the canvas
+    img:=TLazIntfImage.Create(0,0,[riqfRGB, riqfAlpha]);
+    img.SetSize(FSM[side].Width,FSM[side].Height);
+    //Colour in the free space
+    img.FillPixels(ConvertColour(ImageDetailForm.colFree.Brush.Color));
+    //Now draw all the sectors in tracks
+    if Length(Image.FreeSpaceMap[side])>0 then
+     for t:=0 to Length(Image.FreeSpaceMap[side])-1 do
+      if(t mod skip=0)and(Length(Image.FreeSpaceMap[side,t])>0)then
+       for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
+        if Image.FreeSpaceMap[side,t,s]>$FC then
+        begin
+         //Other colours
+         if Image.FreeSpaceMap[side,t,s]=$FF then
+          col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
+         if Image.FreeSpaceMap[side,t,s]=$FE then
+          col:=ImageDetailForm.colSystem.Brush.Color;    //System
+         if Image.FreeSpaceMap[side,t,s]=$FD then
+          col:=ImageDetailForm.colDir.Brush.Color;       //Directories
+         //Set the colour
+         img.Colors[s,t div skip]:=ConvertColour(col);
+        end;
+    //Copy the graphic to the display
+    FSM[side].Picture.PNG.PixelFormat:=pf32bit;
+    FSM[side].Picture.PNG.LoadFromIntfImage(img);
+    //Stretch the image
+    FSM[side].Stretch:=True;
+    //And resize to fit the window
+    FSM[side].Height:=ImageDetailForm.ClientHeight-24;
+    FSM[side].Width:=200;
+    //Free the graphic container
+    img.Free;
+    //Set the label size
+    FSMlabel[side].Height:=20;
+    FSMlabel[side].Width:=200;
+    FSMlabel[side].Alignment:=taCenter;
+    FSMlabel[side].AutoSize:=False;
+    //And fill in the details
+    FSMlabel[side].Font.Style:=[fsBold];
+    FSMlabel[side].Caption:='Free Space Map';
+    if Image.DoubleSided then
+     FSMlabel[side].Caption:=FSMlabel[side].Caption+' Side '+IntToStr(side*2);
+    //Disc Title
+    title:=Image.Title(side);
+    //Remove top bit - this can cause havoc with Mac OS
+    RemoveTopBit(title);
+    //Set the edit box
+    titles[side].Text:=title;
+    titles[0].Enabled:=not Image.AFSPresent;
+    //Limit the length
+    if Image.MajorFormatNumber=diAcornDFS  then titles[side].MaxLength:=12; //DFS
+    if Image.MajorFormatNumber=diAcornADFS then
     begin
-     //Update Disc Title
-     if Image.UpdateDiscTitle(titles[side].Text,side)      then HasChanged:=True;
-     //Update Boot Option
-     if Image.UpdateBootOption(boots[side].ItemIndex,side) then HasChanged:=True;
+     if(Image.DOSPresent)and(side=1)then
+      titles[side].MaxLength:=11  //DOS Partition in an ADFS disc
+     else
+      titles[side].MaxLength:=10; //ADFS
     end;
-   UpdateImageInfo;
-  end;
-  //Clear up and close
-  for side:=0 to numsides-1 do
-  begin
-   FSM[side].Free;
-   FSMlabel[side].Free;
+    if Image.MajorFormatNumber=diAcornFS   then titles[side].MaxLength:=10; //AFS
+    if Image.MajorFormatNumber=diDOSPlus   then titles[side].MaxLength:=11; //DOS
+    //Boot Option
+    boots[side].Visible  :=True;
+    if Length(Image.BootOpt)>side then
+     boots[side].ItemIndex:=Image.BootOpt[side]
+    else
+     boots[side].Visible:=False;
+    bootlbs[side].Visible:=boots[side].Visible;
+   end;
+   //Is this an ADFS Hybrid?
+   if(Image.MajorFormatNumber=diAcornADFS)
+   and((Image.AFSPresent)or(Image.DOSPresent))then
+   begin
+    partstr:='ADFS Partition';
+    FSMlabel[0].Caption:=FSMlabel[0].Caption+' '+partstr;
+    ImageDetailForm.pnSide0Caption.Caption:='  '+partstr+' Details';
+    //AFS
+    if Image.AFSPresent then partstr:='Acorn FS Partition';
+    //DOS
+    if Image.DOSPresent then partstr:='DOS Partition';
+    FSMlabel[1].Caption:=FSMlabel[1].Caption+' '+partstr;
+    ImageDetailForm.pnSide1Caption.Caption:='  '+partstr+' Details';
+   end;
+   //Change the dialogue box width
+   ImageDetailForm.ClientWidth:=(Length(Image.FreeSpaceMap)*204)
+                               +4+ImageDetailForm.Legend.Width;
+   //Show/Hide the second detail panel
+   ImageDetailForm.pnSide1.Visible:=numsides>1;
+   //Show the window, modally
+   Cursor:=crDefault;
+   if ImageDetailForm.ShowModal=mrOK then
+   begin
+    //Update the interleave
+    if(ImageDetailForm.cbInterleave.ItemIndex<>Image.InterleaveInUseNum-1)
+    and(ImageDetailForm.cbInterleave.Visible)then
+    begin
+     //Remember the previous settings
+     title:=Image.Filename;
+     t:=ADFSInterleave;
+     //Close the image
+     btn_CloseImageClick(Sender);
+     //Change the interleave
+     ADFSInterleave:=ImageDetailForm.cbInterleave.ItemIndex+1;
+     //Re-open
+     OpenImage(title);
+     //Change the interleave back
+     ADFSInterleave:=t;
+    end;
+    //Still a valid image?
+    if Image.FormatNumber<>diInvalidImg then
+     for side:=0 to numsides-1 do
+     begin
+      //Update Disc Title
+      if Image.UpdateDiscTitle(titles[side].Text,side)      then HasChanged:=True;
+      //Update Boot Option
+      if Image.UpdateBootOption(boots[side].ItemIndex,side) then HasChanged:=True;
+     end;
+    UpdateImageInfo;
+   end;
+   //Clear up and close
+   for side:=0 to numsides-1 do
+   begin
+    FSM[side].Free;
+    FSMlabel[side].Free;
+   end;
   end;
  end;
 end;
