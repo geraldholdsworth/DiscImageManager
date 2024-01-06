@@ -3233,8 +3233,10 @@ begin
  TextureType   :=DIMReg.GetRegValI('Texture',1);
  //ADFS L Interleaved type - get from the registry
  ADFSInterleave:=DIMReg.GetRegValI('ADFS_L_Interleave',0);
+ Image.InterleaveMethod:=ADFSInterleave;
  //Treat Spark as FS?
  SparkIsFS     :=DIMReg.GetRegValB('Spark_Is_FS',True);
+ Image.SparkAsFS:=SparkIsFS;
  //Threshold of when to bypass the GUI (during import) - get from registry
  bypassGUIThres:={DIMReg.GetRegValI('bypass_GUI_Threshold',}100;//);
  //Create INF Files?
@@ -3243,18 +3245,24 @@ begin
  DoHideDEL     :=DIMReg.GetRegValB('Hide_CDR_DEL',False);
  //Allow DFS images with zero sectors
  FDFSZeroSecs  :=DIMReg.GetRegValB('DFS_Zero_Sectors',False);
+ Image.AllowDFSZeroSectors:=FDFSZeroSecs;
  //Check for files going over the DFS disc edge
  FDFSBeyondEdge:=DIMReg.GetRegValB('DFS_Beyond_Edge',False);
+ Image.DFSBeyondEdge:=FDFSBeyondEdge;
  //Check for blank filenames in DFS
  FDFSAllowBlank:=DIMReg.GetRegValB('DFS_Allow_Blanks',False);
+ Image.DFSAllowBlanks:=FDFSAllowBlank;
  //Compress UEF Files on save
  FUEFCompress  :=DIMReg.GetRegValB('UEF_Compress',True);
  //Scan all sub directories on opening
  FScanSubDirs  :=DIMReg.GetRegValB('Scan_SubDirs',True);
+ Image.ScanSubDirs:=FScanSubDirs;
  //Open DOS Partitions on ADFS
  FOpenDOS      :=DIMReg.GetRegValB('Open_DOS',True);
+ Image.OpenDOSPartitions:=FOpenDOS;
  //Create *.dsc files with ADFS Hard Drives
  FCreateDSC    :=DIMReg.GetRegValB('Create_DSC',False);
+ Image.CreateDSC:=FCreateDSC;
  //View menu options
  ViewOptions   :=DIMReg.GetRegValI('View_Options',$FFFF);
  //Toolbar order - this doesn't work currently
@@ -3422,12 +3430,13 @@ var
 begin
  //Create a new DiscImage instance
  NewImage:=TDiscImage.Create;
- NewImage.InterleaveMethod:=ADFSInterleave;
- NewImage.SparkAsFS:=SparkIsFS;
+ NewImage.InterleaveMethod   :=ADFSInterleave;
+ NewImage.SparkAsFS          :=SparkIsFS;
  NewImage.AllowDFSZeroSectors:=FDFSZeroSecs;
- NewImage.DFSBeyondEdge:=FDFSBeyondEdge;
- NewImage.DFSAllowBlanks:=FDFSAllowBlank;
- NewImage.ScanSubDirs:=True;
+ NewImage.DFSBeyondEdge      :=FDFSBeyondEdge;
+ NewImage.DFSAllowBlanks     :=FDFSAllowBlank;
+ NewImage.ScanSubDirs        :=True;
+ NewImage.CreateDSC          :=FCreateDSC;
  //Extract any *.inf files
  SetLength(ListOfFile,0);
  for FileName in FileNames do
