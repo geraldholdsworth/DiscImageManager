@@ -13,7 +13,7 @@ object SettingsForm: TSettingsForm
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object TexturePanel: TPanel
     Left = 0
     Height = 166
@@ -24,6 +24,7 @@ object SettingsForm: TSettingsForm
     BevelWidth = 4
     ClientHeight = 166
     ClientWidth = 448
+    ParentBackground = False
     TabOrder = 0
     OnPaint = FormPaint
     object TilePictureRO5: TImage
@@ -76,6 +77,7 @@ object SettingsForm: TSettingsForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -1413,6 +1415,7 @@ object SettingsForm: TSettingsForm
     BevelOuter = bvNone
     ClientHeight = 104
     ClientWidth = 224
+    ParentBackground = False
     TabOrder = 1
     OnPaint = FormPaint
     object DFSPanelLabel: TLabel
@@ -1425,6 +1428,7 @@ object SettingsForm: TSettingsForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -1437,6 +1441,7 @@ object SettingsForm: TSettingsForm
     BevelOuter = bvNone
     ClientHeight = 104
     ClientWidth = 226
+    ParentBackground = False
     TabOrder = 2
     OnPaint = FormPaint
     object InterleaveLabel: TLabel
@@ -1449,6 +1454,7 @@ object SettingsForm: TSettingsForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -1461,6 +1467,7 @@ object SettingsForm: TSettingsForm
     BevelOuter = bvNone
     ClientHeight = 104
     ClientWidth = 452
+    ParentBackground = False
     TabOrder = 3
     OnPaint = FormPaint
     object MiscLabel: TLabel
@@ -1473,6 +1480,7 @@ object SettingsForm: TSettingsForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end

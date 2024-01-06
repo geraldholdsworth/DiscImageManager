@@ -295,6 +295,7 @@ type
   FDOSVolInRoot,                //Volume name is stored in the root (DOS)
   FScanSubDirs,                 //Scan sub directories on opening (ADFS/Amiga/DOS/Spark)
   FOpenDOSPart,                 //Open DOS Partitions on ADFS
+  FcreateDSC,                   //Create *.dsc files with ADFS hard drives
   FDOSUseSFN    : Boolean;      //Use short filenames, even if there are long filenames (DOS)
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
@@ -869,6 +870,8 @@ type
                                               write FDFSAllowBlank;
   property BootOpt:             TDIByteArray  read bootoption;
   property CRC32:               String        read GetImageCrc;
+  property CreateDSC:           Boolean       read FcreateDSC
+                                              write FcreateDSC;
   property DirectoryType:       Byte          read FDirType;
   property DirectoryTypeString: String        read DirTypeToString;
   property DirSep:              Char          read dir_sep;

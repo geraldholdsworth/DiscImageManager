@@ -1,7 +1,7 @@
 unit SettingsUnit;
 
 {
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -67,7 +67,8 @@ type
   WriteDebug,
   CompressUEF,
   ScanSubDirs,
-  OpenDOS: TGJHTickBox;
+  OpenDOS,
+  CreateDSC: TGJHTickBox;
   CancelButton,
   OKButton: TGJHButton;
   procedure FormCreate(Sender: TObject);
@@ -248,6 +249,9 @@ begin
  OpenDOS:=CreateTickBox('Open DOS partitions on ADFS',MiscPanel);
  OpenDOS.Top:=ScanSubDirs.Top+ScanSubDirs.Height+Round(4*ratio);
  OpenDOS.Left:=ScanSubDirs.Left;
+ CreateDSC:=CreateTickBox('Create *.dsc files with new ADFS HDD',MiscPanel);
+ CreateDSC.Top:=OpenDOS.Top+OpenDOS.Height+Round(4*ratio);
+ CreateDSC.Left:=OpenDOS.Left;
  MiscPanel.Height:=CompressUEF.Top+CompressUEF.Height+Round(8*ratio);
  //Move the panels up/down
  DFSPanel.Top:=TexturePanel.Top+TexturePanel.Height;

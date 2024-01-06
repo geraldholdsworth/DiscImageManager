@@ -9,7 +9,7 @@ has also grown from being just a reader to also a writer.
 Extra 'gimmicks' have been added over time, to utilise the code in the underlying
 class.
 
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -480,6 +480,8 @@ type
     FScanSubDirs  :Boolean;
     //Open DOS Partitions on ADFS
     FOpenDOS      :Boolean;
+    //Create *.dsc files with ADFS hard drives
+    FCreateDSC    :Boolean;
     //Registry
     DIMReg        :TGJHRegistry;
     AppIsClosing  :Boolean;
@@ -1818,6 +1820,8 @@ begin
  Image.ScanSubDirs        :=FScanSubDirs;
  //Open DOS Partitions
  Image.OpenDOSPartitions  :=FOpenDOS;
+ //Create *.dsc files with ADFS hard drives
+ Image.CreateDSC          :=FCreateDSC;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -3249,6 +3253,8 @@ begin
  FScanSubDirs  :=DIMReg.GetRegValB('Scan_SubDirs',True);
  //Open DOS Partitions on ADFS
  FOpenDOS      :=DIMReg.GetRegValB('Open_DOS',True);
+ //Create *.dsc files with ADFS Hard Drives
+ FCreateDSC    :=DIMReg.GetRegValB('Create_DSC',False);
  //View menu options
  ViewOptions   :=DIMReg.GetRegValI('View_Options',$FFFF);
  //Toolbar order - this doesn't work currently
@@ -4180,9 +4186,9 @@ var
   Result.Red  := col     AND$FF;
   //TFPColor is 16 bit per Result
   Result.Alpha:=Result.Alpha or Result.Alpha<<8;
-  Result.Red  :=Result.Red or Result.Red<<8;
+  Result.Red  :=Result.Red   or Result.Red  <<8;
   Result.Green:=Result.Green or Result.Green<<8;
-  Result.Blue :=Result.Blue or Result.Blue<<8;
+  Result.Blue :=Result.Blue  or Result.Blue <<8;
  end;
 begin
  //ROM FS image is open
@@ -5144,6 +5150,7 @@ begin
  SettingsForm.CompressUEF.Ticked           :=FUEFCompress;
  SettingsForm.ScanSubDirs.Ticked           :=FScanSubDirs;
  SettingsForm.OpenDOS.Ticked               :=FOpenDOS;
+ SettingsForm.CreateDSC.Ticked             :=FCreateDSC;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
@@ -5167,6 +5174,7 @@ begin
   FUEFCompress  :=SettingsForm.CompressUEF.Ticked;
   FScanSubDirs  :=SettingsForm.ScanSubDirs.Ticked;
   FOpenDOS      :=SettingsForm.OpenDOS.Ticked;
+  FCreateDSC    :=SettingsForm.CreateDSC.Ticked;
   //Save the settings
   SaveConfigSettings;
   //Change the tile under the filetype
@@ -5276,6 +5284,7 @@ begin
  DIMReg.SetRegValB('DFS_Allow_Blanks', FDFSAllowBlank);
  DIMReg.SetRegValB('Scan_SubDirs',     FScanSubDirs);
  DIMReg.SetRegValB('Open_DOS',         FOpenDOS);
+ DIMReg.SetRegValB('Create_DSC',       FCreateDSC);
  DIMReg.SetRegValB('UEF_Compress',     FUEFCompress);
 end;
 

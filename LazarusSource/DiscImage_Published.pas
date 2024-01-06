@@ -243,7 +243,30 @@ Saves an image to a file
 function TDiscImage.SaveToFile(filename: String;uncompress: Boolean=False): Boolean;
 var
  FDiscDrive: TFileStream;
- ext: String;
+ dscfile,
+ ext       : String;
+ procedure LWriteByte(b: Byte);
+ begin
+  FDiscDrive.WriteByte(b);
+ end;
+ procedure LWrite16b(b: Word);
+ begin
+  FDiscDrive.WriteByte(b     MOD$100);
+  FDiscDrive.WriteByte((b>>8)MOD$100);
+ end;
+ procedure LWrite24b(b: Cardinal);
+ begin
+  FDiscDrive.WriteByte(b      MOD$100);
+  FDiscDrive.WriteByte((b>>8) MOD$100);
+  FDiscDrive.WriteByte((b>>16)MOD$100);
+ end;
+ procedure LWrite32b(b: Cardinal);
+ begin
+  FDiscDrive.WriteByte(b      MOD$100);
+  FDiscDrive.WriteByte((b>>8) MOD$100);
+  FDiscDrive.WriteByte((b>>16)MOD$100);
+  FDiscDrive.WriteByte((b>>24)MOD$100);
+ end;
 begin
  Result:=False;
  //Validate the filename
@@ -267,12 +290,57 @@ begin
    //Change the image's filename
    imagefilename:=filename;
    Result:=True;
+   //Now create the *.dsc file, if it was successful
+   if(Result)and(FcreateDSC)
+   and(GetMajorFormatNumber=diAcornADFS)
+   and(GetMinorFormatNumber=$F)then
+   begin
+    //Create the filename
+    dscfile:=LeftStr(filename,Length(filename)-Length(ExtractFileExt(filename)))
+            +'.dsc';
+    //If there is one already, then don't create a new one
+    if not SysUtils.FileExists(dscfile) then
+    begin
+     try
+      FDiscDrive:=TFileStream.Create(dscfile,fmCreate OR fmShareDenyNone);
+      FDiscDrive.Position:=0;
+      //Offset 00, length 3 - reserved
+      LWrite24b($000000);
+      //Offset 03, length 1 - Block length descriptor
+      LWriteByte($80);
+      //Offset 04, length 1 - Density code (00 = MFM)
+      LWriteByte($00);
+      //Offset 05, length 4 - reserved
+      LWrite32b($00000000);
+      //Offset 09, length 3 - Sector size (usually 0x000100)
+      if secsize<>0 then LWrite24b(secsize)
+      else LWrite24b($000100);
+      //Offset 0C, length 1 - 01 = soft sectors
+      LWriteByte($01);
+      //Offset 0D, length 2 - Number of cylinders/tracks
+      LWrite16b(Length(free_space_map[0]));
+      //Offset 0F, length 1 - Number of heads
+      LWriteByte(heads);
+      //Offset 10, length 2 - Reduced Write Current Cylinder
+      LWrite16b($0080);
+      //Offset 12, length 2 - Write Pre-compensation Cylinder
+      LWrite16b($0080);
+      //Offset 14, length 1 - landing zone
+      LWriteByte($00);
+      //Offset 15, length 1 - Seek time code
+      LWriteByte($01);
+     finally
+      FDiscDrive.Free;
+     end;
+    end;
+   end;
   except
    //Could not create
    Result:=False;
   end;
  end;
- if GetMajorFormatNumber=diAcornUEF then WriteUEFFile(filename,uncompress); //CFS
+ if GetMajorFormatNumber=diAcornUEF then
+  WriteUEFFile(filename,uncompress); //CFS
 end;
 
 {-------------------------------------------------------------------------------
