@@ -974,21 +974,23 @@ Bug fixes
 * When an ADFS New Map zone is close to capacity (i.e., not enough space for a fragment id to be written in), the free space was incorrectly reported. This would cause files and directories to fail to being written but the catalogue information would still be.
 * Deleting an ADFS directory which is the penultimate directory in the catalogue would result in the last one being deleted from the internal references. This then caused confusion with the front end GUI and resulted in a crash. In addition, deleting everything from the image would leave the free space map not correctly updated.
 
-1.46.6
+1.46.7
 --------------------
 New or improved features
 * Font size on the BBC Basic Viewer can be changed.
 * Added the ability to use the mouse scroll wheel on a hex dump.
-* Can now read Acorn ROM FS images.
+* Read Acorn ROM FS images.
 * When reading UEF images, each CFS header is checked to be valid before reading.
-* Can now create blank Acorn ROM FS images.
-* Can now add files to Acorn ROM FS images.
-* Can now delete files from Acorn ROM FS images.
+* Create blank Acorn ROM FS images.
+* Add files to Acorn ROM FS images.
+* Delete files from Acorn ROM FS images.
 * Some minor code changes (creation of new images).
 * Command line parsing has been completely removed and replaced by a command line console.
 * Attributes are now validated before applying.
 * CSV output now includes the option for MD5, per file.
 * Button added to allow loading of multiple images and outputting a CSV of each file.
+* Copy and move files within an Acorn ROM FS image.
+* Update the title, copyright and version strings in an Acorn ROM FS image.
 
 Bug fixes
 * OS dark mode: most of the controls do not react to the change from light mode to dark mode. The changing of the font colour sometimes made them hard to see with the tiling selected.

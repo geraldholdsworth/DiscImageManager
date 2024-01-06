@@ -23,6 +23,7 @@ General - Ideas which are maybe possible
 * ADFS: When a DOS image file is added to an ADFS image (and the "Open DOS Partition" setting is set), automatically open as the second partition (if there isn't one already).
 * ADFS: Rebuild the Old Map FS Map by scanning the files and rebuilding from scratch (in the class definition).
 * ADFS: Use the above, along with other functions, to create a new function to fix ADFS Old Map images which otherwise won't load.
+* ADFS: Create the *.dsc file to go with the associated hard drive image.
 * AFS: AFS0 images do not get created correctly (in particular the free space allocation maps) - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: Add option to new Level 3 images for pre-1988 or post-1988 format - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: When extracting the AFS partition, remove the ADFS partition and re-address all the objects, instead of just blanking out the ADFS part - IN PROGRESS.
@@ -35,10 +36,7 @@ General - Ideas which are maybe possible
 * MMFS: Rewrite/rethink entire MMFS idea - might be more viable once multi-partitions are implemented.
 * DOS: Add in support for partitioned hard drive images - NEED TO IMPLEMENT MULTI_PARTITION SUPPORT FIRST.
 * DOS: Add option to import *.inf files, instead of ignoring them.
-* ROM FS: test out copy and move file.
-* ROM FS: rename files.
 * CFS and ROM FS: Validate new filename when renaming.
-* ROM FS: Retitle, change the (C) text and change the version text. - CAN BE DIFFICULT AS THIS REQUIRES MOVING THE HEADER CODE AND, THEREFORE, CHANGING THE STATIC ADDRESSES.
 * Have different TImageList components for each format.
 * Function (and button) to consolidate the free space map for ADFS and AFS (using the functions built into the class).
 * Hex editor: Editable.
