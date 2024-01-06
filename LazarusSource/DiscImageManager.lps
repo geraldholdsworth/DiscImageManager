@@ -20,7 +20,7 @@
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="2"/>
         <TopLine Value="4174"/>
-        <CursorPos X="31" Y="4202"/>
+        <CursorPos X="70" Y="4203"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -29,8 +29,8 @@
         <Filename Value="DiscImage.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="15"/>
-        <TopLine Value="810"/>
-        <CursorPos X="57" Y="818"/>
+        <TopLine Value="640"/>
+        <CursorPos X="12" Y="664"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit2>
@@ -383,7 +383,6 @@
       </Unit36>
       <Unit37>
         <Filename Value="DiscImage_Published.pas"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="17"/>
         <TopLine Value="1170"/>
         <CursorPos X="21" Y="1203"/>
@@ -400,9 +399,10 @@
       </Unit38>
       <Unit39>
         <Filename Value="DiscImage_RFS.pas"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="16"/>
-        <TopLine Value="732"/>
-        <CursorPos X="49" Y="772"/>
+        <TopLine Value="772"/>
+        <CursorPos X="32" Y="801"/>
         <UsageCount Value="108"/>
         <Loaded Value="True"/>
       </Unit39>
@@ -430,7 +430,7 @@
         <EditorIndex Value="32"/>
         <TopLine Value="48"/>
         <CursorPos X="20" Y="85"/>
-        <UsageCount Value="66"/>
+        <UsageCount Value="113"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit42>
@@ -440,129 +440,129 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="1594"/>
         <CursorPos X="3" Y="1618"/>
-        <UsageCount Value="7"/>
+        <UsageCount Value="2"/>
       </Unit43>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="NewImageUnit.pas"/>
-        <Caret Line="241" Column="38" TopLine="374"/>
-      </Position1>
-      <Position2>
-        <Filename Value="RFSDetailUnit.pas"/>
-        <Caret Line="16" Column="34"/>
-      </Position2>
-      <Position3>
-        <Filename Value="NewImageUnit.pas"/>
-        <Caret Line="70" Column="14" TopLine="46"/>
-      </Position3>
-      <Position4>
-        <Filename Value="RFSDetailUnit.pas"/>
-        <Caret Line="19" Column="28"/>
-      </Position4>
-      <Position5>
-        <Filename Value="NewImageUnit.pas"/>
-        <Caret Line="34" Column="18" TopLine="8"/>
-      </Position5>
-      <Position6>
-        <Filename Value="RFSDetailUnit.pas"/>
-        <Caret Line="8" Column="77"/>
-      </Position6>
-      <Position7>
-        <Filename Value="RFSDetailUnit.pas"/>
-        <Caret Line="9" Column="21"/>
-      </Position7>
-      <Position8>
-        <Filename Value="RFSDetailUnit.pas"/>
-        <Caret Line="41" Column="15" TopLine="25"/>
-      </Position8>
-      <Position9>
-        <Filename Value="RFSDetailUnit.pas"/>
-        <Caret Line="65" Column="38" TopLine="27"/>
-      </Position9>
-      <Position10>
-        <Filename Value="NewImageUnit.pas"/>
-        <Caret Line="69" Column="13" TopLine="48"/>
-      </Position10>
-      <Position11>
-        <Filename Value="NewImageUnit.pas"/>
-        <Caret Line="226" TopLine="227"/>
-      </Position11>
-      <Position12>
-        <Filename Value="NewImageUnit.pas"/>
-        <Caret Line="473" TopLine="427"/>
-      </Position12>
-      <Position13>
-        <Filename Value="NewImageUnit.pas"/>
-        <Caret Line="189" Column="2" TopLine="184"/>
-      </Position13>
-      <Position14>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="1946" Column="40" TopLine="1906"/>
-      </Position14>
-      <Position15>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="278" Column="15" TopLine="263"/>
-      </Position15>
-      <Position16>
         <Filename Value="MainUnit.pas"/>
         <Caret Line="4193" Column="41" TopLine="4175"/>
-      </Position16>
-      <Position17>
+      </Position1>
+      <Position2>
         <Filename Value="MainUnit.pas"/>
         <Caret Line="278" Column="15" TopLine="258"/>
+      </Position2>
+      <Position3>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="650" Column="12" TopLine="623"/>
+      </Position3>
+      <Position4>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="832" Column="12" TopLine="819"/>
+      </Position4>
+      <Position5>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="139" Column="35" TopLine="111"/>
+      </Position5>
+      <Position6>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="660" Column="38" TopLine="644"/>
+      </Position6>
+      <Position7>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="140" Column="45" TopLine="120"/>
+      </Position7>
+      <Position8>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="360" Column="14" TopLine="354"/>
+      </Position8>
+      <Position9>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4194" Column="75" TopLine="4168"/>
+      </Position9>
+      <Position10>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="814" Column="13" TopLine="787"/>
+      </Position10>
+      <Position11>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="662" Column="4" TopLine="641"/>
+      </Position11>
+      <Position12>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="749" Column="5" TopLine="707"/>
+      </Position12>
+      <Position13>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="663" Column="50" TopLine="642"/>
+      </Position13>
+      <Position14>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="818" Column="57" TopLine="810"/>
+      </Position14>
+      <Position15>
+        <Filename Value="DiscImage_Published.pas"/>
+        <Caret Line="1206" Column="39" TopLine="1166"/>
+      </Position15>
+      <Position16>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="250" Column="33" TopLine="233"/>
+      </Position16>
+      <Position17>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="236" Column="54" TopLine="229"/>
       </Position17>
       <Position18>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="650" Column="12" TopLine="623"/>
+        <Caret Line="647" Column="45" TopLine="647"/>
       </Position18>
       <Position19>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="832" Column="12" TopLine="819"/>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="768" Column="38" TopLine="725"/>
       </Position19>
       <Position20>
         <Filename Value="DiscImage_RFS.pas"/>
-        <Caret Line="139" Column="35" TopLine="111"/>
+        <Caret Line="236" Column="38" TopLine="218"/>
       </Position20>
       <Position21>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="660" Column="38" TopLine="644"/>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="383" Column="93" TopLine="368"/>
       </Position21>
       <Position22>
         <Filename Value="DiscImage_RFS.pas"/>
-        <Caret Line="140" Column="45" TopLine="120"/>
+        <Caret Line="388" Column="15" TopLine="380"/>
       </Position22>
       <Position23>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="360" Column="14" TopLine="354"/>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="794" TopLine="757"/>
       </Position23>
       <Position24>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="4194" Column="75" TopLine="4168"/>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="791" Column="39" TopLine="757"/>
       </Position24>
       <Position25>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="814" Column="13" TopLine="787"/>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="795" TopLine="757"/>
       </Position25>
       <Position26>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="662" Column="4" TopLine="641"/>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="796" Column="18" TopLine="749"/>
       </Position26>
       <Position27>
         <Filename Value="DiscImage_RFS.pas"/>
-        <Caret Line="749" Column="5" TopLine="707"/>
+        <Caret Line="795" TopLine="754"/>
       </Position27>
       <Position28>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="663" Column="50" TopLine="642"/>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="267" Column="16" TopLine="234"/>
       </Position28>
       <Position29>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="818" Column="57" TopLine="810"/>
+        <Filename Value="DiscImage_RFS.pas"/>
+        <Caret Line="806" Column="9" TopLine="770"/>
       </Position29>
       <Position30>
-        <Filename Value="DiscImage_Published.pas"/>
-        <Caret Line="1206" Column="39" TopLine="1166"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="664" Column="12" TopLine="640"/>
       </Position30>
     </JumpHistory>
     <RunParams>
@@ -580,30 +580,7 @@
   <Debugging>
     <Watches>
       <Item>
-        <Expression Value="entry"/>
-      </Item>
-      <Item>
-        <Expression Value="FDisc[0].Entries[entry].Filename"/>
-        <DisplayStyle Value="wdfString"/>
-      </Item>
-      <Item>
-        <Expression Value="newfilename"/>
-        <DisplayStyle Value="wdfString"/>
-      </Item>
-      <Item>
-        <Expression Value="FDisc[0].Entries[0].Filename"/>
-        <DisplayStyle Value="wdfString"/>
-      </Item>
-      <Item>
-        <Expression Value="FDisc[0].Entries[1].Filename"/>
-        <DisplayStyle Value="wdfString"/>
-      </Item>
-      <Item>
-        <Expression Value="dest"/>
-      </Item>
-      <Item>
-        <Expression Value="FDisc[0].Entries[2].Filename"/>
-        <DisplayStyle Value="wdfString"/>
+        <Expression Value="Result"/>
       </Item>
     </Watches>
   </Debugging>

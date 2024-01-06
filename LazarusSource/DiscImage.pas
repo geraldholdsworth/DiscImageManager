@@ -8,7 +8,7 @@ filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
 1541, Commodore 1571, Commodore 1581, Commodore AmigaDOS, Acorn File Server,
 SparkFS, PackDir, MS-DOS, and Acorn DOS Plus.
 
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -644,12 +644,13 @@ type
   function ID_RFS: Boolean;
   function ValidRFSHeader(ptr: Cardinal;cfs: Boolean=False): Boolean;
   function ReadRFSImage: Boolean;
-  function AdjustRFSOffsets(base: Cardinal): Boolean;
+  procedure AdjustRFSOffsets(base: Cardinal);
   function FormatRFS: Boolean;
   function FormatRFS(title: String): Boolean; overload;
   function FormatRFS(title,copyright: String): Boolean; overload;
   function FormatRFS(title,copyright,version: String): Boolean; overload;
   function FormatRFS(title,copyright,version: String;binvers: Byte): Boolean; overload;
+  function WriteRFSHeader(title,copyright,version: String;binvers: Byte): Cardinal;
   function ExtractRFSFile(entry: Integer;var buffer:TDIByteArray):Boolean;
   function WriteRFSFile(var file_details: TDirEntry;var buffer: TDIByteArray;
                                                    insert: Integer=-1): Integer;
@@ -660,6 +661,7 @@ type
   function RenameRFSFile(entry: Cardinal; newfilename: String): Integer;
   function GetRFSVersionNumber: Byte;
   procedure SetRFSVersionNumber(newvalue: Byte);
+  function UpdateRFSHeader(title,copyright,version: String): Boolean;
   function UpdateRFSTitle(title: String): Boolean;    
   function UpdateRFSVersion(version: String): Boolean;
   function UpdateRFSCopyright(copyright: String): Boolean;
@@ -748,14 +750,14 @@ type
    afsdisctitle  = 'DiscImageManager'; //AFS has longer titles
    amigadisctitle= 'Disc Image Manager';//Amiga has even longer titles
    rfstitle      = 'Disc Image Manager';//ROM FS Header title
-   rfscopyright  = '(C)GJH Software 2023';//Copyright string for ROM FS
+   rfscopyright  = '(C)GJH Software 2024';//Copyright string for ROM FS
    //Root name to use when AFS is partition on ADFS
-   afsrootname  = ':AFS$';
+   afsrootname   = ':AFS$';
    //ROM FS Signature
-   RFSsig = #$00#$00#$00#$4C;
+   RFSsig        = #$00#$00#$00#$4C;
    //ROM FS Copyright String signature
-   RFScrt = #$28#$43#$29;
-   //ROM FS Code Header
+   RFScrt        = #$28#$43#$29;
+   //ROM FS Code Header (ends with 'DiscImageManager')
    ROMHDR: array[$38..$96] of Byte = (
                 $AA,$E0,$0E,$F0,$19,$E0,$0D,$D0,$37,$98,$20,$7E,$80,$90,$31,$20,
                 $7C,$80,$85,$F5,$A9,$97,$85,$F6,$A9,$80,$85,$F7,$D0,$20,$20,$7C,
@@ -763,6 +765,8 @@ type
                 $AC,$85,$80,$B1,$F6,$86,$F7,$E6,$F6,$D0,$02,$E6,$F7,$A8,$A2,$00,
                 $8A,$A6,$F4,$60,$B5,$E7,$49,$0F,$29,$0F,$C5,$F4,$60,$00,$80,$44,
                 $69,$73,$63,$49,$6D,$61,$67,$65,$4D,$61,$6E,$61,$67,$65,$72);
+   //ROM FS usual size
+   ROMFSSize     = 16384;
    //Attributes
    AmigaAttributes   = 'DEWRAPSHdewrlxia                ';
    ADFSOldAttributes = 'RWLDErweP ';//Not to be confused with what is returned from OSFILE

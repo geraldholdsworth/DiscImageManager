@@ -233,35 +233,52 @@ end;
 {-------------------------------------------------------------------------------
 Re-adjust the offsets in the header 6502 code
 -------------------------------------------------------------------------------}
-function TDiscImage.AdjustRFSOffsets(base: Cardinal): Boolean;
+procedure TDiscImage.AdjustRFSOffsets(base: Cardinal);
 var
  invvar,
  invrom,
  baselo,
- basehi : Word;
- sig    : String;
- i      : Byte;
+ basehi  : Word;
+ sig     : String;
+ i       : Byte;
+ LDisc   : TDIByteArray;
+ oldbase,
+ newroot : Cardinal;
 begin
- Result:=False;
  //Is it one we've created? Get the signature string
  sig:='';
  for i:=0 to $F do sig:=sig+chr(ReadByte(base+$4F+i));
- //If it isn't, we can't relocate the code
- if sig='DiscImageManager' then
+ //If it isn't then replace the code with ours
+ if sig<>'DiscImageManager' then
  begin
-  WriteByte((root+$8000)AND$FF,$15+base); //Data address low
-  WriteByte((root+$8000)DIV$100,$19+base);//Data address High
-  invvar:=$807C+(base-Low(ROMHDR));
-  invrom:=$807E+(base-Low(ROMHDR));
-  baselo:=$8085+(base-Low(ROMHDR));
-  basehi:=$8086+(base-Low(ROMHDR));
-  Write16b(invrom,base+$0B);
-  Write16b(invvar,base+$10);
-  Write16b(invvar,base+$1F);
-  Write16b(basehi,base+$29);
-  Write16b(baselo,base+$31);
-  Result:=True;
+  //Copy the original into a new array
+  SetLength(LDisc,ROMFSSize);
+  for i:=0 to Length(LDisc)-1 do
+   LDisc[i]:=ReadByte(i);
+  //Write our header
+  for i:=0 to Length(ROMHDR)-1 do
+   WriteByte(ROMHDR[Low(ROMHDR)+i],base+i);
+  //Make a note of the old pointers
+  oldbase:=Read16b($4)-$8000;
+  newroot:=oldbase+Length(ROMHDR);
+  SetDataLength(ROMFSSize);
+  //Copy the data across
+  for i:=0 to ROMFSSize-root do
+   if newroot+i<ROMFSSize then WriteByte(LDisc[root+i],newroot+i);
+  root:=newroot;
  end;
+ //Now update all the pointers
+ WriteByte((root+$8000)AND$FF,$15+base); //Data address low
+ WriteByte((root+$8000)DIV$100,$19+base);//Data address High
+ invvar:=$807C+(base-Low(ROMHDR));
+ invrom:=$807E+(base-Low(ROMHDR));
+ baselo:=$8085+(base-Low(ROMHDR));
+ basehi:=$8086+(base-Low(ROMHDR));
+ Write16b(invrom,base+$0B);
+ Write16b(invvar,base+$10);
+ Write16b(invvar,base+$1F);
+ Write16b(basehi,base+$29);
+ Write16b(baselo,base+$31);
 end;
 
 {-------------------------------------------------------------------------------
@@ -311,7 +328,34 @@ begin
  SetLength(disc_size,1);
  SetLength(free_space,1);
  //Setup the data area (16K)
- SetDataLength(16384);
+ SetDataLength(ROMFSSize);
+ //Write the ROM FS header
+ ptr:=WriteRFSHeader(title,copyright,version,binvers);
+ inc(ptr,Length(ROMHDR));
+ //Write blank file
+ for i:=0 to Length(BlkFile)-1 do WriteByte(BlkFile[i],root+i);
+ //Update the EOF
+ WriteByte(ptr+Length(BlkFile)+$8000,ptr+$18);
+ //And the Header CRC
+ Write16b(GetCRC16(root+1,Length(BlkFile)-3),root+Length(BlkFile)-2);
+ inc(ptr,Length(BlkFile));
+ //No more files
+ WriteByte($2B,ptr);
+ disc_size[0]:=ptr+1;
+ SetDataLength(disc_size[0]);
+ free_space[0]:=16384-disc_size[0];
+ //Read it back in again
+ Result:=ReadRFSImage;
+end;
+
+{-------------------------------------------------------------------------------
+Write a ROM FS header (assuming blank image)
+-------------------------------------------------------------------------------}
+function TDiscImage.WriteRFSHeader(title,copyright,version: String;
+                                                       binvers: Byte): Cardinal;
+var
+ i  : Integer;
+begin
  //Write the signature
  for i:=0 to Length(RFSsig)-1 do WriteByte(Ord(RFSsig[i+1]),i);
  //ROM Type
@@ -321,51 +365,34 @@ begin
  //Title string
  if title='' then title:=rfstitle;
  WriteString(title,$9,0,0);
- ptr:=Length(title)+9;
- WriteByte(0,ptr);
- inc(ptr);
+ Result:=Length(title)+9;
+ WriteByte(0,Result);
+ inc(Result);
  //Version String
  if version='' then version:='1.00';
- WriteString(version,ptr,0,0);
- inc(ptr,Length(version));
- WriteByte(0,ptr);
+ WriteString(version,Result,0,0);
+ inc(Result,Length(version));
+ WriteByte(0,Result);
  //Pointer to (C)
- WriteByte(ptr,7);
+ WriteByte(Result,7);
  //(C) string
  if copyright='' then copyright:=rfscopyright;
  if(copyright[1]<>'(')
  or(copyright[2]<>'C')
  or(copyright[3]<>')')then copyright:='(C)'+copyright;
- WriteString(copyright,ptr+1,0,0);
- inc(ptr,Length(copyright)+1);
- WriteByte(0,ptr);
- inc(ptr);
+ WriteString(copyright,Result+1,0,0);
+ inc(Result,Length(copyright)+1);
+ WriteByte(0,Result);
+ inc(Result);
  //Pointer to code header
- Write16b($8000+ptr,4);
+ Write16b($8000+Result,4);
  //Code header
  for i:=Low(ROMHDR) to High(ROMHDR) do
-  WriteByte(ROMHDR[i],ptr+(i-Low(ROMHDR)));
+  WriteByte(ROMHDR[i],Result+(i-Low(ROMHDR)));
  //Update the root address
- root:=ptr+Length(ROMHDR);
+ root:=Result+Length(ROMHDR);
  //Adjust the offsets
- if AdjustRFSOffsets(ptr) then
- begin
-  inc(ptr,Length(ROMHDR));
-  //Write blank file
-  for i:=0 to Length(BlkFile)-1 do WriteByte(BlkFile[i],root+i);
-  //Update the EOF
-  WriteByte(ptr+Length(BlkFile)+$8000,ptr+$18);
-  //And the Header CRC
-  Write16b(GetCRC16(root+1,Length(BlkFile)-3),root+Length(BlkFile)-2);
-  inc(ptr,Length(BlkFile));
-  //No more files
-  WriteByte($2B,ptr);
-  disc_size[0]:=ptr+1;
-  SetDataLength(disc_size[0]);
-  free_space[0]:=16384-disc_size[0];
-  //Read it back in again
-  Result:=ReadRFSImage;
- end;
+ AdjustRFSOffsets(Result); //Return the pointer to the code
 end;
 
 {-------------------------------------------------------------------------------
@@ -741,16 +768,48 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Set the RFS Header
+-------------------------------------------------------------------------------}
+function TDiscImage.UpdateRFSHeader(title,copyright,version: String): Boolean;
+var
+ i,diff : Integer;
+ LDisc  : TDIByteArray;
+ oldroot: Cardinal;
+begin
+ Result:=False;
+ //Only proceed if something has changed
+ if(title<>disc_name[0])
+ or(copyright<>Fcopyright)
+ or(version<>Fversion)then
+ begin
+  //What is the difference in size?
+  diff:=(Length(title)-Length(disc_name[0]))
+       +(Length(copyright)-Length(Fcopyright))
+       +(Length(version)-Length(Fversion));
+  //Copy the image to our store
+  SetLength(LDisc,GetDataLength);
+  for i:=0 to GetDataLength-1 do LDisc[i]:=ReadByte(i);
+  //Make a note of where the files are
+  oldroot:=root;
+  SetDataLength(ROMFSSize);
+  //Update the header (overwriting the root);
+  WriteRFSHeader(title,copyright,version,LDisc[8]);
+  //Copy the files back
+  for i:=oldroot to ROMFSSize-1 do
+   if root+(i-oldroot)<ROMFSSize then WriteByte(LDisc[i],root+(i-oldroot));
+  //Update the file pointers
+  RFSReAdjustPointers(root,diff);
+  //Re-read the image in
+  Result:=ReadRFSImage;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
 Set the RFS Title String
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateRFSTitle(title: String): Boolean;
 begin
- Result:=False;
-{
-  Changing the ROM FS title, copyright or version text: if the header code was
-  not produced by DIM, then remove and replace with ours so that we can achieve
-  these functions. It will also require shifting the files too.
-}
+ Result:=UpdateRFSHeader(title,Fcopyright,Fversion);
 end;
 
 {-------------------------------------------------------------------------------
@@ -758,12 +817,7 @@ Set the RFS Version String
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateRFSVersion(version: String): Boolean;
 begin
- Result:=False;
-{
-  Changing the ROM FS title, copyright or version text: if the header code was
-  not produced by DIM, then remove and replace with ours so that we can achieve
-  these functions. It will also require shifting the files too.
-}
+ Result:=UpdateRFSHeader(disc_name[0],Fcopyright,version);
 end;
 
 {-------------------------------------------------------------------------------
@@ -771,10 +825,5 @@ Set the RFS Title String
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateRFSCopyright(copyright: String): Boolean;
 begin
- Result:=False;
-{
-  Changing the ROM FS title, copyright or version text: if the header code was
-  not produced by DIM, then remove and replace with ours so that we can achieve
-  these functions. It will also require shifting the files too.
-}
+ Result:=UpdateRFSHeader(disc_name[0],copyright,Fversion);
 end;
