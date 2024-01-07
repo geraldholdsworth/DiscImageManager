@@ -318,3 +318,17 @@ begin
  if(day>0)and(day<32)and(month>0)and(month<13)then
   Result:=EncodeDate(year,month,day);
 end;
+
+{------------------------------------------------------------------------------}
+//Validate a filename for Windows
+{------------------------------------------------------------------------------}
+procedure ValidateWinFilename(var f: String);
+var
+ i: Integer;
+const
+  illegal = '\/:*?"<>|';
+begin
+ if Length(f)>0 then
+  for i:=1 to Length(f) do
+   if Pos(f[i],illegal)>0 then f[i]:=' ';
+end;

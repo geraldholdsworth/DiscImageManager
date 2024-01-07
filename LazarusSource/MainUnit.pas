@@ -373,8 +373,6 @@ type
                          LLeft,LTop: Integer; LModal: TModalResult): TGJHButton;
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure CreateFileTypeDialogue;
-   procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
-   procedure CreateRootInf(filename: String; dir: Integer);
    procedure Defrag(side: Byte);
    procedure DeleteFile(confirm: Boolean);
    procedure DisableControls;
@@ -393,8 +391,7 @@ type
    procedure SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
    function GetNodeAt(Y: Integer): TTreeNode;
    function GetTextureTile(Ltile:Integer=-1): TBitmap;
-   function GetWindowsFilename(dir,entry: Integer): String;
-   procedure ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);         
+   procedure ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);
    function IntToStrComma(size: Int64): String;
    procedure OpenImage(filename: String);
    procedure ParseCommand(var Command: TStringArray);
@@ -415,7 +412,6 @@ type
    procedure TileCanvas(c: TCanvas;rc: TRect); overload;
    procedure UpdateImageInfo(partition: Cardinal=0);
    procedure UpdateProgress(Fupdate: String);
-   procedure ValidateFilename(var f: String);
    procedure WriteToDebug(line: String);
   private
    var
@@ -1466,7 +1462,7 @@ begin
         SaveImage.FileName:=Image.Title(Image.Disc[dir].Partition);
       end
       else
-       SaveImage.FileName:=GetWindowsFilename(dir,entry);
+       SaveImage.FileName:=Image.GetWindowsFilename(dir,entry);
       //Get the result
       saver:=SaveImage.Execute;
       //User clicked on Cancel, so exit
@@ -1474,7 +1470,7 @@ begin
       if(saver)and(selectroot)then //Root was selected, so create the directory
       begin
        CreateDir(SaveImage.FileName);
-       CreateRootInf(SaveImage.FileName,Image.Disc[dir].Partition);
+       Image.CreateRootInf(SaveImage.FileName,Image.Disc[dir].Partition);
        SaveImage.Filename:=SaveImage.Filename+PathDelim+'root';
       end;
      end;
@@ -1517,39 +1513,6 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Create a Windows filename
-{------------------------------------------------------------------------------}
-function TMainForm.GetWindowsFilename(dir,entry: Integer): String;
-var
- extsep: Char;
-begin
- Result:='';
- if(dir>=0)and(dir<Length(Image.Disc))then
-  if(entry>=0)and(entry<=Length(Image.Disc[dir].Entries))then
-  begin
-   extsep:=#0;
-   //Get the filename
-   Result:={Image.GetParent(dir)+Image.DirSep
-          +}Image.Disc[dir].Entries[entry].Filename;
-   //Convert BBC chars to PC
-   BBCtoWin(Result);
-   //Replace any non-valid characters
-   ValidateFilename(Result);
-   //Add the filetype to the end, if any (but not directories)
-   if (Image.Disc[dir].Entries[entry].ShortFileType<>'')
-   and(Image.Disc[dir].Entries[entry].DirRef=-1) then
-   begin
-    if(Image.MajorFormatNumber=diAcornDFS)
-    or(Image.MajorFormatNumber=diAcornADFS)
-    or(Image.MajorFormatNumber=diAcornFS)then extsep:=','; //DFS, ADFS and AFS
-    if(Image.MajorFormatNumber=diCommodore)                //Commodore
-    or(Image.MajorFormatNumber=diAmiga)then extsep:='.';   //Amiga
-    Result:=Result+extsep+Image.Disc[dir].Entries[entry].ShortFileType;
-   end;
-  end;
-end;
-
-{------------------------------------------------------------------------------}
 //Download a file
 {------------------------------------------------------------------------------}
 procedure TMainForm.DownLoadFile(dir,entry: Integer;path: String;filename: String='');
@@ -1568,7 +1531,7 @@ begin
   //Get the full path and filename
   imagefilename  :=GetImageFilename(dir,entry);
   if filename='' then //If a filename has not been supplied, generate one
-   windowsfilename:=GetWindowsFilename(dir,entry)
+   windowsfilename:=Image.GetWindowsFilename(dir,entry)
   else                //Otherwise use the supplied filename
    windowsfilename:=filename;
   if Image.ExtractFile(imagefilename,buffer,entry) then
@@ -1579,7 +1542,7 @@ begin
     F.Position:=0;
     F.Write(buffer[0],Length(buffer));
     F.Free;
-    CreateINFFile(dir,entry,path,filename);
+    if DoCreateInf then Image.CreateINFFile(dir,entry,path,filename);
     if not Fguiopen then WriteLn('Success.');
    except
     //Could not create file
@@ -1594,120 +1557,6 @@ begin
     WriteLn('Could not download file '''+imagefilename+'''.');
  end
  else DownLoadDirectory(dir,entry,path+windowsfilename);
-end;
-
-{------------------------------------------------------------------------------}
-//Create an inf file
-{------------------------------------------------------------------------------}
-procedure TMainForm.CreateINFFile(dir,entry: Integer; path: String;filename: String='');
-var
- F              : TFileStream;
- title,
- inffile,
- imagefilename,
- windowsfilename: String;
- attributes,
- hexlen         : Byte;
- t              : Integer;
-const
- adfsattr = 'RWELrwel';
-begin
- if(dir>=0)and(dir<Length(Image.Disc))then
-  if(entry>=0)and(entry<Length(Image.Disc[dir].Entries))then
-  begin
-   //Length of the hex numbers
-   hexlen:=8;
-   //6 for DFS (after discussion on Stardot forum)
-   if Image.MajorFormatNumber=diAcornDFS then hexlen:=6;
-   if DoCreateInf then
-   begin
-    imagefilename:=Image.Disc[dir].Entries[entry].Filename;
-    if filename='' then //If no filename has been supplied, generate one
-     windowsfilename:=GetWindowsFilename(dir,entry)
-    else                //Otherwise just use the supplied name
-     windowsfilename:=filename;
-    //Add the root, if DFS and no directory specifier
-    if(Image.MajorFormatNumber=diAcornDFS)and(imagefilename[2]<>'.')then
-     imagefilename:=RightStr(Image.GetParent(dir),1)+'.'+imagefilename;
-    //Put quotes round the filename if it contains a space
-    if Pos(' ',imagefilename)>0 then imagefilename:='"'+imagefilename+'"';
-    //Create the string
-    inffile:=PadRight(LeftStr(imagefilename,12),12)+' '
-            +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,hexlen)+' '
-            +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,hexlen)+' '
-            +IntToHex(Image.Disc[dir].Entries[entry].Length,hexlen);
-    //Create the attributes
-    attributes:=$00;
-    if(Image.MajorFormatNumber=diAcornDFS)
-    or(Image.MajorFormatNumber=diAcornUEF)
-    or(Image.MajorFormatNumber=diAcornRFS)then //DFS and CFS
-     if Image.Disc[dir].Entries[entry].Attributes='L' then attributes:=$08;
-    if(Image.MajorFormatNumber=diAcornADFS)
-    or(Image.MajorFormatNumber=diAcornFS)then //ADFS and AFS
-     for t:=0 to 7 do
-      if Pos(adfsattr[t+1],Image.Disc[dir].Entries[entry].Attributes)>0 then
-       inc(attributes,1<<t);
-    inffile:=inffile+' '+IntToHex(attributes,2);
-    //Timestamp word (for AFS compatibility)
-    if Image.Disc[dir].Entries[entry].TimeStamp<>0 then
-     inffile:=inffile+' '
-             +IntToHex(DateTimeToAFS(Image.Disc[dir].Entries[entry].TimeStamp),4);
-    //CRC
-    inffile:=inffile+' CRC32='+Image.GetFileCRC(Image.GetParent(dir)+
-                                     Image.GetDirSep(Image.Disc[dir].Partition)+
-                                     Image.Disc[dir].Entries[entry].Filename,
-                                     entry);
-    //Timestamp (for RISC OS and DOS compatibility)
-    if Image.Disc[dir].Entries[entry].TimeStamp<>0 then
-     inffile:=inffile+' DATETIME='+FormatDateTime('yyyymmddhhnnss',
-                                      Image.Disc[dir].Entries[entry].TimeStamp);
-    //Directory?
-    if Image.Disc[dir].Entries[entry].DirRef<>-1 then
-    begin
-     title:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
-     if Pos(' ',title)>0 then title:='"'+title+'"';
-     inffile:=inffile+' DIRTITLE='+PadRight(LeftStr(title,21),21);
-    end;
-    //Create the inf file
-    try
-     F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
-     F.Position:=0;
-     F.Write(inffile[1],Length(inffile));
-     F.Free;
-    except
-     //Could not create
-    end;
-   end;
-  end;
-end;
-
-{------------------------------------------------------------------------------}
-//Create an inf file for a root
-{------------------------------------------------------------------------------}
-procedure TMainForm.CreateRootInf(filename: String; dir: Integer);
-var
- F        : TFileStream;
- title,
- dirtitle,
- inffile  : String;
-begin
- title:=Image.Title(Image.Disc[dir].Partition);
- if Pos(' ',title)>0 then title:='"'+title+'"';
- dirtitle:=Image.Disc[dir].Title;
- if Pos(' ',dirtitle)>0 then dirtitle:='"'+dirtitle+'"';
- inffile:=PadRight(LeftStr(Image.Disc[dir].Directory,12),12)
-         +' OPT='+IntToHex(Image.BootOpt[Image.Disc[dir].Partition],2)
-         +' TITLE='+PadRight(LeftStr(title,12),12)
-         +' DIRTITLE='+PadRight(LeftStr(dirtitle,21),21);
- //Create the inf file
- try
-  F:=TFileStream.Create(filename+'.inf',fmCreate OR fmShareDenyNone);
-  F.Position:=0;
-  F.Write(inffile[1],Length(inffile));
-  F.Free;
- except
-  //Could not create
- end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1746,14 +1595,14 @@ begin
    if not TMyTreeNode(Node).BeenRead then
     ReadInDirectory(Node);
   //Convert to Windows filename
-  windowsfilename:=GetWindowsFilename(dir,entry);
+  windowsfilename:=Image.GetWindowsFilename(dir,entry);
   if Image.FileExists(imagefilename,ref) then
   begin
    //Create the directory
    if not DirectoryExists(path+windowsfilename) then
    begin
     CreateDir(path+windowsfilename);
-    CreateINFFile(dir,entry,path);
+    if DoCreateInf then Image.CreateINFFile(dir,entry,path);
    end;
    //Navigate into the directory
    s:=Image.Disc[dir].Entries[entry].DirRef;
@@ -6988,20 +6837,6 @@ begin
                             Panel.Text,
                             StatusBar.Canvas.TextStyle);
 // Panel.Width:=panwid;
-end;
-
-{------------------------------------------------------------------------------}
-//Validate a filename for Windows
-{------------------------------------------------------------------------------}
-procedure TMainForm.ValidateFilename(var f: String);
-var
- i: Integer;
-const
-  illegal = '\/:*?"<>|';
-begin
- if Length(f)>0 then
-  for i:=1 to Length(f) do
-   if Pos(f[i],illegal)>0 then f[i]:=' ';
 end;
 
 {------------------------------------------------------------------------------}

@@ -65,8 +65,7 @@ type
   isDOSPart   : Boolean;    //This file is the DOS partition
  end;
 
- type
-//Define the records for an Acorn File Server password file
+ type //Define the records for an Acorn File Server password file
   TUserAccount = record
    Username,
    Password   : String;
@@ -80,7 +79,7 @@ type
  TUserAccounts  =array of TUserAccount;
  TSearchResults =array of TDirEntry;
 
- //General purpose procedures
+ //General purpose procedures - globally accessible
  procedure ResetDirEntry(var Entry: TDirEntry);
  procedure RemoveTopBit(var title: String);
  function AddTopBit(title:String):String;
@@ -95,6 +94,7 @@ type
  function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
  function DateTimeToAFS(timedate: TDateTime): Word;
  function AFSToDateTime(date: Word):TDateTime;
+ procedure ValidateWinFilename(var f: String);
  //Some constants
  const
   diAcornDFS   = $000;
@@ -776,13 +776,36 @@ type
    {$INCLUDE 'DiscImageDOSFileTypes.pas'}
  published
   //Published methods
+  function AddPartition(size: Cardinal;format: Byte): Boolean;
+  function AddPartition(tracks: Byte): Boolean; overload;
+  function AddPartition(filename: String): Boolean; overload;
+  procedure BeginUpdate;
+  function ChangeFileType(filename,newtype: String): Boolean;
+  function ChangeInterleaveMethod(NewMethod: Byte): Boolean;
+  procedure Close;
+  function CopyFile(filename,directory: String): Integer;
+  function CopyFile(filename,directory,newfilename: String): Integer; overload;
+  function CopyFile(source: Cardinal;dest: Integer): Integer; overload;
   constructor Create;
   constructor Create(Clone: TDiscImage); overload;
-  function LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
-  function IDImage: Boolean;
-  procedure ReadImage;
-  function SaveToFile(filename: String;uncompress: Boolean=False): Boolean;
-  procedure Close;
+  function CreateDirectory(var filename,parent,attributes: String): Integer;
+  procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
+  function CreatePasswordFile(Accounts: TUserAccounts): Integer;
+  procedure CreateRootInf(filename: String; dir: Integer);
+  function DeleteFile(filename: String): Boolean;
+  function DeleteFile(entry: Cardinal): Boolean; overload;
+  function DiscSize(partition: QWord):QWord;
+  procedure EndUpdate;
+  function ExtractFile(filename:String;var buffer:TDIByteArray;
+                                                     entry:Cardinal=0): Boolean;
+  function ExtractFile(filename:String;Stream:TStream;entry:Cardinal=0)
+                                                             : Boolean;overload;
+  function FileExists(filename: String;var Ref: Cardinal;
+                                                   sfn: Boolean=False): Boolean;
+  function FileExists(filename: String;var dir,entry: Cardinal;
+                                         sfn: Boolean=False): Boolean; overload;
+  function FileSearch(search: TDirEntry): TSearchResults;
+  function FixDirectories: Boolean;
   function FormatFDD(major: Word;minor: Byte;tracks: Byte=0): Boolean;
   function FormatFDD(major: Word;filename: String): Boolean; overload;
   function FormatFDD(major: Word): Boolean; overload;
@@ -793,71 +816,51 @@ type
                                               dirtype: Byte): Boolean; overload;
   function FormatHDD(major:Word;harddrivesize:Cardinal;ide,newmap:Boolean;
                               dirtype:Byte;addheader:Boolean):Boolean; overload;
-  function ExtractFile(filename:String;var buffer:TDIByteArray;
-                                                     entry:Cardinal=0): Boolean;
-  function ExtractFile(filename:String;Stream:TStream;entry:Cardinal=0)
-                                                             : Boolean;overload;
-  function WriteFile(var file_details: TDirEntry;
-                      var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
-  function FileExists(filename: String;var Ref: Cardinal;
-                                                   sfn: Boolean=False): Boolean;
-  function FileExists(filename: String;var dir,entry: Cardinal;
-                                         sfn: Boolean=False): Boolean; overload;
-  function ReadDiscData(addr,count,side,offset: Cardinal;
-                                             var buffer: TDIByteArray): Boolean;
-  function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
-                                    count: Cardinal;start: Cardinal=0): Boolean;
-  function FileSearch(search: TDirEntry): TSearchResults;
-  function RenameFile(oldfilename: String;var newfilename: String): Integer;
-  function RenameFile(entry: Cardinal;var newfilename: String):Integer;overload;
-  function DeleteFile(filename: String): Boolean;
-  function DeleteFile(entry: Cardinal): Boolean; overload;
+  function FreeSpace(partition: QWord):QWord;
+  function GetDirSep(partition: Byte): Char;
+  function GetFileCRC(filename: String;entry:Cardinal=0): String;
+  function GetFileMD5(filename: String;entry:Cardinal=0): String;
+  function GetFileTypeFromName(filetype: String): Integer;
+  function GetFileTypeFromNumber(filetype: Integer): String;
+  function GetInterleaveString(Inter: Byte): String;
+  function GetMaxLength: Cardinal;
+  function GetNumberOfInterleaves: Byte;
+  function GetParent(dir: Integer): String;
+  function GetWindowsFilename(dir,entry: Integer): String;
+  function IDImage: Boolean;
+  function ImageReport(CSV: Boolean): TStringList;
+  function LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
   function MoveFile(filename,directory: String): Integer;
   function MoveFile(source: Cardinal;dest: Integer): Integer; overload;
-  function CopyFile(filename,directory: String): Integer;
-  function CopyFile(filename,directory,newfilename: String): Integer; overload;
-  function CopyFile(source: Cardinal;dest: Integer): Integer; overload;
+  function ReadDirectory(dirname: String): Integer;
+  function ReadDiscData(addr,count,side,offset: Cardinal;
+                                             var buffer: TDIByteArray): Boolean;
+  procedure ReadImage;
+  function ReadPasswordFile: TUserAccounts;
+  function RenameFile(oldfilename: String;var newfilename: String): Integer;
+  function RenameFile(entry: Cardinal;var newfilename: String):Integer;overload;
+  function RetitleDirectory(var filename,newtitle: String): Boolean;
+  function SaveFilter(var FilterIndex: Integer;thisformat: Integer=-1):String;
+  function SaveToFile(filename: String;uncompress: Boolean=False): Boolean;
+  function SeparatePartition(side: Cardinal;filename: String=''): Boolean;
+  function TimeStampFile(filename: String;newtimedate: TDateTime): Boolean;
+  function Title(partition: Cardinal):String;
   function UpdateAttributes(filename,attributes: String;
                                                      entry:Cardinal=0): Boolean;
-  function UpdateDiscTitle(title: String;side: Byte): Boolean;
   function UpdateBootOption(option,side: Byte): Boolean;
-  function UpdateVersionString(version: String): Boolean;
   function UpdateCopyright(copyright: String): Boolean;
+  function UpdateDiscTitle(NewTitle: String;side: Byte): Boolean;
+  function UpdateVersionString(version: String): Boolean;
   procedure ValidateAttributes(var attributes: String);
-  function CreateDirectory(var filename,parent,attributes: String): Integer;
-  function RetitleDirectory(var filename,newtitle: String): Boolean;
-  function GetFileCRC(filename: String;entry:Cardinal=0): String;   
-  function GetFileMD5(filename: String;entry:Cardinal=0): String;
-  function FixDirectories: Boolean;
-  function SaveFilter(var FilterIndex: Integer;thisformat: Integer=-1):String;
+  function ValidateFilename(parent:String;var filename:String): Boolean;
+  function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
+                                    count: Cardinal;start: Cardinal=0): Boolean;
+  function WriteFile(var file_details: TDirEntry;
+                      var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
   function UpdateLoadAddr(filename:String;newaddr:Cardinal;
                                                      entry:Cardinal=0): Boolean;
   function UpdateExecAddr(filename:String;newaddr:Cardinal;
                                                      entry:Cardinal=0): Boolean;
-  function TimeStampFile(filename: String;newtimedate: TDateTime): Boolean;
-  function ChangeFileType(filename,newtype: String): Boolean;
-  function GetFileTypeFromNumber(filetype: Integer): String;
-  function GetFileTypeFromName(filetype: String): Integer;
-  procedure BeginUpdate;
-  procedure EndUpdate;
-  function ValidateFilename(parent:String;var filename:String): Boolean;
-  function DiscSize(partition: QWord):QWord;
-  function FreeSpace(partition: QWord):QWord;
-  function Title(partition: Cardinal):String;
-  function CreatePasswordFile(Accounts: TUserAccounts): Integer;
-  function ReadPasswordFile: TUserAccounts;
-  function GetParent(dir: Integer): String;
-  function SeparatePartition(side: Cardinal;filename: String=''): Boolean;
-  function GetMaxLength: Cardinal;
-  function AddPartition(size: Cardinal;format: Byte): Boolean;
-  function AddPartition(tracks: Byte): Boolean; overload;
-  function AddPartition(filename: String): Boolean; overload;
-  function ChangeInterleaveMethod(NewMethod: Byte): Boolean;
-  function GetDirSep(partition: Byte): Char;
-  function ReadDirectory(dirname: String): Integer;
-  function ImageReport(CSV: Boolean): TStringList;
-  function GetInterleaveString(Inter: Byte): String;
-  function GetNumberOfInterleaves: Byte;
   //Published properties
   property AFSPresent:          Boolean       read FAFSPresent;
   property AFSRoot:             Cardinal      read Fafsroot;

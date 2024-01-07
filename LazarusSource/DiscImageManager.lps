@@ -4,7 +4,7 @@
     <Version Value="12"/>
     <ManyBuildModesSelection Value="&quot;Release macOS 64 bit&quot;,&quot;Release macOS 32 bit&quot;,&quot;Release macOS ARM&quot;,&quot;Release Windows 64 bit&quot;,&quot;Release Windows 32 bit&quot;,&quot;Release Linux 64 bit&quot;,&quot;Release Linux 32 bit&quot;,&quot;Release Linux ARM 32 bit&quot;,&quot;Release Linux ARM 64 bit&quot;"/>
     <BuildModes Active="Native Debugger"/>
-    <Units Count="44">
+    <Units Count="43">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -19,8 +19,8 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="2"/>
-        <TopLine Value="3219"/>
-        <CursorPos X="57" Y="3256"/>
+        <TopLine Value="1523"/>
+        <CursorPos X="5" Y="1560"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -29,8 +29,8 @@
         <Filename Value="DiscImage.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="15"/>
-        <TopLine Value="848"/>
-        <CursorPos X="11" Y="300"/>
+        <TopLine Value="829"/>
+        <CursorPos X="32" Y="852"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit2>
@@ -67,7 +67,7 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="30"/>
-        <CursorPos X="60" Y="27"/>
+        <CursorPos X="24" Y="4"/>
         <UsageCount Value="204"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -76,8 +76,8 @@
         <Filename Value="DiscImageUtils.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="27"/>
-        <TopLine Value="205"/>
-        <CursorPos X="2" Y="199"/>
+        <TopLine Value="286"/>
+        <CursorPos X="22" Y="325"/>
         <UsageCount Value="205"/>
         <Loaded Value="True"/>
       </Unit6>
@@ -290,8 +290,8 @@
       <Unit25>
         <Filename Value="DiscImage_ADFS.pas"/>
         <EditorIndex Value="21"/>
-        <TopLine Value="4718"/>
-        <CursorPos X="64" Y="4751"/>
+        <TopLine Value="4320"/>
+        <CursorPos X="2" Y="1949"/>
         <UsageCount Value="102"/>
         <Loaded Value="True"/>
       </Unit25>
@@ -385,8 +385,8 @@
         <Filename Value="DiscImage_Published.pas"/>
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="17"/>
-        <TopLine Value="293"/>
-        <CursorPos X="29" Y="327"/>
+        <TopLine Value="1219"/>
+        <CursorPos X="58" Y="1237"/>
         <UsageCount Value="119"/>
         <Loaded Value="True"/>
       </Unit37>
@@ -430,139 +430,131 @@
         <EditorIndex Value="32"/>
         <TopLine Value="48"/>
         <CursorPos X="20" Y="85"/>
-        <UsageCount Value="123"/>
+        <UsageCount Value="163"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit42>
-      <Unit43>
-        <Filename Value="/Applications/Lazarus/lcl/stdctrls.pp"/>
-        <UnitName Value="StdCtrls"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="1594"/>
-        <CursorPos X="3" Y="1618"/>
-        <UsageCount Value="1"/>
-      </Unit43>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="491" Column="12" TopLine="468"/>
+        <Filename Value="DiscImage_Published.pas"/>
+        <Caret Line="1876" Column="15" TopLine="1852"/>
       </Position1>
       <Position2>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="4687" Column="2" TopLine="4665"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="1549" Column="6" TopLine="1512"/>
       </Position2>
       <Position3>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="482" Column="12" TopLine="453"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="396" Column="3" TopLine="373"/>
       </Position3>
       <Position4>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="4198" Column="2" TopLine="4170"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="1468" Column="64" TopLine="1444"/>
       </Position4>
       <Position5>
-        <Filename Value="DiscImage_Published.pas"/>
-        <Caret Line="318" Column="43" TopLine="286"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="1570" Column="21" TopLine="1546"/>
       </Position5>
       <Position6>
-        <Filename Value="DiscImage_Published.pas"/>
-        <Caret Line="302" Column="10" TopLine="289"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="1625" Column="29" TopLine="1601"/>
       </Position6>
       <Position7>
-        <Filename Value="DiscImage_Published.pas"/>
-        <Caret Line="301" Column="36" TopLine="277"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="1748" Column="26" TopLine="1725"/>
       </Position7>
       <Position8>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="1824" Column="40" TopLine="1795"/>
+        <Caret Line="1516" Column="5" TopLine="1507"/>
       </Position8>
       <Position9>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="295" Column="14" TopLine="258"/>
+        <Caret Line="376" Column="14" TopLine="369"/>
       </Position9>
       <Position10>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="6102" Column="2" TopLine="6101"/>
+        <Caret Line="1567" Column="22" TopLine="1564"/>
       </Position10>
       <Position11>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="323" Column="14" TopLine="295"/>
+        <Caret Line="376" Column="27" TopLine="353"/>
       </Position11>
       <Position12>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="3161" Column="2" TopLine="3238"/>
+        <Caret Line="1547" Column="64" TopLine="1506"/>
       </Position12>
       <Position13>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="322" Column="14" TopLine="300"/>
+        <Caret Line="1567" Column="34" TopLine="1526"/>
       </Position13>
       <Position14>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="2993" Column="2" TopLine="2995"/>
+        <Caret Line="1721" Column="38" TopLine="1680"/>
       </Position14>
       <Position15>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="745" Column="26" TopLine="722"/>
+        <Caret Line="376" Column="14" TopLine="359"/>
       </Position15>
       <Position16>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="900" Column="28" TopLine="860"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="448" Column="12" TopLine="421"/>
       </Position16>
       <Position17>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="1824" Column="14" TopLine="1783"/>
+        <Filename Value="DiscImage_Published.pas"/>
+        <Caret Line="2000" Column="5" TopLine="1955"/>
       </Position17>
       <Position18>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="3247" Column="8" TopLine="3227"/>
+        <Filename Value="DiscImage_Published.pas"/>
+        <Caret Line="1988" Column="28" TopLine="1958"/>
       </Position18>
       <Position19>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="472" Column="19" TopLine="450"/>
+        <Caret Line="1669" Column="12" TopLine="1636"/>
       </Position19>
       <Position20>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="1816" Column="43" TopLine="1780"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="862" TopLine="836"/>
       </Position20>
       <Position21>
-        <Filename Value="MainUnit.pas"/>
-        <Caret Line="3247" Column="16" TopLine="3207"/>
+        <Filename Value="DiscImage_Published.pas"/>
+        <Caret Line="1899" Column="3" TopLine="1887"/>
       </Position21>
       <Position22>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="3425" Column="30" TopLine="3387"/>
+        <Caret Line="376" Column="10" TopLine="354"/>
       </Position22>
       <Position23>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="3428" Column="46" TopLine="3387"/>
+        <Caret Line="1673" Column="6" TopLine="1647"/>
       </Position23>
       <Position24>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="5149" Column="60" TopLine="5108"/>
+        <Caret Line="377" Column="61" TopLine="353"/>
       </Position24>
       <Position25>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="5173" Column="17" TopLine="5133"/>
+        <Caret Line="1475" Column="14" TopLine="1451"/>
       </Position25>
       <Position26>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="5284" Column="54" TopLine="5243"/>
+        <Caret Line="1547" Column="31" TopLine="1524"/>
       </Position26>
       <Position27>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="472" Column="19" TopLine="450"/>
+        <Caret Line="1718" Column="61" TopLine="1695"/>
       </Position27>
       <Position28>
         <Filename Value="MainUnit.pas"/>
-        <Caret Line="1816" Column="44" TopLine="1780"/>
+        <Caret Line="375" Column="37" TopLine="358"/>
       </Position28>
       <Position29>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="300" Column="11" TopLine="848"/>
+        <Caret Line="829" Column="81" TopLine="818"/>
       </Position29>
       <Position30>
-        <Filename Value="DiscImage_Published.pas"/>
-        <Caret Line="327" Column="50" TopLine="293"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="852" Column="32" TopLine="829"/>
       </Position30>
     </JumpHistory>
     <RunParams>

@@ -1219,25 +1219,25 @@ end;
 {-------------------------------------------------------------------------------
 Set the disc title
 -------------------------------------------------------------------------------}
-function TDiscImage.UpdateDiscTitle(title: String;side: Byte): Boolean;
+function TDiscImage.UpdateDiscTitle(NewTitle: String;side: Byte): Boolean;
 begin
  Result:=False;
  case GetMajorFormatNumber of
-  diAcornDFS : Result:=UpdateDFSDiscTitle(title,side);//Title DFS Disc
+  diAcornDFS : Result:=UpdateDFSDiscTitle(NewTitle,side);//Title DFS Disc
   diAcornADFS:
    begin
     if(FDOSPresent)and(side=1)then
-     Result:=UpdateDOSDiscTitle(title)                //Title DOS Plus on ADFS hybrid disc
+     Result:=UpdateDOSDiscTitle(NewTitle)                //Title DOS Plus on ADFS hybrid disc
     else
-     Result:=UpdateADFSDiscTitle(title);              //Title ADFS Disc
+     Result:=UpdateADFSDiscTitle(NewTitle);              //Title ADFS Disc
    end;
-  diCommodore: Result:=UpdateCDRDiscTitle(title);     //Title Commodore 64/128 Disc
-  diSinclair : Result:=UpdateSinclairDiscTitle(title);//Title Sinclair/Amstrad Disc
-  diAmiga    : Result:=UpdateAmigaDiscTitle(title);   //Title AmigaDOS Disc
-  diAcornUEF : Result:=False;                         //Can't retitle CFS
-  diAcornFS  : Result:=UpdateAFSDiscTitle(title);     //Title AFS Disc
-  diDOSPlus  : Result:=UpdateDOSDiscTitle(title);     //Title DOS Plus Disc
-  diAcornRFS : Result:=UpdateRFSTitle(title);         //Title ROM FS
+  diCommodore: Result:=UpdateCDRDiscTitle(NewTitle);     //Title Commodore 64/128 Disc
+  diSinclair : Result:=UpdateSinclairDiscTitle(NewTitle);//Title Sinclair/Amstrad Disc
+  diAmiga    : Result:=UpdateAmigaDiscTitle(NewTitle);   //Title AmigaDOS Disc
+  diAcornUEF : exit;                                     //Can't retitle CFS
+  diAcornFS  : Result:=UpdateAFSDiscTitle(NewTitle);     //Title AFS Disc
+  diDOSPlus  : Result:=UpdateDOSDiscTitle(NewTitle);     //Title DOS Plus Disc
+  diAcornRFS : Result:=UpdateRFSTitle(NewTitle);         //Title ROM FS
  end;
 end;
 
@@ -1854,6 +1854,149 @@ Get the total number of interleave types
 function TDiscImage.GetNumberOfInterleaves: Byte;
 begin
  Result:=Length(FInts);
+end;
+
+{-------------------------------------------------------------------------------
+Create a Windows filename
+-------------------------------------------------------------------------------}
+function TDiscImage.GetWindowsFilename(dir,entry: Integer): String;
+var
+ extsep: Char;
+begin
+ Result:='';
+ if(dir>=0)and(dir<Length(FDisc))then
+  if(entry>=0)and(entry<=Length(FDisc[dir].Entries))then
+  begin
+   extsep:=#0;
+   //Get the filename
+   Result:=FDisc[dir].Entries[entry].Filename;
+   //Convert BBC chars to PC
+   BBCtoWin(Result);
+   //Replace any non-valid characters
+   ValidateWinFilename(Result);
+   //Add the filetype to the end, if any (but not directories)
+   if (FDisc[dir].Entries[entry].ShortFileType<>'')
+   and(FDisc[dir].Entries[entry].DirRef=-1) then
+   begin
+    if(GetMajorFormatNumber=diAcornDFS)
+    or(GetMajorFormatNumber=diAcornADFS)
+    or(GetMajorFormatNumber=diAcornFS)then extsep:=','; //DFS, ADFS and AFS
+    if(GetMajorFormatNumber=diCommodore)                //Commodore
+    or(GetMajorFormatNumber=diAmiga)then extsep:='.';   //Amiga
+    Result:=Result+extsep+FDisc[dir].Entries[entry].ShortFileType;
+   end;
+  end;
+end;
+
+{-------------------------------------------------------------------------------
+Create an inf file
+-------------------------------------------------------------------------------}
+procedure TDiscImage.CreateINFFile(dir,entry: Integer; path: String;filename: String='');
+var
+ F              : TFileStream;
+ Ltitle,
+ inffile,
+ Limagefilename,
+ windowsfilename: String;
+ attributes,
+ hexlen         : Byte;
+ t              : Integer;
+const
+ adfsattr = 'RWELrwel';
+begin
+ if(dir>=0)and(dir<Length(FDisc))then
+  if(entry>=0)and(entry<Length(FDisc[dir].Entries))then
+  begin
+   //Length of the hex numbers
+   hexlen:=8;
+   //6 for DFS (after discussion on Stardot forum)
+   if GetMajorFormatNumber=diAcornDFS then hexlen:=6;
+   Limagefilename:=FDisc[dir].Entries[entry].Filename;
+   if filename='' then //If no filename has been supplied, generate one
+    windowsfilename:=GetWindowsFilename(dir,entry)
+   else                //Otherwise just use the supplied name
+    windowsfilename:=filename;
+   //Add the root, if DFS and no directory specifier
+   if(GetMajorFormatNumber=diAcornDFS)and(Limagefilename[2]<>'.')then
+    Limagefilename:=RightStr(GetParent(dir),1)+'.'+Limagefilename;
+   //Put quotes round the filename if it contains a space
+   if Pos(' ',Limagefilename)>0 then Limagefilename:='"'+Limagefilename+'"';
+   //Create the string
+   inffile:=PadRight(LeftStr(Limagefilename,12),12)+' '
+           +IntToHex(FDisc[dir].Entries[entry].LoadAddr,hexlen)+' '
+           +IntToHex(FDisc[dir].Entries[entry].ExecAddr,hexlen)+' '
+           +IntToHex(FDisc[dir].Entries[entry].Length,hexlen);
+   //Create the attributes
+   attributes:=$00;
+   if(GetMajorFormatNumber=diAcornDFS)
+   or(GetMajorFormatNumber=diAcornUEF)
+   or(GetMajorFormatNumber=diAcornRFS)then //DFS and CFS
+    if FDisc[dir].Entries[entry].Attributes='L' then attributes:=$08;
+   if(GetMajorFormatNumber=diAcornADFS)
+   or(GetMajorFormatNumber=diAcornFS)then //ADFS and AFS
+    for t:=0 to 7 do
+     if Pos(adfsattr[t+1],FDisc[dir].Entries[entry].Attributes)>0 then
+      inc(attributes,1<<t);
+   inffile:=inffile+' '+IntToHex(attributes,2);
+   //Timestamp word (for AFS compatibility)
+   if FDisc[dir].Entries[entry].TimeStamp<>0 then
+    inffile:=inffile+' '
+            +IntToHex(DateTimeToAFS(FDisc[dir].Entries[entry].TimeStamp),4);
+   //CRC
+   inffile:=inffile+' CRC32='+GetFileCRC(GetParent(dir)+
+                              GetDirSep(FDisc[dir].Partition)+
+                              FDisc[dir].Entries[entry].Filename,
+                              entry);
+   //Timestamp (for RISC OS and DOS compatibility)
+   if FDisc[dir].Entries[entry].TimeStamp<>0 then
+    inffile:=inffile+' DATETIME='+FormatDateTime('yyyymmddhhnnss',
+                                     FDisc[dir].Entries[entry].TimeStamp);
+   //Directory?
+   if FDisc[dir].Entries[entry].DirRef<>-1 then
+   begin
+    Ltitle:=FDisc[FDisc[dir].Entries[entry].DirRef].Title;
+    if Pos(' ',Ltitle)>0 then Ltitle:='"'+Ltitle+'"';
+    inffile:=inffile+' DIRTITLE='+PadRight(LeftStr(Ltitle,21),21);
+   end;
+   //Create the inf file
+   try
+    F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
+    F.Position:=0;
+    F.Write(inffile[1],Length(inffile));
+    F.Free;
+   except
+    //Could not create
+   end;
+  end;
+end;
+
+{-------------------------------------------------------------------------------
+Create an inf file for a root
+-------------------------------------------------------------------------------}
+procedure TDiscImage.CreateRootInf(filename: String; dir: Integer);
+var
+ F        : TFileStream;
+ Ltitle,
+ dirtitle,
+ inffile  : String;
+begin
+ Ltitle:=Title(FDisc[dir].Partition);
+ if Pos(' ',Ltitle)>0 then Ltitle:='"'+Ltitle+'"';
+ dirtitle:=FDisc[dir].Title;
+ if Pos(' ',dirtitle)>0 then dirtitle:='"'+dirtitle+'"';
+ inffile:=PadRight(LeftStr(FDisc[dir].Directory,12),12)
+         +' OPT='+IntToHex(BootOpt[FDisc[dir].Partition],2)
+         +' TITLE='+PadRight(LeftStr(Ltitle,12),12)
+         +' DIRTITLE='+PadRight(LeftStr(dirtitle,21),21);
+ //Create the inf file
+ try
+  F:=TFileStream.Create(filename+'.inf',fmCreate OR fmShareDenyNone);
+  F.Position:=0;
+  F.Write(inffile[1],Length(inffile));
+  F.Free;
+ except
+  //Could not create
+ end;
 end;
 
 //++++++++++++++++++ TSpark Published Methods ++++++++++++++++++++++++++++++++++
