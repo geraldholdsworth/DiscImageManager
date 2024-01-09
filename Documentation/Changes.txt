@@ -991,6 +991,7 @@ New or improved features
 * Button added to allow loading of multiple images and outputting a CSV of each file.
 * Copy and move files within an Acorn ROM FS image.
 * Update the title, copyright and version strings in an Acorn ROM FS image.
+* Added option to generate a *.dsc file for ADFS hard drive images when saving (if none already exist).
 
 Bug fixes
 * OS dark mode: most of the controls do not react to the change from light mode to dark mode. The changing of the font colour sometimes made them hard to see with the tiling selected.
