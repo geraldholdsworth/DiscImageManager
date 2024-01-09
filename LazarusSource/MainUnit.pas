@@ -1020,8 +1020,9 @@ var
    importfilename:=ExtractFileName(filedetails.Filename);
   //If we still have no filename, make one up
   if importfilename='' then importfilename:='NewFile';
-  //Reject any *.inf files
-  if LowerCase(RightStr(importfilename,4))<>'.inf' then
+  //Reject any *.inf files, unless this is DOS
+  if(LowerCase(RightStr(importfilename,4))<>'.inf')
+  or(Image.MajorFormatNumber=diDOSPlus)then
   begin
    //Initialise the strings
    execaddr :='00000000';

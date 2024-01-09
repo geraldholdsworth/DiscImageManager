@@ -517,6 +517,7 @@
         <Filename Value="RFSDetailUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="RFSDetailForm"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit25>
     </Units>
