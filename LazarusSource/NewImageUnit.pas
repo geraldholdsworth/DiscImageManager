@@ -1,7 +1,7 @@
 unit NewImageUnit;
 
 {
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -202,7 +202,7 @@ begin
  AFSImageSizeChange(Sender);
  ROMFSTitle.Text     :=MainForm.ApplicationTitle;
  ROMFSVersion.Text   :=MainForm.ApplicationVersion;
- ROMFSCopy.Text      :='(C)GJH Software 2023';
+ ROMFSCopy.Text      :='(C)GJH Software 2024';
  ROMFSBinVersAdj.Position:=1;
  ROMFSBinVers.Caption:=IntToHex(ROMFSBinVersAdj.Position,2);
  //Hide all the sub options, except for the first one

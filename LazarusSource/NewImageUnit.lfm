@@ -14,7 +14,7 @@ object NewImageForm: TNewImageForm
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object MainFormatPanel: TPanel
     Left = 0
     Height = 178
@@ -23,6 +23,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 178
     ClientWidth = 264
+    ParentBackground = False
     TabOrder = 0
     OnPaint = FormPaint
     object SystemLabel: TLabel
@@ -35,6 +36,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -47,6 +49,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 112
     ClientWidth = 266
+    ParentBackground = False
     TabOrder = 1
     OnPaint = FormPaint
     object DFSLabel: TLabel
@@ -59,6 +62,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -71,6 +75,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 50
     ClientWidth = 266
+    ParentBackground = False
     TabOrder = 2
     OnPaint = FormPaint
     object DFSTracksLabel: TLabel
@@ -83,6 +88,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -95,6 +101,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 162
     ClientWidth = 264
+    ParentBackground = False
     TabOrder = 3
     OnPaint = FormPaint
     object ADFSLabel: TLabel
@@ -107,6 +114,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -119,6 +127,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 138
     ClientWidth = 268
+    ParentBackground = False
     TabOrder = 4
     OnPaint = FormPaint
     object C64Label: TLabel
@@ -131,6 +140,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -143,6 +153,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 138
     ClientWidth = 268
+    ParentBackground = False
     TabOrder = 5
     OnPaint = FormPaint
     object SpectrumLabel: TLabel
@@ -155,6 +166,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -167,6 +179,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 138
     ClientWidth = 268
+    ParentBackground = False
     TabOrder = 6
     OnPaint = FormPaint
     object AmigaLabel: TLabel
@@ -179,6 +192,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -191,6 +205,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 138
     ClientWidth = 268
+    ParentBackground = False
     TabOrder = 7
     OnPaint = FormPaint
     object DOSLabel: TLabel
@@ -203,6 +218,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -215,6 +231,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 138
     ClientWidth = 268
+    ParentBackground = False
     TabOrder = 8
     OnPaint = FormPaint
     object AFSLabel: TLabel
@@ -227,6 +244,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -239,6 +257,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 98
     ClientWidth = 268
+    ParentBackground = False
     TabOrder = 9
     OnPaint = FormPaint
     object AFSSizeLabel: TLabel
@@ -251,6 +270,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -272,6 +292,7 @@ object NewImageForm: TNewImageForm
     BevelOuter = bvNone
     ClientHeight = 160
     ClientWidth = 268
+    ParentBackground = False
     TabOrder = 10
     Visible = False
     OnPaint = FormPaint
@@ -285,6 +306,7 @@ object NewImageForm: TNewImageForm
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end

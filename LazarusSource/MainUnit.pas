@@ -3287,10 +3287,11 @@ begin
  NewImage.DFSAllowBlanks     :=FDFSAllowBlank;
  NewImage.ScanSubDirs        :=True;
  NewImage.CreateDSC          :=FCreateDSC;
- //Extract any *.inf files
+ //Extract any *.inf files, except for DOS
  SetLength(ListOfFile,0);
  for FileName in FileNames do
-  if LowerCase(RightStr(FileName,4))<>'.inf' then
+  if(LowerCase(RightStr(FileName,4))<>'.inf')
+  or(Image.MajorFormatNumber=diDOSPlus)then
   begin
    SetLength(ListOfFile,Length(ListOfFile)+1);
    ListOfFile[Length(ListOfFile)-1]:=FileName;
