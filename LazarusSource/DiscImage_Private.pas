@@ -74,7 +74,7 @@ var
 begin
  part:=Length(FPartitions);
  SetLength(FPartitions,part+1);
- FPartitions[part].Directories:=FDisc;
+ FPartitions[part].Directory:=FDisc;
  FPartitions[part].Title:=disc_name[part];
 // FPartitions[part].RootTitle:=
  FPartitions[part].RootName:=root_name;

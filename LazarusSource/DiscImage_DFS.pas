@@ -803,6 +803,8 @@ function TDiscImage.UpdateDFSDiscTitle(title: String;side: Byte): Boolean;
 var
  a  : Cardinal;
  b,c: Byte;
+const
+ pad = 0;
 begin
  Result:=False;
  if Length(FDisc)>0 then
@@ -819,9 +821,9 @@ begin
  begin
   a:=$000;               //First 8 characters
   if c>7 then a:=$100-8; //Last 4 characters
-  b:=32;                 //Pad with spaces
+  b:=pad;                //Pad with spaces
   if c<Length(title) then b:=Ord(title[c+1]);//AND$7F; //Chr, no top bit set
-  if b<32 then b:=32;    //Ensure no control characters
+  if b<32 then b:=pad;   //Ensure no control characters
   WriteByte(b,ConvertDFSSector(a+c,side)); //Write it
  end;
  Result:=True;

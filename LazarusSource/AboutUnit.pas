@@ -41,6 +41,7 @@ type
     lb_Version: TLabel;
     GHWebsiteLabel: TLabel;
     GraphicsLabel: TLabel;
+    AdditionsByLabel: TLabel;
     procedure CreditsPanelPaint(Sender: TObject);
     procedure IconImageClick(Sender: TObject);
   private

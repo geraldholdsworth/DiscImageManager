@@ -238,7 +238,7 @@ type
   TDisc         = array of TDir;
   //Partitions
   TPartition    = record               //Details about the partition
-   Directories     : TDisc;            //All the directories
+   Directory       : array of TDir;    //All the directories
    Title,                              //Title of the partition
    RootTitle,                          //Title of the root directory
    RootName        : String;           //Root name ($, A:, C:, DF0, DH0, etc.)
@@ -850,6 +850,10 @@ type
   function UpdateBootOption(option,side: Byte): Boolean;
   function UpdateCopyright(copyright: String): Boolean;
   function UpdateDiscTitle(NewTitle: String;side: Byte): Boolean;
+  function UpdateExecAddr(filename:String;newaddr:Cardinal;
+                                                     entry:Cardinal=0): Boolean;
+  function UpdateLoadAddr(filename:String;newaddr:Cardinal;
+                                                     entry:Cardinal=0): Boolean;
   function UpdateVersionString(version: String): Boolean;
   procedure ValidateAttributes(var attributes: String);
   function ValidateFilename(parent:String;var filename:String): Boolean;
@@ -857,10 +861,6 @@ type
                                     count: Cardinal;start: Cardinal=0): Boolean;
   function WriteFile(var file_details: TDirEntry;
                       var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
-  function UpdateLoadAddr(filename:String;newaddr:Cardinal;
-                                                     entry:Cardinal=0): Boolean;
-  function UpdateExecAddr(filename:String;newaddr:Cardinal;
-                                                     entry:Cardinal=0): Boolean;
   //Published properties
   property AFSPresent:          Boolean       read FAFSPresent;
   property AFSRoot:             Cardinal      read Fafsroot;
