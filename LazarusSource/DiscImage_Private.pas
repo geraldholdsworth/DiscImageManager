@@ -7,7 +7,7 @@ procedure TDiscImage.ResetVariables;
 begin
  //Default values
  SetLength(FDisc,0);
- FDSD          :=False;
+// FDSD          :=False;
  FMap          :=False;
  FBootBlock    :=True;
  FAFSPresent   :=False;
@@ -261,6 +261,14 @@ Get the minor format number
 function TDiscImage.GetMinorFormatNumber: Byte;
 begin
  Result:=FFormat mod $10;
+end;
+
+{-------------------------------------------------------------------------------
+Get the double sided flag
+-------------------------------------------------------------------------------}
+function TDiscImage.GetDoubleSided: Boolean;
+begin
+ Result:=(FFormat>>4=diAcornDFS)AND(FFormat AND 1=1);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1019,7 +1027,7 @@ Convert the interleave into a string
 function TDiscImage.InterleaveString: String;
 begin
  Result:='';
- if(GetMajorFormatNumber=diAcornDFS)and(FDSD)then Result:=Fints[1];
+ if(GetMajorFormatNumber=diAcornDFS)and(GetDoubleSided)then Result:=Fints[1];
  {if(FFormat=diAcornADFS<<4+2)
  or(FFormat=diAcornADFS<<4+$E)}
  if(GetMajorFormatNumber=diAcornADFS)

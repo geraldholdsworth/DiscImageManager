@@ -1672,14 +1672,14 @@ begin
  Result:=False;
  if(tracks<>40)and(tracks<>80)then exit; //40 or 80 not specified, so quit
  //Only for Acorn DFS, given a number of tracks
- if(GetMajorFormatNumber=diAcornDFS)and(not FDSD)then //Single sided images only
+ if(GetMajorFormatNumber=diAcornDFS)and(not GetDoubleSided)then //Single sided images only
   Result:=AddDFSBlankSide(tracks);
 end;
 function TDiscImage.AddPartition(filename: String): Boolean;
 begin
  Result:=False;
  //Only for Acorn DFS, given a filename
- if(GetMajorFormatNumber=diAcornDFS)and(not FDSD)then //Single sided images only
+ if(GetMajorFormatNumber=diAcornDFS)and(not GetDoubleSided)then //Single sided images only
   Result:=AddDFSSide(filename);
 end;
 

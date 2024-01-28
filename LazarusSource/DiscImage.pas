@@ -370,6 +370,7 @@ type
   function FormatToExt: String;
   function GetMajorFormatNumber: Word;
   function GetMinorFormatNumber: Byte;
+  function GetDoubleSided: Boolean;
   function ReadBits(offset,start,length: Cardinal): Cardinal;
   procedure WriteBits(value,offset,start,length: Cardinal);
   procedure WriteBits(value,offset,start,length: Cardinal;
@@ -881,7 +882,7 @@ type
   property Disc:                TDisc         read FDisc;
   property DOSPlusRoot:         Cardinal      read Fdosroot;
   property DOSPresent:          Boolean       read FDOSPresent;
-  property DoubleSided:         Boolean       read FDSD;
+  property DoubleSided:         Boolean       read GetDoubleSided;
   property Filename:            String        read imagefilename
                                               write imagefilename;
   property FormatExt:           String        read FormatToExt;

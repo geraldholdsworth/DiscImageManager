@@ -7,7 +7,7 @@ function TDiscImage.ID_DFS: Boolean;
 var
  c,i    : Byte;
  t0,t1  : Integer;
- chk,dbl: Boolean;
+ chk    : Boolean;
  sec    : Cardinal;
  temp   : String;
 begin
@@ -35,37 +35,37 @@ begin
    //Above checks have passed
    if chk then
    begin
-    dbl:=True; //Double sided flag
+    FDSD:=True; //Double sided flag
     if not FDFSZeroSecs then
     begin
      //Check the entire first two sectors - if they are all zero assume ssd
      c:=0;
      for i:=0 to $FE do if ReadByte($0A00+i)=0 then inc(c);
-     if(c=$FF)and(ReadByte($0AFF)=0)then dbl:=False;
-     if dbl then
+     if(c=$FF)and(ReadByte($0AFF)=0)then FDSD:=False;
+     if FDSD then
      begin
       for i:=0 to $FE do if ReadByte($B00+i)=0 then inc(c);
-      if(c=$FF)and(ReadByte($0BFF)=0)then dbl:=False;
+      if(c=$FF)and(ReadByte($0BFF)=0)then FDSD:=False;
      end;
     end;
     //Offset 0x0A01 should have 9 bytes >31
     c:=0;
     for i:=0 to 8 do
      if(ReadByte($0A01+i)>31)or(ReadByte($0A01+i)=0)then inc(c);
-    if c<>9 then dbl:=False;
+    if c<>9 then FDSD:=False;
     //Offset 0x0B00 should have 4 bytes >31
     c:=0;
     for i:=0 to 3 do
      if(ReadByte($0B00+i)>31)or(ReadByte($0B00+i)=0)then inc(c);
-    if c<>4 then dbl:=False;
+    if c<>4 then FDSD:=False;
     //Offset 0x0B05 should have bits 0,1 and 2 clear
-    if(ReadByte($0B05)AND$7)<>0 then dbl:=False;
+    if(ReadByte($0B05)AND$7)<>0 then FDSD:=False;
     //Offset 0x0B06 should have bits 2,3,6 and 7 clear
-    if(ReadByte($0B06)AND$CC)<>0 then dbl:=False;
+    if(ReadByte($0B06)AND$CC)<>0 then FDSD:=False;
     //Number of sectors, side 0
     t0:=ReadByte($0107)+((ReadByte($0106)AND$3)<<8);
     //DS tests passed, get the number of sectors, side 1
-    if dbl then
+    if FDSD then
      t1:=ReadByte($0B07)+((ReadByte($0B06)AND$3)<<8)
     else
      t1:=t0;
@@ -73,7 +73,7 @@ begin
     if(t1=0)and(not FDFSzerosecs)then
     begin
      //So mark as so
-     dbl:=False;
+     FDSD:=False;
      //This needs to be set to something other that 0, otherwise it'll fail to
      //ID as a DFS. Actually, DFS does accept zero length disc sizes, but
      //everything we have checked so far is for zeros.
@@ -81,9 +81,7 @@ begin
     end;
     //Zero number of sectors, and we're allowing these, so let's look at the extension
     if(t1=0)and(FDFSzerosecs)then //If it is '.SSD' then it is single sided
-     if UpperCase(RightStr(FFilename,4))='.SSD' then dbl:=False;
-    //Set the flag
-    FDSD:=dbl;
+     if UpperCase(RightStr(FFilename,4))='.SSD' then FDSD:=False;
     //Set the initial format
     if FDSD then
      FFormat:=diAcornDFS<<4+1
@@ -120,7 +118,7 @@ begin
       WriteByte((t0>>8AND$3)OR(ReadByte($106)AND$FC),$106);
      end;
      //Side 2
-     if(dbl)and(ReadByte($B05)>>3>0)then
+     if(FDSD)and(ReadByte($B05)>>3>0)then
      begin
       if t1=0 then t1:=$320; //Assume 200K disc
       for i:=0 to (ReadByte($B05)>>3)-1 do
@@ -130,7 +128,7 @@ begin
        //And add the length to it
        inc(sec,Read16b($B08+4+i*8)+((ReadByte($B08+6+i*8)AND$30)<<12));
        //If the end of the file is over the end of the disc, fail it as a double
-       if(sec>t1<<8)and(not FDFSBeyondEdge)then dbl:=False;
+       if(sec>t1<<8)and(not FDFSBeyondEdge)then FDSD:=False;
        if(sec>t1<<8)and(FDFSBeyondEdge)    then sec:=(t1+$FF)>>8; //Or fix it
        //Check for blank filenames
        if not FDFSAllowBlank then
@@ -138,11 +136,9 @@ begin
         temp:=ReadString($A08+(i*8),-7);
         RemoveTopBit(temp); //Attributes are in the top bit
         RemoveSpaces(temp); //Remove extraneous spaces
-        if temp='' then dbl:=False;
+        if temp='' then FDSD:=False;
        end;
       end;
-      //Refresh the double sided flag
-      //FDSD:=dbl;
       WriteByte(t1 AND$FF,$A07); //Temporary fix
       WriteByte((t1>>8AND$3)OR(ReadByte($A06)AND$FC),$A06); //Temporary fix
      end;
@@ -167,7 +163,7 @@ begin
      if GetMajorFormatNumber=diAcornDFS then
       t0:=1;//Set side 1 to Watford
     //Now we check side 2
-    if dbl then
+    if FDSD then
     begin
      //Offset 0x0C00 should have 8 bytes of 0xAA
      c:=0;
@@ -181,7 +177,7 @@ begin
        t1:=1;//Set side 1 to Watford
     end;
     //Determine the format
-    if not dbl then //Single sided
+    if not FDSD then //Single sided
     begin
      if t0=0 then FFormat:=diAcornDFS<<4+0; //Acorn SSD
      if t0=1 then FFormat:=diAcornDFS<<4+2; //Watford SSD
@@ -199,6 +195,8 @@ begin
       if t1=1 then FFormat:=diAcornDFS<<4+3; //Watford DSD
      end;
     end;
+    //Set the Double Sided flag
+    //FDSD:=dbl;
    end;
   end;
  end;
