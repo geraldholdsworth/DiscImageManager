@@ -572,9 +572,7 @@ var
  t     : Byte;
 begin
  //Update the master sequence number
- t:=BCDToDec(FDisc[side].Sequence)mod 100;
- FDisc[side].Sequence:=DecToBCD((t+1)mod 100);
- WriteByte(FDisc[side].Sequence,ConvertDFSSector($104,side));
+ DFSUpdateSequence(side);
  //Update the number of catalogue entries
  c:=Length(FDisc[side].Entries);
  if c<32 then
@@ -830,6 +828,7 @@ begin
   if b<32 then b:=pad;   //Ensure no control characters
   WriteByte(b,ConvertDFSSector(a+c,side)); //Write it
  end;
+ DFSUpdateSequence(side);
  Result:=True;
 end;
 
@@ -844,6 +843,7 @@ begin
  b:=ReadByte(ConvertDFSSector($106,side));
  b:=(b AND $CF) OR ((option AND $3)shl 4);
  WriteByte(b,ConvertDFSSector($106,side));
+ DFSUpdateSequence(side);
  Result:=True;
 end;
 
@@ -1100,4 +1100,16 @@ begin
   Result.Add('Tracks: '+IntToStr(Length(free_space_map[side])));
   inc(side)
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Update the master sequence number
+-------------------------------------------------------------------------------}
+procedure TDiscImage.DFSUpdateSequence(side: Integer);
+var
+ t: Byte;
+begin
+ t:=BCDToDec(FDisc[side].Sequence)mod 100;
+ FDisc[side].Sequence:=DecToBCD((t+1)mod 100);
+ WriteByte(FDisc[side].Sequence,ConvertDFSSector($104,side));
 end;

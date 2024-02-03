@@ -559,6 +559,7 @@ type
   function AddDFSSide(filename: String): Boolean; overload;
   function MoveDFSFile(filename,directory: String): Integer;
   function DFSReport(CSV: Boolean): TStringList;
+  procedure DFSUpdateSequence(side: Integer);
   //Commodore 1541/1571/1581 Routines
   function ID_CDR: Boolean;
   function ConvertDxxTS(format,track,sector: Integer): Integer;
