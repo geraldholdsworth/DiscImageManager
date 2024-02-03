@@ -281,6 +281,8 @@ begin
   RemoveSpaces(FDisc[s-mmbdisc].Title);
   RemoveControl(FDisc[s-mmbdisc].Title);
   disc_name[s]:=FDisc[s-mmbdisc].Title;
+  //Master sequence number
+  FDisc[s-mmbdisc].Sequence :=ReadByte(ConvertDFSSector($104,s));
   //Boot Option
   if GetMajorFormatNumber=diAcornDFS then
    bootoption[s]:=(ReadByte(ConvertDFSSector($106,s))AND$30)>>4;
@@ -569,6 +571,10 @@ var
  fn,dn : String;
  t     : Byte;
 begin
+ //Update the master sequence number
+ t:=BCDToDec(FDisc[side].Sequence)mod 100;
+ FDisc[side].Sequence:=DecToBCD((t+1)mod 100);
+ WriteByte(FDisc[side].Sequence,ConvertDFSSector($104,side));
  //Update the number of catalogue entries
  c:=Length(FDisc[side].Entries);
  if c<32 then

@@ -63,6 +63,7 @@ type
   DirRef      : Integer;    //Reference to directory, if directory (ADFS/AmigaDOS)
   TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
   isDOSPart   : Boolean;    //This file is the DOS partition
+  Sequence    : Byte;       //Sequence number for the file (ADFS S/M/L)
  end;
 
  type //Define the records for an Acorn File Server password file
@@ -95,6 +96,8 @@ type
  function DateTimeToAFS(timedate: TDateTime): Word;
  function AFSToDateTime(date: Word):TDateTime;
  procedure ValidateWinFilename(var f: String);
+ function DecToBCD(dec: Cardinal): Cardinal;
+ function BCDToDec(BCD: Cardinal): Cardinal;
  //Some constants
  const
   diAcornDFS   = $000;
@@ -222,6 +225,7 @@ type
    Directory,                       //Directory name (ALL)
    Title       : String;            //Directory title (DFS/ADFS)
    Entries     : array of TDirEntry;//Entries
+   Sequence,                        //Master Sequence Number (DFS/ADFS S/M/L)
    ErrorCode   : Byte;              //Used to indicate error for broken directory (ADFS)
    Deleted,                         //Used to indicate if this directory has been deleted
    Broken,                          //Flag if directory is broken (ADFS)

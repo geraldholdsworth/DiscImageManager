@@ -22,6 +22,7 @@ begin
   DirRef       :=$0000;
   TimeStamp    :=0;
   isDOSPart    :=False;
+  Sequence     :=0;
  end;
 end;
 
@@ -331,4 +332,32 @@ begin
  if Length(f)>0 then
   for i:=1 to Length(f) do
    if Pos(f[i],illegal)>0 then f[i]:=' ';
+end;
+
+{-------------------------------------------------------------------------------
+Converts a decimal number to BCD
+-------------------------------------------------------------------------------}
+function DecToBCD(dec: Cardinal): Cardinal;
+var
+ s: String;
+ i: Integer;
+begin
+ Result:=0;
+ s:=IntToStr(dec);
+ for i:=Length(s) downto 1 do
+  inc(Result,StrToInt(s[i])<<(4*(Length(s)-i)));
+end;
+
+{-------------------------------------------------------------------------------
+Converts a BCD to decimal number
+-------------------------------------------------------------------------------}
+function BCDToDec(BCD: Cardinal): Cardinal;
+var
+ s: String;
+ i: Integer;
+begin
+ Result:=0;
+ s:=IntToHex(BCD);
+ for i:=Length(s) downto 1 do
+  inc(Result,StrToIntDef(s[i],0)*(10**(Length(s)-i)));
 end;
