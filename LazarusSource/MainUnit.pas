@@ -578,7 +578,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.46.7';
+    ApplicationVersion = '1.47';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};

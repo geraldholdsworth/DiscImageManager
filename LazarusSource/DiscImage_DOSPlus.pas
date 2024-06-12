@@ -1235,11 +1235,11 @@ begin
    //Copy the fragment across
    original[index]:=fragments[index];
   end;
+ //Go through each cluster
+ index:=1;
  //If still have some data left to allocate, then allocate some clusters
  while lenctr>0 do
  begin
-  //Go through each cluster
-  index:=1;
   found:=False;
   while(index<=DOSBlocks div dosalloc)and(not found)do
   begin

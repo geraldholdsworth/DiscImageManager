@@ -4804,3 +4804,32 @@ begin
   end;
  end;
 end;
+
+{-------------------------------------------------------------------------------
+Update the master sequence number
+-------------------------------------------------------------------------------}
+procedure TDiscImage.ADFSUpdateMasterSequence(dir: Cardinal);
+var
+ t: Byte;
+begin
+ if dir<Length(FDisc) then
+ begin
+  t:=BCDToDec(FDisc[dir].Sequence)mod 100;
+  FDisc[dir].Sequence:=DecToBCD((t+1)mod 100);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Update a file sequence number
+-------------------------------------------------------------------------------}
+procedure TDiscImage.ADFSUpdateFileSequence(dir,entry: Cardinal);
+var
+ t: Byte;
+begin
+ if dir<Length(FDisc) then
+  if entry<Length(FDisc[dir].Entries) then
+  begin
+   t:=BCDToDec(FDisc[dir].Entries[entry].Sequence)mod 100;
+   FDisc[dir].Entries[entry].Sequence:=DecToBCD((t+1)mod 100);
+  end;
+end;

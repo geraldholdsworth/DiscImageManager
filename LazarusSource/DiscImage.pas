@@ -494,6 +494,8 @@ type
   function ExtractADFSPartition(side: Cardinal): TDIByteArray;
   function GetADFSMaxLength(lastentry:Boolean): Cardinal;
   function ADFSReport(CSV: Boolean): TStringList;
+  procedure ADFSUpdateMasterSequence(dir: Cardinal);
+  procedure ADFSUpdateFileSequence(dir,entry: Cardinal);
   //Acorn FileStore Routines
   function ID_AFS: Boolean;
   procedure ReadAFSPartition;
