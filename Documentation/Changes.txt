@@ -974,8 +974,8 @@ Bug fixes
 * When an ADFS New Map zone is close to capacity (i.e., not enough space for a fragment id to be written in), the free space was incorrectly reported. This would cause files and directories to fail to being written but the catalogue information would still be.
 * Deleting an ADFS directory which is the penultimate directory in the catalogue would result in the last one being deleted from the internal references. This then caused confusion with the front end GUI and resulted in a crash. In addition, deleting everything from the image would leave the free space map not correctly updated.
 
-1.46.7
---------------------
+1.47 - 12th June 2024
+---------------------
 New or improved features
 * Font size on the BBC Basic Viewer can be changed.
 * Added the ability to use the mouse scroll wheel on a hex dump.
@@ -992,6 +992,7 @@ New or improved features
 * Copy and move files within an Acorn ROM FS image.
 * Update the title, copyright and version strings in an Acorn ROM FS image.
 * Added option to generate a *.dsc file for ADFS hard drive images when saving (if none already exist).
+* DOS images can now import *.inf files.
 * DFS disc titles are now padded with nulls and not spaces.
 
 Bug fixes
@@ -1007,6 +1008,8 @@ Bug fixes
 * WINDOWS: The Cancel and Create buttons on the Hard Drive Creator dialogue box, for ADFS, did not fire when clicked.
 * WINDOWS: Disabled Radio and Tick boxes would flash.
 * Files ending in a forward or back slash would not be recognised.
+* Some DFS images were producing a "phantom directory".
+* When files were getting written to a DOS image, the same block was being used for each segment of the file resulting in the file being overwritten by itself.
 
 Platform History
 ----------------
