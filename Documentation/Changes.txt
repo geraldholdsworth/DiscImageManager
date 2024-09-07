@@ -1011,6 +1011,13 @@ Bug fixes
 * Some DFS images were producing a "phantom directory".
 * When files were getting written to a DOS image, the same block was being used for each segment of the file resulting in the file being overwritten by itself.
 
+1.47.1
+---------------------
+New or improved features
+
+Bug fixes
+* ADFS directories would use the default ID (Hugo, Nick or SBPr/oven) depending on whether it is old, new or big. This would mean that images could end up with a mis-match of IDs, which Arthur ADFS was not keen on.
+
 Platform History
 ----------------
 

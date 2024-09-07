@@ -40,3 +40,4 @@ General - Ideas which are maybe possible
 * Hex editor: Editable.
 * macOS: Dark mode - PARTIAL: Import image contents still needs to be looked at).
 * Console: add commands: stamp <filename> [<timedate>] - change the timestamp; type <filename> <filetype> - change the filetype; split/join - to add or remove sides/partitions.
+* Console: detect how the binary is launched and either open direct to console (if launched from Command Prompt/Terminal) or GUI (if launched from Explorer/Filer).
