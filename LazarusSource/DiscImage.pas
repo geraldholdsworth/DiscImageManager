@@ -331,6 +331,7 @@ type
   DOSFATSize,                   //Size of DOS Plus FAT in blocks
   DOSResSecs,                   //Number of reserved blocks
   FFormat       : Word;         //Format of the image
+  FDirID,                       //ADFS Directory ID (1=Hugo, 2=Nick, 3=SBPr/oven)
   FForceInter,                  //What to do about ADFS L/AFS Interleaving
   Finterleave,                  //Interleave method (1=seq,2=int,3=mux)
   secspertrack,                 //Number of sectors per track
@@ -429,6 +430,7 @@ type
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
+  function GetADFSDirID(Head: Boolean=True): String;
   function CalculateADFSDirCheck(sector: Cardinal): Byte;
   function CalculateADFSDirCheck(sector: Cardinal;
                                           buffer: TDIByteArray): Byte; overload;

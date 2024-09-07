@@ -408,6 +408,14 @@ begin
     nameheap :=entrys+numentrys*entrysize;         //Offset of name heap
    end;
   end;
+  //Get the directory identifier of the root - we'll then match this in subsequent dirs
+  if dirname=root_name then
+  begin
+   FDirID:=0; //Invalid
+   if StartName='Hugo' then FDirID:=1;
+   if StartName='Nick' then FDirID:=2;
+   if StartName='SBPr' then FDirID:=3;
+  end;
   //Now we know the size of the directory, we can read in the tail
   tail:=dirsize-tail;
   //And mark it on the Free Space Map
@@ -617,6 +625,19 @@ begin
    rotd:=(rotd<<32)OR Entry.ExecAddr; //Shift to the left and add the rest
    Entry.TimeStamp:=RISCOSToTimeDate(rotd);
   end;
+end;
+
+{-------------------------------------------------------------------------------
+Get the directory identifier
+-------------------------------------------------------------------------------}
+function TDiscImage.GetADFSDirID(Head: Boolean=True): String;
+begin
+ Result:='Invalid';
+ case FDirID of
+  1: Result:='Hugo';
+  2: Result:='Nick';
+  3: if Head then Result:='SBPr' else Result:='oven';
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1382,6 +1403,10 @@ begin
   FormatOldMapADFS(disctitle);
  if FMap then //New Map
   FormatNewMapADFS(disctitle,False);
+ //Set the Directory Identifier
+ if FDirType=diADFSOldDir then FDirID:=1;
+ if FDirType=diADFSNewDir then FDirID:=2;
+ if FDirType=diADFSBigDir then FDirID:=3;
  //Now write the root
  dirid:='$';
  att:='DLR';
@@ -2606,7 +2631,7 @@ begin
    SetLength(buffer,$500);
    for t:=0 to Length(buffer)-1 do buffer[t]:=$00;
    //Directory identifier
-   dirid:='Hugo';
+   dirid:=GetADFSDirID;//'Hugo';
    for t:=1 to 4 do
    begin
     buffer[t]            :=Ord(dirid[t]);
@@ -2637,7 +2662,7 @@ begin
    dirtail:=$7D7;
    SetLength(buffer,$800);
    for t:=0 to Length(buffer)-1 do buffer[t]:=$00;
-   dirid:='Nick';
+   dirid:=GetADFSDirID;//'Nick';
    //Directory identifier
    for t:=1 to 4 do
    begin
@@ -2670,11 +2695,11 @@ begin
    SetLength(buffer,$800);
    for t:=0 to Length(buffer)-1 do buffer[t]:=$00;
    //Directory identifier - start
-   dirid:='SBPr';
+   dirid:=GetADFSDirID;//'SBPr';
    for t:=1 to 4 do
     buffer[$03+t]:=Ord(dirid[t]);
    //Directory identifier - end
-   dirid:='oven';
+   dirid:=GetADFSDirID(False);//'oven';
    for t:=1 to 4 do
     buffer[dirtail+t-1]:=Ord(dirid[t]);
    //BigDirNameLen
