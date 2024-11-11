@@ -14,7 +14,7 @@ object ImportSelectorForm: TImportSelectorForm
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object ImportDirList: TTreeView
     Left = 0
     Height = 416
@@ -49,6 +49,7 @@ object ImportSelectorForm: TImportSelectorForm
     Width = 400
     Align = alBottom
     BevelOuter = bvNone
+    ParentBackground = False
     TabOrder = 1
     OnPaint = FormPaint
     OnResize = ButtonPanelResize

@@ -18,7 +18,7 @@ object PwordEditorForm: TPwordEditorForm
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object AccountsPanel: TPanel
     Left = 0
     Height = 217
@@ -28,6 +28,7 @@ object PwordEditorForm: TPwordEditorForm
     BevelOuter = bvNone
     ClientHeight = 217
     ClientWidth = 500
+    ParentBackground = False
     TabOrder = 0
     object HeaderPanel: TPanel
       Left = 0
@@ -38,6 +39,7 @@ object PwordEditorForm: TPwordEditorForm
       BevelOuter = bvNone
       ClientHeight = 20
       ClientWidth = 500
+      ParentBackground = False
       TabOrder = 0
       OnPaint = FormPaint
       object UsernamesHdr: TPanel
@@ -50,6 +52,7 @@ object PwordEditorForm: TPwordEditorForm
         ClientHeight = 18
         ClientWidth = 118
         Font.Color = clBlack
+        ParentBackground = False
         ParentFont = False
         TabOrder = 0
         OnPaint = FormPaint
@@ -75,6 +78,7 @@ object PwordEditorForm: TPwordEditorForm
         ClientHeight = 18
         ClientWidth = 118
         Font.Color = clBlack
+        ParentBackground = False
         ParentFont = False
         TabOrder = 1
         OnPaint = FormPaint
@@ -100,6 +104,7 @@ object PwordEditorForm: TPwordEditorForm
         ClientHeight = 18
         ClientWidth = 54
         Font.Color = clBlack
+        ParentBackground = False
         ParentFont = False
         TabOrder = 2
         OnPaint = FormPaint
@@ -125,6 +130,7 @@ object PwordEditorForm: TPwordEditorForm
         ClientHeight = 18
         ClientWidth = 54
         Font.Color = clBlack
+        ParentBackground = False
         ParentFont = False
         TabOrder = 3
         OnPaint = FormPaint
@@ -150,6 +156,7 @@ object PwordEditorForm: TPwordEditorForm
         ClientHeight = 18
         ClientWidth = 118
         Font.Color = clBlack
+        ParentBackground = False
         ParentFont = False
         TabOrder = 4
         OnPaint = FormPaint
@@ -178,6 +185,7 @@ object PwordEditorForm: TPwordEditorForm
       ClientHeight = 197
       ClientWidth = 500
       Font.Color = clBlack
+      ParentBackground = False
       ParentFont = False
       TabOrder = 1
       OnPaint = FormPaint
@@ -234,6 +242,7 @@ object PwordEditorForm: TPwordEditorForm
     Width = 500
     Align = alBottom
     Font.Color = clBlack
+    ParentBackground = False
     ParentFont = False
     TabOrder = 1
     OnPaint = FormPaint

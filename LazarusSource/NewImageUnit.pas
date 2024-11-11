@@ -59,10 +59,10 @@ type
   SystemLabel: TLabel;
   MainFormatPanel: TPanel;
   DFSLabel: TLabel;
-  AFSImageSize: TGJHSlider;
-  cb_AFScreatepword: TGJHTickBox;
+  AFSImageSize: TRISCOSSlider;
+  cb_AFScreatepword: TRISCOSTickBox;
   btn_OK,
-  btn_Cancel: TGJHButton;
+  btn_Cancel: TRISCOSButton;
   ROMFSBinVersAdj: TUpDown;
   procedure AFSClick(Sender: TObject);
   procedure AFSImageSizeChange(Sender: TObject);
@@ -128,7 +128,7 @@ type
   SpecOptions,
   AmigaOptions,
   DOSOptions,
-  AFSOptions    : array of TGJHRadioBox;
+  AFSOptions    : array of TRISCOSRadioBox;
  end;
 
 var
@@ -281,7 +281,7 @@ var
  LWid: Integer;
  ratio: Real;
 procedure CreateRadioBoxes(var LLabel: TLabel; var LPanel: TPanel;
-          var LOptions: array of TGJHRadioBox;var LStrings: array of String);
+          var LOptions: array of TRISCOSRadioBox;var LStrings: array of String);
 var
  LH,
  Index: Integer;
@@ -291,7 +291,7 @@ begin
  //Create each control
  for Index:=0 to Length(LStrings)-1 do
  begin
-  LOptions[Index]:=TGJHRadioBox.Create(LPanel as TControl);
+  LOptions[Index]:=TRISCOSRadioBox.Create(LPanel as TControl);
   LOptions[Index].Parent:=LPanel as TWinControl;
   LOptions[Index].Left:=8;
   LOptions[Index].Top:=LH;
@@ -365,7 +365,7 @@ begin
  for Index:=0 to Length(AFSFormats)-1 do
   AFSOptions[Index].OnChange:=@AFSClick;
  //Create the sizing controls
- AFSImageSize:=TGJHSlider.Create(AFSSize as TControl);
+ AFSImageSize:=TRISCOSSlider.Create(AFSSize as TControl);
  AFSImageSize.Parent:=AFSSize as TWinControl;
  AFSImageSize.Visible:=True;
  AFSImageSize.Top:=AFSImageSizeLabel.Top+AFSImageSizeLabel.Height;
@@ -379,7 +379,7 @@ begin
  AFSImageSize.Pointers:=False;
  AFSImageSize.Outline:=csOutInner;
  AFSImageSize.Font.Color:=clBlack;
- cb_AFScreatepword:=TGJHTickBox.Create(AFSSize as TControl);
+ cb_AFScreatepword:=TRISCOSTickBox.Create(AFSSize as TControl);
  cb_AFScreatepword.Parent:=AFSSize as TWinControl;
  cb_AFScreatepword.Visible:=True;
  cb_AFScreatepword.Caption:='Create password file';

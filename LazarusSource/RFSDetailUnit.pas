@@ -22,7 +22,7 @@ type
   ROMFSBinVers: TLabel;
   ROMFSCopy: TLabeledEdit;
   btn_OK,
-  btn_Cancel: TGJHButton;
+  btn_Cancel: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure ROMFSBinVersAdjClick(Sender: TObject; Button: TUDBtnType);
   procedure FormPaint(Sender: TObject);

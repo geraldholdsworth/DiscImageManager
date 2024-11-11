@@ -59,7 +59,7 @@ type
   ilAuto,
   ilSeq,
   ilInter,
-  ilMPX: TGJHRadioBox;
+  ilMPX: TRISCOSRadioBox;
   DFSBeyondEdge,
   AllowDFSZeroSecs,
   AllowDFSBlankFilenames,
@@ -68,9 +68,9 @@ type
   CompressUEF,
   ScanSubDirs,
   OpenDOS,
-  CreateDSC: TGJHTickBox;
+  CreateDSC: TRISCOSTickBox;
   CancelButton,
-  OKButton: TGJHButton;
+  OKButton: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure FormShow(Sender: TObject);
@@ -116,17 +116,17 @@ end;
 //Create the form
 {------------------------------------------------------------------------------}
 procedure TSettingsForm.FormCreate(Sender: TObject);
-function CreateRadioBox(text: String;prt: TPanel): TGJHRadioBox;
+function CreateRadioBox(text: String;prt: TPanel): TRISCOSRadioBox;
 begin
- Result:=TGJHRadioBox.Create(prt as TControl);
+ Result:=TRISCOSRadioBox.Create(prt as TControl);
  Result.Parent:=prt as TWinControl;
  Result.Visible:=True;
  Result.Caption:=text;
  Result.Font.Color:=clBlack;
 end;
-function CreateTickBox(text: String;prt: TPanel): TGJHTickBox;
+function CreateTickBox(text: String;prt: TPanel): TRISCOSTickBox;
 begin
- Result:=TGJHTickBox.Create(prt as TControl);
+ Result:=TRISCOSTickBox.Create(prt as TControl);
  Result.Parent:=prt as TWinControl;
  Result.Visible:=True;
  Result.Caption:=text;

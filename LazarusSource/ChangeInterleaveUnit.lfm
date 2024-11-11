@@ -12,7 +12,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   OnCreate = FormCreate
   OnPaint = FormPaint
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object CurrentLabel: TLabel
     Left = 0
     Height = 16

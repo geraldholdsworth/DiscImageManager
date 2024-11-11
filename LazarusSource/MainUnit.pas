@@ -50,10 +50,10 @@ type
    FIsDOSPart : Boolean;
   public
    property ParentDir: Integer read FParentDir write FParentDir;//Parent directory reference
-   property IsDir    : Boolean read FIsDir write FIsDir;        //Is it a directory
-   property DirRef   : Integer read FDirRef write FDirRef;      //Reference into TDiscImage.Disc
-   property BeenRead : Boolean read FBeenRead write FBeenRead;  //Has the directory been read in
-   property Broken   : Boolean read FBroken write FBroken;      //Is the ADFS directory broken?
+   property IsDir    : Boolean read FIsDir     write FIsDir;    //Is it a directory
+   property DirRef   : Integer read FDirRef    write FDirRef;   //Reference into TDiscImage.Disc
+   property BeenRead : Boolean read FBeenRead  write FBeenRead; //Has the directory been read in
+   property Broken   : Boolean read FBroken    write FBroken;   //Is the ADFS directory broken?
    property IsDOSPart: Boolean read FIsDOSPart write FIsDOSPart;//This is the DOS Partition file
  end;
 
@@ -264,7 +264,7 @@ type
    cb_Amiga_pubw,
    cb_Amiga_pubr,
    cb_Amiga_pubd,
-   cb_Amiga_pube: TGJHTickBox;
+   cb_Amiga_pube: TRISCOSTickBox;
    //Events - mouse clicks
    procedure btn_AddPartitionClick(Sender: TObject);
    procedure btn_AddPasswordClick(Sender: TObject);
@@ -366,11 +366,11 @@ type
    procedure AddImageToTree(Tree: TTreeView;ImageToUse: TDiscImage);
    procedure AddSparkToImage(filename: String);
    procedure ArrangeFileDetails;
-   function AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
+   function AskConfirm(confim: String; Buttons: array of String): TModalResult;
    procedure CloseAllHexDumps;                                                   
    function ConvertToKMG(size: Int64): String;
    function CreateButton(Lparent: TControl; Lcaption: String;LDef: Boolean;
-                         LLeft,LTop: Integer; LModal: TModalResult): TGJHButton;
+                         LLeft,LTop: Integer; LModal: TModalResult): TRISCOSButton;
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure CreateFileTypeDialogue;
    procedure Defrag(side: Byte);
@@ -578,7 +578,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.47.1';
+    ApplicationVersion = '1.47.2';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -839,7 +839,7 @@ begin
     or(Image.MajorFormatNumber<>diAcornADFS)                //Acorn ADFS
     or(SparkFile.UncompressedSize>Image.FreeSpace(0))then //Not enough space
      ok:=AskConfirm('The current open image is not suitable for this archive. '
-                   +'Would you like to continue?','Yes','No','')=mrOK;
+                   +'Would you like to continue?',['Yes','No'])=mrOK;
     if ok then
     begin
      //Show the progress form
@@ -1183,7 +1183,7 @@ var
      if Image.FileExists(NewFile.Parent+Image.DirSep+NewFile.Filename,ref) then
      begin
       Result:=AskConfirm('"'+NewFile.Filename+'" already exists in the directory "'
-                    +NewFile.Parent+'". Overwrite?','Yes','No','')=mrOK;
+                    +NewFile.Parent+'". Overwrite?',['Yes','No'])=mrOK;
       if Result then //Delete the original
       begin
        //First save the selected Node
@@ -2997,9 +2997,9 @@ end;
 //This is called when the form is created - i.e. when the application is created
 {------------------------------------------------------------------------------}
 procedure TMainForm.FormCreate(Sender: TObject);
- function CreateTickBox(LCaption: String; LParent: TPanel): TGJHTickBox;
+ function CreateTickBox(LCaption: String; LParent: TPanel): TRISCOSTickBox;
  begin
-  Result:=TGJHTickBox.Create(LParent as TComponent);
+  Result:=TRISCOSTickBox.Create(LParent as TComponent);
   Result.Parent:=LParent as TWinControl;
   Result.Visible:=True;
   Result.Font.Name:='Courier New';
@@ -3248,7 +3248,7 @@ begin
  begin
   WriteToDebug('Close unsaved file requested');
   Result:=AskConfirm('You have unsaved changes. Do you wish to continue?',
-                            'Yes','No','')=mrOK;
+                            ['Yes','No'])=mrOK;
  end;
 end;
 
@@ -3329,9 +3329,10 @@ begin
          +'and the open image is a '+Image.FormatString+'.'#13#10;
      msg:=msg+'Would you like to open this as an image, '
              +'or convert the open one by adding this as a second side/partition?';
-     confirm:=AskConfirm(msg,'Open','Convert','');
-     if confirm=mrOK     then open:=$01;
-     if confirm=mrCancel then open:=$04;
+     confirm:=AskConfirm(msg,['Open','Cancel','Convert']);
+     if confirm=mrOK     then open:=$01; //Open
+     if confirm=mrCancel then open:=$05; //Cancel
+     if confirm=mrIgnore then open:=$04; //Convert
     end;
     if open=$03 then //Ask user
     begin
@@ -3344,7 +3345,7 @@ begin
      msg:=msg+' '+fmt+' image, add this file to existing image, ';
      msg:=msg+'or import this file''s contents to existing image?';
      //Pose question
-     confirm:=AskConfirm(msg,'Open','Add','Import');
+     confirm:=AskConfirm(msg,['Open','Add','Import']);
      if confirm=mrOK     then open:=$01;
      if confirm=mrCancel then open:=$02;
      if confirm=mrIgnore then open:=$03;
@@ -3366,9 +3367,7 @@ begin
       begin //Ask user if they would like it uncompressed
        if AskConfirm('This has been detected as a Spark archive. '
                     +'Would you like to uncompress and add the contents?',
-                     'Yes',
-                     'No, just add',
-                     '')=mrOK then
+                     ['Yes','No, just add'])=mrOK then
        begin
         open:=$04; //Yes, so reset the open flag so it doesn't add it
         AddSparkToImage(FileName);
@@ -3520,7 +3519,7 @@ begin
    if Dialogue then ok:=AskConfirm(
            'The current open image is not suitable for this archive. '
           +'Would you like to continue regardless?',
-          'Yes','No','')=mrOK;
+          ['Yes','No'])=mrOK;
   //If all OK, then continue
   if ok then
   begin
@@ -5940,7 +5939,7 @@ end;
 //Create a new blank image
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
-function SelectMinor(LOptions: array of TGJHRadioBox): Byte;
+function SelectMinor(LOptions: array of TRISCOSRadioBox): Byte;
 var Index: Byte;
 begin
  Result:=0;
@@ -6244,7 +6243,7 @@ begin
  //For mulitple deletes, ensure that the user really wants to
  if DirList.SelectionCount>1 then
   R:=AskConfirm('Delete '+IntToStr(DirList.SelectionCount)+' files?'
-               ,'Yes','No','')=mrOK;
+               ,['Yes','No'])=mrOK;
  //If user does, or single file, continue
  if R then DeleteFile(True);
 end;
@@ -6273,7 +6272,7 @@ begin
    filepath:=GetFilePath(DirList.Selections[0]);
    //If singular, check if the user wants to
    if(nodes=1)and(confirm)then
-    R:=AskConfirm('Delete '+filepath+'?','Yes','No','')=mrOK
+    R:=AskConfirm('Delete '+filepath+'?',['Yes','No'])=mrOK
    else R:=True;
    //If so, then delete
    if R then
@@ -6860,12 +6859,12 @@ end;
 {------------------------------------------------------------------------------}
 //Ask the user for confirmation
 {------------------------------------------------------------------------------}
-function TMainForm.AskConfirm(confim,okbtn,cancelbtn,ignorebtn: String): TModalResult;
+function TMainForm.AskConfirm(confim: String; Buttons: array of String): TModalResult;
 begin
  Result:=mrOK; //Default
  if ErrorReporting then
  begin
-  CustomDialogue.ShowConfirm(confim,okbtn,cancelbtn,ignorebtn);
+  CustomDialogue.ShowConfirm(confim,Buttons);
   Result:=CustomDialogue.ModalResult;
  end;
 end;
@@ -7018,9 +7017,9 @@ end;
 //Create a RISC OS button
 {------------------------------------------------------------------------------}
 function TMainForm.CreateButton(Lparent: TControl; Lcaption: String;LDef: Boolean;
-                         LLeft,LTop: Integer; LModal: TModalResult): TGJHButton;
+                         LLeft,LTop: Integer; LModal: TModalResult): TRISCOSButton;
 begin
- Result:=TGJHButton.Create(Lparent as TControl);
+ Result:=TRISCOSButton.Create(Lparent as TControl);
  Result.Parent:=Lparent as TWinControl;
  Result.Default:=LDef;
  Result.Caption:=Lcaption;

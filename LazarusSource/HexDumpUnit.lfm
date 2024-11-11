@@ -14,7 +14,7 @@ object HexDumpForm: THexDumpForm
   OnResize = FormResize
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object PageControl: TPageControl
     Left = 0
     Height = 603
@@ -29,12 +29,12 @@ object HexDumpForm: THexDumpForm
     OnChange = PageControlChange
     object HexDump: TTabSheet
       Caption = 'Hex Dump'
-      ClientHeight = 573
+      ClientHeight = 567
       ClientWidth = 629
       ImageIndex = 14
       object HexDumpDisplay: TStringGrid
         Left = 0
-        Height = 541
+        Height = 535
         Top = 32
         Width = 597
         Align = alClient
@@ -71,6 +71,7 @@ object HexDumpForm: THexDumpForm
         BevelOuter = bvNone
         ClientHeight = 32
         ClientWidth = 629
+        ParentBackground = False
         TabOrder = 1
         object JumpToLabel: TLabel
           Left = 8
@@ -141,13 +142,14 @@ object HexDumpForm: THexDumpForm
       end
       object ScrollPanel: TPanel
         Left = 597
-        Height = 541
+        Height = 535
         Top = 32
         Width = 32
         Align = alRight
         BevelOuter = bvNone
-        ClientHeight = 541
+        ClientHeight = 535
         ClientWidth = 32
+        ParentBackground = False
         TabOrder = 2
         object btnMoveUp: TSpeedButton
           Left = 0
@@ -165,7 +167,7 @@ object HexDumpForm: THexDumpForm
           Left = 0
           Height = 32
           Hint = 'Move Down A Page'
-          Top = 477
+          Top = 471
           Width = 32
           Align = alBottom
           Flat = True
@@ -177,7 +179,7 @@ object HexDumpForm: THexDumpForm
           Left = 0
           Height = 32
           Hint = 'Move Down A Line'
-          Top = 445
+          Top = 439
           Width = 32
           Align = alBottom
           Flat = True
@@ -213,7 +215,7 @@ object HexDumpForm: THexDumpForm
           Left = 0
           Height = 32
           Hint = 'Move To Bottom'
-          Top = 509
+          Top = 503
           Width = 32
           Align = alBottom
           Flat = True
@@ -223,7 +225,7 @@ object HexDumpForm: THexDumpForm
         end
         object ScrollBar: TScrollBar
           Left = 0
-          Height = 349
+          Height = 343
           Top = 96
           Width = 24
           Align = alClient
@@ -239,12 +241,12 @@ object HexDumpForm: THexDumpForm
     end
     object BasicViewer: TTabSheet
       Caption = 'BBC BASIC File'
-      ClientHeight = 573
+      ClientHeight = 567
       ClientWidth = 629
       TabVisible = False
       object BasicOutput: TIpHtmlPanel
         Left = 0
-        Height = 541
+        Height = 535
         Top = 32
         Width = 629
         Align = alClient
@@ -272,6 +274,7 @@ object HexDumpForm: THexDumpForm
         Align = alTop
         ClientHeight = 32
         ClientWidth = 629
+        ParentBackground = False
         TabOrder = 1
         object btnSaveBasic: TSpeedButton
           Left = 0
@@ -290,9 +293,9 @@ object HexDumpForm: THexDumpForm
           Top = 2
           Width = 32
           NumbersOnly = True
-          OnChange = edFontSizeChange
           TabOrder = 0
           Text = 'edFontSize'
+          OnChange = edFontSizeChange
         end
         object udFontSize: TUpDown
           Left = 176
@@ -318,12 +321,12 @@ object HexDumpForm: THexDumpForm
     end
     object SpriteViewer: TTabSheet
       Caption = 'Sprite Viewer'
-      ClientHeight = 573
+      ClientHeight = 567
       ClientWidth = 629
       TabVisible = False
       object SpriteOutput: TScrollBox
         Left = 0
-        Height = 573
+        Height = 567
         Top = 0
         Width = 629
         HorzScrollBar.Page = 1
@@ -331,8 +334,9 @@ object HexDumpForm: THexDumpForm
         VertScrollBar.Page = 258
         Align = alClient
         BorderStyle = bsNone
-        ClientHeight = 573
+        ClientHeight = 567
         ClientWidth = 629
+        ParentBackground = False
         TabOrder = 0
         OnResize = SpriteOutputResize
         object SpritePanel: TPanel
@@ -340,6 +344,7 @@ object HexDumpForm: THexDumpForm
           Height = 50
           Top = 208
           Width = 170
+          ParentBackground = False
           TabOrder = 0
           OnPaint = ImagePanelPaint
         end
@@ -347,22 +352,23 @@ object HexDumpForm: THexDumpForm
     end
     object ImageViewer: TTabSheet
       Caption = 'Image Viewer'
-      ClientHeight = 573
+      ClientHeight = 567
       ClientWidth = 629
       TabVisible = False
       object ImagePanel: TPanel
         Left = 0
-        Height = 573
+        Height = 567
         Top = 0
         Width = 629
         Align = alClient
-        ClientHeight = 573
+        ClientHeight = 567
         ClientWidth = 629
+        ParentBackground = False
         TabOrder = 0
         OnPaint = ImagePanelPaint
         object ImageDisplay: TImage
           Left = 1
-          Height = 571
+          Height = 565
           Top = 1
           Width = 627
           Align = alClient
@@ -372,12 +378,12 @@ object HexDumpForm: THexDumpForm
     end
     object TextViewer: TTabSheet
       Caption = 'Text File'
-      ClientHeight = 573
+      ClientHeight = 567
       ClientWidth = 629
       TabVisible = False
       object TextOutput: TMemo
         Left = 0
-        Height = 573
+        Height = 567
         Top = 0
         Width = 629
         Align = alClient

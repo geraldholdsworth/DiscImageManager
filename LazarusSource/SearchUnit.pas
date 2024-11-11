@@ -1,7 +1,7 @@
 unit SearchUnit;
 
 {
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -39,7 +39,7 @@ type
   SearchFilenameLabel: TLabel;
   SearchFiletypeLabel: TLabel;
   searchresultscount: TLabel;
-  sb_SearchButton: TGJHButton;
+  sb_SearchButton: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure sb_searchClick(Sender: TObject);

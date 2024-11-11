@@ -14,7 +14,7 @@ object SearchForm: TSearchForm
   OnPaint = FormPaint
   Position = poMainFormCenter
   ShowHint = True
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object SearchEntryPanel: TPanel
     Left = 0
     Height = 88
@@ -24,6 +24,7 @@ object SearchForm: TSearchForm
     BevelColor = 15527148
     ClientHeight = 88
     ClientWidth = 451
+    ParentBackground = False
     TabOrder = 0
     OnPaint = FormPaint
     object SearchFiletypeLabel: TLabel
@@ -47,9 +48,9 @@ object SearchForm: TSearchForm
       Color = 15527148
       Font.Color = clBlack
       Font.Name = 'Courier New'
-      OnKeyPress = ed_filenamesearchKeyPress
       ParentFont = False
       TabOrder = 1
+      OnKeyPress = ed_filenamesearchKeyPress
     end
     object ed_filenamesearch: TEdit
       Left = 79
@@ -60,9 +61,9 @@ object SearchForm: TSearchForm
       Color = 15527148
       Font.Color = clBlack
       Font.Name = 'Courier New'
-      OnKeyPress = ed_filenamesearchKeyPress
       ParentFont = False
       TabOrder = 0
+      OnKeyPress = ed_filenamesearchKeyPress
     end
     object SearchFilenameLabel: TLabel
       Left = 8
@@ -89,6 +90,7 @@ object SearchForm: TSearchForm
       Font.Color = clWhite
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       Transparent = False
     end
@@ -104,9 +106,9 @@ object SearchForm: TSearchForm
     ExtendedSelect = False
     Font.Name = 'Courier New'
     ItemHeight = 0
-    OnClick = lb_searchresultsClick
     ParentFont = False
     Sorted = True
     TabOrder = 1
+    OnClick = lb_searchresultsClick
   end
 end

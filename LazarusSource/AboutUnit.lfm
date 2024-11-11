@@ -13,7 +13,7 @@ object AboutForm: TAboutForm
   Font.Color = clBlack
   Font.Name = 'Tahoma'
   Position = poMainFormCenter
-  LCLVersion = '2.2.6.0'
+  LCLVersion = '3.0.0.3'
   object CreditsPanel: TPanel
     Left = 0
     Height = 357
@@ -23,6 +23,7 @@ object AboutForm: TAboutForm
     AutoSize = True
     ClientHeight = 357
     ClientWidth = 520
+    ParentBackground = False
     TabOrder = 0
     OnPaint = CreditsPanelPaint
     object lb_Title: TLabel

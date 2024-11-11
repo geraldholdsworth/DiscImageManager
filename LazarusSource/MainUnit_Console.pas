@@ -15,6 +15,7 @@ var
  entry,
  harddrivesize: Cardinal;
  dirtype      : Byte;
+ known,
  ok,
  newmap       : Boolean;
  searchlist   : TSearchRec;
@@ -627,6 +628,7 @@ begin
    if Confirm then
     if Length(Command)>1 then
     begin
+     known:=False;
      ok:=False;
      format:=UpperCase(Command[1]);
      if Length(Command)>2 then format:=format+UpperCase(Command[2]);
@@ -658,6 +660,7 @@ begin
        end;
       //OK, now create it
       ok:=Image.FormatHDD(diAcornADFS,harddrivesize,True,newmap,dirtype,False);
+      known:=True;
      end;
      //Create AFS HDD
      if UpperCase(Command[1])='AFS' then
@@ -676,7 +679,8 @@ begin
        ok:=Image.FormatHDD(diAcornFS,
                            harddrivesize*1024,
                            True,False,dirtype,False);
-      end;
+       known:=True;
+      end else error:=2;
      if UpperCase(format)='DOSHDD' then //Create DOS HDD
       if Length(Command)>3 then
       begin
@@ -691,7 +695,8 @@ begin
        //Create it
        ok:=Image.FormatHDD(diDOSPlus,
                            harddrivesize*1024,True,False,dirtype,False);
-      end;
+       known:=True;
+      end else error:=2;
      if UpperCase(format)='AMIGAHDD' then //Create Amiga HDD
       if Length(Command)>3 then
       begin
@@ -703,7 +708,8 @@ begin
        if harddrivesize>1024*1024 then harddrivesize:=512*1024;
        //Create it
        ok:=Image.FormatHDD(diAmiga,harddrivesize*1024,True,False,0,False);
-      end;
+       known:=True;
+      end else error:=2;
      if Pos(format,DiscFormats)>0 then //Create other
      begin
       Index:=(Pos(format,DiscFormats) DIV 8)+1;
@@ -712,6 +718,7 @@ begin
        ok:=Image.FormatFDD(DiscNumber[Index] DIV $100,
                           (DiscNumber[Index] DIV $10)MOD $10,
                            DiscNumber[Index] MOD $10);
+       known:=True;
      end;
      if ok then
      begin
@@ -720,7 +727,9 @@ begin
       HasChanged:=True;
       Fcurrdir:=0;
      end
-     else error:=2;
+     else
+      if known then WriteLn(cmdRed+'Failed to create image.'+cmdNormal)
+      else WriteLn(cmdRed+'Unknown format.'+cmdNormal)
     end else error:=2;
   //Change the disc boot option ++++++++++++++++++++++++++++++++++++++++++++++++
   'opt':

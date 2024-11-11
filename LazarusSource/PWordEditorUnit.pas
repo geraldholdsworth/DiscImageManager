@@ -1,7 +1,7 @@
 unit PWordEditorUnit;
 
 {
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -48,7 +48,7 @@ type
   LockedHdr: TPanel;
   BootOptionHdr: TPanel;
   OKButton,
-  CancelButton: TGJHButton;
+  CancelButton: TRISCOSButton;
   procedure btnAddClick(Sender: TObject);
   procedure FormCreate(Sender: TObject);
   procedure FormHide(Sender: TObject);
@@ -56,14 +56,14 @@ type
   procedure FormShow(Sender: TObject);
   function CreateNewEntry: Integer;
   function CreateEditField(column: TPanel;maxlen,len: Integer): TEdit;
-  function CreateTickBox(column: TPanel;len: Integer): TGJHTickBox;
+  function CreateTickBox(column: TPanel;len: Integer): TRISCOSTickBox;
   function CreateDropDown(column: TPanel;len: Integer): TComboBox;
   procedure OKButtonClick(Sender: TObject);
  private
   Usernames: array of TEdit;
   Passwords: array of TEdit;
-  System   : array of TGJHTickBox;
-  Locked   : array of TGJHTickBox;
+  System   : array of TRISCOSTickBox;
+  Locked   : array of TRISCOSTickBox;
   BootOpts : array of TComboBox;
   FreeSpc  : array of TEdit;
  public
@@ -216,9 +216,9 @@ end;
 {------------------------------------------------------------------------------}
 //Create a TCheckBox
 {------------------------------------------------------------------------------}
-function TPwordEditorForm.CreateTickBox(column: TPanel;len: Integer): TGJHTickBox;
+function TPwordEditorForm.CreateTickBox(column: TPanel;len: Integer): TRISCOSTickBox;
 begin
- Result:=TGJHTickBox.Create(AccountsScroll);
+ Result:=TRISCOSTickBox.Create(AccountsScroll);
  Result.Parent:=AccountsScroll;
  Result.Left:=column.Left+(column.Width-18)div 2;
  Result.Top:=2+(2+column.Height)*len;

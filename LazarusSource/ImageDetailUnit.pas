@@ -77,7 +77,7 @@ type
   colDir: TShape;
   colFile: TShape;
   btn_OK,
-  btn_Cancel: TGJHButton;
+  btn_Cancel: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure LegendPaint(Sender: TObject);
  private

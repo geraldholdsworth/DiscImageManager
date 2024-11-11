@@ -11,9 +11,10 @@ object CustomDialogue: TCustomDialogue
   Color = 15527148
   Font.Color = clBlack
   OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
   OnPaint = FormPaint
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object ErrorImg: TImage
     Left = 8
     Height = 42
@@ -211,6 +212,7 @@ object CustomDialogue: TCustomDialogue
     BevelOuter = bvNone
     ClientHeight = 128
     ClientWidth = 288
+    ParentBackground = False
     TabOrder = 0
     OnPaint = FormPaint
     object MessageLabel: TLabel

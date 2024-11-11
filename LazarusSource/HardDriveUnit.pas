@@ -37,18 +37,18 @@ type
   DirectoryLabel: TLabel;
   ADFSControls: TPanel;
   DOSControls: TPanel;
-  CapacitySlider: TGJHSlider;
+  CapacitySlider: TRISCOSSlider;
   cb_NewMap,
   cb_AddHeader,
-  cb_IDE: TGJHTickBox;
+  cb_IDE: TRISCOSTickBox;
   rb_FAT12,
   rb_FAT16,
   rb_FAT32,
   rb_BigDir,
   rb_NewDir,
-  rb_OldDir: TGJHRadioBox;
+  rb_OldDir: TRISCOSRadioBox;
   OKButton,
-  CancelButton: TGJHButton;
+  CancelButton: TRISCOSButton;
   procedure cb_NewMapChange(Sender: TObject);
   procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
@@ -112,18 +112,18 @@ end;
 Form creation
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.FormCreate(Sender: TObject);
-function CreateTickBox(text: String; LPanel: TPanel): TGJHTickBox;
+function CreateTickBox(text: String; LPanel: TPanel): TRISCOSTickBox;
 begin
- Result:=TGJHTickBox.Create(LPanel as TControl);
+ Result:=TRISCOSTickBox.Create(LPanel as TControl);
  Result.Parent:=LPanel as TWinControl;
  Result.Visible:=True;
  Result.Caption:=text;
  Result.Font.Color:=clBlack;
  Result.Top:=0;
 end;
-function CreateRadioBox(text: String; LPanel: TPanel): TGJHRadioBox;
+function CreateRadioBox(text: String; LPanel: TPanel): TRISCOSRadioBox;
 begin
- Result:=TGJHRadioBox.Create(LPanel as TControl);
+ Result:=TRISCOSRadioBox.Create(LPanel as TControl);
  Result.Parent:=LPanel as TWinControl;
  Result.Visible:=True;
  Result.Caption:=text;
@@ -134,7 +134,7 @@ var ratio: Real;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  //Create the slider
- CapacitySlider:=TGJHSlider.Create(HardDriveForm as TControl);
+ CapacitySlider:=TRISCOSSlider.Create(HardDriveForm as TControl);
  CapacitySlider.Parent:=HardDriveForm as TWinControl;
  CapacitySlider.Visible:=True;
  CapacitySlider.Min:=4;

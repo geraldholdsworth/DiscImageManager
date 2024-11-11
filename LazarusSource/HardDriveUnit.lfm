@@ -13,7 +13,7 @@ object HardDriveForm: THardDriveForm
   OnPaint = FormPaint
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object HDDImage: TImage
     Left = 8
     Height = 68
@@ -101,6 +101,7 @@ object HardDriveForm: THardDriveForm
     BevelOuter = bvNone
     ClientHeight = 20
     ClientWidth = 402
+    ParentBackground = False
     TabOrder = 0
     OnPaint = FormPaint
     object DirectoryLabel: TLabel
@@ -119,6 +120,7 @@ object HardDriveForm: THardDriveForm
     Top = 56
     Width = 402
     BevelOuter = bvNone
+    ParentBackground = False
     TabOrder = 1
     OnPaint = FormPaint
   end

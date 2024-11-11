@@ -11,7 +11,7 @@ object CSVPrefForm: TCSVPrefForm
   OnCreate = FormCreate
   OnPaint = FormPaint
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '3.0.0.3'
   object ColumnsLabel: TLabel
     Left = 32
     Height = 16
@@ -21,6 +21,7 @@ object CSVPrefForm: TCSVPrefForm
     Color = 7829367
     Font.Color = clWhite
     Font.Style = [fsBold]
+    ParentColor = False
     ParentFont = False
     Transparent = False
   end
@@ -33,6 +34,7 @@ object CSVPrefForm: TCSVPrefForm
     Color = 7829367
     Font.Color = clWhite
     Font.Style = [fsBold]
+    ParentColor = False
     ParentFont = False
     Transparent = False
   end

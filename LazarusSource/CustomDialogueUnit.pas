@@ -1,7 +1,7 @@
 unit CustomDialogueUnit;
 
 {
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -39,14 +39,16 @@ type
   QuestionImg: TImage;
   InfoImg: TImage;
   IgnoreButton,
+  AbortButton,
   CancelButton,
-  OKButton: TGJHButton;
+  OKButton: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
+  procedure FormKeyDown(Sender:TObject;var Key:Word;Shift:TShiftState);
   procedure FormPaint(Sender: TObject);
   procedure ShowError(msg,BtnTxt: String);
-  procedure ShowConfirm(msg,OKBtnTxt,CancelBtnTxt,IgnoreBtnTxt: String);
+  procedure ShowConfirm(msg: String; Buttons: array of String);
   procedure ShowInfo(msg,BtnTxt: String);
-  procedure ShowDialogue(msg,OKBtnTxt,CancelBtnTxt,IgnoreBtnTxt: String;style: Byte);
+  procedure ShowDialogue(msg: String; Buttons: array of String; style: Byte);
  private
 
  public
@@ -64,111 +66,142 @@ uses MainUnit;
 
 { TCustomDialogue }
 
-{------------------------------------------------------------------------------}
-//Tile the window
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Tile the window
+-------------------------------------------------------------------------------}
 procedure TCustomDialogue.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
 end;
 
-{------------------------------------------------------------------------------}
-//Create the buttons and move things around for scaling
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Create the buttons and move things around for scaling
+-------------------------------------------------------------------------------}
 procedure TCustomDialogue.FormCreate(Sender: TObject);
 var
- ratio: Real;
+ ratio  : Real;
+ TopBut,
+ WinWid : Integer;
+const
+ Pad    = 8; //Padding
+ NoBtns = 4; //Number of buttons
+ BtnWid = 92;//Width of buttons (OK button is bigger, so we use this value)
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
- //Set width: buttons width + gap either side + gap between buttons
- Width:=Round((120*3+8*4)*ratio);
- MainBevel.Width:=Width;
- MessagePanel.Width:=Width-MessagePanel.Left-Round(8*ratio);
+ //Set width: ( buttons width + gap between ) * number of buttons + gap at edge
+ Width             :=Round(((BtnWid+Pad)*NoBtns+Pad)*ratio);
+ MainBevel.Width   :=Width;
+ MessagePanel.Width:=Width-MessagePanel.Left-Round(Pad*ratio);
  //Create the buttons
- IgnoreButton:=MainForm.CreateButton(CustomDialogue as TControl,'Ignore',False,
-                                     Round(8*ratio),
-                                 MainBevel.Top+MainBevel.Height+Round(12*ratio),
-                                 mrIgnore);
- CancelButton:=MainForm.CreateButton(CustomDialogue as TControl,'Cancel',False,
-                               0,MainBevel.Top+MainBevel.Height+Round(12*ratio),
-                               mrCancel);
- CancelButton.Left:=(Width-CancelButton.Width)div 2;
- OKButton:=MainForm.CreateButton(CustomDialogue as TControl,'OK',True,0,
-                                 MainBevel.Top+MainBevel.Height+Round(8*ratio),
-                                 mrOK);
- OKButton.Left:=Width-OKButton.Width-Round(8*ratio);
+ WinWid:=Width-Round(Pad*ratio); //Width of the window, minus the padding
+ TopBut:=MainBevel.Top+MainBevel.Height+Round((4+Pad)*ratio);//Top of the buttons
+ //'Abort' Button
+ AbortButton      :=MainForm.CreateButton(CustomDialogue as TControl,'Abort',
+                                          False,0,TopBut,mrAbort);
+ AbortButton.Left :=(WinWid div NoBtns)*0+Round(Pad*ratio); //Far left
+ //'Ignore' Button
+ IgnoreButton     :=MainForm.CreateButton(CustomDialogue as TControl,'Ignore',
+                                          False,0,TopBut,mrIgnore);
+ IgnoreButton.Left:=(WinWid div NoBtns)*1+Round(Pad*ratio); //Left of middle
+ //'Cancel' Button
+ CancelButton     :=MainForm.CreateButton(CustomDialogue as TControl,'Cancel',
+                                          False,0,TopBut,mrCancel);
+ CancelButton.Left:=(WinWid div NoBtns)*2+Round(Pad*ratio); //Right of middle
+ //'OK' Button - This is 8px higher and wider
+ OKButton         :=MainForm.CreateButton(CustomDialogue as TControl,'OK',
+                                          True, 0,TopBut-Round(4*ratio),mrOK);
+ OKButton.Left    :=(WinWid div NoBtns)*3+Round(Pad*ratio); //Far right
  //Adjust the form height
- Height:=OKButton.Top+OKButton.Height+Round(8*ratio);
+ Height           :=OKButton.Top+OKButton.Height+Round(Pad*ratio);
 end;
 
-{------------------------------------------------------------------------------}
-//Show an error message
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+User has pressed a key
+-------------------------------------------------------------------------------}
+procedure TCustomDialogue.FormKeyDown(Sender:TObject;var Key:Word;
+ Shift:TShiftState);
+begin
+ if(Shift=[ssShift])and(Key=$0D)and(AbortButton.Visible) then AbortButton.Click;  //Shift + Return
+ if(Shift=[ssShift])and(Key=$1B)and(IgnoreButton.Visible)then IgnoreButton.Click; //Shift + Escape
+ if(Shift=[])       and(Key=$0D)                         then OKButton.Click;     //Return
+ if(Shift=[])       and(Key=$1B)and(CancelButton.Visible)then CancelButton.Click; //Escape
+end;
+
+{-------------------------------------------------------------------------------
+Show an error message
+-------------------------------------------------------------------------------}
 procedure TCustomDialogue.ShowError(msg,BtnTxt: String);
 begin
- ShowDialogue(msg,BtnTxt,'','',0);
+ ShowDialogue(msg,[BtnTxt],0);
 end;
 
-{------------------------------------------------------------------------------}
-//Ask the user for a confirmation
-{------------------------------------------------------------------------------}
-procedure TCustomDialogue.ShowConfirm(msg,OKBtnTxt,CancelBtnTxt,IgnoreBtnTxt: String);
+{-------------------------------------------------------------------------------
+Ask the user for a confirmation
+-------------------------------------------------------------------------------}
+procedure TCustomDialogue.ShowConfirm(msg: String; Buttons: array of String);
 begin
- ShowDialogue(msg,OKBtnTxt,CancelBtnTxt,IgnoreBtnTxt,2);
+ ShowDialogue(msg,Buttons,2);
 end;
 
-{------------------------------------------------------------------------------}
-//Show information
-{------------------------------------------------------------------------------}
+{-------------------------------------------------------------------------------
+Show information
+-------------------------------------------------------------------------------}
 procedure TCustomDialogue.ShowInfo(msg,BtnTxt: String);
 begin
- ShowDialogue(msg,BtnTxt,'','',1);
+ ShowDialogue(msg,[BtnTxt],1);
 end;
 
-{------------------------------------------------------------------------------}
-//General display procedure
-{------------------------------------------------------------------------------}
-procedure TCustomDialogue.ShowDialogue(msg,OKBtnTxt,CancelBtnTxt,IgnoreBtnTxt: String
-                                                                  ;style: Byte);
+{-------------------------------------------------------------------------------
+General display procedure
+-------------------------------------------------------------------------------}
+procedure TCustomDialogue.ShowDialogue(msg: String; Buttons: array of String; style: Byte);
+var
+ OKBtnTxt,
+ CancelBtnTxt,
+ IgnoreBtnTxt,
+ AbortBtnTxt  : String;
 begin
  if style>2 then exit;
+ //Get the button text strings
+ if Length(Buttons)>0 then OKBtnTxt    :=Buttons[0];
+ if Length(Buttons)>1 then CancelBtnTxt:=Buttons[1] else CancelBtnTxt:='';
+ if Length(Buttons)>2 then IgnoreBtnTxt:=Buttons[2] else IgnoreBtnTxt:='';
+ if Length(Buttons)>3 then AbortBtnTxt :=Buttons[3] else AbortBtnTxt :='';
+ //Supplying an empty Buttons field will produce all four buttons, labelled
+ //with the default text
+ if Length(Buttons)=0 then
+ begin
+  OKBtnTxt    :='OK';
+  CancelBtnTxt:='Cancel';
+  IgnoreBtnTxt:='Ignore';
+  AbortBtnTxt :='Abort';
+ end;
+ if OKBtnTxt='' then OKBtnTxt:='OK';
  //We need to briefly show the form so the controls resize
  Show;
  //Hide all the graphics
- ErrorImg.Visible   :=False;
- InfoImg.Visible    :=False;
- QuestionImg.Visible:=False;
- //Now show the appropriate one
- case style of
-  0: ErrorImg.Visible   :=True;
-  1: InfoImg.Visible    :=True;
-  2: QuestionImg.Visible:=True;
- end;
+ ErrorImg.Visible    :=style=0;
+ InfoImg.Visible     :=style=1;
+ QuestionImg.Visible :=style=2;
  MessageLabel.Caption:='';
- MessageLabel.Constraints.MaxWidth:=MessagePanel.ClientWidth;
+ MessageLabel.Constraints.MaxWidth :=MessagePanel.ClientWidth;
  MessageLabel.Constraints.MaxHeight:=MessagePanel.ClientHeight;
  //Display the message
  MessageLabel.Caption:=msg;
  //And reposition it
- MessageLabel.Left:=(MessagePanel.Width-MessageLabel.Width)div 2;
- MessageLabel.Top:=(MessagePanel.Height-MessageLabel.Height)div 2;
- //Label the default button
- if OKBtnTxt='' then OKBtnTxt:='OK';
- OKButton.Caption:=OKBtnTxt;
- //Label the cancel button, and then show or hide it
- if CancelBtnTxt='' then CancelButton.Visible:=False
- else
- begin
-   CancelButton.Visible:=True;
-   CancelButton.Caption:=CancelBtnTxt;
- end;
- //Label the ignore button, and then show or hide it
- if IgnoreBtnTxt='' then IgnoreButton.Visible:=False
- else
- begin
-   IgnoreButton.Visible:=True;
-   IgnoreButton.Caption:=IgnoreBtnTxt;
- end;
+ MessageLabel.Left   :=(MessagePanel.Width -MessageLabel.Width )div 2;
+ MessageLabel.Top    :=(MessagePanel.Height-MessageLabel.Height)div 2;
+ //Label the default button - this will always show
+ OKButton.Caption    :=OKBtnTxt;
+ //Label the cancel button and show or hide it
+ CancelButton.Visible:=CancelBtnTxt<>'';
+ CancelButton.Caption:=CancelBtnTxt;
+ //Label the ignore button and show or hide it
+ IgnoreButton.Visible:=IgnoreBtnTxt<>'';
+ IgnoreButton.Caption:=IgnoreBtnTxt;
+ //Label the abort button and show or hide it
+ AbortButton.Visible :=AbortBtnTxt<>'';
+ AbortButton.Caption :=AbortBtnTxt;
  //Change the title
  case style of
   0: Caption:='Error';
@@ -181,4 +214,3 @@ begin
 end;
 
 end.
-

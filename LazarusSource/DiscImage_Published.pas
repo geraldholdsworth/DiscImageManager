@@ -372,6 +372,7 @@ begin
   diCommodore: Result:=FormatCDR(minor);        //Create Commodore 64/128
   diSinclair : Result:=FormatSpectrum(minor);   //Create Sinclair/Amstrad
   diAmiga    : Result:=FormatAmigaFDD(minor);   //Create AmigaDOS
+  diAcornUEF : Result:=FormatCFS;               //Create Acorn CFS
   diDOSPlus  :                                  //Create DOS or DOS Plus
    begin
     case minor of

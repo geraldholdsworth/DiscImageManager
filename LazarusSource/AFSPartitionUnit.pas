@@ -1,5 +1,24 @@
 unit AFSPartitionUnit;
 
+{
+Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+
+This source is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public Licence as published by the Free
+Software Foundation; either version 3 of the Licence, or (at your option)
+any later version.
+
+This code is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more
+details.
+
+A copy of the GNU General Public Licence is available on the World Wide Web
+at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
+to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1335, USA.
+}
+
 {$mode objfpc}{$H+}
 
 interface
@@ -15,14 +34,14 @@ type
  TAFSPartitionForm = class(TForm)
   OpenDFSFile: TOpenDialog;
   PartitionSizeLabel: TLabel;
-  PartitionSize: TGJHSlider;
+  PartitionSize: TRISCOSSlider;
   rad_type40T,
   rad_type80T,
   rad_typeAFS,
-  rad_typeDOS: TGJHRadioBox;
+  rad_typeDOS: TRISCOSRadioBox;
   FromFileButton,
   OKButton,
-  CancelButton: TGJHButton;
+  CancelButton: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
   procedure PartitionSizeChange(Sender: TObject);
@@ -76,9 +95,9 @@ end;
 //Create the form
 {------------------------------------------------------------------------------}
 procedure TAFSPartitionForm.FormCreate(Sender: TObject);
-function CreateRadioBox(text: String): TGJHRadioBox;
+function CreateRadioBox(text: String): TRISCOSRadioBox;
 begin
- Result:=TGJHRadioBox.Create(AFSPartitionForm as TControl);
+ Result:=TRISCOSRadioBox.Create(AFSPartitionForm as TControl);
  Result.Parent:=AFSPartitionForm as TWinControl;
  Result.Top:=PartitionSize.Top+PartitionSize.Height;
  Result.Visible:=True;
@@ -91,7 +110,7 @@ var
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  //Create the slider
- PartitionSize:=TGJHSlider.Create(AFSPartitionForm as TControl);
+ PartitionSize:=TRISCOSSlider.Create(AFSPartitionForm as TControl);
  PartitionSize.Parent:=AFSPartitionForm as TWinControl;
  PartitionSize.Top:=PartitionSizeLabel.Height;
  PartitionSize.Align:=alTop;
