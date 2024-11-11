@@ -1011,12 +1011,17 @@ Bug fixes
 * Some DFS images were producing a "phantom directory".
 * When files were getting written to a DOS image, the same block was being used for each segment of the file resulting in the file being overwritten by itself.
 
-1.47.1
+1.47.2
 ---------------------
 New or improved features
+* Added keyboard shortcuts to the confirm/error/information dialogue boxes.
+* Added a fourth button to the confirm/error/information dialogue boxes.
+* Revamped some of the code to produce confirm/error/information dialogue boxes.
+* Changed some of the errors reported in console mode as the ones reported were mis-leading.
 
 Bug fixes
 * ADFS directories would use the default ID (Hugo, Nick or SBPr/oven) depending on whether it is old, new or big. This would mean that images could end up with a mis-match of IDs, which Arthur ADFS was not keen on.
+* Creating a UEF (Acorn CFS) image in the console would fail.
 
 Platform History
 ----------------
