@@ -417,72 +417,74 @@ type
    var
     //To keep track of renames
     PathBeforeEdit,
-    NameBeforeEdit:String;
+    NameBeforeEdit      :String;
     //Stop the checkbox OnClick from firing when just changing the values
-    DoNotUpdate   :Boolean;
+    DoNotUpdate         :Boolean;
     //Has the image changed since last saved?
-    HasChanged    :Boolean;
+    HasChanged          :Boolean;
     //Item being dragged on Directory List, and the destination
     Dst,
-    DraggedItem   :TTreeNode;
+    DraggedItem         :TTreeNode;
     //To keep track of if we are dragging and if the mouse button is down
     IsDragging,
-    MouseIsDown   :Boolean;
+    MouseIsDown         :Boolean;
     //To remember where we started with the drag operation
-    CursorPos     :TPoint;
+    CursorPos           :TPoint;
     //The mouse 'cursor' while we are dragging
-    ObjectDrag    :TImage;
+    ObjectDrag          :TImage;
     //Keep track of which hex dump windows are open
-    HexDump       :array of THexDumpForm;
+    HexDump             :array of THexDumpForm;
     //Reporting of errors
-    ErrorReporting:Boolean;
+    ErrorReporting      :Boolean;
     //Delay flag
-    progsleep     :Boolean;
+    progsleep           :Boolean;
     //Texture type
-    TextureType   :Byte;
+    TextureType         :Byte;
     //ADFS L Interleaved
-    ADFSInterleave:Byte;
+    ADFSInterleave      :Byte;
     //Treat Spark as Filing System
-    SparkIsFS     :Boolean;
+    SparkIsFS           :Boolean;
     //Importing bypass GUI threshold
-    bypassGUIThres:Cardinal;
+    bypassGUIThres      :Cardinal;
     //Create INF File?
-    DoCreateINF   :Boolean;
+    DoCreateINF         :Boolean;
+    //Add implied attributes for DFS/CFS/RFS
+    AddImpliedAttributes:Boolean;
     //Hide Commodore DEL files?
-    DoHideDEL     :Boolean;
+    DoHideDEL           :Boolean;
     //Filetype Dialogue Form
-    FTDialogue    :TForm;
+    FTDialogue          :TForm;
     //Filetype buttons on dialogue form
-    FTButtons     :array of TSpeedButton;
+    FTButtons           :array of TSpeedButton;
     //Dummy button for dialogue form
-    FTDummyBtn    :TSpeedButton;
+    FTDummyBtn          :TSpeedButton;
     //Custom filetype on dialogue form
-    FTEdit        :TEdit;
+    FTEdit              :TEdit;
     //Keep a track of which buttons are pressed on the form
-    FormShiftState:TShiftState;
+    FormShiftState      :TShiftState;
     //Produce a log file for debugging
-    Fdebug        :Boolean;
+    Fdebug              :Boolean;
     //Allow DFS images with zero number of sectors
-    FDFSZeroSecs  :Boolean;
+    FDFSZeroSecs        :Boolean;
     //Check for files going beyond the disc edge on DFS
-    FDFSBeyondEdge:Boolean;
+    FDFSBeyondEdge      :Boolean;
     //Check for blank filenames
-    FDFSAllowBlank:Boolean;
+    FDFSAllowBlank      :Boolean;
     //Compress UEF files
-    FUEFCompress  :Boolean;
+    FUEFCompress        :Boolean;
     //View options (what is visible)
-    ViewOptions   :Cardinal;
+    ViewOptions         :Cardinal;
     //Scan sub-directories on opening
-    FScanSubDirs  :Boolean;
+    FScanSubDirs        :Boolean;
     //Open DOS Partitions on ADFS
-    FOpenDOS      :Boolean;
+    FOpenDOS            :Boolean;
     //Create *.dsc files with ADFS hard drives
-    FCreateDSC    :Boolean;
+    FCreateDSC          :Boolean;
     //Registry
-    DIMReg        :TGJHRegistry;
-    AppIsClosing  :Boolean;
+    DIMReg              :TGJHRegistry;
+    AppIsClosing        :Boolean;
     //Currently selected directory, when in console mode
-    Fcurrdir      :Integer;
+    Fcurrdir            :Integer;
    const
     //These point to certain icons used when no filetype is found, or non-ADFS
     //The numbers are indexes into the TImageList component 'FileImages'.
@@ -578,7 +580,7 @@ type
     DesignedDPI = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.47.2';
+    ApplicationVersion = '1.47.3';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -1655,23 +1657,25 @@ begin
  Application.ProcessMessages;
  //Close any open hex dump windows
  CloseAllHexDumps;
- Image.ProgressIndicator  :=@UpdateProgress;
+ Image.ProgressIndicator   :=@UpdateProgress;
  //Update the interleave when loading
- Image.InterleaveMethod   :=ADFSInterleave;
+ Image.InterleaveMethod    :=ADFSInterleave;
  //Treat Sparks as a filing system
- Image.SparkAsFS          :=SparkIsFS;
+ Image.SparkAsFS           :=SparkIsFS;
  //Allow DFS to have zero number of sectors
- Image.AllowDFSZeroSectors:=FDFSZeroSecs;
+ Image.AllowDFSZeroSectors :=FDFSZeroSecs;
  //Check for files going over the disc edge on DFS
- Image.DFSBeyondEdge      :=FDFSBeyondEdge;
+ Image.DFSBeyondEdge       :=FDFSBeyondEdge;
  //Check for blank filenames in DFS
- Image.DFSAllowBlanks     :=FDFSAllowBlank;
+ Image.DFSAllowBlanks      :=FDFSAllowBlank;
  //Scan sub directories
- Image.ScanSubDirs        :=FScanSubDirs;
+ Image.ScanSubDirs         :=FScanSubDirs;
  //Open DOS Partitions
- Image.OpenDOSPartitions  :=FOpenDOS;
+ Image.OpenDOSPartitions   :=FOpenDOS;
  //Create *.dsc files with ADFS hard drives
- Image.CreateDSC          :=FCreateDSC;
+ Image.CreateDSC           :=FCreateDSC;
+ //Add implied attributes to DFS/CFS/RFS
+ Image.AddImpliedAttributes:=AddImpliedAttributes;
  //Load the image and create the catalogue
  if Image.LoadFromFile(filename) then
  begin
@@ -3080,49 +3084,52 @@ begin
  //Initiate the Registry
  DIMReg:=TGJHRegistry.Create('\Software\GJH Software\Disc Image Manager');
  //Texture style - get from the registry
- TextureType   :=DIMReg.GetRegValI('Texture',1);
+ TextureType               :=DIMReg.GetRegValI('Texture',1);
  //ADFS L Interleaved type - get from the registry
- ADFSInterleave:=DIMReg.GetRegValI('ADFS_L_Interleave',0);
- Image.InterleaveMethod:=ADFSInterleave;
+ ADFSInterleave            :=DIMReg.GetRegValI('ADFS_L_Interleave',0);
+ Image.InterleaveMethod    :=ADFSInterleave;
  //Treat Spark as FS?
- SparkIsFS     :=DIMReg.GetRegValB('Spark_Is_FS',True);
- Image.SparkAsFS:=SparkIsFS;
+ SparkIsFS                 :=DIMReg.GetRegValB('Spark_Is_FS',True);
+ Image.SparkAsFS           :=SparkIsFS;
  //Threshold of when to bypass the GUI (during import) - get from registry
- bypassGUIThres:={DIMReg.GetRegValI('bypass_GUI_Threshold',}100;//);
+ bypassGUIThres            :={DIMReg.GetRegValI('bypass_GUI_Threshold',}100;//);
  //Create INF Files?
- DoCreateINF   :=DIMReg.GetRegValB('CreateINF',True);
+ DoCreateINF               :=DIMReg.GetRegValB('CreateINF',True);
+ //Add Implied Attributes for DFS/CFS/RFS
+ AddImpliedAttributes      :=DIMReg.GetRegValB('AddImpliedAttributes',True);
+ Image.AddImpliedAttributes:=AddImpliedAttributes;
  //Hide Commodore DEL files
- DoHideDEL     :=DIMReg.GetRegValB('Hide_CDR_DEL',False);
+ DoHideDEL                 :=DIMReg.GetRegValB('Hide_CDR_DEL',False);
  //Allow DFS images with zero sectors
- FDFSZeroSecs  :=DIMReg.GetRegValB('DFS_Zero_Sectors',False);
- Image.AllowDFSZeroSectors:=FDFSZeroSecs;
+ FDFSZeroSecs              :=DIMReg.GetRegValB('DFS_Zero_Sectors',False);
+ Image.AllowDFSZeroSectors :=FDFSZeroSecs;
  //Check for files going over the DFS disc edge
- FDFSBeyondEdge:=DIMReg.GetRegValB('DFS_Beyond_Edge',False);
- Image.DFSBeyondEdge:=FDFSBeyondEdge;
+ FDFSBeyondEdge            :=DIMReg.GetRegValB('DFS_Beyond_Edge',False);
+ Image.DFSBeyondEdge       :=FDFSBeyondEdge;
  //Check for blank filenames in DFS
- FDFSAllowBlank:=DIMReg.GetRegValB('DFS_Allow_Blanks',False);
- Image.DFSAllowBlanks:=FDFSAllowBlank;
+ FDFSAllowBlank            :=DIMReg.GetRegValB('DFS_Allow_Blanks',False);
+ Image.DFSAllowBlanks      :=FDFSAllowBlank;
  //Compress UEF Files on save
- FUEFCompress  :=DIMReg.GetRegValB('UEF_Compress',True);
+ FUEFCompress              :=DIMReg.GetRegValB('UEF_Compress',True);
  //Scan all sub directories on opening
- FScanSubDirs  :=DIMReg.GetRegValB('Scan_SubDirs',True);
- Image.ScanSubDirs:=FScanSubDirs;
+ FScanSubDirs              :=DIMReg.GetRegValB('Scan_SubDirs',True);
+ Image.ScanSubDirs         :=FScanSubDirs;
  //Open DOS Partitions on ADFS
- FOpenDOS      :=DIMReg.GetRegValB('Open_DOS',True);
- Image.OpenDOSPartitions:=FOpenDOS;
+ FOpenDOS                  :=DIMReg.GetRegValB('Open_DOS',True);
+ Image.OpenDOSPartitions   :=FOpenDOS;
  //Create *.dsc files with ADFS Hard Drives
- FCreateDSC    :=DIMReg.GetRegValB('Create_DSC',False);
- Image.CreateDSC:=FCreateDSC;
+ FCreateDSC                :=DIMReg.GetRegValB('Create_DSC',False);
+ Image.CreateDSC           :=FCreateDSC;
  //View menu options
- ViewOptions   :=DIMReg.GetRegValI('View_Options',$FFFF);
+ ViewOptions               :=DIMReg.GetRegValI('View_Options',$FFFF);
  //Toolbar order - this doesn't work currently
 { ToolBarContainer.Bands.Items[0]:=DIMReg.GetRegValS('ToolBar0','ImageToolBar');
  ToolBarContainer.Bands.Items[1].Text:=DIMReg.GetRegValS('ToolBar1','FilesToolBar');
  ToolBarContainer.Bands.Items[2].Text:=DIMReg.GetRegValS('ToolBar2','PartitionToolBar');
  ToolBarContainer.Bands.Items[3].Text:=DIMReg.GetRegValS('ToolBar3','ToolsToolBar');}
  //Produce log files for debugging
- Fdebug:=DIMReg.GetRegValB('Debug_Mode',False);
- debuglogfile:=GetTempDir+'DIM_LogFile.txt';
+ Fdebug                    :=DIMReg.GetRegValB('Debug_Mode',False);
+ debuglogfile              :=GetTempDir+'DIM_LogFile.txt';
  //Write some debugging info
  WriteToDebug('Application Started.');
  WriteToDebug('Version '+ApplicationVersion+' '+platform+' ('+arch+')');
@@ -3278,15 +3285,17 @@ var
  confirm   : TModalResult;
  ListOfFile: array of String;
 begin
+ fmt:='';
  //Create a new DiscImage instance
  NewImage:=TDiscImage.Create;
- NewImage.InterleaveMethod   :=ADFSInterleave;
- NewImage.SparkAsFS          :=SparkIsFS;
- NewImage.AllowDFSZeroSectors:=FDFSZeroSecs;
- NewImage.DFSBeyondEdge      :=FDFSBeyondEdge;
- NewImage.DFSAllowBlanks     :=FDFSAllowBlank;
- NewImage.ScanSubDirs        :=True;
- NewImage.CreateDSC          :=FCreateDSC;
+ NewImage.InterleaveMethod    :=ADFSInterleave;
+ NewImage.SparkAsFS           :=SparkIsFS;
+ NewImage.AllowDFSZeroSectors :=FDFSZeroSecs;
+ NewImage.DFSBeyondEdge       :=FDFSBeyondEdge;
+ NewImage.DFSAllowBlanks      :=FDFSAllowBlank;
+ NewImage.ScanSubDirs         :=True;
+ NewImage.CreateDSC           :=FCreateDSC;
+ NewImage.AddImpliedAttributes:=AddImpliedAttributes;
  //Extract any *.inf files, except for DOS
  SetLength(ListOfFile,0);
  for FileName in FileNames do
@@ -3430,6 +3439,7 @@ var
  buffer    : TDIByteArray;
  ok        : Boolean;
 begin
+ buffer:=nil;
  //Read in the catalogue of the new image, if there is none
  if Length(NewImage.Disc)=0 then
  begin
@@ -4215,6 +4225,7 @@ begin
        for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
         if Image.FreeSpaceMap[side,t,s]>$FC then
         begin
+         col:=0;
          //Other colours
          if Image.FreeSpaceMap[side,t,s]=$FF then
           col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
@@ -4632,6 +4643,7 @@ begin
   begin
    //Get the specifications
    partsize:=AFSPartitionForm.PartitionSize.Position*$100;
+   parttype:=-1;
    if AFSPartitionForm.rad_typeAFS.Ticked then parttype:=0;
    if AFSPartitionForm.rad_typeDOS.Ticked then parttype:=1;
    //Send to the class
@@ -5002,6 +5014,7 @@ begin
  end;
  //Miscellaneous
  SettingsForm.CreateINF.Ticked             :=DoCreateInf;
+ SettingsForm.ImpliedAttr.Ticked           :=AddImpliedAttributes;
  SettingsForm.WriteDebug.Ticked            :=Fdebug;
  SettingsForm.AllowDFSZeroSecs.Ticked      :=FDFSZeroSecs;
  SettingsForm.DFSBeyondEdge.Ticked         :=FDFSBeyondEdge;
@@ -5025,15 +5038,16 @@ begin
   if SettingsForm.ilSeq.Ticked      then ADFSInterleave:=1;
   if SettingsForm.ilInter.Ticked    then ADFSInterleave:=2;
   if SettingsForm.ilMPX.Ticked      then ADFSInterleave:=3;
-  DoCreateInf   :=SettingsForm.CreateINF.Ticked;
-  Fdebug        :=SettingsForm.WriteDebug.Ticked;
-  FDFSZeroSecs  :=SettingsForm.AllowDFSZeroSecs.Ticked;
-  FDFSBeyondEdge:=SettingsForm.DFSBeyondEdge.Ticked;
-  FDFSAllowBlank:=SettingsForm.AllowDFSBlankFilenames.Ticked;
-  FUEFCompress  :=SettingsForm.CompressUEF.Ticked;
-  FScanSubDirs  :=SettingsForm.ScanSubDirs.Ticked;
-  FOpenDOS      :=SettingsForm.OpenDOS.Ticked;
-  FCreateDSC    :=SettingsForm.CreateDSC.Ticked;
+  DoCreateInf         :=SettingsForm.CreateINF.Ticked;
+  AddImpliedAttributes:=SettingsForm.ImpliedAttr.Ticked;
+  Fdebug              :=SettingsForm.WriteDebug.Ticked;
+  FDFSZeroSecs        :=SettingsForm.AllowDFSZeroSecs.Ticked;
+  FDFSBeyondEdge      :=SettingsForm.DFSBeyondEdge.Ticked;
+  FDFSAllowBlank      :=SettingsForm.AllowDFSBlankFilenames.Ticked;
+  FUEFCompress        :=SettingsForm.CompressUEF.Ticked;
+  FScanSubDirs        :=SettingsForm.ScanSubDirs.Ticked;
+  FOpenDOS            :=SettingsForm.OpenDOS.Ticked;
+  FCreateDSC          :=SettingsForm.CreateDSC.Ticked;
   //Save the settings
   SaveConfigSettings;
   //Change the tile under the filetype
@@ -5134,17 +5148,18 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.SaveConfigSettings;
 begin
- DIMReg.SetRegValI('Texture',          TextureType);
- DIMReg.SetRegValI('ADFS_L_Interleave',ADFSInterleave);
- DIMReg.SetRegValB('CreateINF',        DoCreateINF);
- DIMReg.SetRegValB('Debug_Mode',       Fdebug);
- DIMReg.SetRegValB('DFS_Zero_Sectors', FDFSZeroSecs);
- DIMReg.SetRegValB('DFS_Beyond_Edge',  FDFSBeyondEdge);
- DIMReg.SetRegValB('DFS_Allow_Blanks', FDFSAllowBlank);
- DIMReg.SetRegValB('Scan_SubDirs',     FScanSubDirs);
- DIMReg.SetRegValB('Open_DOS',         FOpenDOS);
- DIMReg.SetRegValB('Create_DSC',       FCreateDSC);
- DIMReg.SetRegValB('UEF_Compress',     FUEFCompress);
+ DIMReg.SetRegValI('Texture',             TextureType);
+ DIMReg.SetRegValI('ADFS_L_Interleave',   ADFSInterleave);
+ DIMReg.SetRegValB('CreateINF',           DoCreateINF);
+ DIMReg.GetRegValB('AddImpliedAttributes',AddImpliedAttributes);
+ DIMReg.SetRegValB('Debug_Mode',          Fdebug);
+ DIMReg.SetRegValB('DFS_Zero_Sectors',    FDFSZeroSecs);
+ DIMReg.SetRegValB('DFS_Beyond_Edge',     FDFSBeyondEdge);
+ DIMReg.SetRegValB('DFS_Allow_Blanks',    FDFSAllowBlank);
+ DIMReg.SetRegValB('Scan_SubDirs',        FScanSubDirs);
+ DIMReg.SetRegValB('Open_DOS',            FOpenDOS);
+ DIMReg.SetRegValB('Create_DSC',          FCreateDSC);
+ DIMReg.SetRegValB('UEF_Compress',        FUEFCompress);
 end;
 
 {------------------------------------------------------------------------------}
@@ -5481,6 +5496,8 @@ procedure TMainForm.DirListMouseDown(Sender: TObject; Button: TMouseButton;
 var
  dir,entry: Cardinal;
 begin
+ dir:=0;
+ entry:=0;
  if(ssLeft in Shift)and(not(ssCtrl in Shift))then //Only if left button is clicked
  begin
   //Remember the node being dragged
@@ -5715,7 +5732,7 @@ begin
   if ssMeta in Shift then Result:=False; //Move
   if ssAlt in Shift  then Result:=True;  //Copy
  end else
- begin //For Windows or Linux
+ {%H-}begin //For Windows or Linux
   if ssShift in Shift then Result:=False; //Move
   if ssCtrl in Shift  then Result:=True;  //Copy
  end;
@@ -5785,6 +5802,7 @@ var
  ref    : Cardinal;
  NewNode: TTreeNode;
 begin
+ index:=-1;
  //Are we dragging something, over something and is not the same as the source?
  if (DraggedItem<>nil)AND(Dst<>nil)
  AND((DraggedItem<>Dst)
@@ -6022,6 +6040,7 @@ begin
    title:='';
    version:='';
    copyr:='';
+   binvers:=0;
    if major=diAcornRFS then
    begin
     title  :=NewImageForm.ROMFSTitle.Text;
@@ -6277,12 +6296,17 @@ begin
    //If so, then delete
    if R then
    begin
-    ProgressForm.Show;
-    Application.ProcessMessages;
+    if nodes>1 then
+    begin
+     ProgressForm.Show;
+     Application.ProcessMessages;
+    end;
     //Make a note if we are deleting a directory
     LIsDir:=TMyTreeNode(DirList.Selections[0]).IsDir;
     if LIsDir then
-     LDirRef:=TMyTreeNode(DirList.Selections[0]).DirRef;
+     LDirRef:=TMyTreeNode(DirList.Selections[0]).DirRef
+    else
+     LDirRef:=-1;
     //Perform the deletion
     if (Image.MajorFormatNumber<>diAcornUEF)
     and(Image.MajorFormatNumber<>diAcornRFS)then
@@ -6328,7 +6352,7 @@ begin
          HexDumpMenu.Items[j].Free;
       end;
     end;           
-    ProgressForm.Hide;
+    if nodes>1 then ProgressForm.Hide;
    end else ok:=False;
   end;
  end;
@@ -6348,6 +6372,7 @@ var
  buffer  : TDIByteArray;
  menuitem: TMenuItem;
 begin
+ buffer:=nil;
  //Reset the drag/drop flags
  imgCopy.Visible:=False;
  MouseIsDown:=False;

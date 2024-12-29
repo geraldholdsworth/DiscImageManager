@@ -11,23 +11,25 @@ begin
  SetDataLength(0);
 // SetLength(Fpartitions,0);
  //ADFS Interleaving option
- FForceInter   :=0;
+ FForceInter          :=0;
  //Deal with Spark archives as a filing system (i.e. in this class)
- FSparkAsFS    :=True;
+ FSparkAsFS           :=True;
  //Allow DFS images which report number of sectors as zero
- FDFSzerosecs  :=False;
+ FDFSzerosecs         :=False;
  //Allow files to go beyond the edge of the disc
- FDFSBeyondEdge:=False;
+ FDFSBeyondEdge       :=False;
  //Allow blank filenames in DFS
- FDFSAllowBlank:=False;
+ FDFSAllowBlank       :=False;
  //Scan sub directories in ADFS, Amiga, DOS, Spark
- FScanSubDirs  :=True;
+ FScanSubDirs         :=True;
  //Use short filenames in DOS even if long filenames exist
- FDOSUseSFN    :=False;
+ FDOSUseSFN           :=False;
  //Open DOS Partitions on ADFS
- FOpenDOSPart  :=True;
+ FOpenDOSPart         :=True;
+ //Add implied attributes for DFS/CFS/RFS
+ FAddImpliedAttributes:=True;
 end;
-constructor TDiscImage.Create(Clone: TDiscImage);
+constructor TDiscImage.Create(Clone: TDiscImage; keepfiles:Boolean=True);
 var
  index: Cardinal;
 begin
@@ -36,24 +38,27 @@ begin
  ResetVariables;
  SetDataLength(Length(Clone.RAWData));
  //Copy the raw data across
- for index:=0 to Length(Fdata)-1 do
-  Fdata[index]:=Clone.RAWData[index];
+ if keepfiles then
+  for index:=0 to Length(Fdata)-1 do
+   Fdata[index]:=Clone.RAWData[index];
  //ADFS Interleaving option
- FForceInter  :=Clone.InterleaveMethod;
+ FForceInter          :=Clone.InterleaveMethod;
  //Deal with Spark archives as a filing system (i.e. in this class)
- FSparkAsFS   :=Clone.SparkAsFS;
+ FSparkAsFS           :=Clone.SparkAsFS;
  //Allow DFS images which report number of sectors as zero
- FDFSzerosecs :=Clone.AllowDFSZeroSectors;
+ FDFSzerosecs         :=Clone.AllowDFSZeroSectors;
  //Allow files to go beyond the edge of the disc
- FDFSBeyondEdge:=Clone.DFSBeyondEdge;
+ FDFSBeyondEdge       :=Clone.DFSBeyondEdge;
  //Allow blank filenames in DFS
- FDFSAllowBlank:=Clone.DFSAllowBlanks;
+ FDFSAllowBlank       :=Clone.DFSAllowBlanks;
  //Scan sub directories in ADFS, Amiga, DOS, Spark
- FScanSubDirs  :=Clone.ScanSubDirs;
+ FScanSubDirs         :=Clone.ScanSubDirs;
  //Use short filenames in DOS even if long filenames exist
- FDOSUseSFN    :=Clone.FDOSUseSFN;
+ FDOSUseSFN           :=Clone.FDOSUseSFN;
  //Open DOS Partitions on ADFS
- FOpenDOSPart  :=Clone.OpenDOSPartitions;
+ FOpenDOSPart         :=Clone.OpenDOSPartitions;
+ //Add implied attributes for DFS/CFS/RFS
+ FAddImpliedAttributes:=Clone.AddImpliedAttributes;
  //Filename
  FFilename    :=Clone.Filename;
  //Just read the data in
@@ -1931,8 +1936,12 @@ begin
    attributes:=$00;
    if(GetMajorFormatNumber=diAcornDFS)
    or(GetMajorFormatNumber=diAcornUEF)
-   or(GetMajorFormatNumber=diAcornRFS)then //DFS and CFS
+   or(GetMajorFormatNumber=diAcornRFS)then //DFS, CFS and RFS
+   begin
     if FDisc[dir].Entries[entry].Attributes='L' then attributes:=$08;
+    if FAddImpliedAttributes then
+     inc(attributes,$01+$02); //Add the 'RW' attributes as implied attributes
+   end;
    if(GetMajorFormatNumber=diAcornADFS)
    or(GetMajorFormatNumber=diAcornFS)then //ADFS and AFS
     for t:=0 to 7 do

@@ -64,6 +64,7 @@ type
   AllowDFSZeroSecs,
   AllowDFSBlankFilenames,
   CreateINF,
+  ImpliedAttr,
   WriteDebug,
   CompressUEF,
   ScanSubDirs,
@@ -237,8 +238,11 @@ begin
  CreateINF:=CreateTickBox('Create *.inf files on download',MiscPanel);
  CreateINF.Top:=MiscLabel.Top+MiscLabel.Height+Round(4*ratio);
  CreateINF.Left:=Round(4*ratio);
- WriteDebug:=CreateTickBox('Write debugging information',MiscPanel);
- WriteDebug.Top:=CreateINF.Top+CreateINF.Height+Round(4*ratio);
+ ImpliedAttr:=CreateTickBox('Add Implied Attributes (DFS/CFS/RFS)',MiscPanel);
+ ImpliedAttr.Top:=CreateINF.Top+CreateINF.Height+Round(4*ratio);
+ ImpliedAttr.Left:=Round(4*ratio);
+ WriteDebug:=CreateTickBox('Write debugging information (slow)',MiscPanel);
+ WriteDebug.Top:=ImpliedAttr.Top+ImpliedAttr.Height+Round(4*ratio);
  WriteDebug.Left:=Round(4*ratio);
  CompressUEF:=CreateTickBox('Compress UEF images',MiscPanel);
  CompressUEF.Top:=WriteDebug.Top+WriteDebug.Height+Round(4*ratio);

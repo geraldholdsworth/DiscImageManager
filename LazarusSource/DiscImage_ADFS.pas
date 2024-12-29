@@ -1314,6 +1314,8 @@ var
  dirid,
  att   : String;
 begin
+ Result:=False;
+ if minor>7 then exit;
  //Blank everything
  ResetVariables;
  SetDataLength(0);
@@ -3160,7 +3162,7 @@ var
  changed : Boolean;
 begin
  if not FMap then //Old map only
- begin //Bug here - deleting multiple files does not update the FSM
+ begin
   SetLength(fslinks,0);
   //Just make sure the current FS Map is in order, not fragmented and FreeEnd is correct
   //Total number of entries
@@ -3193,30 +3195,29 @@ begin
    inc(ref,3);
   end;
   //Concatenate entries
-  if Length(fslinks)>2 then
+  if Length(fslinks)>1 then
   begin
    i:=0;
-   while i<Length(fslinks)-2 do
+   while i<Length(fslinks)-1 do
    begin
     //if concurrent
-    if fslinks[i].Offset+fslinks[i].Length=fslinks[i+1].Offset then
+    if fslinks[i].Offset+fslinks[i].Length>=fslinks[i+1].Offset then
     begin
      //Add them together
-     inc(fslinks[i+1].Length,fslinks[i].Length);
-     fslinks[i+1].Offset:=fslinks[i].Offset;
+     inc(fslinks[i].Length,fslinks[i+1].Length);
      //And remove the next entry
-     if i<Length(fslinks)-2 then
+     if i<Length(fslinks)-1 then
      begin
       //Iterate through the above entries
-      for ref:=i to Length(fslinks)-2 do
+      for ref:=i+1 to Length(fslinks)-1 do
       begin
        //Move each one down by one
        fslinks[ref].Offset:=fslinks[ref+1].Offset;
        fslinks[ref].Length:=fslinks[ref+1].Length;
       end;
-      //And decrease the length
-      SetLength(fslinks,Length(fslinks)-1);
      end;
+     //And decrease the length
+     SetLength(fslinks,Length(fslinks)-1);
     end;
     inc(i);
    end;

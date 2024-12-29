@@ -296,6 +296,7 @@ type
   FDFSzerosecs,                 //Allow zero length disc images for DFS?
   FDFSAllowBlank,               //Allow blank filenames
   FDFSBeyondEdge,               //Check for files going beyond the DFS disc edge
+  FAddImpliedAttributes,        //Add 'RW' to the inf file for DFS/CFS/RFS
   FDOSVolInRoot,                //Volume name is stored in the root (DOS)
   FScanSubDirs,                 //Scan sub directories on opening (ADFS/Amiga/DOS/Spark)
   FOpenDOSPart,                 //Open DOS Partitions on ADFS
@@ -797,7 +798,7 @@ type
   function CopyFile(filename,directory,newfilename: String): Integer; overload;
   function CopyFile(source: Cardinal;dest: Integer): Integer; overload;
   constructor Create;
-  constructor Create(Clone: TDiscImage); overload;
+  constructor Create(Clone: TDiscImage; keepfiles:Boolean=True); overload;
   function CreateDirectory(var filename,parent,attributes: String): Integer;
   procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
   function CreatePasswordFile(Accounts: TUserAccounts): Integer;
@@ -872,6 +873,8 @@ type
   function WriteFile(var file_details: TDirEntry;
                       var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
   //Published properties
+  property AddImpliedAttributes:Boolean       read FAddImpliedAttributes
+                                              write FAddImpliedAttributes;
   property AFSPresent:          Boolean       read FAFSPresent;
   property AFSRoot:             Cardinal      read Fafsroot;
   property AllowDFSZeroSectors: Boolean       read FDFSzerosecs
