@@ -31,7 +31,7 @@ Remove top bit set characters
 -------------------------------------------------------------------------------}
 procedure RemoveTopBit(var title: String);
 var
- t: Integer;
+ t: Integer=0;
 begin
  for t:=1 to Length(title) do title[t]:=chr(ord(title[t])AND$7F);
 end;
@@ -41,7 +41,7 @@ Add top bit to spaces
 -------------------------------------------------------------------------------}
 function AddTopBit(title:String):String;
 var
- i: Integer;
+ i: Integer=0;
 begin
  //We'll set the top bit on spaces
  for i:=1 to Length(title) do
@@ -54,7 +54,7 @@ Convert BBC to Windows filename
 -------------------------------------------------------------------------------}
 procedure BBCtoWin(var f: String);
 var
- i: Integer;
+ i: Integer=0;
 begin
  for i:=1 to Length(f) do
  begin
@@ -73,7 +73,7 @@ Convert Windows to BBC filename
 -------------------------------------------------------------------------------}
 procedure WintoBBC(var f: String);
 var
- i: Integer;
+ i: Integer=0;
 begin
  for i:=1 to Length(f) do
  begin
@@ -92,7 +92,7 @@ Removes trailing spaces from a string
 -------------------------------------------------------------------------------}
 procedure RemoveSpaces(var s: String);
 var
- x: Integer;
+ x: Integer=0;
 begin
  //Start at the end
  x:=Length(s);
@@ -109,11 +109,9 @@ Removes control characters from a string
 -------------------------------------------------------------------------------}
 procedure RemoveControl(var s: String);
 var
- x: Integer;
- o: String;
+ x: Integer=0;
+ o: String='';
 begin
- //New String
- o:='';
  //Iterate through the old string
  for x:=1 to Length(s) do
   //Only add the character to the new string if it is not a control character
@@ -127,7 +125,7 @@ Check to see if bit b is set in word v
 ------------------------------------------------------------------------------}
 function IsBitSet(v,b: Integer): Boolean;
 var
- x: Integer;
+ x: Integer=0;
 begin
  Result:=False;
  if (b>=0) and (b<32) then
@@ -142,10 +140,9 @@ Break down an *.inf file entry
 -------------------------------------------------------------------------------}
 function BreakDownInf(s: String): TStringArray;
 var
- i: Integer;
- f: String;
+ i: Integer=0;
+ f: String='';
 begin
- f:='';
  //Remove leading spaces, if any
  if s[1]=' ' then
  begin
@@ -182,7 +179,7 @@ Ensures a string contains only visible ASCII characters
 -------------------------------------------------------------------------------}
 function FilenameToASCII(s: String): String;
 var
- i: Integer;
+ i: Integer=0;
 begin
  for i:=1 to Length(s) do
   if(ord(s[i])<32)or(ord(s[i])>126)then s[i]:='?';
@@ -194,8 +191,8 @@ Convert a attribute byte into a string
 -------------------------------------------------------------------------------}
 function GetAttributes(attr: String;format: Byte):String;
 var
- attr1 : String;
- attr2 : Byte;
+ attr1 : String='';
+ attr2 : Byte=0;
 begin
  {This converts a hex number to attributes. This hex number is different to what
  is used by ADFS internally (and saved to the disc images) but is what is
@@ -231,8 +228,8 @@ Wildcard string comparison
 -------------------------------------------------------------------------------}
 function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
 var
- sIndex,
- maskIndex: Integer;
+ sIndex   : Integer=1;
+ maskIndex: Integer=1;
 begin
  if not case_sensitive then
  begin
@@ -240,8 +237,6 @@ begin
   mask:=UpperCase(mask);
  end;
  Result   :=True;
- sIndex   :=1;
- maskIndex:=1;
  while(sIndex<=Length(S))and(maskIndex<=Length(mask))do
  begin
   case mask[maskIndex] of
@@ -294,7 +289,9 @@ Convert a TDateTime to an AFS compatible Word
 -------------------------------------------------------------------------------}
 function DateTimeToAFS(timedate: TDateTime):Word;
 var
- y,m,d: Byte;
+ y: Byte=0;
+ m: Byte=0;
+ d: Byte=0;
 begin
  y:=StrToIntDef(FormatDateTime('yyyy',timedate),1981)-1981;//Year
  m:=StrToIntDef(FormatDateTime('m',timedate),1);           //Month
@@ -307,9 +304,9 @@ Convert an AFS date to a TDateTime
 -------------------------------------------------------------------------------}
 function AFSToDateTime(date: Word):TDateTime;
 var
- day,
- month,
- year       : Integer;
+ day   : Integer=0;
+ month : Integer=0;
+ year  : Integer=0;
 begin
  Result:=0;
  if date=0 then exit;
@@ -325,7 +322,7 @@ Validate a filename for Windows
 -------------------------------------------------------------------------------}
 procedure ValidateWinFilename(var f: String);
 var
- i: Integer;
+ i: Integer=0;
 const
   illegal = '\/:*?"<>|';
 begin
@@ -339,8 +336,8 @@ Converts a decimal number to BCD
 -------------------------------------------------------------------------------}
 function DecToBCD(dec: Cardinal): Cardinal;
 var
- s: String;
- i: Integer;
+ s: String='';
+ i: Integer=0;
 begin
  Result:=0;
  s:=IntToStr(dec);
@@ -353,11 +350,32 @@ Converts a BCD to decimal number
 -------------------------------------------------------------------------------}
 function BCDToDec(BCD: Cardinal): Cardinal;
 var
- s: String;
- i: Integer;
+ s: String='';
+ i: Integer=0;
 begin
  Result:=0;
  s:=IntToHex(BCD);
  for i:=Length(s) downto 1 do
   inc(Result,StrToIntDef(s[i],0)*(10**(Length(s)-i)));
+end;
+
+{-------------------------------------------------------------------------------
+Reset a TFileEntry to default values
+-------------------------------------------------------------------------------}
+procedure ResetFileEntry(var fileentry: TFileEntry);
+begin
+ with fileentry do
+ begin
+  LoadAddr   :=0;
+  ExecAddr   :=0;
+  Length     :=0;
+  Size       :=0;
+  NumEntries :=0;
+  Attributes :=0;
+  DataOffset :=0;
+  Filename   :='';
+  Parent     :='';
+  ArchiveName:='';
+  Directory  :=False;
+ end;
 end;

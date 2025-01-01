@@ -1,7 +1,7 @@
 unit ChangeInterleaveUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -70,7 +70,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TChangeInterleaveForm.FormCreate(Sender: TObject);
 var
- ratio  : Real;
+ ratio  : Real=0;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  //Create the buttons

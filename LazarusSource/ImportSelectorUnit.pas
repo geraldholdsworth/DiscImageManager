@@ -1,7 +1,7 @@
 unit ImportSelectorUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -78,8 +78,8 @@ uses MainUnit;
 {------------------------------------------------------------------------------}
 procedure TImportSelectorForm.TickNode(Node: TTreeNode; Ticked: Boolean);
 var
- Child: TTreeNode;
- ParentStatus: Integer;
+ Child       : TTreeNode=nil;
+ ParentStatus: Integer=0;
 begin
  //Ensure that the node actually exists
  if Assigned(Node) then
@@ -226,8 +226,8 @@ begin
 end;
 function TImportSelectorForm.IsNodeTicked(dir,entry: Integer): Boolean;
 var
- index: Integer;
- Node : TTreeNode;
+ index: Integer=0;
+ Node : TTreeNode=nil;
 begin
  //Counter into all the nodes
  index:=0;
@@ -254,7 +254,7 @@ end;
 procedure TImportSelectorForm.TreeView1Click(Sender: TObject);
 var
  P   : TPoint;
- Node: TTreeNode;
+ Node: TTreeNode=nil;
  ht  : THitTests;
 begin
  //Set the TPoint to something, so the IDE doesn't whinge

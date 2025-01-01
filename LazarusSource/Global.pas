@@ -1,7 +1,7 @@
 unit Global;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -35,12 +35,10 @@ Reads a line from a TStream
 -------------------------------------------------------------------------------}
 function ReadLine(var Stream: TFileStream;var Line: string): boolean;
 var
- RawLine: UTF8String;
- ch     : AnsiChar;
+ RawLine: UTF8String='';
+ ch     : AnsiChar=#0;
 begin
- RawLine:='';
  Result:=False;
- ch:=#0;
  while (Stream.Read(ch,1)=1) and (ch<>#13) and (ch<>#10) do
  begin
   Result:=True;
@@ -66,8 +64,9 @@ Writes a string to the TFileStream, and terminates it with 0x0A
 -------------------------------------------------------------------------------}
 function WriteLine(var Stream: TFileStream;Line: string): boolean;
 var
- l,x: Integer;
- S: UTF8String;
+ l: Integer=0;
+ x: Integer=0;
+ S: UTF8String='';
 begin
  S:=UTF8String(Line+#10);
  l:=Length(S);

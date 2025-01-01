@@ -5,10 +5,10 @@ Identifies a Commodore 1541/1571/1581 disc and which type
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_CDR: Boolean;
 var
- BAM,
- hdr,
- i   : Cardinal;
- ctr : Byte;
+ BAM : Cardinal=0;
+ hdr : Cardinal=0;
+ i   : Cardinal=0;
+ ctr : Byte=0;
 begin
  Result:=False;
  if FFormat=diInvalidImg then
@@ -92,10 +92,10 @@ Converts a track and sector address into a file offset address (Commodore)
 -------------------------------------------------------------------------------}
 function TDiscImage.ConvertDxxTS(format,track,sector: Integer): Integer;
 var
- x,c: Integer;
+ x: Integer=0;
+ c: Integer=0;
 begin
  Result:=0;
- c:=0;
  //1541 has only 36 tracks
  if (format=0) AND (track>40) then track:=-1;
  //So if it is 36-40, compensate
@@ -137,11 +137,18 @@ Read Commodore Disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadCDRDisc: Boolean;
 var
- ptr,t,s,amt,
- file_chain,
- file_ptr,p,
- ch,c,f,dirTr :Integer;
- temp         : String;
+ ptr        : Integer=0;
+ t          : Integer=0;
+ s          : Integer=0;
+ amt        : Integer=0;
+ file_chain : Integer=0;
+ file_ptr   : Integer=0;
+ p          : Integer=0;
+ ch         : Integer=0;
+ c          : Integer=0;
+ f          : Integer=0;
+ dirTr      : Integer=0;
+ temp       : String='';
 begin
  FDisc:=nil;
  SetLength(FDisc,1);
@@ -240,8 +247,9 @@ Create a new, blank, disc
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatCDR(minor: Byte): Boolean;
 var
- t,i : Integer;
- c   : Byte;
+ t : Integer=0;
+ i : Integer=0;
+ c : Byte=0;
 begin
  //Blank everything
  ResetVariables;
@@ -386,13 +394,19 @@ Calculate the free space map
 -------------------------------------------------------------------------------}
 procedure TDiscImage.CDRFreeSpaceMap;
 var
- c,ch,f,sec,x,
- dirTr,dirTr1  : Byte;
- ptr,ptr1,s    : Cardinal;
+ c     : Byte=0;
+ ch    : Byte=0;
+ f     : Byte=0;
+ sec   : Byte=0;
+ x     : Byte=0;
+ dirTr : Byte=18; //D64 and D71 disc info is on track 18, sector 0
+ dirTr1: Byte=0;
+ ptr   : Cardinal=0;
+ ptr1  : Cardinal=0;
+ s     : Cardinal=0;
 begin
  //Get the format
  f:=FFormat AND $F; //'f' is the format - 0: D64, 1: D71, 2: D81
- dirTr:=18; //D64 and D71 disc info is on track 18, sector 0
  if f=2 then dirTr:=40; //D81 disc info is on track 40, sector 0
  //BAM for side 1 (D71 only)
  dirTr1:=dirTr;
@@ -488,10 +502,12 @@ Set or clear the BAM (i.e. mark as used or not used)
 -------------------------------------------------------------------------------}
 procedure TDiscImage.CDRSetClearBAM(track,sector: Byte;used: Boolean);
 var
- f,i,j,
- fr    : Byte;
- ptr,
- ptr1  : Cardinal;
+ f     : Byte=0;
+ i     : Byte=0;
+ j     : Byte=0;
+ fr    : Byte=0;
+ ptr   : Cardinal=0;
+ ptr1  : Cardinal=0;
 begin
  f:=GetMinorFormatNumber;
  //Pointer to BAM number of free sectors:
@@ -540,8 +556,8 @@ Update the disc title
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateCDRDiscTitle(title: String): Boolean;
 var
- ptr: Cardinal;
- i: Byte;
+ ptr: Cardinal=0;
+ i  : Byte=0;
 begin
  disc_name[0]:=title;
  //Get the location of the disc title, less one
@@ -565,11 +581,13 @@ Extracts a file, filename contains complete path
 function TDiscImage.ExtractCDRFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- source        : Integer;
- entry,dir,
- dest,
- fragptr,len,
- filelen       : Cardinal;
+ source  : Integer=0;
+ entry   : Cardinal=0;
+ dir     : Cardinal=0;
+ dest    : Cardinal=0;
+ fragptr : Cardinal=0;
+ len     : Cardinal=0;
+ filelen : Cardinal=0;
 begin
  Result:=False;
  if FileExists(filename,fragptr) then //Does the file actually exist?
@@ -616,14 +634,16 @@ Write a file to Commodore image
 function TDiscImage.WriteCDRFile(file_details: TDirEntry;
                              var buffer: TDIByteArray): Integer;
 var
- count,
- ptr       : Cardinal;
- success   : Boolean;
- f,frag,i,
- track,
- sector    : Byte;
- block     : TDIByteArray;
- fragments : TFragmentArray;
+ count     : Cardinal=0;
+ ptr       : Cardinal=0;
+ success   : Boolean=False;
+ f         : Byte=0;
+ frag      : Byte=0;
+ i         : Byte=0;
+ track     : Byte=0;
+ sector    : Byte=0;
+ block     : TDIByteArray=nil;
+ fragments : TFragmentArray=nil;
 begin
  Result:=-8;//Nothing to write
  count:=file_details.Length;
@@ -755,22 +775,20 @@ end;
 Update the catalogue
 -------------------------------------------------------------------------------}
 procedure TDiscImage.UpdateCDRCat;
-var
- track,
- sector,
- dirsector,
- maxsector,
- i,j,k,
- attr      : Byte;
- c,
- ptr       : Cardinal;
- sectors   : TDIByteArray;
- temp      : String;
+var                   //Track and sector number for the directory
+ track     : Byte=18; //Track where the system is
+ sector    : Byte=1;  //Sector where the first directory is
+ dirsector : Byte=0;
+ maxsector : Byte=19; //Maximum sectors on this track
+ i         : Byte=0;
+ j         : Byte=0;
+ k         : Byte=0;
+ attr      : Byte=0;
+ c         : Cardinal=0;
+ ptr       : Cardinal=0;
+ sectors   : TDIByteArray=nil;
+ temp      : String='';
 begin
- //Track and sector number for the directory
- track:=18;     //Track where the system is
- sector:=1;     //Sector where the first directory is
- maxsector:=19; //Maximum sectors on this track
  //1581 track and sector number
  if GetMinorFormatNumber=2 then
  begin
@@ -877,10 +895,9 @@ Find the next free sector (converted directly from the 1541 code)
 -------------------------------------------------------------------------------}
 function TDiscImage.CDRFindNextSector(var track,sector: Byte): Boolean;
 var
- BAM_free_blocks,s: Byte;
+ BAM_free_blocks: Byte=0;
+ s              : Byte=0;
 begin
- //Reset the counter
- BAM_free_blocks:=0;
  //Count up the free blocks/sectors in this track
  for s:=0 to Length(free_space_map[0,track-1])-1 do
   if free_space_map[0,track-1,s]=$00 then inc(BAM_free_blocks);
@@ -915,17 +932,16 @@ Find the next free track
 -------------------------------------------------------------------------------}
 function TDiscImage.CDRFindNextTrack(var track,sector: Byte): Boolean;
 var
- starttrack,
- counter,
- hightrack,
- lowtrack,
- cycles,i    : Byte;
- freesecs    : Boolean;
+ starttrack : Byte=0;
+ counter    : Byte=1; //Counter for distance from root
+ hightrack  : Byte=0;
+ lowtrack   : Byte=0;
+ cycles     : Byte=0;
+ i          : Byte=0;
+ freesecs   : Boolean=False;
 begin
  //Number of sides - also, number of times to repeat main loop
  if GetMinorFormatNumber=1 then cycles:=2 else cycles:=1;
- //Counter for distance from root
- counter:=1;
  repeat
   //Counter for number of sides looked at
   i:=0;
@@ -986,7 +1002,9 @@ Rename a file
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameCDRFile(oldfilename: String;var newfilename: String):Integer;
 var
- ptr,entry,dir: Cardinal;
+ ptr   : Cardinal=0;
+ entry : Cardinal=0;
+ dir   : Cardinal=0;
 begin
  Result:=-2; //File does not exist
  //Check that the file exists
@@ -1015,8 +1033,12 @@ Delete a file
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteCDRFile(filename: String):Boolean;
 var
- ptr,entry,dir,i: Cardinal;
- track,sector   : Byte;
+ ptr   : Cardinal=0;
+ entry : Cardinal=0;
+ dir   : Cardinal=0;
+ i     : Cardinal=0;
+ track : Byte=0;
+ sector: Byte=0;
 begin
  Result:=False;
  //Check that the file exists
@@ -1054,9 +1076,9 @@ Update a file's attribute or filetype
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateCDRFileAttributes(filename,attributes: String):Boolean;
 var
- ptr,
- dir,
- entry : Cardinal;
+ ptr   : Cardinal=0;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
  Result:=False;
  //Make sure that the file exists, but also to get the pointer

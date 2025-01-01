@@ -5,11 +5,13 @@ Identifies a DFS disc and which type
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_DFS: Boolean;
 var
- c,i    : Byte;
- t0,t1  : Integer;
- chk    : Boolean;
- sec    : Cardinal;
- temp   : String;
+ c   : Byte=0;
+ i   : Byte=0;
+ t0  : Integer=0;
+ t1  : Integer=0;
+ chk : Boolean=False;
+ sec : Cardinal=0;
+ temp: String='';
 begin
  if FFormat=diInvalidImg then
  begin
@@ -208,8 +210,8 @@ Converts a sector and side address into file offset address
 -------------------------------------------------------------------------------}
 function TDiscImage.ConvertDFSSector(address,side: Integer): Integer;
 var
- sector,
- offset: Integer;
+ sector: Integer=0;
+ offset: Integer=0;
 begin
  //For an single sided disc, this is just the address
  if not FDSD then
@@ -236,11 +238,13 @@ Read Acorn DFS Disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadDFSDisc(mmbdisc:Integer=-1): Boolean;
 var
- s,t,f,
- locked,
- ptr,
- diroff    : Integer;
- temp      : String;
+ s      : Integer=0;
+ t      : Integer=0;
+ f      : Integer=0;
+ locked : Integer=0;
+ ptr    : Integer=0;
+ diroff : Integer=0;
+ temp   : String='';
 begin
  Result:=False;
  FDisc:=nil;
@@ -364,7 +368,11 @@ Update the DFS Free Space Map, and update the free space counter
 -------------------------------------------------------------------------------}
 procedure TDiscImage.DFSFreeSpaceMap;
 var
- f,s,c,e,fs: Cardinal;
+ f : Cardinal=0;
+ s : Cardinal=0;
+ c : Cardinal=0;
+ e : Cardinal=0;
+ fs: Cardinal=0;
 begin
  //Set up the arrays
  if (FFormat AND $1)=1 then //Double sided image
@@ -437,15 +445,16 @@ Write Acorn DFS File
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteDFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
 var
- i,l,
- pos,
- count,
- newlen,
- filen,
- size1,
- size2  : Integer;
- ptr    : Cardinal;
- success: Boolean;
+ i      : Integer=0;
+ l      : Integer=0;
+ pos    : Integer=-1;
+ count  : Integer=0;
+ newlen : Integer=0;
+ filen  : Integer=0;
+ size1  : Integer=0;
+ size2  : Integer=0;
+ ptr    : Cardinal=0;
+ success: Boolean=False;
 begin
  Result:=-3; //File already exists
  count:=file_details.Length;
@@ -535,7 +544,7 @@ Validate a filename
 -------------------------------------------------------------------------------}
 function TDiscImage.ValidateDFSFilename(filename: String): String;
 var
- i: Integer;
+ i: Integer=0;
 const
   illegal = '#*:';
 begin
@@ -567,9 +576,12 @@ Update the catalogue
 -------------------------------------------------------------------------------}
 procedure TDiscImage.UpdateDFSCat(side: Integer);
 var
- i,s,c : Integer;
- fn,dn : String;
- t     : Byte;
+ i  : Integer=0;
+ s  : Integer=0;
+ c  : Integer=0;
+ fn : String='';
+ dn : String='';
+ t  : Byte=0;
 begin
  //Update the master sequence number
  DFSUpdateSequence(side);
@@ -638,7 +650,9 @@ Rename Acorn DFS File
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameDFSFile(oldfilename: String;var newfilename: String):Integer;
 var
- ptr,entry,dir: Cardinal;
+ ptr   : Cardinal=0;
+ entry : Cardinal=0;
+ dir   : Cardinal=0;
 begin
  Result:=-2;//File does not exist
  //Check that the new name meets the required DFS filename specs
@@ -669,8 +683,10 @@ Delete Acorn DFS File
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteDFSFile(filename: String):Boolean;
 var
- ptr,entry,dir: Cardinal;
- i: Integer;
+ ptr   : Cardinal=0;
+ entry : Cardinal=0;
+ dir   : Cardinal=0;
+ i     : Integer=0;
 begin
  Result:=False;
  //Check that the file exists
@@ -697,8 +713,8 @@ Update DFS File attributes
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDFSFileAttributes(filename,attributes: String): Boolean;
 var
- entry,
- dir   : Cardinal;
+ entry : Cardinal=0;
+ dir   : Cardinal=0;
 begin
  Result:=False;
  //Make sure that the file exists, but also to get the pointer
@@ -720,9 +736,9 @@ Create DFS blank image
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatDFS(minor,tracks: Byte): Boolean;
 var
- s: Byte;
- t: Integer;
- side_size: Cardinal;
+ s        : Byte=0;
+ t        : Integer=0;
+ side_size: Cardinal=0;
 begin
  FDisc:=nil;
  //Blank everything
@@ -803,8 +819,9 @@ Set the DFS disc title
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDFSDiscTitle(title: String;side: Byte): Boolean;
 var
- a  : Cardinal;
- b,c: Byte;
+ a : Cardinal=0;
+ b : Byte=0;
+ c : Byte=0;
 const
  pad = 0;
 begin
@@ -837,7 +854,7 @@ Set the DFS boot option
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDFSBootOption(option,side: Byte): Boolean;
 var
- b: Byte;
+ b: Byte=0;
 begin
  bootoption[side]:=option AND $3;
  b:=ReadByte(ConvertDFSSector($106,side));
@@ -853,9 +870,11 @@ Extracts a file, filename contains complete path
 function TDiscImage.ExtractDFSFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- source,side   : Integer;
- entry,dir,
- filelen       : Cardinal;
+ source : Integer=0;
+ side   : Integer=0;
+ entry  : Cardinal=0;
+ dir    : Cardinal=0;
+ filelen: Cardinal=0;
 begin
  Result:=False;
  if FileExists(filename,dir,entry) then //Does the file actually exist?
@@ -878,12 +897,11 @@ Update a file's load or execution address
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
 var
- ptr,
- dir,
- entry: Cardinal;
+ ptr  : Cardinal=0;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
 begin
  Result:=False;
- ptr:=0;
  //Ensure the file actually exists
  if FileExists(filename,ptr) then
  begin
@@ -910,8 +928,8 @@ Extract a DFS side
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtractDFSPartition(side: Cardinal): TDIByteArray;
 var
- sidesize,
- address  : Cardinal;
+ sidesize : Cardinal=0;
+ address  : Cardinal=0;
 begin
  Result:=nil;
  if side<2 then
@@ -933,8 +951,9 @@ Add a blank side to a single sided image
 -------------------------------------------------------------------------------}
 function TDiscImage.AddDFSBlankSide(tracks: Byte): Boolean;
 var
- Lbuffer    : TDIByteArray;
- side_size,t: Cardinal;
+ Lbuffer    : TDIByteArray=nil;
+ side_size  : Cardinal=0;
+ t          : Cardinal=0;
 begin
  Result:=False;
  if not FDSD then
@@ -968,13 +987,13 @@ Add a side to a single sided image
 -------------------------------------------------------------------------------}
 function TDiscImage.AddDFSSide(var buffer: TDIByteArray): Boolean;
 var
- FdataCopy,
- NewData    : TDIByteArray;
- addr,
- side0size,
- side2size,
- totsize    : Cardinal;
- oldfilename: String;
+ FdataCopy  : TDIByteArray=nil;
+ NewData    : TDIByteArray=nil;
+ addr       : Cardinal=0;
+ side0size  : Cardinal=0;
+ side2size  : Cardinal=0;
+ totsize    : Cardinal=0;
+ oldfilename: String='';
 begin
  Result:=False;
  if not FDSD then
@@ -1061,7 +1080,7 @@ Move a file
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveDFSFile(filename,directory: String): Integer;
 var
- oldfn: String;
+ oldfn: String='';
 begin
  oldfn:=filename;
  //Moving and copying are the same, essentially
@@ -1075,8 +1094,8 @@ Produce a report of the image's details
 -------------------------------------------------------------------------------}
 function TDiscImage.DFSReport(CSV: Boolean): TStringList;
 var
- temp: String;
- side: Integer;
+ temp: String='';
+ side: Integer=0;
 begin
  Result:=TStringList.Create;
  if FDSD then Result.Add('Double Sided') else Result.Add('Single Sided');
@@ -1107,7 +1126,7 @@ Update the master sequence number
 -------------------------------------------------------------------------------}
 procedure TDiscImage.DFSUpdateSequence(side: Integer);
 var
- t: Byte;
+ t: Byte=0;
 begin
  t:=BCDToDec(FDisc[side].Sequence)mod 100;
  FDisc[side].Sequence:=DecToBCD((t+1)mod 100);

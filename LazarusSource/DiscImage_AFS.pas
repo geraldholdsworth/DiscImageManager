@@ -7,11 +7,11 @@ function TDiscImage.ID_AFS: Boolean;
  //This will only identify a plain AFS disc, not an ADFS Hybrid
  function IDAFSPass(chgint:Boolean): Boolean;
  var
-  afspart1,
-  afspart2,
-  Lafsroot : Cardinal;
-  index    : Integer;
-  ok       : Boolean;
+  afspart1 : Cardinal=0;
+  afspart2 : Cardinal=0;
+  Lafsroot : Cardinal=0;
+  index    : Integer=0;
+  ok       : Boolean=False;
  begin
   ResetVariables;
   //Is there actually any data?
@@ -83,7 +83,7 @@ function TDiscImage.ID_AFS: Boolean;
   Result:=GetMajorFormatNumber=diAcornFS;
  end;
 var
- start: Byte;
+ start: Byte=0;
 begin
  Result:=False;
  if(FFormat=diInvalidImg)or(GetMajorFormatNumber=diAcornFS)then
@@ -112,12 +112,13 @@ Reads an AFS partition
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReadAFSPartition;
 var
- d,e,i    : Integer;
- allocmap : Cardinal;
- startdir : String;
- visited  : array of Cardinal;
+ d        : Integer=0;
+ e        : Integer=0;
+ i        : Integer=0;
+ allocmap : Cardinal=0;
+ startdir : String='';
+ visited  : array of Cardinal=nil;
 begin
- visited:=nil;
  //Is this an ADFS disc with Acorn FileStore partition?
  if((GetMajorFormatNumber=diAcornADFS)and(FAFSPresent))
  or(GetMajorFormatNumber=diAcornFS)then
@@ -250,18 +251,17 @@ Reads an AFS directory
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadAFSDirectory(dirname:String;addr: Cardinal):TDir;
 var
- numentries,
- index      : Integer;
- side,
- entry,
- objaddr,
- segaddr    : Cardinal;
- attr       : String;
- access     : Byte;
- buffer     : TDIByteArray;
+ numentries : Integer=0;
+ index      : Integer=0;
+ side       : Cardinal=0;
+ entry      : Cardinal=0;
+ objaddr    : Cardinal=0;
+ segaddr    : Cardinal=0;
+ attr       : String='';
+ access     : Byte=0;
+ buffer     : TDIByteArray=nil;
 begin
  Result.Directory:='';
- buffer:=nil;
  //Reset the directory settings to a default value
  ResetDir(Result);
  //Update the progress indicator
@@ -349,8 +349,8 @@ Extracts a file, filename contains complete path
 function TDiscImage.ExtractAFSFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- dir,
- entry : Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
  Result:=False;
  if FileExists(filename,dir,entry) then //Does the file actually exist?
@@ -367,12 +367,12 @@ Read and assemble an object's data
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadAFSObject(offset: Cardinal): TDIByteArray;
 var
- ptr,
- addr,
- len,
- bufptr,
- almap : Cardinal;
- index : Integer;
+ ptr   : Cardinal=0;
+ addr  : Cardinal=0;
+ len   : Cardinal=0;
+ bufptr: Cardinal=0;
+ almap : Cardinal=0;
+ index : Integer=0;
 begin
  Result:=nil;
  //Make sure it is a valid allocation map for Level 3
@@ -441,12 +441,12 @@ Read the length of an object
 -------------------------------------------------------------------------------}
 function TDiscImage.GetAFSObjLength(offset: Cardinal): Cardinal;
 var
- almap,
- addr,
- len,
- ptr,
- segaddr: Cardinal;
- lenLSB : Byte;
+ almap  : Cardinal=0;
+ addr   : Cardinal=0;
+ len    : Cardinal=0;
+ ptr    : Cardinal=0;
+ segaddr: Cardinal=0;
+ lenLSB : Byte=0;
 begin
  Result:=0;
  //Level 2
@@ -502,16 +502,16 @@ Gets the allocation map address
 -------------------------------------------------------------------------------}
 function TDiscImage.GetAllocationMap: Cardinal;
 var
- dummy: Cardinal;
+ dummy: Cardinal=0;
 begin
  Result:=GetAllocationMap(0,dummy);
 end;
 function TDiscImage.GetAllocationMap(sector:Cardinal;var spt:Cardinal):Cardinal;
 var
- szofbmp,
- Ldiscsize,
- afsstart,
- trackstrt : Cardinal;
+ szofbmp   : Cardinal=0;
+ Ldiscsize : Cardinal=0;
+ afsstart  : Cardinal=0;
+ trackstrt : Cardinal=0;
 begin
  Result:=0; //Default
  //Level 2
@@ -559,13 +559,14 @@ Read the free space map
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReadAFSFSM;
 var
- fragments: TFragmentArray;
- part     : Byte;
- spt,
- tracks,
- entry,
- index,
- t,s      : Cardinal;
+ fragments: TFragmentArray=nil;
+ part     : Byte=0;
+ spt      : Cardinal=0;
+ tracks   : Cardinal=0;
+ entry    : Cardinal=0;
+ index    : Cardinal=0;
+ t        : Cardinal=0;
+ s        : Cardinal=0;
 begin
  //Get all the used sectors
  fragments:=AFSGetFreeSectors(True);
@@ -618,16 +619,16 @@ Get an array of all the free sectors (or used, if set to True)
 -------------------------------------------------------------------------------}
 function TDiscImage.AFSGetFreeSectors(used: Boolean=False): TFragmentArray;
 var
- allocmap,
- index,
- entry,
- szofbmp,
- bmploc,
- afsstart,
- trackstrt    : Cardinal;
- Lsecspertrack: Word;
- Ldiscsize    : Int64;
- status       : Byte;
+ allocmap     : Cardinal=0;
+ index        : Cardinal=0;
+ entry        : Cardinal=0;
+ szofbmp      : Cardinal=0;
+ bmploc       : Cardinal=0;
+ afsstart     : Cardinal=0;
+ trackstrt    : Cardinal=0;
+ Lsecspertrack: Word=0;
+ Ldiscsize    : Int64=0;
+ status       : Byte=0;
 begin
  Result:=nil;
  //Initialise the variables
@@ -789,14 +790,14 @@ Find and allocate some free space
 function TDiscImage.AFSAllocateFreeSpace(size :Cardinal;
                  var fragments: TFragmentArray;addheader:Boolean=True): Cardinal;
 var
- FSM,
- alloc    : TFragmentArray;
- found    : Boolean;
- index    : Integer;
- sector,
- fragsize,
- allocmap,
- spt      : Cardinal;
+ FSM      : TFragmentArray=nil;
+ alloc    : TFragmentArray=nil;
+ found    : Boolean=False;
+ index    : Integer=0;
+ sector   : Cardinal=0;
+ fragsize : Cardinal=0;
+ allocmap : Cardinal=0;
+ spt      : Cardinal=0;
 begin
  //Return a erroronous result
  Result:=$FFFFFFFF;
@@ -932,11 +933,11 @@ Deallocate specified area in the free space map
 -------------------------------------------------------------------------------}
 procedure TDiscImage.AFSDeAllocateFreeSpace(addr: Cardinal);
 var
- allocmap,
- sector,
- spt      : Cardinal;
- index,
- frag     : Integer;
+ allocmap : Cardinal=0;
+ sector   : Cardinal=0;
+ spt      : Cardinal=0;
+ index    : Integer=0;
+ frag     : Integer=0;
 begin
  //Level 2
  if FFormat=diAcornFS<<4+1 then
@@ -994,11 +995,11 @@ Write the headers and compact the Level 2 map
 -------------------------------------------------------------------------------}
 procedure TDiscImage.FinaliseAFSL2Map;
 var
- freesecs,
- firstfree : Word;
- allocmap,
- mapsize   : Cardinal;
- index     : Integer;
+ freesecs  : Word=0;
+ firstfree : Word=0;
+ allocmap  : Cardinal=0;
+ mapsize   : Cardinal=0;
+ index     : Integer=0;
 begin
  if FFormat=diAcornFS<<4+1 then
  begin
@@ -1041,11 +1042,11 @@ Create a blank AFS image
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatAFS(harddrivesize: Cardinal;afslevel: Byte): Boolean;
 var
- index     : Integer;
- mapsize,
- mapsizeal,
- allocmap1,
- allocmap2 : Cardinal;
+ index     : Integer=0;
+ mapsize   : Cardinal=0;
+ mapsizeal : Cardinal=0;
+ allocmap1 : Cardinal=0;
+ allocmap2 : Cardinal=0;
 begin
  //Default return
  Result:=False;
@@ -1223,9 +1224,9 @@ Write a Level 3 partition
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteAFSPartition(afsdisctitle: String;harddrivesize: Cardinal);
 var
- mapsize  : Cardinal; //Size of the allocation map(s)
- index    : Integer;  //General use counter
- singlemap: Boolean;  //Are we using a single map, or map per track
+ mapsize  : Cardinal=0; //Size of the allocation map(s)
+ index    : Integer=0;  //General use counter
+ singlemap: Boolean=False;//Are we using a single map, or map per track
 begin
  //Write the AFS headers
  UpdateProgress('Writing AFS Partition');
@@ -1342,19 +1343,19 @@ Create a new directory
 -------------------------------------------------------------------------------}
 function TDiscImage.CreateAFSDirectory(dirname,parent,attributes: String): Integer;
 var
- buffer : TDIByteArray;
- addr,
- ptr,
- dir,
- entry,
- dirsize: Cardinal;
+ buffer : TDIByteArray=nil;
+ addr   : Cardinal=0;
+ ptr    : Cardinal=0;
+ dir    : Cardinal=0;
+ entry  : Cardinal=0;
+ dirsize: Cardinal=0;
  newfile: TDirEntry;
- ok     : Boolean;
+ ok     : Boolean=False;
 const
  cycle    = 42;
 begin
+ ResetDirEntry(newfile);
  Result:=-3; //Directory already exists
- ok:=False;
  if dirname='$' then ok:=True
  else ok:=not FileExists(parent+dir_sep+dirname,dir,entry);
  if ok then
@@ -1431,23 +1432,20 @@ Extend a directory by another 512 bytes
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtendAFSDirectory(sector: Cardinal):Cardinal;
 var
- fragments: TFragmentArray;
- buffer   : TDIByteArray;
- l3offset,
- allocmap,
- frag,
- fraglen,
- fragnum  : Cardinal;
- dirsize,
- addr     : Word;
+ fragments: TFragmentArray=nil;
+ buffer   : TDIByteArray=nil;
+ l3offset : Cardinal=0;
+ allocmap : Cardinal=0;
+ frag     : Cardinal=0;
+ fraglen  : Cardinal=0;
+ fragnum  : Cardinal=0;
+ dirsize  : Word=0;
+ addr     : Word=0;
 const
  blocksize = $200;
 begin
  //Defaults
  Result:=0;//Zero length, by default, on failure
- fragments:=nil;
- buffer:=nil;
- l3offset:=0;
  //Take account of the JesMap header
  if(FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS)then l3offset:=secsize;
  //Only continue if the directory needs extending
@@ -1546,20 +1544,19 @@ Create a blank AFS password file
 -------------------------------------------------------------------------------}
 function TDiscImage.CreateAFSPassword(Accounts: TUserAccounts): Integer;
 var
- buffer  : TDIByteArray;
- index   : Integer;
+ buffer  : TDIByteArray=nil;
+ index   : Integer=0;
  newentry: TDirEntry;
- ptr     : Cardinal;
- ok      : Boolean;
- entry,
- afslevel: Byte;
+ ptr     : Cardinal=0;
+ ok      : Boolean=False;
+ entry   : Byte=0;
+ afslevel: Byte=0;
 begin
- afslevel:=0;
+ ResetDirEntry(newentry);
  if GetMajorFormatNumber=diAcornFS then afslevel:=(FFormat AND$F)+1;
  if GetMajorFormatNumber=diAcornADFS then afslevel:=3;
  //Default response
  Result:=-5;
- buffer:=nil; //To stop 'hints' or 'warnings' from the compiler
  //Password file is 256 bytes long
  SetLength(buffer,$100);
  //Blank it off
@@ -1659,14 +1656,14 @@ Read the AFS password file
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadAFSPassword: TUserAccounts;
 var
- pwordfile: String;
- dir,
- entry    : Cardinal;
- ctr,
- entrylen,
- userlen,
- freespc  : Integer;
- buffer   : TDiByteArray;
+ pwordfile: String='';
+ dir      : Cardinal=0;
+ entry    : Cardinal=0;
+ ctr      : Integer=0;
+ entrylen : Integer=0;
+ userlen  : Integer=0;
+ freespc  : Integer=0;
+ buffer   : TDiByteArray=nil;
 begin
  //Start with a blank array
  Result:=nil;
@@ -1721,18 +1718,17 @@ Write a file to an AFS image
 function TDiscImage.WriteAFSFile(var file_details: TDirEntry;
                                               var buffer: TDIByteArray):Integer;
 var
- dir,pdir,
- entry,
- partition,
- ptr,
- fragnum,
- newlen,
- sector    : Cardinal;
- fragments : TFragmentArray;
- block     : TDIByteArray;
+ dir       : Cardinal=0;
+ pdir      : Cardinal=0;
+ entry     : Cardinal=0;
+ partition : Cardinal=0;
+ ptr       : Cardinal=0;
+ fragnum   : Cardinal=0;
+ newlen    : Cardinal=0;
+ sector    : Cardinal=0;
+ fragments : TFragmentArray=nil;
+ block     : TDIByteArray=nil;
 begin
- dir:=0;
- entry:=0;
  //Start with a negative result
  Result:=-3;//File already exists
  //Validate the proposed filename (ADFS rules the same as AFS)
@@ -1878,12 +1874,12 @@ Write an object to an AFS image
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteAFSObject(offset: Cardinal;var buffer: TDIByteArray);
 var
- ptr,
- addr,
- len,
- bufptr,
- almap : Cardinal;
- index : Integer;
+ ptr   : Cardinal=0;
+ addr  : Cardinal=0;
+ len   : Cardinal=0;
+ bufptr: Cardinal=0;
+ almap : Cardinal=0;
+ index : Integer=0;
 begin
  //Make sure it is a valid allocation map for Level 3
  if(ReadString(offset,-6)='JesMap')
@@ -1942,12 +1938,13 @@ Rename an object
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameAFSFile(oldname:String;var newname: String): Integer;
 var
- dir,
- entry,
- ptr    : Cardinal;
+ dir    : Cardinal=0;
+ entry  : Cardinal=0;
+ ptr    : Cardinal=0;
  swap   : TDirEntry;
- changed: Boolean;
+ changed: Boolean=False;
 begin
+ ResetDirEntry(swap);
  Result:=-2;//Original file does not exist
  //Check that the new name meets the required AFS filename specs
  newname:=ValidateAFSFilename(newname);
@@ -2012,15 +2009,14 @@ Update the contents of a directory
 -------------------------------------------------------------------------------}
 procedure TDiscImage.UpdateAFSDirectory(dirname: String);
 var
- dir,
- entry,
- addr,
- ptr      : Cardinal;
- index    : Integer;
- pointers : array of Cardinal;
- buffer   : TDIByteArray;
+ dir      : Cardinal=0;
+ entry    : Cardinal=0;
+ addr     : Cardinal=0;
+ ptr      : Cardinal=0;
+ index    : Integer=0;
+ pointers : array of Cardinal=nil;
+ buffer   : TDIByteArray=nil;
 begin
- pointers:=nil;
  if(FileExists(dirname,dir,entry))or(dirname='$')then
  begin
   //Get the directory reference and the address of the directory data
@@ -2093,7 +2089,7 @@ Validate a filename
 -------------------------------------------------------------------------------}
 function TDiscImage.ValidateAFSFilename(filename: String): String;
 var
- i: Integer;
+ i: Integer=0;
 const
   illegal = '#* .:$&@';
 begin
@@ -2117,10 +2113,10 @@ Delete a file/directory
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteAFSFile(filename: String): Boolean;
 var
- dirref   : Integer;
- dir,
- entry    : Cardinal;
- success  : Boolean;
+ dirref   : Integer=0;
+ dir      : Cardinal=0;
+ entry    : Cardinal=0;
+ success  : Boolean=False;
 begin
  Result:=False;
  //Make sure the file exists, and is not the root
@@ -2155,9 +2151,10 @@ Remove an entry from a directory
 -------------------------------------------------------------------------------}
 function TDiscImage.RemoveAFSEntry(dir,entry: Cardinal): Boolean;
 var
- ptr,pptr : Cardinal;
- buffer   : TDIByteArray;
- index    : Integer;
+ ptr      : Cardinal=0;
+ pptr     : Cardinal=0;
+ buffer   : TDIByteArray=nil;
+ index    : Integer=0;
 begin
  Result:=False;
  //Extract the parent directory
@@ -2205,12 +2202,12 @@ Insert an entry into a directory
 -------------------------------------------------------------------------------}
 function TDiscImage.InsertAFSEntry(dir: Cardinal;file_details:TDirEntry): Integer;
 var
- block    : TDIByteArray;
- sector,
- ptr,
- addr,
- lastaddr,
- freeaddr : Cardinal;
+ block    : TDIByteArray=nil;
+ sector   : Cardinal=0;
+ ptr      : Cardinal=0;
+ addr     : Cardinal=0;
+ lastaddr : Cardinal=0;
+ freeaddr : Cardinal=0;
 begin
  sector:=FDisc[dir].Sector*secsize;
  //Insert it into the local copy of the catalogue
@@ -2262,12 +2259,13 @@ Move a file/directory
 function TDiscImage.MoveAFSFile(filename,directory: String): Integer;
 var
  direntry : TDirEntry;
- sdir,
- sentry,
- ddir,
- dentry,
- ptr      : Cardinal;
+ sdir     : Cardinal=0;
+ sentry   : Cardinal=0;
+ ddir     : Cardinal=0;
+ dentry   : Cardinal=0;
+ ptr      : Cardinal=0;
 begin
+ ResetDirEntry(direntry);
  Result:=-11;//Source file not found
  //Does the file exist?
  if FileExists(filename,sdir,sentry) then
@@ -2308,8 +2306,8 @@ Update the load or execution address of a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateAFSFileAddr(filename:String;newaddr:Cardinal;load:Boolean):Boolean;
 var
- dir,
- entry: Cardinal;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
 begin
  Result:=False;
  //Ensure that the file exists
@@ -2331,8 +2329,8 @@ Update the datestamp of a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateAFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
 var
- dir,
- entry: Cardinal;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
 begin
  Result:=False;
  //Ensure that the file exists
@@ -2353,8 +2351,8 @@ Update attributes on a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateAFSAttributes(filename,attributes: String): Boolean;
 var
- dir,
- entry : Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
  Result:=False;
  //Make sure that the file exists, but also to get the pointer
@@ -2395,11 +2393,11 @@ Add an AFS partition to an ADFS image
 -------------------------------------------------------------------------------}
 function TDiscImage.AddAFSPartition(size: Cardinal): Boolean;
 var
- fsst,
- fsed       : Cardinal;
- fsptr      : Byte;
- index      : Integer;
- oldfilename: String;
+ fsst       : Cardinal=0;
+ fsed       : Cardinal=0;
+ fsptr      : Byte=0;
+ index      : Integer=0;
+ oldfilename: String='';
 begin
  Result:=False;
  if size<9*secsize then exit; //Minimum size is 9 sectors
@@ -2458,7 +2456,7 @@ Produce a report of the image's details
 -------------------------------------------------------------------------------}
 function TDiscImage.AFSReport(CSV: Boolean): TStringList;
 var
- side: Integer;
+ side: Integer=0;
 begin
  Result:=TStringList.Create;
  side:=0;

@@ -5,7 +5,7 @@ Identifies a DOS Plus disc and which type
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_DOSPlus: Boolean;
 var
- idbyte: Byte;
+ idbyte: Byte=0;
 begin
  Result:=False;
  if FFormat=diInvalidImg then
@@ -70,9 +70,9 @@ ID a DOS Partition, with header
 -------------------------------------------------------------------------------}
 function TDiscImage.IDDOSPartition(ctr: Cardinal): Boolean;
 var
- ds,
- rs : Word;
- md : Byte;
+ ds : Word=0;
+ rs : Word=0;
+ md : Byte=0;
 begin
  Result:=False;
  //Is there E9 or EB stored here
@@ -104,16 +104,16 @@ Reads a DOS Plus partition
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReadDOSPartition;
 var
- i,d,e    : Integer;
- lenctr   : Cardinal;
- part     : Byte;
+ i      : Integer=0;
+ d      : Integer=0;
+ e      : Integer=0;
+ lenctr : Cardinal=0;
+ part   : Byte=0;
 begin
  //Is this an ADFS disc with DOS Plus partition?
  if((GetMajorFormatNumber=diAcornADFS)and(FDOSPresent))
  or(GetMajorFormatNumber=diDOSPlus)then //Or a straight DOS Plus?
  begin
-  i:=0;
-  part:=0;
   if GetMajorFormatNumber=diDOSPlus then dir_sep:='\';
   //ADFS Hybrid?
   if GetMajorFormatNumber=diAcornADFS then
@@ -200,11 +200,11 @@ Reads a DOS Header. doshead must be set prior to calling this
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadDOSHeader: Boolean;
 var
- RootFrags      : TFragmentArray;
- index          : Integer;
- RootDirSectors,
- DataSec,
- ClusterCount   : Cardinal;
+ RootFrags      : TFragmentArray=nil;
+ index          : Integer=0;
+ RootDirSectors : Cardinal=0;
+ DataSec        : Cardinal=0;
+ ClusterCount   : Cardinal=0;
 begin
  Result:=False;                                                     
  cluster_size:=Read16b(doshead+$B);      //Block (cluster) size
@@ -289,18 +289,18 @@ Reads a DOS Plus Directory
 function TDiscImage.ReadDOSDirectory(dirname: String;addr: Cardinal;
                                              var len: Cardinal): TDir;
 var
- index,
- entry,
- side   : Integer;
- attr,
- status,
- LFNInd,
- LFNEnd : Byte;
- C      : Char;
- ext,
- volname: String;
- buffer : TDIByteArray;
- created: Boolean;
+ index  : Integer=0;
+ entry  : Integer=0;
+ side   : Integer=0;
+ attr   : Byte=0;
+ status : Byte=0;
+ LFNInd : Byte=0;
+ LFNEnd : Byte=0;
+ C      : Char=' ';
+ ext    : String='';
+ volname: String='';
+ buffer : TDIByteArray=nil;
+ created: Boolean=False;
 begin
  Result.Directory:='';
  //Setup the container
@@ -439,7 +439,7 @@ Convert a file extension to a filetype string
 -------------------------------------------------------------------------------}
 function TDiscImage.DOSExtToFileType(ext: String): String;
 var
- index : Integer;
+ index : Integer=0;
 begin
  index:=Low(DOSFileTypes);
  while(ext<>UpperCase(LeftStr(DOSFileTypes[index],3)))
@@ -455,12 +455,12 @@ Convert time and date words to a time date value
 -------------------------------------------------------------------------------}
 function TDiscImage.ConvertDOSTimeDate(time,date: Word): TDateTime;
 var
- year    : Word;
- month,
- day,
- hour,
- minute,
- second  : Byte;
+ year    : Word=0;
+ month   : Byte=0;
+ day     : Byte=0;
+ hour    : Byte=0;
+ minute  : Byte=0;
+ second  : Byte=0;
 begin
  //Decode into the separate components
  year  :=1980+(date>>9);
@@ -481,13 +481,13 @@ Convert time and date stamp to a time DOS word value
 -------------------------------------------------------------------------------}
 function TDiscImage.DOSTime(time: TDateTime): Word;
 var
- year,
- month,
- day,
- hour,
- minute,
- second,
- ms      : Word;
+ year    : Word=0;
+ month   : Word=0;
+ day     : Word=0;
+ hour    : Word=0;
+ minute  : Word=0;
+ second  : Word=0;
+ ms      : Word=0;
 begin
  DecodeDateTime(time,year,month,day,hour,minute,second,ms);
  Result:=(hour<<$B)OR(minute<<5)OR(second div 2);
@@ -498,13 +498,13 @@ Convert time and date stamp to a date DOS word value
 -------------------------------------------------------------------------------}
 function TDiscImage.DOSDate(date: TDateTime): Word;
 var
- year,
- month,
- day,
- hour,
- minute,
- second,
- ms      : Word;
+ year    : Word=0;
+ month   : Word=0;
+ day     : Word=0;
+ hour    : Word=0;
+ minute  : Word=0;
+ second  : Word=0;
+ ms      : Word=0;
 begin
  DecodeDateTime(date,year,month,day,hour,minute,second,ms);
  Result:=((year-1980)<<9)OR(month<<5)OR day;
@@ -544,6 +544,7 @@ Convert a cluster number to a disc offset
 -------------------------------------------------------------------------------}
 function TDiscImage.DOSClusterToOffset(cluster: Cardinal): Cardinal;
 begin
+ Result:=0;
  if(FATType=diFAT12)or(FATType=diFAT16)then
   Result:=((cluster-2)*cluster_size*dosalloc)+Fdosroot+dosroot_size;
  if FATType=diFAT32 then
@@ -555,7 +556,7 @@ Get the entry from the FAT for a given cluster number
 -------------------------------------------------------------------------------}
 function TDiscImage.GetClusterEntry(cluster: Cardinal): Cardinal;
 var
- FAToffset: Cardinal;
+ FAToffset: Cardinal=0;
 begin
  Result:=$FFFFFFF7; //Bad cluster, by default
  if FATType=diFAT12 then
@@ -589,8 +590,8 @@ Set the entry from the FAT for a given cluster number
 -------------------------------------------------------------------------------}
 procedure TDiscImage.SetClusterEntry(cluster,entry: Cardinal);
 var
- FAToffset,
- FATentry  : Cardinal;
+ FAToffset : Cardinal=0;
+ FATentry  : Cardinal=0;
 begin
  if FATType=diFAT12 then
  begin
@@ -647,8 +648,8 @@ Get the cluster chain as an array of fragments
 -------------------------------------------------------------------------------}
 function TDiscImage.GetClusterChain(cluster:Cardinal;len:Cardinal=0):TFragmentArray;
 var
- nolengiven: Boolean;
- lenctr    : Cardinal;
+ nolengiven: Boolean=False;
+ lenctr    : Cardinal=0;
 begin
  Result:=nil;
  SetLength(Result,0);
@@ -689,7 +690,7 @@ Set the cluster chain given in the array of fragments
 -------------------------------------------------------------------------------}
 procedure TDiscImage.SetClusterChain(fragments: TFragmentArray);
 var
- index: Integer;
+ index: Integer=0;
 begin
  if Length(fragments)>0 then
  begin
@@ -710,8 +711,8 @@ Extracts a file, filename contains complete path
 function TDiscImage.ExtractDOSFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- dir,
- entry : Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
  Result:=False;
  //if filename[Length(dosrootname)+1]='.' then filename[Length(dosrootname)+1]:='\';
@@ -732,10 +733,10 @@ Extracts an object, given starting cluster
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadDOSObject(cluster:Cardinal;len:Cardinal=0):TDIByteArray;
 var
- frag,
- index,
- ptr       : Cardinal;
- fragments : TFragmentArray;
+ frag      : Cardinal=0;
+ index     : Cardinal=0;
+ ptr       : Cardinal=0;
+ fragments : TFragmentArray=nil;
 begin
  Result:=nil;
  //Reset the buffer
@@ -765,12 +766,13 @@ Reads the free space map for a DOS Plus image
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReadDOSFSM;
 var
- fragments: TFragmentArray;
- part     : Byte;
- tracks,
- entry,
- index,
- t,s      : Cardinal;
+ fragments: TFragmentArray=nil;
+ part     : Byte=0;
+ tracks   : Cardinal=0;
+ entry    : Cardinal=0;
+ index    : Cardinal=0;
+ t        : Cardinal=0;
+ s        : Cardinal=0;
 const spt = 9;
 begin
  //Get all the used sectors
@@ -820,10 +822,10 @@ Get an array of all the free sectors (or used, if set to True)
 -------------------------------------------------------------------------------}
 function TDiscImage.DOSGetFreeSectors(used: Boolean=False): TFragmentArray;
 var
- LFATSize,
- cluster,
- entry,
- index    : Cardinal;
+ LFATSize : Cardinal=0;
+ cluster  : Cardinal=0;
+ entry    : Cardinal=0;
+ index    : Cardinal=0;
 begin
  Result:=nil;
  //Actual FAT Size
@@ -889,11 +891,11 @@ Rename a DOS file
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameDOSFile(oldname:String;var newname: String): Integer;
 var
- dir,
- entry,
- ptr   : Cardinal;
- ext   : String;
- side  : Byte;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
+ ptr   : Cardinal=0;
+ ext   : String='';
+ side  : Byte=0;
 begin
  //ADFS hybrid?
  if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
@@ -933,11 +935,11 @@ Validate a DOS filename
 -------------------------------------------------------------------------------}
 function TDiscImage.ValidateDOSFilename(filename: String;long: Boolean=False): String;
 var
- fn,
- fn2,
- ext,
- ext2   : String;
- index  : Integer;
+ fn     : String='';
+ fn2    : String='';
+ ext    : String='';
+ ext2   : String='';
+ index  : Integer=0;
 const
  illegal = ' "*+,./:;<=>?[\]|';//As per MS FAT32 Specification
  longillegal = ' "*./:<>?\|';  //As per MS FAT32 Specification
@@ -998,24 +1000,24 @@ Update the contents of a directory
 -------------------------------------------------------------------------------}
 procedure TDiscImage.UpdateDOSDirectory(dirname: String);
 var
- dir,
- entry,
- addr,
- ptr,
- dirlenst,
- dirlen    : Cardinal;
- index,
- partindex,
- chrindex,
- numentries: Integer;
- isroot    : Boolean;
- temp,
- SFN       : String;
- buffer    : TDIByteArray;
- side,
- chsum     : Byte;
- fragments : TFragmentArray;
- parts     : array of String;
+ dir       : Cardinal=0;
+ entry     : Cardinal=0;
+ addr      : Cardinal=0;
+ ptr       : Cardinal=0;
+ dirlenst  : Cardinal=0;
+ dirlen    : Cardinal=0;
+ index     : Integer=0;
+ partindex : Integer=0;
+ chrindex  : Integer=0;
+ numentries: Integer=0;
+ isroot    : Boolean=False;
+ temp      : String='';
+ SFN       : String='';
+ buffer    : TDIByteArray=nil;
+ side      : Byte=0;
+ chsum     : Byte=0;
+ fragments : TFragmentArray=nil;
+ parts     : array of String=nil;
 const
  chrpos: array[1..13] of Byte=($01,$03,$05,$07,$09,$0E,$10,$12,$14,$16,$18,$1C,$1E);
  procedure AdjustDirLength(entries: Integer);
@@ -1217,10 +1219,10 @@ Allocate fragments and append to the given cluster chain
 procedure TDiscImage.AllocateDOSClusters(len: Cardinal;
                                                  var fragments: TFragmentArray);
 var
- lenctr,
- index    : Integer;
- found    : Boolean;
- original : TFragmentArray;
+ lenctr   : Integer=0;
+ index    : Integer=0;
+ found    : Boolean=False;
+ original : TFragmentArray=nil;
 begin
  //Set up the length counter
  lenctr:=len;
@@ -1277,11 +1279,10 @@ DeAllocate fragments and remove from the given cluster chain
 procedure TDiscImage.DeAllocateDOSClusters(len: Cardinal;
                                                  var fragments: TFragmentArray);
 var
- lenctr,
- index  : Integer;
+ lenctr : Integer=0;
+ index  : Integer=0;
 begin
  //Get a length counter of the existing fragments
- lenctr:=0;
  if Length(fragments)>0 then
   for index:=0 to Length(fragments)-1 do
    inc(lenctr,cluster_size*dosalloc);//In cluster sizes
@@ -1311,9 +1312,9 @@ Write a DOS object
 function TDiscImage.WriteDOSObject(buffer: TDIByteArray;
                                              fragments:TFragmentArray):Boolean;
 var
- lenctr,
- frag,
- index  : Integer;
+ lenctr : Integer=0;
+ frag   : Integer=0;
+ index  : Integer=0;
 begin
  Result:=False;
  //Any fragments?
@@ -1343,16 +1344,14 @@ Write a DOS file
 function TDiscImage.WriteDOSFile(var file_details: TDirEntry;
                                             var buffer: TDIByteArray):Integer;
 var
- dir,
- entry,
- pdir,
- partition : Cardinal;
- index     : Integer;
- fragments : TFragmentArray;
- space     : Boolean;
+ dir       : Cardinal=0;
+ entry     : Cardinal=0;
+ pdir      : Cardinal=0;
+ partition : Cardinal=0;
+ index     : Integer=0;
+ fragments : TFragmentArray=nil;
+ space     : Boolean=False;
 begin
- dir:=0;
- entry:=0;
  //ADFS hybrid?
  if GetMajorFormatNumber=diAcornADFS then partition:=1 else partition:=0;
  SetLength(fragments,0);
@@ -1470,18 +1469,18 @@ Create a DOS directory
 -------------------------------------------------------------------------------}
 function TDiscImage.CreateDOSDirectory(dirname,parent,attributes: String): Integer;
 var
- buffer : TDIByteArray;
- ptr,
- dir,
- entry  : Cardinal;
- ok     : Boolean;
+ buffer : TDIByteArray=nil;
+ ptr    : Cardinal=0;
+ dir    : Cardinal=0;
+ entry  : Cardinal=0;
+ ok     : Boolean=False;
  NewFile: TDirEntry;
- side   : Byte;
+ side   : Byte=0;
 begin
+ ResetDirEntry(NewFile);
  //ADFS hybrid?
  if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
  Result:=-3; //Directory already exists
- ok:=False;
  //Make sure that the directory does not already exists
  if dirname=dosrootname then ok:=True
  else ok:=not FileExists(parent+GetDirSep(side)+dirname,dir,entry);
@@ -1539,12 +1538,12 @@ Delete a DOS file
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteDOSFile(filename: String): Boolean;
 var
- dir,
- entry    : Cardinal;
- index    : Integer;
- success  : Boolean;
- clusters : TFragmentArray;
- side     : Byte;
+ dir      : Cardinal=0;
+ entry    : Cardinal=0;
+ index    : Integer=0;
+ success  : Boolean=False;
+ clusters : TFragmentArray=nil;
+ side     : Byte=0;
 begin
  //ADFS hybrid?
  if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
@@ -1587,7 +1586,7 @@ Remove an entry from a directory
 -------------------------------------------------------------------------------}
 procedure TDiscImage.RemoveDOSEntry(dir, entry: Cardinal);
 var
- index: Integer;
+ index: Integer=0;
 begin
  //Remove the entry from the local copy
  if entry<Length(FDisc[dir].Entries)-1 then
@@ -1603,8 +1602,8 @@ Update a DOS object's attributes
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDOSAttributes(filename,attributes: String): Boolean;
 var
- dir,
- entry : Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
  Result:=False;
  //Make sure that the file exists
@@ -1626,8 +1625,8 @@ Update a DOS image's title
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDOSDiscTitle(title: String): Boolean;
 var
- side,
- ptr  : Byte;
+ side : Byte=0;
+ ptr  : Byte=0;
 begin
  //Need to workout which partition
  if Length(disc_name)>1 then
@@ -1654,8 +1653,8 @@ Update a DOS object's timestamp
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateDOSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
 var
- dir,
- entry : Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
  Result:=False;
  //Does the file exists
@@ -1675,11 +1674,11 @@ Add a DOS partition to an ADFS image
 -------------------------------------------------------------------------------}
 function TDiscImage.AddDOSPartition(size: Cardinal): Boolean;
 var
- fsst,
- fsed       : Cardinal;
- fsptr      : Byte;
- index      : Integer;
- oldfilename: String;
+ fsst       : Cardinal=0;
+ fsed       : Cardinal=0;
+ fsptr      : Byte=0;
+ index      : Integer=0;
+ oldfilename: String='';
 begin
  Result:=False;
  if size<9*secsize then exit; //Minimum size is 9 sectors
@@ -1739,7 +1738,7 @@ Create a new DOS Plus or DOS image
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatDOS(size: QWord;fat: Byte): Boolean;
 var
- index: Cardinal;
+ index: Cardinal=0;
 const
  KB = 1024;
  MB = 1024*1024;
@@ -1815,7 +1814,7 @@ Write a DOS Header
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteDOSHeader(offset, size: QWord;fat: Byte;bootable: Boolean);
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  SetLength(buffer,0);
  WriteDOSHeader(offset,size,fat,bootable,buffer);
@@ -1823,24 +1822,24 @@ end;
 procedure TDiscImage.WriteDOSHeader(offset, size: QWord;fat: Byte;
                                     bootable: Boolean;var buffer: TDIByteArray);
 var
- maxCluster,
- totBlocks,
- FATloc,
- FATsize,
- Lrootsize,
- bcloc,
- RootDirSectors,
- TmpVal1,
- TmpVal2    : Cardinal;
- BPB_SecPerTrk,
- BPB_NumHeads,
- sectorSize : Word;
- LnumFATs,
- allocSize,
- reserved,
- mdb        : Byte;
- index      : Integer;
- master512  : Boolean;
+ maxCluster    : Cardinal=0;
+ totBlocks     : Cardinal=0;
+ FATloc        : Cardinal=0;
+ FATsize       : Cardinal=0;
+ Lrootsize     : Cardinal=0;//This will get decided later
+ bcloc         : Cardinal=0;
+ RootDirSectors: Cardinal=0;
+ TmpVal1       : Cardinal=0;
+ TmpVal2       : Cardinal=0;
+ BPB_SecPerTrk : Word=0;
+ BPB_NumHeads  : Word=0;
+ sectorSize    : Word=$200; //Sector size. $200 is most DOS
+ LnumFATs      : Byte=2;    //Number of FATs. Most DOS is 2
+ allocSize     : Byte=0;
+ reserved      : Byte=1;    //Reserved sectors
+ mdb           : Byte=$F0;  //Media descriptor byte
+ index         : Integer=0;
+ master512     : Boolean=False; //BBC Master 512 image?
 const
   //Boot code - this is actual code which'll get run on boot
   bootCode : array[0..40] of Byte = ($FA,$31,$C0,$8E,$D0,$BC,$00,$7C,$FB,$8E,
@@ -1850,12 +1849,6 @@ const
                                      $0A);
 begin
  UpdateProgress('Intialising...');
- master512:=False; //BBC Master 512 image?
- sectorSize:=$200; //Sector size. $200 is most DOS
- LnumFATs:=2; //Number of FATs. Most DOS is 2
- Lrootsize:=0; //This will get decided later
- mdb:=$F0; //Media descriptor byte
- reserved:=1; //Reserved sectors
  if fat=diFAT32 then reserved:=$20;
  maxCluster:=1;
  //Maximum number of clusters
@@ -2041,12 +2034,13 @@ Move a file/directory
 function TDiscImage.MoveDOSFile(filename,directory: String): Integer;
 var
  direntry : TDirEntry;
- sdir,
- sentry,
- ddir,
- dentry,
- ptr      : Cardinal;
+ sdir     : Cardinal=0;
+ sentry   : Cardinal=0;
+ ddir     : Cardinal=0;
+ dentry   : Cardinal=0;
+ ptr      : Cardinal=0;
 begin
+ ResetDirEntry(direntry);
  Result:=-11;//Source file not found
  //Does the file exist?
  if FileExists(filename,sdir,sentry) then
@@ -2087,10 +2081,11 @@ Generate a DOS short name from a long name
 -------------------------------------------------------------------------------}
 function TDiscImage.DOSShortFilename(path,LFN: String;SFN :String=''): String;
 var
- ext,n   : String;
- index,
- dir,
- entry   : Cardinal;
+ ext     : String='';
+ n       : String='';
+ index   : Cardinal=0;
+ dir     : Cardinal=0;
+ entry   : Cardinal=0;
 const
  illegal = ' +,;=[]';
 begin
@@ -2163,7 +2158,7 @@ Produce a report of the image's details
 -------------------------------------------------------------------------------}
 function TDiscImage.DOSReport(CSV: Boolean): TStringList;
 var
- side: Integer;
+ side: Integer=0;
 begin
  Result:=TStringList.Create;
  side:=0;

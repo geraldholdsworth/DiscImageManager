@@ -1,7 +1,7 @@
 unit HexDumpUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -135,7 +135,7 @@ uses MainUnit,ConsoleAppUnit;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.FormShow(Sender: TObject);
 var
- c: Integer;
+ c: Integer=0;
 begin
  PageControlChange(Sender);
  //Set up the String Grid
@@ -236,7 +236,8 @@ procedure THexDumpForm.HexDumpDisplayMouseWheel(Sender: TObject;
  Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean
  );
 var
- Lscroll,i: Integer;
+ Lscroll : Integer=0;
+ i       : Integer=0;
 begin
  //Work out by how much
  Lscroll:=WheelDelta div 240;
@@ -327,13 +328,14 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.btnSaveTextClick(Sender: TObject);
 var
- line  : String;
- F     : TFileStream;
- p,len : Byte;
- i,pos : Integer;
- ok    : Boolean;
+ line  : String='';
+ F     : TFileStream=nil;
+ p     : Byte=0;
+ len   : Byte=0;
+ i     : Integer=0;
+ pos   : Integer=0;
+ ok    : Boolean=False;
 begin
- F:=nil;
  if MainForm.Fguiopen then
  begin
   //Adapt the filename
@@ -427,8 +429,8 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.btnSaveBasicClick(Sender: TObject);
 var
- line  : String;
- i     : Integer;
+ line  : String='';
+ i     : Integer=0;
 begin
  //Adapt the filename
  line:=Caption;
@@ -445,12 +447,12 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.DisplayHex(start: Cardinal);
 var
- rows,
- line  : Cardinal;
- ch,
- len,
- key   : Byte;
- chars : String;
+ rows : Cardinal=0;
+ line : Cardinal=0;
+ ch   : Byte=0;
+ len  : Byte=0;
+ key  : Byte=0;
+ chars: String='';
 begin
  //How many rows are visible on the form?
  rows:=(HexDumpDisplay.Height div HexDumpDisplay.DefaultRowHeight)-1;
@@ -523,7 +525,8 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveUpClick(Sender: TObject);
 var
- s,rows: Cardinal;
+ s   : Cardinal=0;
+ rows: Cardinal=0;
 begin
  //Get the current top position
  s:=StrtoInt('$'+HexDumpDisplay.Cells[0,1])div$10;
@@ -540,7 +543,7 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveUpLineClick(Sender: TObject);
 var
- s: Cardinal;
+ s: Cardinal=0;
 begin
  //Get the current top position
  s:=StrtoInt('$'+HexDumpDisplay.Cells[0,1])div$10;
@@ -555,7 +558,8 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveDownClick(Sender: TObject);
 var
- s,rows: Cardinal;
+ s   : Cardinal=0;
+ rows: Cardinal=0;
 begin
  //Get the current top position
  s:=StrtoInt('$'+HexDumpDisplay.Cells[0,1])div$10;
@@ -572,7 +576,7 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.btnMoveDownLineClick(Sender: TObject);
 var
- s: Cardinal;
+ s: Cardinal=0;
 begin
  //Get the current top position
  s:=StrtoInt('$'+HexDumpDisplay.Cells[0,1])div$10;
@@ -605,7 +609,8 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.FormResize(Sender: TObject);
 var
- s,rows: Cardinal;
+ s   : Cardinal=0;
+ rows: Cardinal=0;
 begin
  //Have we got any rows displayed?
  if HexDumpDisplay.RowCount>1 then
@@ -633,7 +638,7 @@ end;
 procedure THexDumpForm.HexDumpDisplayGetCellHint(Sender: TObject; ACol,
  ARow: Integer; var HintText: String);
 var
- s: Byte;
+ s: Byte=0;
 begin
  s:=StrToIntDef('$'+HexDumpDisplay.Cells[aCol,aRow],0);
  if (s>31) and (s<127) then HintText:=chr(s)
@@ -656,7 +661,7 @@ end;
 procedure THexDumpForm.HexDumpDisplayPrepareCanvas(sender: TObject; aCol,
  aRow: Integer; aState: TGridDrawState);
 var
- s: Byte;
+ s: Byte=0;
 begin
  //Default font colour is black, if everything else fails
  HexDumpDisplay.Font.Color:=$000000;
@@ -712,8 +717,8 @@ end;
 procedure THexDumpForm.HexDumpDisplayValidateEntry(sender: TObject; aCol,
  aRow: Integer; const OldValue: String; var NewValue: String);
 var
- p: Cardinal;
- c: String;
+ p: Cardinal=0;
+ c: String='';
 begin
  //We can only edit cells 1 to 16
  if aCol<17 then
@@ -744,7 +749,7 @@ end;
 -------------------------------------------------------------------------------}
 function THexDumpForm.IsBasicFile: Boolean;
 var
- ptr: Integer;
+ ptr: Integer=0;
 begin
  //It should start with 0x0D, then two bytes later should have a pointer to the
  //next 0x0D, all the way to the end of the file.
@@ -776,7 +781,7 @@ end;
 -------------------------------------------------------------------------------}
 function THexDumpForm.IsTextFile: Boolean;
 var
- ptr: Integer;
+ ptr: Integer=0;
 begin
  //We will just see if all the characters are between 32 and 126. Can also
  //permit 10 (LF), 13 (CR) and 9 (HT).
@@ -791,19 +796,21 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.DecodeBasicFile;
 var
- ptr,
- linenum : Integer;
- linelen,
- lineptr,
- c,cn,t,
- basicver: Byte;
- tmp,
- basictxt,
- linetxt : String;
- detok,
- rem,
- isbasic : Boolean;
- fs      : TStringStream;
+ ptr     : Integer=0;
+ linenum : Integer=0;
+ linelen : Byte=0;
+ lineptr : Byte=0;
+ c       : Byte=0;
+ cn      : Byte=0;
+ t       : Byte=0;
+ basicver: Byte=0;
+ tmp     : String='';
+ basictxt: String='';
+ linetxt : String='';
+ detok   : Boolean=False;
+ rem     : Boolean=False;
+ isbasic : Boolean=False;
+ fs      : TStringStream=nil;
 const
  // $80 onwards, single token per keyword
  tokens: array[0..127] of String = (
@@ -1048,11 +1055,12 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.DisplayImage;
 var
- size,j : Integer;
- png,
- bmp,
- jpg    : Boolean;
- ms     : TMemoryStream;
+ size : Integer=0;
+ j    : Integer=0;
+ png  : Boolean=False;
+ bmp  : Boolean=False;
+ jpg  : Boolean=False;
+ ms   : TMemoryStream=nil;
  const
   pngsig: array[0..$F] of Byte=($89,$50,$4E,$47
                                ,$0D,$0A,$1A,$0A
@@ -1107,15 +1115,16 @@ end;
 -------------------------------------------------------------------------------}
 procedure THexDumpForm.DisplaySpriteFile;
 var
- ms    : TMemoryStream;
- sp    : TSpriteFile;
+ ms    : TMemoryStream=nil;
+ sp    : TSpriteFile=nil;
  sprite: TSprite;
- e     : Byte;
- img   : array of TImage;
- lbl   : array of TLabel;
- sn,
- x,y,
- size  : Integer;
+ e     : Byte=0;
+ img   : array of TImage=nil;
+ lbl   : array of TLabel=nil;
+ sn    : Integer=0;
+ x     : Integer=0;
+ y     : Integer=0;
+ size  : Integer=0;
 begin
  //Width of each sprite, including name
  spritew:=Round(70*Screen.PixelsPerInch/DesignTimePPI);

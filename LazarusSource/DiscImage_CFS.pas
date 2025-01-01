@@ -5,7 +5,7 @@ Identifies a UEF
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_CFS: Boolean;
 var
- i : Integer;
+ i : Integer=0;
 const
  uefstring = 'UEF File!';
 begin
@@ -33,22 +33,23 @@ Read in and decode the file
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadUEFFile: Boolean;
 var
- i,j      : Integer;
- filenum,
+ i        : Integer=0;
+ j        : Integer=0;
+ filenum  : Cardinal=0;
 // baud,
- pos,
- ptr,
- chunkid,
- chunklen,
- blocklen,
- blocknum,
- lastblock,
+ pos      : Cardinal=0;
+ ptr      : Cardinal=0;
+ chunkid  : Cardinal=0;
+ chunklen : Cardinal=0;
+ blocklen : Cardinal=0;
+ blocknum : Cardinal=0;
+ lastblock: Cardinal=0;
  datacrc  : Cardinal;
- temp     : String;
+ temp     : String='';
 // tone     : Real;
- blockst  : Byte;
- firstblck,
- crcok    : Boolean;
+ blockst  : Byte=0;
+ firstblck: Boolean=False;
+ crcok    : Boolean=False;
 begin
  FDisc:=nil;
  //Set up the TDisc structure for return
@@ -207,7 +208,7 @@ Extracts a file from the UEF or ROM FS
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtractCFSFile(entry: Integer;var buffer:TDIByteArray):Boolean;
 var
- i: Integer;
+ i: Integer=0;
 begin
  //As UEFs can have many files with the same name, we need to use the direct
  //access into the array - entry is the index of FDisc{x].Entries
@@ -227,17 +228,18 @@ Rebuilds and saves a UEF file
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteUEFFile(filename: String;uncompress: Boolean=False);
 var
- entry,
- ptr,
- fileptr,
- len     : Cardinal;
- buffer  : TDIByteArray;
- temp    : String;
- i,j     : Integer;
- blockst,
- blocknum: Byte;
- F       : TGZFileStream;
- Func    : TFileStream;
+ entry   : Cardinal=0;
+ ptr     : Cardinal=0;
+ fileptr : Cardinal=0;
+ len     : Cardinal=0;
+ buffer  : TDIByteArray=nil;
+ temp    : String='';
+ i       : Integer=0;
+ j       : Integer=0;
+ blockst : Byte=0;
+ blocknum: Byte=0;
+ F       : TGZFileStream=nil;
+ Func    : TFileStream=nil;
 begin
  //Only continue if there are any entries
  if Length(FDisc[0].Entries)>0 then
@@ -408,7 +410,7 @@ Delete a file from CFS
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteCFSFile(entry: Cardinal): Boolean;
 var
- i: Integer;
+ i: Integer=0;
 begin
  //Start with a negative result
  Result:=False;
@@ -458,9 +460,10 @@ Moves a CFS file (reorder) to after dest
 function TDiscImage.MoveCFSFile(entry: Cardinal;dest: Integer): Integer;
 var
  file_details: TDirEntry;
- buffer      : TDIByteArray;
- i           : Integer;
+ buffer      : TDIByteArray=nil;
+ i           : Integer=0;
 begin
+ ResetDirEntry(file_details);
  Result:=-5; //Unknown error
  if dest<-1 then dest:=-1; //A destination of -1 is at the top
  if Length(FDisc)=1 then
@@ -519,9 +522,10 @@ Copies a CFS file to after dest
 function TDiscImage.CopyCFSFile(entry: Cardinal;dest: Integer): Integer;
 var
  file_details: TDirEntry;
- buffer      : TDIByteArray;
- i           : Integer;
+ buffer      : TDIByteArray=nil;
+ i           : Integer=0;
 begin
+ ResetDirEntry(file_details);
  Result:=-5; //Unknown
  if dest<-1 then dest:=-1; //A destination of -1 is at the top
  if Length(FDisc)=1 then
@@ -558,7 +562,7 @@ Writes a new CFS file to a UEF
 -------------------------------------------------------------------------------}
 function TDiscImage.WriteCFSFile(var file_details: TDirEntry;var buffer: TDIByteArray): Integer;
 var
- i: Integer;
+ i: Integer=0;
 begin
  Result:=-5; //Unknown error
  if(Length(FDisc)=1)and(Length(buffer)>0)then //Make sure there is something

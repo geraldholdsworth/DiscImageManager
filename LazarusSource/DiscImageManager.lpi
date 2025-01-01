@@ -538,6 +538,11 @@
       <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomConponents"/>
       <UnitOutputDirectory Value="lib/Debug/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <CodeGeneration>
+      <Optimizations>
+        <OptimizationLevel Value="3"/>
+      </Optimizations>
+    </CodeGeneration>
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsDwarf2Set"/>

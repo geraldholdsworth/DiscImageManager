@@ -58,7 +58,7 @@ Form creation
 -------------------------------------------------------------------------------}
 procedure TRFSDetailForm.FormCreate(Sender: TObject);
 var
- ratio: Real;
+ ratio: Real=0;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  ROMFSTitle.Width:=ROMFS.Width-Round(12*ratio)-ROMFSTitle.Left;

@@ -1,7 +1,7 @@
 program DiscImageManager;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -29,7 +29,7 @@ uses
   NewImageUnit in 'NewImageUnit.pas',
   ProgressUnit in 'ProgressUnit.pas',
   ImageDetailUnit in 'ImageDetailUnit.pas',
-  HexDumpUnit in 'HexDumpUnit.pas',
+  //HexDumpUnit in 'HexDumpUnit.pas',
   SearchUnit in 'SearchUnit.pas',
   CustomDialogueUnit in 'CustomDialogueUnit.pas',
   HardDriveUnit in 'HardDriveUnit.pas',
@@ -75,7 +75,7 @@ begin
   {$IFDEF Windows}
   IsConsole:=False;
   {$ENDIF}
- Application.CreateForm(TRFSDetailForm, RFSDetailForm);
+  Application.CreateForm(TRFSDetailForm, RFSDetailForm);
   Application.Run; //Open as normal
  end;
 end.

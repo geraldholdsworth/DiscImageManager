@@ -1,7 +1,7 @@
 unit HardDriveUnit;
 
 {
-Copyright (C) 2018-2023 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -130,7 +130,7 @@ begin
  Result.Font.Color:=clBlack;
  Result.Top:=0;
 end;
-var ratio: Real;
+var ratio: Real=0;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  //Create the slider

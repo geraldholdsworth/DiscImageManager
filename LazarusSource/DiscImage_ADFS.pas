@@ -5,14 +5,15 @@ Identifies an ADFS disc and which type
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_ADFS: Boolean;
 var
- Check0,
- Check1,
- Check0a,
- Check1a  : Byte;
- ctr,ds,
- dr_size,
- dr_ptr,
- zone     : Cardinal;
+ Check0   : Byte=0;
+ Check1   : Byte=0;
+ Check0a  : Byte=0;
+ Check1a  : Byte=0;
+ ctr      : Cardinal=0;
+ ds       : Cardinal=0;
+ dr_size  : Cardinal=0;
+ dr_ptr   : Cardinal=0;
+ zone     : Cardinal=0;
 begin
  Result:=False;
  if FFormat=diInvalidImg then
@@ -268,23 +269,33 @@ Read ADFS Directory
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadADFSDir(dirname: String; sector: Cardinal): TDir;
 var
- Entry              : TDirEntry;
- temp,
- StartName,EndName,
- dirtitle,pathname  : String;
- ptr,
- dircheck,numentrys,
- dirsize,
- entrys,nameheap,
- tail,NameLen,
- entrysize,offset,
- NameOff,amt        : Cardinal;
- addr               : TFragmentArray;
- StartSeq,EndSeq,
- dirchk,NewDirAtts  : Byte;
- validdir,validentry,
- endofentry         : Boolean;
- dirbuffer          : TDIByteArray;
+ Entry     : TDirEntry;
+ temp      : String='';
+ StartName : String='';
+ EndName   : String='';
+ dirtitle  : String='';
+ pathname  : String='';
+ ptr       : Cardinal=0;
+ dircheck  : Cardinal=0;
+ numentrys : Cardinal=0;
+ dirsize   : Cardinal=0;
+ entrys    : Cardinal=0;
+ nameheap  : Cardinal=0;
+ tail      : Cardinal=0;
+ NameLen   : Cardinal=0;
+ entrysize : Cardinal=0;
+ offset    : Cardinal=0;
+ NameOff   : Cardinal=0;
+ amt       : Cardinal=0;
+ addr      : TFragmentArray=nil;
+ StartSeq  : Byte=0;
+ EndSeq    : Byte=0;
+ dirchk    : Byte=0;
+ NewDirAtts: Byte=0;
+ validdir  : Boolean=False;
+ validentry: Boolean=False;
+ endofentry: Boolean=False;
+ dirbuffer : TDIByteArray=nil;
 begin
  SetLength(dirbuffer,0);
  RemoveControl(dirname);
@@ -292,6 +303,7 @@ begin
  Result.Directory:=dirname;
  //Reset the Result TDir to default values
  ResetDir(Result);
+ ResetDirEntry(Entry);
  //Store complete path
  pathname:=dirname;
  //Update the progress indicator
@@ -608,8 +620,8 @@ Convert a load and execution address to filetype and date/time
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ADFSCalcFileDate(var Entry: TDirEntry);
 var
- temp: String;
- rotd: Int64;
+ temp: String='';
+ rotd: Int64=0;
 begin
  //Only valid for New and Big directories in ADFS or SparkFS
  if((GetMajorFormatNumber=diAcornADFS)and((FDirType=diADFSNewDir)or(FDirType=diADFSBigDir)))
@@ -632,7 +644,7 @@ Get the directory identifier
 -------------------------------------------------------------------------------}
 function TDiscImage.GetADFSDirID(Head: Boolean=True): String;
 begin
- Result:='Invalid';
+ Result:='Inva';
  case FDirID of
   1: Result:='Hugo';
   2: Result:='Nick';
@@ -649,17 +661,14 @@ begin
 end;
 function TDiscImage.CalculateADFSDirCheck(sector:Cardinal;buffer:TDIByteArray): Byte;
 var
- dircheck,
- amt,
- offset,
- tail,
- dirsize,
- EndOfChk,
- numentrys : Cardinal;
+ dircheck  : Cardinal=0;
+ amt       : Cardinal=0;
+ offset    : Cardinal=0;
+ tail      : Cardinal=0;
+ dirsize   : Cardinal=0;
+ EndOfChk  : Cardinal=0;
+ numentrys : Cardinal=0;
 begin
- EndOfChk:=0;
- tail    :=0;
- dirsize :=0;
  //Set up variables
  if FDirType=diADFSOldDir then  //Old Directory
  begin
@@ -742,13 +751,19 @@ Convert an ADFS New Map address to buffer offset address, with fragment lengths
 function TDiscImage.NewDiscAddrToOffset(addr: Cardinal;
                                            offset:Boolean=True): TFragmentArray;
 var
- i,j,sector,id,
- allmap,len,off,
- zone,start,
- start_zone,
- zonecounter,
- fragid,
- id_per_zone     : Cardinal;
+ i           : Cardinal=0;
+ j           : Cardinal=0;
+ sector      : Cardinal=0;
+ id          : Cardinal=0;
+ allmap      : Cardinal=0;
+ len         : Cardinal=0;
+ off         : Cardinal=0;
+ zone        : Cardinal=0;
+ start       : Cardinal=0;
+ start_zone  : Cardinal=0;
+ zonecounter : Cardinal=0;
+ fragid      : Cardinal=0;
+ id_per_zone : Cardinal=0;
 const
  dr_size = $40; //Size of disc record + header (zone 0)
  header  = 4;   //Size of zone header only (zones >0)
@@ -862,10 +877,10 @@ Calculate disc address given the offset into image (Interleave)
 -------------------------------------------------------------------------------}
 function TDiscImage.OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
 var
- track_size,
- track,
- side,
- data_offset : Cardinal;
+ track_size : Cardinal=0;
+ track      : Cardinal=0;
+ side       : Cardinal=0;
+ data_offset: Cardinal=0;
 const
  tracks   = 80;
  oldheads = 2;
@@ -893,7 +908,7 @@ Calculate Boot Block or Old Map Free Space Checksum
 -------------------------------------------------------------------------------}
 function TDiscImage.ByteChecksum(offset,size: Cardinal;newmap: Boolean): Byte;
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  SetLength(buffer,0);
  Result:=ByteChecksum(offset,size,newmap,buffer);
@@ -901,9 +916,9 @@ end;
 function TDiscImage.ByteChecksum(offset,size: Cardinal;newmap: Boolean;
                                                  var buffer:TDIByteArray): Byte;
 var
- acc,
- pointer: Cardinal;
- carry : Byte;
+ acc    : Cardinal=0;
+ pointer: Cardinal=0;
+ carry  : Byte=0;
 begin
  //Reset the accumulator
  //This should be 255 for the FSM in Old Map, but zero for New Map boot block
@@ -936,11 +951,13 @@ function TDiscImage.ReadADFSDisc: Boolean;
      Name   : String;
    end;
  var
-  d,ptr,i  : Cardinal;
-  OldName0,
-  OldName1 : String;
-  addr     : TFragmentArray;
-  visited  : array of TVisit;
+  d        : Cardinal=0;
+  ptr      : Cardinal=0;
+  i        : Cardinal=0;
+  OldName0 : String='';
+  OldName1 : String='';
+  addr     : TFragmentArray=nil;
+  visited  : array of TVisit=nil;
  begin
   //Initialise some variables
   root   :=$00; //Root address (set to zero so we can id the disc)
@@ -1121,6 +1138,7 @@ function TDiscImage.ReadADFSDisc: Boolean;
   Result:=Length(FDisc)>0;
  end;
 begin
+ Result:=False;
  if GetMajorFormatNumber=diAcornADFS then //But only if the format is ADFS
  begin
   //Read in the disc
@@ -1139,7 +1157,6 @@ begin
    until(brokendircount=0)or(Finterleave=2);//Until we get back to the start
   end;
  end;
- Result:=Result;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1147,12 +1164,15 @@ Works out how much free space there is, and creates the free space map
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ADFSFreeSpaceMap;
 var
- d,f,p,
- ptr,c,
- finish,
- address          : Cardinal;
- freeend          : Byte;
- fsfragments      : TFragmentArray;
+ d           : Cardinal=0;
+ f           : Cardinal=0;
+ p           : Cardinal=0;
+ ptr         : Cardinal=0;
+ c           : Cardinal=0;
+ finish      : Cardinal=0;
+ address     : Cardinal=0;
+ freeend     : Byte=0;
+ fsfragments : TFragmentArray=nil;
 begin
  if not Fupdating then //Only if we are not updating
  begin
@@ -1272,10 +1292,9 @@ Fill part of the FSM with a byte
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ADFSFillFreeSpaceMap(address: Cardinal;usage: Byte);
 var
- t,s: Cardinal;
+ t: Cardinal=0;
+ s: Cardinal=0;
 begin
- t:=0;
- s:=0;
  if not FMap then
  begin
   //Track
@@ -1310,9 +1329,9 @@ Create ADFS blank floppy image
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatADFSFloppy(minor: Byte): Boolean;
 var
- t     : Integer;
- dirid,
- att   : String;
+ t     : Integer=0;
+ dirid : String='';
+ att   : String='';
 begin
  Result:=False;
  if minor>7 then exit;
@@ -1422,7 +1441,7 @@ Format an old map ADFS image
 -------------------------------------------------------------------------------}
 procedure TDiscImage.FormatOldMapADFS(disctitle: String);
 var
- t: Byte;
+ t: Byte=0;
 begin
  if FDirType=diADFSOldDir then
  begin
@@ -1470,14 +1489,13 @@ Format a new map ADFS image
 -------------------------------------------------------------------------------}
 procedure TDiscImage.FormatNewMapADFS(disctitle: String; ide: Boolean);
 var
- log2secsize,
- log2bpmb    : Byte;
- t           : Integer;
- frags       : TFragmentArray;
- eodoffset,
- filelen     : Cardinal;
+ log2secsize : Byte=0;
+ log2bpmb    : Byte=0;
+ t           : Integer=0;
+ frags       : TFragmentArray=nil;
+ eodoffset   : Cardinal=0;
+ filelen     : Cardinal=0;
 begin
- log2secsize:=0;
  //Work out log2secsize
  while secsize<>1<<log2secsize do inc(log2secsize);
  log2bpmb   :=0;
@@ -1634,28 +1652,22 @@ Create ADFS blank hard disc image
 function TDiscImage.FormatADFSHDD(harddrivesize: Cardinal; newmap: Boolean;
                                 dirtype: Byte; ide,addheader: Boolean): Boolean;
 var
- bigmap,
- ok           : Boolean;
- Lidlen,
- Lzone_spare,
- Lnzones,
- Llog2bpmb,
- Lroot,
- Llog2secsize,
- Llowsec      : Cardinal;
- t            : Byte;
- dirid,att    : String;
+ bigmap       : Boolean=False;
+ ok           : Boolean=False;
+ Lidlen       : Cardinal=0;
+ Lzone_spare  : Cardinal=0;
+ Lnzones      : Cardinal=0;
+ Llog2bpmb    : Cardinal=0;
+ Lroot        : Cardinal=0;
+ Llog2secsize : Cardinal=9;
+ Llowsec      : Cardinal=1;
+ t            : Byte=0;
+ dirid        : String='';
+ att          : String='';
 begin
  //Initialise the variables
- bigmap:=False;
+ Result:=False;
  if dirtype=diADFSBigDir then bigmap:=True;
- Lidlen:=0;
- Lzone_spare:=0;
- Lnzones:=0;
- Llog2bpmb:=0;
- Lroot:=0;
- Llog2secsize:=9;
- Llowsec:=1;
  //Old or new map?
  dirtype:=dirtype mod 3;//Can only be 0, 1 or 2
  if dirtype=0 then newmap:=False; //Old directory only on old map
@@ -1724,6 +1736,10 @@ begin
    end;
    FormatNewMapADFS(disctitle,ide);
   end;
+  //Set the Directory Identifier
+  if FDirType=diADFSOldDir then FDirID:=1;
+  if FDirType=diADFSNewDir then FDirID:=2;
+  if FDirType=diADFSBigDir then FDirID:=3;
   //Now write the root
   dirid:=root_name;
   att:='DLR';
@@ -1738,7 +1754,7 @@ Update title on ADFS image
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateADFSDiscTitle(title: String): Boolean;
 var
- t: Integer;
+ t: Integer=0;
 begin
  //Is this an ADFS/AFS Hybrid?
  if FAFSPresent then
@@ -1819,17 +1835,18 @@ Retrieve all the free space fragments on ADFS New Map
 function TDiscImage.ADFSGetFreeFragments(offset:Boolean=True;
                                           whichzone:Integer=-1): TFragmentArray;
 var
- zonecounter  : Integer;
- zone,
- startoffset,
- startzone,
- freelink,
- i,j,k        : Cardinal;
- fragments    : TFragmentArray;
- zonecheck    : array of Boolean;
+ zonecounter  : Integer=0;
+ zone         : Cardinal=0;
+ startoffset  : Cardinal=0;
+ startzone    : Cardinal=0;
+ freelink     : Cardinal=0;
+ i            : Cardinal=0;
+ j            : Cardinal=0;
+ k            : Cardinal=0;
+ fragments    : TFragmentArray=nil;
+ zonecheck    : array of Boolean=nil;
 begin
  Result:=nil;
- fragments:=nil;
  startzone:=nzones div 2; //Where to start looking
  SetLength(zonecheck,nzones); //So we can check each zone
  for i:=0 to nzones-1 do zonecheck[i]:=False;
@@ -1920,16 +1937,19 @@ function TDiscImage.WriteADFSFile(var file_details: TDirEntry;
                         var buffer: TDIByteArray;extend: Boolean=True): Integer;
 //Set extend to FALSE to ensure that the ExtendDirectory is run (Big Directory)
 var
- timestamp    : Int64;
- dir,entry,
- l,ptr,
- freeptr,
- safilelen,
- dest,fragid  : Cardinal;
- success,
- spacefound   : Boolean;
- fragments    : TFragmentArray;
- sharedbyte   : Byte;
+ timestamp  : Int64=0;
+ dir        : Cardinal=0;
+ entry      : Cardinal=0;
+ l          : Cardinal=0;
+ ptr        : Cardinal=0;
+ freeptr    : Cardinal=0;
+ safilelen  : Cardinal=0;
+ dest       : Cardinal=0;
+ fragid     : Cardinal=0;
+ success    : Boolean=False;
+ spacefound : Boolean=False;
+ fragments  : TFragmentArray=nil;
+ sharedbyte : Byte=0;
  //Set the shared byte
  procedure SetSharedByte(entrylength: Cardinal;setinitial: Boolean);
  begin
@@ -1942,8 +1962,8 @@ var
  //Check for shared fragment
  procedure CheckForShared(start: Integer);
  var
-  entry2  : Cardinal;
-//  currfile: String;
+  entry2  : Cardinal=0;
+//  currfile: String='';
  begin
   //Don't check the current file, as this will be the same (obvs)
 //  if start>=0 then currfile:=FDisc[dir].Entries[start].Filename
@@ -1987,9 +2007,6 @@ begin
    Result:=WriteDOSFile(file_details,buffer);
    exit;
   end;
- l      :=0;
- dir    :=0;
- freeptr:=0;
  //Start with a negative result
  Result:=-3;//File already exists
  success:=False;
@@ -2228,18 +2245,18 @@ Find some free space
 function TDiscImage.ADFSFindFreeSpace(filelen: Cardinal;
                                           var fragid: Cardinal): TFragmentArray;
 var
- ptr,
- freeptr,
- safilelen,
- i,j,
- freelink,
- zone,
- idperzone  : Cardinal;
- spacefound : Boolean;
- fsfragments: TFragmentArray;
+ ptr        : Cardinal=0;
+ freeptr    : Cardinal=0;
+ safilelen  : Cardinal=0;
+ i          : Cardinal=0;
+ j          : Cardinal=0;
+ freelink   : Cardinal=0;
+ zone       : Cardinal=0;
+ idperzone  : Cardinal=0;
+ spacefound : Boolean=False;
+ fsfragments: TFragmentArray=nil;
 begin
  Result:=nil;
- spacefound:=False;
  //Work out the "sector aligned file length"
  safilelen:=ADFSSectorAlignLength(filelen,False);//Ceil(filelen/secsize)*secsize;
  //Find some free space
@@ -2365,8 +2382,9 @@ Allocate the space in the free space map (old map)
 -------------------------------------------------------------------------------}
 function TDiscImage.ADFSAllocateFreeSpace(filelen,freeptr: Cardinal): Boolean;
 var
- ref,ptr,
- safilelen : Cardinal;
+ ref       : Cardinal=0;
+ ptr       : Cardinal=0;
+ safilelen : Cardinal=0;
 begin
  Result:=False;
  if not FMap then //Old map
@@ -2413,15 +2431,17 @@ Allocate the space in the free space map (new map)
 function TDiscImage.ADFSAllocateFreeSpace(filelen,fragid: Cardinal;
                                             fragments: TFragmentArray): Boolean;
 var
- ref,
- safilelen,
- freeptr,
- freelink,
- zone,
- zoneptr,
- ptr,i,j   : Cardinal;
- zonesize  : QWord;
- freelen   : Byte;
+ ref       : Cardinal=0;
+ safilelen : Cardinal=0;
+ freeptr   : Cardinal=0;
+ freelink  : Cardinal=0;
+ zone      : Cardinal=0;
+ zoneptr   : Cardinal=0;
+ ptr       : Cardinal=0;
+ i         : Cardinal=0;
+ j         : Cardinal=0;
+ zonesize  : QWord=0;
+ freelen   : Byte=0;
  //freelen is set to 15 bits if it is the first entry in the zone.
  procedure SetFreeLen(pos: Cardinal);
  begin
@@ -2429,6 +2449,7 @@ var
  end;
 begin
  Result:=False;
+ freelen:=idlen;
  if FMap then //New map
  begin
   Result:=True;
@@ -2548,8 +2569,9 @@ Write data to fragments
 function TDiscImage.WriteFragmentedData(fragments: TFragmentArray;
                                              var buffer: TDIByteArray): Boolean;
 var
- ptr,
- ref,j : Cardinal;
+ ptr : Cardinal=0;
+ ref : Cardinal=0;
+ j   : Cardinal=0;
 begin
  Result:=False;
  if Length(fragments)>0 then
@@ -2582,17 +2604,18 @@ Create a directory
 function TDiscImage.CreateADFSDirectory(var dirname,parent,
                                                    attributes: String): Integer;
 var
- dirid     : String;
- t         : Integer;
- c         : Byte;
- dir,
- entry,
- ref,
- dirtail,
- parentaddr: Cardinal;
- buffer    : TDIByteArray;
+ dirid     : String='';
+ t         : Integer=0;
+ c         : Byte=0;
+ dir       : Cardinal=0;
+ entry     : Cardinal=0;
+ ref       : Cardinal=0;
+ dirtail   : Cardinal=0;
+ parentaddr: Cardinal=0;
+ buffer    : TDIByteArray=nil;
  fileentry : TDirEntry;
 begin
+ ResetDirEntry(fileentry);
  //Is this on the AFS partition?
  if FAFSPresent then
   if LeftStr(parent,Length(afsrootname))=afsrootname then
@@ -2752,17 +2775,19 @@ Update a directory catalogue
 -------------------------------------------------------------------------------}
 procedure TDiscImage.UpdateADFSCat(directory: String;newname: String='');
 var
- dir,
- diraddr,
- ref,i,
- head,
- heapctr,
- tail,
- dirlen    : Cardinal;
- c,a       : Byte;
- temp      : String;
- fragments : TFragmentArray;
- dirbuffer : TDIByteArray;
+ dir       : Cardinal=0;
+ diraddr   : Cardinal=0;
+ ref       : Cardinal=0;
+ i         : Cardinal=0;
+ head      : Cardinal=0;
+ heapctr   : Cardinal=0;
+ tail      : Cardinal=0;
+ dirlen    : Cardinal=0;
+ c         : Byte=0;
+ a         : Byte=0;
+ temp      : String='';
+ fragments : TFragmentArray=nil;
+ dirbuffer : TDIByteArray=nil;
 const
  oldattr = 'RWLDErweP'+#00;
  newattr = 'RWLDrw';
@@ -2958,8 +2983,8 @@ Update attributes on a file
 function TDiscImage.UpdateADFSFileAttributes(filename,attributes: String): Boolean;
 var
 // ptr,
- dir,
- entry : Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
  //Is this on the AFS partition?
  if FAFSPresent then
@@ -2995,7 +3020,7 @@ Validate a filename
 -------------------------------------------------------------------------------}
 function TDiscImage.ValidateADFSFilename(filename: String): String;
 var
- i: Integer;
+ i: Integer=0;
 const
   illegalOld = '#* .:$&@';
   illegalBig = '$&%@\^:.#*"|';
@@ -3024,8 +3049,8 @@ Retitle an ADFS directory
 -------------------------------------------------------------------------------}
 function TDiscImage.RetitleADFSDirectory(filename,newtitle: String): Boolean;
 var
- entry,
- dir    : Cardinal;
+ entry : Cardinal=0;
+ dir   : Cardinal=0;
 begin
  Result:=False;                           
  //ADFS Big Directories do not have titles
@@ -3060,13 +3085,14 @@ Rename an ADFS file/directory
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameADFSFile(oldfilename: String;var newfilename: String):Integer;
 var
- ptr,
- entry,
- dir    : Cardinal;
- space  : Integer;
+ ptr    : Cardinal=0;
+ entry  : Cardinal=0;
+ dir    : Cardinal=0;
+ space  : Integer=0;
  swap   : TDirEntry;
- changed: Boolean;
+ changed: Boolean=False;
 begin
+ ResetDirEntry(swap);
  //Is this on the AFS partition
  if FAFSPresent then
   if LeftStr(oldfilename,Length(afsrootname))=afsrootname then
@@ -3153,13 +3179,16 @@ Consolidate an ADFS Free space map
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ConsolidateADFSFreeSpaceMap;
 var
- ptr,ref,
- pos     : Cardinal;
- i,p,len,
- start   : Integer;
- fslinks : TFragmentArray;
- linklen : Byte;
- changed : Boolean;
+ ptr     : Cardinal=0;
+ ref     : Cardinal=0;
+ pos     : Cardinal=0;
+ i       : Integer=0;
+ p       : Integer=0;
+ len     : Integer=0;
+ start   : Integer=0;
+ fslinks : TFragmentArray=nil;
+ linklen : Byte=0;
+ changed : Boolean=False;
 begin
  if not FMap then //Old map only
  begin
@@ -3327,9 +3356,10 @@ Consolidate fragments in an ADFS New Map Free space map
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ConsolidateADFSFragments(fragid: Cardinal);
 var
- fragments : TFragmentArray;
- frag,i,
- dirlen    : Cardinal;
+ fragments : TFragmentArray=nil;
+ frag      : Cardinal=0;
+ i         : Cardinal=0;
+ dirlen    : Cardinal=0;
 begin
  //Only for new map
  if FMap then
@@ -3378,14 +3408,15 @@ Delete an ADFS file/directory
 function TDiscImage.DeleteADFSFile(filename: String;
                     TreatAsFile:Boolean=False;extend:Boolean=True):Boolean;
 var
- dirref,
- entry,
- dir,
- addr,
- len,i     : Cardinal;
- success   : Boolean;
- fileparent: String;
-begin 
+ dirref    : Cardinal=0;
+ entry     : Cardinal=0;
+ dir       : Cardinal=0;
+ addr      : Cardinal=0;
+ len       : Cardinal=0;
+ i         : Cardinal=0;
+ success   : Boolean=False;
+ fileparent: String='';
+begin
  UpdateProgress('Deleting '+filename);
  Result:=False;
  //Is this an AFS file?
@@ -3421,25 +3452,27 @@ begin
    //And how much space it took up
    len:=FDisc[dir].Entries[entry].Length;
    //Is this file the currently open DOS Partition?
-   if FDisc[dir].Entries[entry].isDOSPart then exit(False); //Then fail
+   if FDisc[dir].Entries[entry].isDOSPart then exit(False);
    //If directory, delete contents first
    if(FDisc[dir].Entries[entry].DirRef>0)and(not TreatAsFile)then
    begin
     dirref:=FDisc[dir].Entries[entry].DirRef;
     FDisc[dirref].Deleted:=True;
     //Has it been read in?
-    if not FDisc[dirref].BeenRead then
-     ReadDirectory(filename);
+    if not FDisc[dirref].BeenRead then ReadDirectory(filename);
     //We'll do a bit of recursion to remove each entry one by one. If it
     //encounters a directory, that will get it's contents deleted, then itself.
     if entry<Length(FDisc[dir].Entries) then
      while(Length(FDisc[dirref].Entries)>0)and(success)do
       //If any fail for some reason, the whole thing fails
       success:=DeleteADFSFile(filename+dir_sep+FDisc[dirref].Entries[0].Filename);
-    //Remove the directory from the internal array
-    RemoveDirectory(dirref);
-    //Update all the directory references
-    UpdateDirRef(dirref);
+    if success then
+    begin
+     //Remove the directory from the internal array
+     RemoveDirectory(dirref);
+     //Update all the directory references
+     UpdateDirRef(dirref);
+    end;
    end;
   end;
   //Only continue if we are successful
@@ -3478,8 +3511,10 @@ De-allocates old map free space
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ADFSDeAllocateFreeSpace(addr,len: Cardinal);
 var
- FreeEnd : Byte;
- fs,fl,i : Cardinal;
+ FreeEnd : Byte=0;
+ fs      : Cardinal=0;
+ fl      : Cardinal=0;
+ i       : Cardinal=0;
 begin
  if not FMap then //Old map
  begin
@@ -3535,13 +3570,16 @@ begin
  if Loffset DIV 8=0 then Result:=15; //In the header
 end;
 var
- linklen    : Byte;
- fragments,
- fsfragments: TFragmentArray;
- fs,i,ptr,
- dir,entry  : Cardinal;
- delfsm     : Boolean;
- lastzone   : Integer;
+ linklen    : Byte=0;
+ fragments  : TFragmentArray=nil;
+ fsfragments: TFragmentArray=nil;
+ fs         : Cardinal=0;
+ i          : Cardinal=0;
+ ptr        : Cardinal=0;
+ dir        : Cardinal=0;
+ entry      : Cardinal=0;
+ delfsm     : Boolean=False;
+ lastzone   : Integer=0;
 begin
  if FMap then //New Map
  begin
@@ -3653,12 +3691,12 @@ Extracts a file, filename contains complete path
 function TDiscImage.ExtractADFSFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- entry,dir,
- filelen       : Cardinal;
- fragments     : TFragmentArray;
+ entry     : Cardinal=0;
+ dir       : Cardinal=0;
+ filelen   : Cardinal=0;
+ fragments : TFragmentArray=nil;
 begin
  Result   :=False;
- fragments:=nil;
  //Is this on an AFS partition?
  if FAFSPresent then
   if LeftStr(filename,Length(afsrootname))=afsrootname then
@@ -3699,14 +3737,12 @@ Extracts data given fragments (New Map)
 function TDiscImage.ExtractFragmentedData(fragments: TFragmentArray;
                             filelen: Cardinal;var buffer: TDIByteArray):Boolean;
 var
- dest,
- len,
- source,
- frag   : Cardinal;
+ dest   : Cardinal=0;
+ len    : Cardinal=0;
+ source : Cardinal=0;
+ frag   : Cardinal=0; //Pointer into the fragment array
 begin
  Result:=False;
- //Pointer into the fragment array
- frag   :=0;
  //No fragments have been given, or the file length is zero - we have an error
  if(Length(fragments)>0)and(filelen>0)then
  begin
@@ -3740,15 +3776,15 @@ Moves a file from one directory to another
 function TDiscImage.MoveADFSFile(filename,directory: String): Integer;
 var
  direntry : TDirEntry;
- sdir,
- sentry,
- ddir,
- dentry,
- ptr      : Cardinal;
- sparent  : String;
+ sdir     : Cardinal=0;
+ sentry   : Cardinal=0;
+ ddir     : Cardinal=0;
+ dentry   : Cardinal=0;
+ ptr      : Cardinal=0;
+ sparent  : String='';
 begin
+ ResetDirEntry(direntry);
  Result:=-11;//Source file not found
- ptr:=0;
  if FileExists(filename,sdir,sentry) then
  begin
   Result:=-6;//Destination directory not found
@@ -3802,13 +3838,15 @@ Extends, or reduces, an ADFS Big Directory by 'space' bytes
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtendADFSBigDir(dir: Cardinal;space: Integer;add: Boolean):Boolean;
 var
- parent,
- addr,
- d,e,
- dirsize,
- hdr,tail,
- heapsize : Cardinal;
- frag     : TFragmentArray;
+ parent   : Cardinal=0;
+ addr     : Cardinal=0;
+ d        : Cardinal=0;
+ e        : Cardinal=0;
+ dirsize  : Cardinal=0;
+ hdr      : Cardinal=0;
+ tail     : Cardinal=0;
+ heapsize : Cardinal=0;
+ frag     : TFragmentArray=nil;
 begin
  //ADFS does fragment big directories, so the code below needs to reflect this
  Result:=False; //By default - fail to extend/contract
@@ -3867,20 +3905,20 @@ Do the actual extending or contracting of a big directory
 -------------------------------------------------------------------------------}
 function TDiscImage.ADFSBigDirSizeChange(dir,entry:Cardinal;extend:Boolean):Boolean;
 var
- dircache    : TDIByteArray;
- fragments,
- newfragments: TFragmentArray;
- dirsize,
- fragsize,
- fragid,tail,
- i,ctr       : Cardinal;
- copyADFS    : Boolean;
+ dircache    : TDIByteArray=nil;
+ fragments   : TFragmentArray=nil;
+ newfragments: TFragmentArray=nil;
+ dirsize     : Cardinal=0;
+ fragsize    : Cardinal=0;
+ fragid      : Cardinal=0;
+ tail        : Cardinal=0;
+ i           : Cardinal=0;
+ ctr         : Cardinal=0;
+ copyADFS    : Boolean=True; //Copy the behaviour of ADFS
 begin
  //extend = True  : extend by 2048 bytes
  //extend = False : contract by 2048 bytes
  Result:=False;
- fragsize:=0;
- copyADFS:=True; //Copy the behaviour of ADFS
  //Get the directory address, and then the fragments
  if(dir<>$FFFF)and(entry<>$FFFF)then //Not the root
   fragid:=FDisc[dir].Entries[entry].Sector
@@ -4003,7 +4041,7 @@ Inserts a directory entry 'direntry' into directory 'dir'
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtendADFSCat(dir: Cardinal;direntry: TDirEntry): Cardinal;
 var
- i : Cardinal;
+ i : Cardinal=0;
 begin
  //Extend the catalogue by 1
  SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)+1);
@@ -4030,7 +4068,7 @@ Removes directory entry index 'entry' from directory 'dir'
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReduceADFSCat(dir,entry: Cardinal);
 var
- i: Integer;
+ i: Integer=0;
 begin
  //Now remove from the original directory
  if entry<Length(FDisc[dir].Entries)-1 then
@@ -4045,8 +4083,8 @@ Attempts to fix any broken ADFS directories
 -------------------------------------------------------------------------------}
 function TDiscImage.FixBrokenADFSDirectories: Boolean;
 var
- dir,
- entry     : Integer;
+ dir   : Integer=0;
+ entry : Integer=0;
 begin
  Result:=False;
  if GetMajorFormatNumber=diAcornADFS then //Can't fix it if it isn't ADFS
@@ -4079,14 +4117,15 @@ Attempts to fix a broken ADFS directory
 -------------------------------------------------------------------------------}
 function TDiscImage.FixADFSDirectory(dir,entry: Integer): Boolean;
 var
- len       : Cardinal;
- dirref,i  : Integer;
- error,
- tail      : Byte;
- fragments : TFragmentArray;
- StartName,
- EndName   : String;
- dircache  : TDIByteArray;
+ len       : Cardinal=0;
+ dirref    : Integer=0;
+ i         : Integer=0;
+ error     : Byte=0;
+ tail      : Byte=0;
+ fragments : TFragmentArray=nil;
+ StartName : String='';
+ EndName   : String='';
+ dircache  : TDIByteArray=nil;
 begin
  Result:=False;
  //Get the directory reference
@@ -4204,21 +4243,32 @@ function TDiscImage.ADFSGetHardDriveParams(Ldiscsize:Cardinal;bigmap,ide:Boolean
                   Llog2secsize,Llowsec: Cardinal):Boolean;
  //Adapted from the RISC OS RamFS ARM code procedure InitDiscRec in RamFS50
 var
- r0,r1,r2,r3,r4,r6,r7,r8,r9,r10,r11,
- lr,minidlen: Integer;
+ r0       : Integer=0;
+ r1       : Integer=0;
+ r2       : Integer=0;
+ r3       : Integer=0;
+ r4       : Integer=0;
+ r6       : Integer=0;
+ r7       : Integer=0;
+ r8       : Integer=0;
+ r9       : Integer=0;
+ r10      : Integer=0;
+ r11      : Integer=0;
+ lr       : Integer=0;
+ minidlen : Integer=0;
 label //Don't like using labels and GOTO, but it was easier to adapt from the ARM code
  {FT01,FT02,}FT10,FT20,FT30,FT35,FT40,FT45,FT50,FT60,FT70,FT80,FT90;
 const
- maxidlen=21;			//Maximum possible
- minlog2bpmb=8;                 //RamFS starts at 7. I've found better results with 8
- maxlog2bpmb=12;
- minzonespare=32;
- maxzonespare=128;              //RamFS limit is 64. The upper limit can be $FFFF
- minzones=1;
- maxzones=127;			//RamFS limit is 127. The upper limit can be $FFFF
- zone0bits=8*60;
+ maxidlen     =21;		//Maximum possible
+ minlog2bpmb  =8;               //RamFS starts at 7. I've found better results with 8
+ maxlog2bpmb  =12;
+ minzonespare =32;
+ maxzonespare =128;             //RamFS limit is 64. The upper limit can be $FFFF
+ minzones     =1;
+ maxzones     =127;		//RamFS limit is 127. The upper limit can be $FFFF
+ zone0bits    =8*60;
  bigdirminsize=2048;
- newdirsize=$500;
+ newdirsize   =$500;
  //Llog2secsize=9;                //Min is 8, max is 12. HForm fixes this at 9.
 begin
  if ide then //IDE format
@@ -4323,8 +4373,8 @@ Update a file's load or execution address
 function TDiscImage.UpdateADFSFileAddr(filename:String;newaddr:Cardinal;
                                                            load:Boolean):Boolean;
 var
- dir,
- entry: Cardinal;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
 begin
  Result:=False;
  //Ensure the file actually exists
@@ -4350,13 +4400,12 @@ Update a file's filetype
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateADFSFileType(filename:String;newtype:String):Boolean;
 var
- ptr,
- dir,
- entry: Cardinal;
- newft: Integer;
+ ptr  : Cardinal=0;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
+ newft: Integer=0;
 begin
  Result:=False;
- ptr:=0;
  //Ensure the file actually exists
  if FileExists(filename,dir,entry) then
  begin
@@ -4399,10 +4448,10 @@ Update a file's timestamp
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateADFSTimeStamp(filename:String;newtimedate:TDateTime):Boolean;
 var
- ptr,
- dir,
- entry: Cardinal;
- rotd : Int64;
+ ptr  : Cardinal=0;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
+ rotd : Int64=0;
 begin
  //Is this on an AFS partition?
  if FAFSPresent then
@@ -4419,7 +4468,6 @@ begin
    exit;
   end;
  Result:=False;
- ptr:=0;
  //Ensure the file actually exists
  if FileExists(filename,dir,entry) then
  begin
@@ -4458,14 +4506,14 @@ Extract an ADFS, AFS or DOS partition
 -------------------------------------------------------------------------------}
 function TDiscImage.ExtractADFSPartition(side: Cardinal): TDIByteArray;
 var
- index,
- diff       : Integer;
- start,
- new1,
- new2       : Cardinal;
- JesMapList : Array of Cardinal;
- JesMap     : String;
- buffer     : TDIByteArray;
+ index      : Integer=0;
+ diff       : Integer=0;
+ start      : Cardinal=0;
+ new1       : Cardinal=0;
+ new2       : Cardinal=0;
+ JesMapList : Array of Cardinal=nil;
+ JesMap     : String='';
+ buffer     : TDIByteArray=nil;
 begin
  Result:=nil;
  if(FAFSPresent)or(FDOSPresent)then //Make sure it is a hybrid
@@ -4664,11 +4712,11 @@ Get the maximum size for a partition on an ADFS 8 bit image
 -------------------------------------------------------------------------------}
 function TDiscImage.GetADFSMaxLength(lastentry:Boolean): Cardinal;
 var
- index,
- last  : Integer;
- fsst,
- fsed,
- fsptr : Cardinal;
+ index : Integer=0;
+ last  : Integer=0;
+ fsst  : Cardinal=0;
+ fsed  : Cardinal=0;
+ fsptr : Cardinal=0;
 begin
  Result:=0;
  //Only for adding AFS partition to 8 bit ADFS
@@ -4704,11 +4752,11 @@ Produce a report of the image's details
 -------------------------------------------------------------------------------}
 function TDiscImage.ADFSReport(CSV: Boolean): TStringList;
 var
- temp   : String;
- fsmoff,
- fsm    : TFragmentArray;
- Index,
- Zone   : Integer;
+ temp   : String='';
+ fsmoff : TFragmentArray=nil;
+ fsm    : TFragmentArray=nil;
+ Index  : Integer=0;
+ Zone   : Integer=0;
 begin
  Result:=TStringList.Create;
  if FMap then
@@ -4836,7 +4884,7 @@ Update the master sequence number
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ADFSUpdateMasterSequence(dir: Cardinal);
 var
- t: Byte;
+ t: Byte=0;
 begin
  if dir<Length(FDisc) then
  begin
@@ -4850,7 +4898,7 @@ Update a file sequence number
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ADFSUpdateFileSequence(dir,entry: Cardinal);
 var
- t: Byte;
+ t: Byte=0;
 begin
  if dir<Length(FDisc) then
   if entry<Length(FDisc[dir].Entries) then

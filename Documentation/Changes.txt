@@ -1011,7 +1011,7 @@ Bug fixes
 * Some DFS images were producing a "phantom directory".
 * When files were getting written to a DOS image, the same block was being used for each segment of the file resulting in the file being overwritten by itself.
 
-1.47.3
+1.47.4
 ---------------------
 New or improved features
 * Added keyboard shortcuts to the confirm/error/information dialogue boxes.
@@ -1019,11 +1019,14 @@ New or improved features
 * Revamped some of the code to produce confirm/error/information dialogue boxes.
 * Changed some of the errors reported in console mode as the ones reported were mis-leading.
 * Added option to add implied 'RW' attributes to the *.inf file when exporting files from DFS/CFS/RFS to the host system.
+* Expanded the diagnostics reports in the debug file.
+* Major overhaul of all the functions and procedures to ensure proper variable initialisation.
 
 Bug fixes
 * ADFS directories would use the default ID (Hugo, Nick or SBPr/oven) depending on whether it is old, new or big. This would mean that images could end up with a mis-match of IDs, which Arthur ADFS was not keen on.
 * Creating a UEF (Acorn CFS) image in the console would fail.
 * Consolodation of an old map ADFS free space map would sometimes result in an image that ADFS considered a "Bad FS Map".
+* Decompacting an ADFS image a second time after decompacting would hang the application.
 
 Platform History
 ----------------

@@ -1,7 +1,7 @@
 unit ImageDetailUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -104,7 +104,7 @@ end;
 
 procedure TImageDetailForm.FormCreate(Sender: TObject);
 var
- ratio: Real;
+ ratio: Real=0;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  btn_OK:=MainForm.CreateButton(Legend as TControl,'Update',True,0,0,mrOK);

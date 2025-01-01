@@ -30,11 +30,11 @@ Read Spark archive
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadSparkArchive: Boolean;
 var
-  index,
-  ref   : Integer;
-  d,
-  e     : Cardinal;
-  pnt   : String;
+  index : Integer=0;
+  ref   : Integer=0;
+  d     : Cardinal=0;
+  e     : Cardinal=0;
+  pnt   : String='';
 //  OldDisc: TDisc;
 begin
  //In order to be able to use FileExists, we need to populate FDisc
@@ -118,8 +118,9 @@ Extract a file from Spark archive
 function TDiscImage.ExtractSparkFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- d,e  : Cardinal;
- index: Integer;
+ d    : Cardinal=0;
+ e    : Cardinal=0;
+ index: Integer=0;
 begin
  //Default return result
  Result   :=False;
@@ -167,11 +168,11 @@ Delete a file from a Spark archive
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteSparkFile(filename: String): Boolean;
 var
- dirref : Integer;
- index,
- dir,
- entry  : Cardinal;
- olddir : String;
+ dirref : Integer=0;
+ index  : Cardinal=0;
+ dir    : Cardinal=0;
+ entry  : Cardinal=0;
+ olddir : String='';
 begin
  Result:=False;
  //Ensure the file actually exists
@@ -211,8 +212,8 @@ Update the file attributes of a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateSparkAttributes(filename,attributes: String): Boolean;
 var
- dir,
- entry : Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
  Result:=False;
  //Ensure the file actually exists
@@ -240,11 +241,13 @@ Move a file from one directory to another
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveSparkFile(filename, dest: String): Integer;
 var
- sdir,sentry,
- ddir,dentry : Cardinal;
- olddir      : String;
- entry,
- index       : Integer;
+ sdir   : Cardinal=0;
+ sentry : Cardinal=0;
+ ddir   : Cardinal=0;
+ dentry : Cardinal=0;
+ olddir : String='';
+ entry  : Integer=0;
+ index  : Integer=0;
 begin
  Result:=-1;
  //Moving is just the same as renaming, but supplying the entire path for both
@@ -300,12 +303,13 @@ Add a file to an existing archive
 function TDiscImage.WriteSparkFile(var file_details: TDirEntry;
                                              var buffer: TDIByteArray): Integer;
 var
- dir          : Integer;
- timestamp    : Int64;
- ref,ptr      : Cardinal;
+ dir          : Integer=0;
+ timestamp    : Int64=0;
+ ref          : Cardinal=0;
+ ptr          : Cardinal=0;
  filetozip    : TFileEntry;
 begin
- dir    :=0;
+ ResetFileEntry(filetozip);
  //Start with a negative result
  Result:=-3;//File already exists
  //First make sure it doesn't exist already
@@ -416,9 +420,9 @@ Rename a file
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameSparkFile(filename, newfilename: String): Integer;
 var
- dir,
- entry,
- ptr    : Cardinal;
+ dir    : Cardinal=0;
+ entry  : Cardinal=0;
+ ptr    : Cardinal=0;
 begin
  Result:=-1;
  //Does the file exist?
@@ -461,11 +465,11 @@ Update the file type of a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateSparkFileType(filename: String; newtype: String): Boolean;
 var
- dir,
- entry,
- load,
- exec  : Cardinal;
- newft : Integer;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
+ load  : Cardinal=0;
+ exec  : Cardinal=0;
+ newft : Integer=0;
 begin
  Result:=False;
  load:=0;
@@ -513,15 +517,13 @@ Update the timestamp of a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateSparkTimeStamp(filename: String;newtimedate:TDateTime): Boolean;
 var
- dir,
- entry,
- load,
- exec  : Cardinal;
- rotd  : QWord;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
+ load  : Cardinal=0;
+ exec  : Cardinal=0;
+ rotd  : QWord=0;
 begin
  Result:=False;
- load:=0;
- exec:=0;
  //Ensure the file actually exists
  if FileExists(filename,dir,entry) then
  begin
@@ -560,14 +562,12 @@ Update the file type of a file
 function TDiscImage.UpdateSparkFileAddr(filename: String; newaddr: Cardinal;
                                                         load: Boolean): Boolean;
 var
- dir,
- entry,
- loadad,
- execad  : Cardinal;
+ dir    : Cardinal=0;
+ entry  : Cardinal=0;
+ loadad : Cardinal=0;
+ execad : Cardinal=0;
 begin
  Result:=False;
- loadad:=0;
- execad:=0;
  //Ensure the file actually exists
  if FileExists(filename,dir,entry) then
  begin
@@ -598,9 +598,9 @@ Create a directory
 function TDiscImage.CreateSparkDirectory(filename, parent, attributes: String): Integer;
 var
  file_details: TDirEntry;
- buffer      : TDIByteArray;
+ buffer      : TDIByteArray=nil;
 begin
- buffer:=nil;
+ ResetDirEntry(file_details);
  SetLength(buffer,0);
  //Set up the TDirEntry
  file_details.Filename:=filename;

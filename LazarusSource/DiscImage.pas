@@ -8,7 +8,7 @@ filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
 1541, Commodore 1571, Commodore 1581, Commodore AmigaDOS, Acorn File Server,
 SparkFS, PackDir, MS-DOS, and Acorn DOS Plus.
 
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -80,6 +80,21 @@ type
  TUserAccounts  =array of TUserAccount;
  TSearchResults =array of TDirEntry;
 
+ type
+  TFileEntry = record
+   LoadAddr,                 //Load Address
+   ExecAddr,                 //Execution Address
+   Length,                   //Uncompressed size
+   Size,                     //Compressed size
+   NumEntries,               //Number of directory entries
+   Attributes,               //File attributes (hex)
+   DataOffset : Cardinal;    //Where to find the data
+   Filename,                 //RISC OS filename
+   Parent,                   //RISC OS parent
+   ArchiveName: String;      //Name (and path) in archive
+   Directory  : Boolean;     //Is it a directory?
+ end;
+
  //General purpose procedures - globally accessible
  procedure ResetDirEntry(var Entry: TDirEntry);
  procedure RemoveTopBit(var title: String);
@@ -98,6 +113,7 @@ type
  procedure ValidateWinFilename(var f: String);
  function DecToBCD(dec: Cardinal): Cardinal;
  function BCDToDec(BCD: Cardinal): Cardinal;
+ procedure ResetFileEntry(var fileentry: TFileEntry);
  //Some constants
  const
   diAcornDFS   = $000;
@@ -127,21 +143,6 @@ type
   diAmigaDir   = $10;
   diAmigaCache = $11;
   diUnknownDir = $FF;
-
- type
-  TFileEntry = record
-   LoadAddr,                 //Load Address
-   ExecAddr,                 //Execution Address
-   Length,                   //Uncompressed size
-   Size,                     //Compressed size
-   NumEntries,               //Number of directory entries
-   Attributes,               //File attributes (hex)
-   DataOffset : Cardinal;    //Where to find the data
-   Filename,                 //RISC OS filename
-   Parent,                   //RISC OS parent
-   ArchiveName: String;      //Name (and path) in archive
-   Directory  : Boolean;     //Is it a directory?
- end;
 
  //TSpark class definition
  type

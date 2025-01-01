@@ -1,7 +1,7 @@
 unit ConsoleAppUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -45,16 +45,16 @@ function CheckConsole: Boolean;
 var
  ConsoleApp: TConsoleApp;
  //Command line style modifiers
- cmdNormal,
- cmdBold,
- cmdItalic,
- cmdInverse,
- cmdRed,
- cmdGreen,
- cmdYellow,
- cmdBlue,
- cmdMagenta,
- cmdCyan       :String;
+ cmdNormal  : String='';
+ cmdBold    : String='';
+ cmdItalic  : String='';
+ cmdInverse : String='';
+ cmdRed     : String='';
+ cmdGreen   : String='';
+ cmdYellow  : String='';
+ cmdBlue    : String='';
+ cmdMagenta : String='';
+ cmdCyan    : String='';
 const
  //Command line font modifiers
  FcmdNormal = #$1B'[0m';
@@ -159,7 +159,7 @@ The user interface (this passes the actual code back to the GUI unit)
 -------------------------------------------------------------------------------}
 function TConsoleApp.UserInterface: Boolean;
 var
- input     : String;
+ input     : String='';
  Lparams   : TStringArray;
  procedure OpenScript(script: String);
  begin
@@ -231,7 +231,7 @@ Get a line of input
 -------------------------------------------------------------------------------}
 procedure TConsoleApp.ReadInput(var input: String);
 var
- B: Byte;
+ B: Byte=0;
 begin
  if not ScriptOpen then ReadLn(input)
  else
@@ -251,8 +251,8 @@ Process the input string
 -------------------------------------------------------------------------------}
 function TConsoleApp.ProcessInput(Input: String): TStringArray;
 var
- Index,
- j     : Integer;
+ Index : Integer=0;
+ j     : Integer=0;
  tmp   : PChar;
 begin
  //Split the string at each space, unless enclosed by quotes

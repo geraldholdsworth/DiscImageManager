@@ -1,7 +1,7 @@
 unit SearchUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -67,9 +67,9 @@ uses MainUnit;
 procedure TSearchForm.sb_searchClick(Sender: TObject);
 var
  search : TDirEntry;
- results: TSearchResults;
- i      : Integer;
- line   : String;
+ results: TSearchResults=nil;
+ i      : Integer=0;
+ line   : String='';
 begin
  ResetDirEntry(search);
  SetLength(results,0);
@@ -114,7 +114,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TSearchForm.FormCreate(Sender: TObject);
 var
- ratio: Real;
+ ratio: Real=0;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  //Move the fields to account for scaling

@@ -5,9 +5,9 @@ Identifies a RFS
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_RFS: Boolean;
 var
- i    : Integer;
- copy : Cardinal;
- found: Boolean;
+ i    : Integer=0;
+ copy : Cardinal=0;
+ found: Boolean=False;
 begin
  Result:=False;
  if FFormat=diInvalidImg then
@@ -65,7 +65,7 @@ Is this a valid ROM FS or CFS header?
 -------------------------------------------------------------------------------}
 function TDiscImage.ValidRFSHeader(ptr: Cardinal;cfs: Boolean=False): Boolean;
 var
- j    : Cardinal;
+ j    : Cardinal=0;
 begin
  Result:=False;
  //Look for a $2A '*'
@@ -98,16 +98,16 @@ Read in and decode the file
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadRFSImage: Boolean;
 var
- i        : Integer;
- filenum,
- pos,
- nextfile,
- blocklen,
- blocknum,
- lastblock: Cardinal;
- temp     : String;
- blockst  : Byte;
- firstblck: Boolean;
+ i        : Integer=0;
+ filenum  : Cardinal=0;
+ pos      : Cardinal=0;
+ nextfile : Cardinal=0;
+ blocklen : Cardinal=0;
+ blocknum : Cardinal=0;
+ lastblock: Cardinal=0;
+ temp     : String='';
+ blockst  : Byte=0;
+ firstblck: Boolean=False;
  procedure AddData;
  begin
   if blocklen>0 then
@@ -235,18 +235,17 @@ Re-adjust the offsets in the header 6502 code
 -------------------------------------------------------------------------------}
 procedure TDiscImage.AdjustRFSOffsets(base: Cardinal);
 var
- invvar,
- invrom,
- baselo,
- basehi  : Word;
- sig     : String;
- i       : Byte;
- LDisc   : TDIByteArray;
+ invvar  : Word=0;
+ invrom  : Word=0;
+ baselo  : Word=0;
+ basehi  : Word=0;
+ sig     : String='';
+ i       : Byte=0;
+ LDisc   : TDIByteArray=nil;
  oldbase,
  newroot : Cardinal;
 begin
  //Is it one we've created? Get the signature string
- sig:='';
  for i:=0 to $F do sig:=sig+chr(ReadByte(base+$4F+i));
  //If it isn't then replace the code with ours
  if sig<>'DiscImageManager' then
@@ -302,8 +301,8 @@ begin
 end;
 function TDiscImage.FormatRFS(title,copyright,version: String;binvers: Byte): Boolean;
 var
- i      : Integer;
- ptr    : Cardinal;
+ i      : Integer=0;
+ ptr    : Cardinal=0;
 const
  BlkFile: array[0..$1D] of Byte=(
                 $2A,$2A,$44,$49,$4D,$2D,$52,$4F,$4D,$2A,$00,$00,$00,$00,$00,$00,
@@ -354,7 +353,7 @@ Write a ROM FS header (assuming blank image)
 function TDiscImage.WriteRFSHeader(title,copyright,version: String;
                                                        binvers: Byte): Cardinal;
 var
- i  : Integer;
+ i  : Integer=0;
 begin
  //Write the signature
  for i:=0 to Length(RFSsig)-1 do WriteByte(Ord(RFSsig[i+1]),i);
@@ -401,12 +400,13 @@ Extracts a file from ROM FS
 function TDiscImage.ExtractRFSFile(entry: Integer;
                                                var buffer:TDIByteArray):Boolean;
 var
- i,fn : Integer;
- ptr,
- dat,
- pos  : Cardinal;
- crc,
- len  : Word;
+ i   : Integer=0;
+ fn  : Integer=0;
+ ptr : Cardinal=0;
+ dat : Cardinal=0;
+ pos : Cardinal=0;
+ crc : Word=0;
+ len : Word=0;
 begin
  //Default return result
  Result   :=False;
@@ -457,13 +457,14 @@ Writes a new file to a ROM FS
 function TDiscImage.WriteRFSFile(var file_details: TDirEntry;
                           var buffer: TDIByteArray;insert: Integer=-1): Integer;
 var
- j,fn    : Integer;
- filelen,
- fileptr,
- len,
- ptr     : Cardinal;
- blocknum: Word;
- blockst : Byte;
+ j       : Integer=0;
+ fn      : Integer=0;
+ filelen : Cardinal=0;
+ fileptr : Cardinal=0;
+ len     : Cardinal=0;
+ ptr     : Cardinal=0;
+ blocknum: Word=0;
+ blockst : Byte=0;
 begin
  Result:=-5; //Unknown error
  //Make sure the filename is not beyond max length
@@ -600,10 +601,11 @@ Deletes a file from ROM FS
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteRFSFile(entry: Cardinal): Boolean;
 var
- filepos,
- eofpos,
- diff,i  : Cardinal;
- Lfile   : String;
+ filepos : Cardinal=0;
+ eofpos  : Cardinal=0;
+ diff    : Cardinal=0;
+ i       : Cardinal=0;
+ Lfile   : String='';
 begin
  Result:=False;
  //We won't leave the image with no files
@@ -641,9 +643,9 @@ Readjust the pointers in RFS blocks
 -------------------------------------------------------------------------------}
 procedure TDiscImage.RFSReAdjustPointers(filepos: Cardinal;diff: Integer);
 var
- len  : Word;
- Lfile: String;
- H    : Byte;
+ len  : Word=0;
+ Lfile: String='';
+ H    : Byte=0;
 begin
  if diff=0 then exit; //If no change, then not worth doing
  //Block length (for repeaters, we'll default to 256 bytes)
@@ -698,9 +700,10 @@ Copy an RFS file
 -------------------------------------------------------------------------------}
 function TDiscImage.CopyRFSFile(entry: Cardinal;dest: Integer): Integer;
 var
- buffer     : TDIByteArray;
+ buffer     : TDIByteArray=nil;
  filedetails: TDirEntry;
 begin
+ ResetDirEntry(filedetails);
  Result:=-1;
  if Length(FDisc)=1 then //Check to make sure we have something
  begin
@@ -728,9 +731,10 @@ Rename an RFS file
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameRFSFile(entry: Cardinal;newfilename: String): Integer;
 var
- buffer     : TDIByteArray;
+ buffer     : TDIByteArray=nil;
  filedetails: TDirEntry;
 begin
+ ResetDirEntry(filedetails);
  Result:=-1; //Failed to rename
  if Length(FDisc)=1 then //Check to make sure we have something
   if entry<Length(FDisc[0].Entries) then //And to make sure we're not overshooting
@@ -772,9 +776,10 @@ Set the RFS Header
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateRFSHeader(title,copyright,version: String): Boolean;
 var
- i,diff : Integer;
- LDisc  : TDIByteArray;
- oldroot: Cardinal;
+ i      : Integer=0;
+ diff   : Integer=0;
+ LDisc  : TDIByteArray=nil;
+ oldroot: Cardinal=0;
 begin
  Result:=False;
  //Only proceed if something has changed

@@ -109,7 +109,7 @@ Extract a string from ptr to the next chr(term) or length(-term)
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadString(ptr,term: Integer;control: Boolean=True): String;
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  buffer:=nil;
  Result:=ReadString(ptr,term,buffer,control);
@@ -117,12 +117,10 @@ end;
 function TDiscImage.ReadString(ptr,term: Integer;var buffer:TDIByteArray;
                                   control: Boolean=True): String;
 var
- x : Integer;
- c,
- r : Byte;
+ x : Integer=0;//Counter
+ c : Byte=0;
+ r : Byte=0;
 begin
- //Counter
- x:=0;
  //Dummy result
  Result:='';
  //Are we excluding control characters?
@@ -144,16 +142,15 @@ Write a string to a buffer, for length len padded with pad
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteString(str: String;ptr,len: Cardinal;pad: Byte);
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
- buffer:=nil;
  WriteString(str,ptr,len,pad,buffer);
 end;
 procedure TDiscImage.WriteString(str: String;ptr,len: Cardinal;pad: Byte;
                                                       var buffer: TDIByteArray);
 var
- x : Integer;
- c : Byte;
+ x : Integer=0;
+ c : Byte=0;
 begin
  if(str='')and(len>0)then str:=AddCharR(chr(pad),str,len);
  //Only do something if a string has been supplied
@@ -276,10 +273,12 @@ Read upto 32 bits of data from the buffer, starting at offset(bytes)+start(bits)
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadBits(offset,start,length: Cardinal): Cardinal;
 var
- start_byte,
- start_bit,
- bit,b,pos  : Cardinal;
- lastbyte   : Byte;
+ start_byte : Cardinal=0;
+ start_bit  : Cardinal=0;
+ bit        : Cardinal=0;
+ b          : Cardinal=0;
+ pos        : Cardinal=0;
+ lastbyte   : Byte=0;
 begin
  //Reset the result
  Result:=0;
@@ -315,29 +314,26 @@ Write upto 32 bits of data from the buffer, starting at offset(bytes)+start(bits
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteBits(value,offset,start,length: Cardinal);
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  SetLength(buffer,0);
  WriteBits(value,offset,start,length,buffer);
 end;
 procedure TDiscImage.WriteBits(value,offset,start,length: Cardinal;buffer:TDIByteArray);
 var
- start_byte,
- start_bit,
- bit,
- b,c,
- pos        : Cardinal;
- lastbyte,
- lastcopy   : Byte;
+ start_byte : Cardinal=0;
+ start_bit  : Cardinal=0;
+ bit        : Cardinal=0;
+ b          : Cardinal=0;
+ c          : Cardinal=0;
+ pos        : Cardinal=$FFFFFFFF;
+ lastbyte   : Byte=0;
+ lastcopy   : Byte=$FF;
 begin
  //If the length is 0, nothing to write. Cardinals are 32 bits
  //(we could use Integers, but these are signed)
  if(length>0)and(length<33)then
  begin
-  //Initialise the variables
-  pos:=$FFFFFFFF;
-  lastbyte:=0;
-  lastcopy:=$FF;
   //Iterate through the required number of bits
   for bit:=0 to length-1 do
   begin
@@ -372,7 +368,7 @@ Converts a RISC OS Time/Date to a Delphi TDateTime
 function TDiscImage.RISCOSToTimeDate(filedatetime: Int64): TDateTime;
 var
  epoch      : TDateTime;
- riscosdays : Int64;
+ riscosdays : Int64=0;
 const
  dayincsec = 8640000; //24*3600*100 centi seconds = 1 day
 begin
@@ -390,7 +386,8 @@ Converts a Delphi TDateTime to a RISC OS Time/Date
 -------------------------------------------------------------------------------}
 function TDiscImage.TimeDateToRISCOS(delphitime: TDateTime): Int64;
 var
- days,time  : Int64;
+ days  : Int64=0;
+ time  : Int64=0;
 const
  dayincsec = 8640000; //24*3600*100 centi seconds = 1 day
 begin
@@ -412,7 +409,7 @@ Read in 4 bytes (word)
 -------------------------------------------------------------------------------}
 function TDiscImage.Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  //Need to pass a zero length array, as we can't simply pass 'nil'
  SetLength(buffer,0);
@@ -421,7 +418,7 @@ end;
 function TDiscImage.Read32b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
 var
- i: Cardinal;
+ i: Cardinal=0;
 const
  x = 3;
 begin
@@ -439,7 +436,7 @@ Read in 3 bytes
 -------------------------------------------------------------------------------}
 function TDiscImage.Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  //Need to pass a zero length array, as we can't simply pass 'nil'
  SetLength(buffer,0);
@@ -448,7 +445,7 @@ end;
 function TDiscImage.Read24b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
 var
- i: Cardinal;
+ i: Cardinal=0;
 const
  x = 2;
 begin
@@ -466,7 +463,7 @@ Read in 2 bytes
 -------------------------------------------------------------------------------}
 function TDiscImage.Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  //Need to pass a zero length array, as we can't simply pass 'nil'
  SetLength(buffer,0);
@@ -475,7 +472,7 @@ end;
 function TDiscImage.Read16b(offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Word;
 var
- i: Cardinal;
+ i: Cardinal=0;
 const
  x = 1;
 begin
@@ -493,7 +490,7 @@ Read in a byte
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadByte(offset: Cardinal): Byte;
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  //Need to pass a zero length array, as we can't simply pass 'nil'
  SetLength(buffer,0);
@@ -521,10 +518,10 @@ Calculate offset into image given the disc address (Interleaved or Multiplexed)
 -------------------------------------------------------------------------------}
 function TDiscImage.DiscAddrToIntOffset(disc_addr: Cardinal): Cardinal;
 var
- track_size,
- track,
- side,
- data_offset  : Cardinal;
+ track_size : Cardinal=0;
+ track      : Cardinal=0;
+ side       : Cardinal=0;
+ data_offset: Cardinal=0;
 const
  tracks   = 80;
  oldheads = 2;
@@ -573,7 +570,7 @@ Write 4 bytes (word)
 -------------------------------------------------------------------------------}
 procedure TDiscImage.Write32b(value, offset: Cardinal; bigendian: Boolean=False);
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  //Need to pass a zero length array, as we can't simply pass 'nil'
  SetLength(buffer,0);
@@ -582,7 +579,7 @@ end;
 procedure TDiscImage.Write32b(value, offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
- i: Cardinal;
+ i: Cardinal=0;
 const
  x = 3;
 begin
@@ -599,7 +596,7 @@ Write 3 bytes
 -------------------------------------------------------------------------------}
 procedure TDiscImage.Write24b(value,offset: Cardinal; bigendian: Boolean=False);
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  //Need to pass a zero length array, as we can't simply pass 'nil'
  SetLength(buffer,0);
@@ -608,7 +605,7 @@ end;
 procedure TDiscImage.Write24b(value,offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
- i: Cardinal;
+ i: Cardinal=0;
 const
  x = 2;
 begin
@@ -625,7 +622,7 @@ Write 2 bytes
 -------------------------------------------------------------------------------}
 procedure TDiscImage.Write16b(value: Word; offset: Cardinal; bigendian: Boolean=False);
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  //Need to pass a zero length array, as we can't simply pass 'nil'
  SetLength(buffer,0);
@@ -634,7 +631,7 @@ end;
 procedure TDiscImage.Write16b(value: Word; offset: Cardinal;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
- i: Cardinal;
+ i: Cardinal=0;
 const
  x = 1;
 begin
@@ -651,7 +648,7 @@ Write byte
 -------------------------------------------------------------------------------}
 procedure TDiscImage.WriteByte(value: Byte; offset: Cardinal);
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  SetLength(buffer,0);
  WriteByte(value,offset,buffer);
@@ -788,12 +785,10 @@ Calculate Generic checksum - used by AmigaDOS and ADFS New Map checksums
 -------------------------------------------------------------------------------}
 function TDiscImage.GeneralChecksum(offset,length,chkloc,start: Cardinal;carry: Boolean): Cardinal;
 var
- pointer,
- word    : Cardinal;
- acc     : Int64;
+ pointer : Cardinal=0;
+ word    : Cardinal=0;
+ acc     : Int64=0; //Reset the accumulator to zero
 begin
- //Reset the accumulator to zero
- acc:=0;
  //Start the offset at 0+offset
  pointer:=start;
  repeat
@@ -846,7 +841,7 @@ Calculate a CRC-32 for the supplied buffer Byte array
 -------------------------------------------------------------------------------}
 function TDiscImage.GetCRC(var buffer: TDIByteArray): String;
 var
- CRCValue: longword;
+ CRCValue: longword=0;
 begin
  if Length(buffer)>0 then
  begin
@@ -862,15 +857,15 @@ Calculate the CRC-16 value
 -------------------------------------------------------------------------------}
 function TDiscImage.GetCRC16(start,len: Cardinal): Cardinal;
 var
- dummy: TDIByteArray;
+ dummy: TDIByteArray=nil;
 begin
  SetLength(dummy,0);
  Result:=GetCRC16(start,len,dummy);
 end;
 function TDiscImage.GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
 var
- addr: Cardinal;
- bit : Byte;
+ addr: Cardinal=0;
+ bit : Byte=0;
 begin
  //Converted from the BBC BASIC version by J.G.Harston
  //mdfs.net
@@ -917,17 +912,16 @@ Inflate a GZip file, or just read the file into a buffer
 function TDiscImage.Inflate(filename: String): TDIByteArray;
  function L_Inflate(Source: String): TDIByteArray;
  var
-  GZ     : TGZFileStream;
-  chunk  : TDIByteArray;
-  cnt,
-  i,
-  buflen : Integer;
+  GZ     : TGZFileStream=nil;
+  chunk  : TDIByteArray=nil;
+  cnt    : Integer=0;
+  i      : Integer=0;
+  buflen : Integer=0;
  const
    ChunkSize=4096; //4K chunks
  begin
   //Initialise the variables
   Result:=nil;
-  chunk:=nil;
   //Open the stream
   try
    GZ:=TGZFileStream.Create(Source,gzOpenRead);
@@ -952,16 +946,15 @@ function TDiscImage.Inflate(filename: String): TDIByteArray;
   GZ.Free;
  end;
 var
- F        : TFileStream;
- buffer,
- inflated : TDIByteArray;
- ptr,i,old: Cardinal;
- blockptrs: array of Cardinal;
- fn       : String;
+ F        : TFileStream=nil;
+ buffer   : TDIByteArray=nil;
+ inflated : TDIByteArray=nil;
+ ptr      : Cardinal=0;
+ i        : Cardinal=0;
+ old      : Cardinal=0;
+ blockptrs: array of Cardinal=nil;
+ fn       : String='';
 begin
- buffer   :=nil;
- blockptrs:=nil;
- inflated :=nil;
  Result   :=nil;
  //Read in the entire file
  try
@@ -1040,13 +1033,13 @@ Volume Serial Number Calculation
 -------------------------------------------------------------------------------}
 function TDiscImage.VolumeSerialNumber: Cardinal;
 var
- year,
- month,
- day,
- hour,
- minute,
- second,
- ms     : Word;
+ year   : Word=0;
+ month  : Word=0;
+ day    : Word=0;
+ hour   : Word=0;
+ minute : Word=0;
+ second : Word=0;
+ ms     : Word=0;
  time   : TDateTime;
 begin
  time:=Now; //Based on the current time
@@ -1059,7 +1052,8 @@ Update directory references
 -------------------------------------------------------------------------------}
 procedure TDiscImage.UpdateDirRef(dirref: Cardinal);
 var
- d,e: Cardinal;
+ d: Cardinal=0;
+ e: Cardinal=0;
 begin
  //Update all the directory references
  if Length(FDisc)>0 then
@@ -1079,7 +1073,8 @@ Remove a directory from the internal array
 -------------------------------------------------------------------------------}
 procedure TDiscImage.RemoveDirectory(dirref: Cardinal);
 var
- i,entry: Cardinal;
+ i    : Cardinal=0;
+ entry: Cardinal=0;
 begin
  if dirref<Length(FDisc)-1 then
   for i:=dirref to Length(FDisc)-2 do
@@ -1122,20 +1117,21 @@ Extract the list of files (!Spark)
 -------------------------------------------------------------------------------}
 function TSpark.ExtractSparkFiles: TFileList;
 var
- ptr,
- EoCL,
- CL,
- ctr,
- fnc        : Cardinal;
- fnL,
- exL,
- cmL        : LongWord;
- fn,
- zipfn      : String;
- exists     : Integer;
+ ptr        : Cardinal=0;
+ EoCL       : Cardinal=0;
+ CL         : Cardinal=0;
+ ctr        : Cardinal=0;
+ fnc        : Cardinal=0;
+ fnL        : LongWord=0;
+ exL        : LongWord=0;
+ cmL        : LongWord=0;
+ fn         : String='';
+ zipfn      : String='';
+ exists     : Integer=0;
  temp       : TFileEntry;
 begin
  Result:=nil;
+ ResetFileEntry(temp);
  if FIsSpark then
  begin
   FBitLength:=0; //Not used with !Spark
@@ -1318,17 +1314,15 @@ Extract the list of files (!PackDir)
 -------------------------------------------------------------------------------}
 function TSpark.ExtractPackFiles: TFileList;
 var
- ptr,
- fnptr,
- ctr        : Cardinal;
- fn         : String;
- dircount,
- dirref     : array of Integer;
- parent     : Integer;
+ ptr        : Cardinal=0;
+ fnptr      : Cardinal=0;
+ ctr        : Cardinal=0;
+ fn         : String='';
+ dircount   : array of Integer=nil;
+ dirref     : array of Integer=nil;
+ parent     : Integer=0;
 begin
  Result:=nil;
- dircount:=nil;
- dirref:=nil;
  if FIsPack then
  begin
   //Bit length
@@ -1483,14 +1477,13 @@ Extract, and decompress, the actual data (!Spark)
 -------------------------------------------------------------------------------}
 function TSpark.ExtractFileDataFromSpark(index: Integer):TDIByteArray;
 var
- ZipFile   : TUnZipper;
- sl        : TStringList;
+ ZipFile   : TUnZipper=nil;
+ sl        : TStringList=nil;
  starttime,
  nowtime   : TDateTime;
- temp      : Boolean;
+ temp      : Boolean=False;
 begin
  Result:=nil;
- temp:=False;
  if FIsSpark then
  begin
   //Save the file, if we have no filename
@@ -1554,23 +1547,26 @@ Extract, and decompress, the actual data (!PackDir)
 -------------------------------------------------------------------------------}
 function TSpark.ExtractFileDataFromPack(index: Integer):TDIByteArray;
 var
- buffer     : TDIByteArray;
- i,max,cc,
- codesize,
- codemask,
- nextfree,
- prev_code,
- bitbuffer,
- bitsremain,
- outptr,
- eoi,code,
- save_code,
- temp_code  : Cardinal;
- firstchar  : Byte;
- stackptr   : Cardinal;
- prefix     : array of Cardinal;
- suffix,
- stack      : TDIByteArray;
+ buffer     : TDIByteArray=nil;
+ i          : Cardinal=0;
+ max        : Cardinal=0;
+ cc         : Cardinal=0;
+ codesize   : Cardinal=0;
+ codemask   : Cardinal=0;
+ nextfree   : Cardinal=0;
+ prev_code  : Cardinal=0;
+ bitbuffer  : Cardinal=0;
+ bitsremain : Cardinal=0;
+ outptr     : Cardinal=0;
+ eoi        : Cardinal=0;
+ code       : Cardinal=0;
+ save_code  : Cardinal=0;
+ temp_code  : Cardinal=0;
+ firstchar  : Byte=0;
+ stackptr   : Cardinal=0;
+ prefix     : array of Cardinal=nil;
+ suffix     : TDIByteArray=nil;
+ stack      : TDIByteArray=nil;
 const lzwbits = 8;
 begin
  Result:=nil;
@@ -1710,7 +1706,7 @@ Save the buffer data to disc
 -------------------------------------------------------------------------------}
 procedure TSpark.SaveData;
 var
- tempfile: TFileStream;
+ tempfile: TFileStream=nil;
 begin
  if ZipFilename<>'' then
  begin
@@ -1728,15 +1724,14 @@ Find a file entry in the central library and main header
 function TSpark.FindEntry(path: String;matchpath: Boolean;var CLptr: Cardinal;
                                                 var dataptr: Cardinal): Boolean;
 var
- CL,
- EoCL  : Cardinal;
- temp  : String;
- fnL   : Word;
- index : Integer;
+ CL    : Cardinal=0;
+ EoCL  : Cardinal=0;
+ temp  : String='';
+ fnL   : Word=0;
+ index : Integer=0;
 begin
  Result:=False;
  //Get the location of the central library
- CL:=0;
  EoCL:=FindEoCL(CL);
  //If it exists
  if CL<>EoCL then
@@ -1778,14 +1773,14 @@ Rename, or move, a file or directory (internal)
 -------------------------------------------------------------------------------}
 function TSpark.RenameTheFile(oldpath, newpath: String): Boolean;
 var
- ptr,
- dataptr,
- EoCL,
- CL,
- hdrpos  : Cardinal;
- index,
- fnL,
- diff    : Integer;
+ ptr     : Cardinal=0;
+ dataptr : Cardinal=0;
+ EoCL    : Cardinal=0;
+ CL      : Cardinal=0;
+ hdrpos  : Cardinal=0;
+ index   : Integer=0;
+ fnL     : Integer=0;
+ diff    : Integer=0;
 begin
  Result:=False;
  if FIsPack then exit;
@@ -1913,18 +1908,18 @@ Delete a file/directory (internal)
 -------------------------------------------------------------------------------}
 function TSpark.DeleteTheFile(filename: String):Boolean;
 var
- EoCL,
- CL,
- hdrsize,
- clsize,
- fnL,
- exL,
- cmL,
- ptr,
- CLptr,
- data,
- index : Cardinal;
- match : Boolean;
+ EoCL    : Cardinal=0;
+ CL      : Cardinal=0;
+ hdrsize : Cardinal=0;
+ clsize  : Cardinal=0;
+ fnL     : Cardinal=0;
+ exL     : Cardinal=0;
+ cmL     : Cardinal=0;
+ ptr     : Cardinal=0;
+ CLptr   : Cardinal=0;
+ data    : Cardinal=0;
+ index   : Cardinal=0;
+ match   : Boolean=False;
 begin
  //Default return - a false result does not mean it is a fail.
  Result:=False;
@@ -2028,7 +2023,7 @@ Get the total size of all files, uncompressed
 -------------------------------------------------------------------------------}
 function TSpark.GetUncompressedSize: Cardinal;
 var
- i: Cardinal;
+ i: Cardinal=0;
 begin
  Result:=0;
  if Length(FFileList)>0 then
@@ -2049,7 +2044,7 @@ Find the 'End of central library'
 -------------------------------------------------------------------------------}
 function TSpark.FindEoCL(var CL: Cardinal): Cardinal;
 var
- ptr: Cardinal;
+ ptr: Cardinal=0;
 begin
  //Set up the result - 0 means not found
  Result:=0;
@@ -2084,7 +2079,7 @@ Update the Central Library pointer, with EoCL having already been moved
 -------------------------------------------------------------------------------}
 procedure TSpark.UpdateCL(CL,EoCL: Cardinal);
 var
- ptr : Cardinal;
+ ptr : Cardinal=0;
 begin
  if(EoCL<>0)and(CL<>0)then
  begin

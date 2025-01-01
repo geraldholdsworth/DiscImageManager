@@ -3,21 +3,21 @@ Parse commands sent through via the console
 -------------------------------------------------------------------------------}
 procedure TMainForm.ParseCommand(var Command: TStringArray);
 var
- error,
- Lcurrdir,
- opt,
- Index,
- ptr          : Integer;
- Lparent,
- temp,
- format       : String;
- dir,
- entry,
- harddrivesize: Cardinal;
- dirtype      : Byte;
- known,
- ok,
- newmap       : Boolean;
+ error        : Integer=0;
+ Lcurrdir     : Integer=0;
+ opt          : Integer=0;
+ Index        : Integer=0;
+ ptr          : Integer=0;
+ Lparent      : String='';
+ temp         : String='';
+ format       : String='';
+ dir          : Cardinal=0;
+ entry        : Cardinal=0;
+ harddrivesize: Cardinal=0;
+ dirtype      : Byte=0;
+ known        : Boolean=False;
+ ok           : Boolean=False;
+ newmap       : Boolean=False;
  searchlist   : TSearchRec;
  Files        : TSearchResults;
  filedetails  : TDirEntry;
@@ -110,6 +110,7 @@ const
  end;
 //Main procedure definition starts here
 begin
+ ResetDirEntry(filedetails);
  if Length(Command)=0 then exit;
  //Convert the command to lower case
  Command[0]:=LowerCase(Command[0]);

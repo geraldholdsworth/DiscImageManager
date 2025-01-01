@@ -31,7 +31,7 @@ begin
 end;
 constructor TDiscImage.Create(Clone: TDiscImage; keepfiles:Boolean=True);
 var
- index: Cardinal;
+ index: Cardinal=0;
 begin
  inherited Create;
  //Reset the variables to default
@@ -81,7 +81,7 @@ Calculate a CRC-32 for a file
 -------------------------------------------------------------------------------}
 function TDiscImage.GetFileCrc(filename: String;entry:Cardinal=0): String;
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  Result:='error';
  if ExtractFile(filename,buffer,entry) then Result:=GetCRC(buffer);
@@ -92,7 +92,7 @@ Calculate a MD5 for a file
 -------------------------------------------------------------------------------}
 function TDiscImage.GetFileMD5(filename: String;entry:Cardinal=0): String;
 var
- buffer: TDIByteArray;
+ buffer: TDIByteArray=nil;
 begin
  Result:='error';
  if ExtractFile(filename,buffer,entry) then Result:=GetMD5(buffer);
@@ -113,15 +113,14 @@ Construct a save filter
 -------------------------------------------------------------------------------}
 function TDiscImage.SaveFilter(var FilterIndex: Integer;thisformat: Integer=-1):String;
 var
- currentformat,
- queryformat   : Byte;
- ext           : String;
- index         : Integer;
+ currentformat : Byte=0;
+ queryformat   : Byte=0;
+ ext           : String='';
+ index         : Integer=0;
 begin
  Result:='';
  //Save the current format
  currentformat:=FFormat;
- index:=0;
  for queryformat:=$00 to $BF do
  begin
   //Set the format
@@ -210,7 +209,7 @@ Read the disc in, depending on the format
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReadImage;
 var
- d: Cardinal;
+ d: Cardinal=0;
 begin
  case GetMajorFormatNumber of
   diAcornDFS : ReadDFSDisc;     //Acorn DFS
@@ -247,12 +246,12 @@ Saves an image to a file
 -------------------------------------------------------------------------------}
 function TDiscImage.SaveToFile(filename: String;uncompress: Boolean=False): Boolean;
 var
- FDiscDrive: TFileStream;
- dscfile,
- ext       : String;
- lsecsize  : Cardinal;
- Lheads    : Byte;
- Lcyl      : Word;
+ FDiscDrive: TFileStream=nil;
+ dscfile   : String='';
+ ext       : String='';
+ lsecsize  : Cardinal=0;
+ Lheads    : Byte=0;
+ Lcyl      : Word=0;
  procedure LWriteByte(b: Byte);
  begin
   FDiscDrive.WriteByte(b);
@@ -491,7 +490,7 @@ end;
 function TDiscImage.ExtractFile(filename:String;Stream:TStream;
                                                      entry:Cardinal=0): Boolean;
 var
- Lbuffer: TDIByteArray;
+ Lbuffer: TDIByteArray=nil;
 begin
  //Start with a false result
  Result:=False;
@@ -513,7 +512,7 @@ Save a file into the disc image, from buffer
 function TDiscImage.WriteFile(var file_details: TDirEntry;
                       var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
 var
- count : Integer;
+ count : Integer=0;
 begin
  //Start with a false result
  Result:=-2; //Error - disc full
@@ -599,7 +598,8 @@ Does a file exist?
 -------------------------------------------------------------------------------}
 function TDiscImage.FileExists(filename: String;var Ref: Cardinal;sfn: Boolean=False): Boolean;
 var
- dir,entry: Cardinal;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
 begin
  dir:=$FFFF;
  entry:=$FFFF;
@@ -608,12 +608,14 @@ begin
 end;
 function TDiscImage.FileExists(filename: String;var dir,entry: Cardinal;sfn: Boolean=False): Boolean;
 var
- Path   : array of String;
- i,j,l,
- ptr,
- level  : Integer;
- test,
- test2  : String;
+ Path   : array of String=nil;
+ i      : Integer=0;
+ j      : Integer=-1;
+ l      : Integer=0;
+ ptr    : Integer=-1;
+ level  : Integer=0;
+ test   : String='';
+ test2  : String='';
 begin
  //This will not work with CFS as you can have multiple files with the same name
  //in the same 'directory'. It will just find the first occurance.
@@ -796,7 +798,7 @@ Direct access to disc data
 function TDiscImage.ReadDiscData(addr,count,side,offset: Cardinal;
                                              var buffer: TDIByteArray): Boolean;
 var
- i      : Cardinal;
+ i      : Cardinal=0;
 begin
  Result:=False;
  if count>0 then //Make sure there is something to read
@@ -827,7 +829,7 @@ Direct access writing to disc
 function TDiscImage.WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
 var
- i   : Cardinal;
+ i   : Cardinal=0;
 begin
  Result:=False;
  if(count=0)or(Length(disc_size)=0)then exit;
@@ -880,13 +882,14 @@ function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
  end;
 //Function proper starts here
 var
- dir,
- entry  : Integer;
- found,
- target : Byte;
- Ldirsep : Char;
+ dir    : Integer=0;
+ entry  : Integer=0;
+ found  : Byte=0;
+ target : Byte=0;
+ Ldirsep: Char='.';
 begin
  Result:=nil;
+ Ldirsep:='.';
  //Reset the search results array to empty
  SetLength(Result,0);
  //Has the complete path been included in the Filename?
@@ -1074,16 +1077,17 @@ begin
 end;
 function TDiscImage.CopyFile(filename,directory,newfilename: String): Integer;
 var
- buffer      : TDIByteArray;
- ptr,
- entry,
- dir,
- d,e         : Cardinal;
- tempfn,
- newparent   : String;
+ buffer      : TDIByteArray=nil;
+ ptr         : Cardinal=0;
+ entry       : Cardinal=0;
+ dir         : Cardinal=0;
+ d           : Cardinal=0;
+ e           : Cardinal=0;
+ tempfn      : String='';
+ newparent   : String='';
  file_details: TDirEntry;
 begin
- ptr:=0;
+ ResetDirEntry(file_details);
  SetLength(buffer,0);
  //Need to extract the filename from the full path...and ensure the file exists
  Result:=-11; //Could not find file
@@ -1184,12 +1188,11 @@ Validate the attributes
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ValidateAttributes(var attributes: String);
 var
- i   : Integer;
- new,
- attr: String;
+ i   : Integer=0;
+ new : String='';
+ attr: String='';
 begin
  //Get the valid attributes for the current format
- attr:='';
  case GetMajorFormatNumber of
   diAcornDFS : attr:='L';
   diAcornADFS: if Fdirtype=diADFSOldDir then
@@ -1368,11 +1371,10 @@ Convert a filetype number to a string
 -------------------------------------------------------------------------------}
 function TDiscImage.GetFileTypeFromNumber(filetype: Integer): String;
 var
- i: Integer;
+ i: Integer=1;
 begin
  filetype:=filetype AND$FFF;
  Result:='';
- i:=1;
  repeat
   if StrToInt('$'+LeftStr(ROFileTypes[i],3))=filetype then
    Result:=Copy(ROFileTypes[i],4);
@@ -1386,10 +1388,9 @@ Convert a filetype name into a number
 -------------------------------------------------------------------------------}
 function TDiscImage.GetFileTypeFromName(filetype: String): Integer;
 var
- i: Integer;
+ i: Integer=1;
 begin
  Result:=-1;
- i:=1;
  repeat
   if UpperCase(filetype)=UpperCase(Copy(ROFileTypes[i],4))then
    Result:=StrToInt('$'+LeftStr(ROFileTypes[i],3));
@@ -1427,11 +1428,11 @@ Makes sure that a copied/moved filename does not clash with one already there
 -------------------------------------------------------------------------------}
 function TDiscImage.ValidateFilename(parent:String;var filename:String): Boolean;
 var
- ptr,
- part : Cardinal;
- len,
- ctr  : Byte;
- newfn: String;
+ ptr  : Cardinal=0;
+ part : Cardinal=0;
+ len  : Byte=0;
+ ctr  : Byte=0;
+ newfn: String='';
 begin
  //Which partition, and hence, which file system?
  if(FFormat=diAcornADFS)and((AFSPresent)or(DOSPresent))then
@@ -1550,7 +1551,7 @@ Returns the complete path for the parent
 -------------------------------------------------------------------------------}
 function TDiscImage.GetParent(dir: Integer): String;
 var
- Ldirsep: Char;
+ Ldirsep: Char='.';
 begin
  Result:='';
  if(dir>=0)and(dir<Length(FDisc))then Ldirsep:=GetDirSep(FDisc[dir].Partition);
@@ -1572,15 +1573,14 @@ Extracts or deletes a partition/side
 -------------------------------------------------------------------------------}
 function TDiscImage.SeparatePartition(side: Cardinal;filename: String=''): Boolean;
 var
- buffer    : TDIByteArray;
- FDiscDrive: TFileStream;
- ext       : String;
- oldformat : Word;
+ buffer    : TDIByteArray=nil;
+ FDiscDrive: TFileStream=nil;
+ ext       : String='';
+ oldformat : Word=0;
 begin
  //If filename is empty, delete the current partition.
  //If filename is not empty, save the current partition
  Result:=False;
- buffer:=nil;
  //Blank filename, so extract the other partition
  if filename='' then
  begin
@@ -1694,8 +1694,8 @@ Change the Interleave Method
 -------------------------------------------------------------------------------}
 function TDiscImage.ChangeInterleaveMethod(NewMethod: Byte): Boolean;
 var
- buffer: TDIByteArray;
- index : Cardinal;
+ buffer: TDIByteArray=nil;
+ index : Cardinal=0;
 begin
  Result:=False;
  //Are we actually changing, and is it within range?
@@ -1736,20 +1736,17 @@ Read a directory, given the directory name
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadDirectory(dirname: String): Integer;
 var
- dir,
- entry,
- sector,
- len,f  : Cardinal;
+ dir    : Cardinal=0;
+ entry  : Cardinal=0;
+ sector : Cardinal=0;
+ len    : Cardinal=0;
+ f      : Cardinal=0;
  NewDir : TDir;
 begin
  RemoveControl(dirname);
  //This is only here to stop the hints that variables aren't intialised
  Result:=-1;
  NewDir.Directory:=dirname;
- dir:=0;
- entry:=0;
- sector:=0;
- len:=0;
  //Reset the Result TDir to default values
  ResetDir(NewDir);
  //Is it a valid directory?
@@ -1795,10 +1792,10 @@ Produce a report of the image's details
 -------------------------------------------------------------------------------}
 function TDiscImage.ImageReport(CSV: Boolean): TStringList;
 var
- temp,
- uline : String;
- side  : Integer;
- report: TStringList;
+ temp  : String='';
+ uline : String='';
+ side  : Integer=0;
+ report: TStringList=nil;
 begin
  Result:=TStringList.Create;
  if FFormat<>diInvalidImg then
@@ -1867,7 +1864,7 @@ Create a Windows filename
 -------------------------------------------------------------------------------}
 function TDiscImage.GetWindowsFilename(dir,entry: Integer): String;
 var
- extsep: Char;
+ extsep: Char='.';
 begin
  Result:='';
  if(dir>=0)and(dir<Length(FDisc))then
@@ -1899,14 +1896,14 @@ Create an inf file
 -------------------------------------------------------------------------------}
 procedure TDiscImage.CreateINFFile(dir,entry: Integer; path: String;filename: String='');
 var
- F              : TFileStream;
- Ltitle,
- inffile,
- Limagefilename,
- windowsfilename: String;
- attributes,
- hexlen         : Byte;
- t              : Integer;
+ F              : TFileStream=nil;
+ Ltitle         : String='';
+ inffile        : String='';
+ Limagefilename : String='';
+ windowsfilename: String='';
+ attributes     : Byte=0;
+ hexlen         : Byte=0;
+ t              : Integer=0;
 const
  adfsattr = 'RWELrwel';
 begin
@@ -1985,10 +1982,10 @@ Create an inf file for a root
 -------------------------------------------------------------------------------}
 procedure TDiscImage.CreateRootInf(filename: String; dir: Integer);
 var
- F        : TFileStream;
- Ltitle,
- dirtitle,
- inffile  : String;
+ F        : TFileStream=nil;
+ Ltitle   : String='';
+ dirtitle : String='';
+ inffile  : String='';
 begin
  Ltitle:=Title(FDisc[dir].Partition);
  if Pos(' ',Ltitle)>0 then Ltitle:='"'+Ltitle+'"';
@@ -2016,7 +2013,7 @@ Create the instance
 -------------------------------------------------------------------------------}
 constructor TSpark.Create(filename: String;blank: Boolean=false);
 var
- F: TFileStream;
+ F: TFileStream=nil;
 begin
  //Set the filename
  ZipFilename:=filename;
@@ -2077,15 +2074,17 @@ Write a file to the archive
 -------------------------------------------------------------------------------}
 procedure TSpark.WriteFile(var filetozip: TFileEntry;var buffer: TDIByteArray);
 var
- tempname : String;
- tempfile : TFileStream;
- zipfile  : TZipper;
- EoCL,
- CL,ptr,
- dataptr  : Cardinal;
- fnL,exL  : Word;
- index,
- adjust   : Integer;
+ tempname : String='';
+ tempfile : TFileStream=nil;
+ zipfile  : TZipper=nil;
+ EoCL     : Cardinal=0;
+ CL       : Cardinal=0;
+ ptr      : Cardinal=0;
+ dataptr  : Cardinal=0;
+ fnL      : Word=0;
+ exL      : Word=0;
+ index    : Integer=0;
+ adjust   : Integer=0;
 const newExL = $18;
 begin
  if FIsPack then exit;
@@ -2209,25 +2208,27 @@ Create an empty directory
 -------------------------------------------------------------------------------}
 procedure TSpark.CreateDirectory(path: String);
 var
- index,
- ctr      : Integer;
- buffer   : TDIByteArray;
- EoCL,CL,
- offset   : Cardinal;
- datetime : QWord;
- year,
- month,
- day,
- hour,
- minute,
- second,
- ms       : Word;
+ index    : Integer=0;
+ ctr      : Integer=0;
+ buffer   : TDIByteArray=nil;
+ EoCL     : Cardinal=0;
+ CL       : Cardinal=0;
+ offset   : Cardinal=0;
+ datetime : QWord=0;
+ year     : Word=0;
+ month    : Word=0;
+ day      : Word=0;
+ hour     : Word=0;
+ minute   : Word=0;
+ second   : Word=0;
+ ms       : Word=0;
  filetozip: TFileEntry;
 const
  headersig: array[0..3] of Byte = ($50,$4B,$03,$04);
  clsig    : array[0..3] of Byte = ($50,$4B,$01,$02);
  eoclsig  : array[0..3] of Byte = ($50,$4B,$05,$06);
 begin
+ ResetFileEntry(filetozip);
  if FIsPack then exit;
  //Make sure that the path is not empty
  if path<>'' then
@@ -2413,10 +2414,10 @@ Update the load and execution address
 -------------------------------------------------------------------------------}
 function TSpark.UpdateLoadExecAddress(path: String;load, exec: Cardinal): Boolean;
 var
- ptr,
- dataptr : Cardinal;
- fnL     : Word;
- index   : Integer;
+ ptr     : Cardinal=0;
+ dataptr : Cardinal=0;
+ fnL     : Word=0;
+ index   : Integer=0;
 begin
  Result:=False;
  if FIsPack then exit;
@@ -2470,10 +2471,10 @@ Update a file's attributes
 -------------------------------------------------------------------------------}
 function TSpark.UpdateAttributes(path: String; attributes: Word): Boolean;
 var
- ptr,
- dataptr : Cardinal;
- fnL     : Word;
- index   : Integer;
+ ptr     : Cardinal=0;
+ dataptr : Cardinal=0;
+ fnL     : Word=0;
+ index   : Integer=0;
 begin
  Result:=False;
  if FIsPack then exit;
@@ -2511,7 +2512,7 @@ Split a path into parent and filename for RISC OS
 procedure TSpark.RISCOSFilename(path: String;addroot: Boolean;
                                        var filename: String;var parent: String);
 var
- index: Integer;
+ index: Integer=0;
 begin
  filename:='';
  if addroot then parent:='$' else parent:='';
@@ -2538,7 +2539,7 @@ Swap directory separators
 -------------------------------------------------------------------------------}
 procedure TSpark.SwapDirSep(var path: String);
 var
- index: Integer;
+ index: Integer=0;
 begin
  for index:=1 to Length(path) do
   if path[index]='/' then path[index]:='.'
@@ -2550,8 +2551,8 @@ Convert an attribute byte to a string (ADFS compatible)
 -------------------------------------------------------------------------------}
 function TSpark.ConvertAttribute(attr: Byte): String;
 var
- cnt : Byte;
- temp: String;
+ cnt : Byte=0;
+ temp: String='';
 begin
  Result:='';
  //Collate the attributes
@@ -2571,7 +2572,7 @@ Convert an attribute string to a byte (ADFS compatible)
 -------------------------------------------------------------------------------}
 function TSpark.ConvertAttribute(attr: String): Byte;
 var
- cnt : Byte;
+ cnt : Byte=0;
 begin
  //Convert the attributes from a string to a byte
  Result:=0;

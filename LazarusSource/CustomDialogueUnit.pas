@@ -1,7 +1,7 @@
 unit CustomDialogueUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -79,9 +79,9 @@ Create the buttons and move things around for scaling
 -------------------------------------------------------------------------------}
 procedure TCustomDialogue.FormCreate(Sender: TObject);
 var
- ratio  : Real;
- TopBut,
- WinWid : Integer;
+ ratio  : Real=0;
+ TopBut : Integer=0;
+ WinWid : Integer=0;
 const
  Pad    = 8; //Padding
  NoBtns = 4; //Number of buttons
@@ -156,11 +156,12 @@ General display procedure
 -------------------------------------------------------------------------------}
 procedure TCustomDialogue.ShowDialogue(msg: String; Buttons: array of String; style: Byte);
 var
- OKBtnTxt,
- CancelBtnTxt,
- IgnoreBtnTxt,
- AbortBtnTxt  : String;
+ OKBtnTxt     : String='';
+ CancelBtnTxt : String='';
+ IgnoreBtnTxt : String='';
+ AbortBtnTxt  : String='';
 begin
+// OKBtnTxt:='';
  if style>2 then exit;
  //Get the button text strings
  if Length(Buttons)>0 then OKBtnTxt    :=Buttons[0];

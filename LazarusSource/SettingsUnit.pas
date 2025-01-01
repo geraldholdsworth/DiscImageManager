@@ -1,7 +1,7 @@
 unit SettingsUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -117,25 +117,25 @@ end;
 //Create the form
 {------------------------------------------------------------------------------}
 procedure TSettingsForm.FormCreate(Sender: TObject);
-function CreateRadioBox(text: String;prt: TPanel): TRISCOSRadioBox;
-begin
- Result:=TRISCOSRadioBox.Create(prt as TControl);
- Result.Parent:=prt as TWinControl;
- Result.Visible:=True;
- Result.Caption:=text;
- Result.Font.Color:=clBlack;
-end;
-function CreateTickBox(text: String;prt: TPanel): TRISCOSTickBox;
-begin
- Result:=TRISCOSTickBox.Create(prt as TControl);
- Result.Parent:=prt as TWinControl;
- Result.Visible:=True;
- Result.Caption:=text;
- Result.Font.Color:=clBlack;
-end;
+ function CreateRadioBox(text: String;prt: TPanel): TRISCOSRadioBox;
+ begin
+  Result:=TRISCOSRadioBox.Create(prt as TControl);
+  Result.Parent:=prt as TWinControl;
+  Result.Visible:=True;
+  Result.Caption:=text;
+  Result.Font.Color:=clBlack;
+ end;
+ function CreateTickBox(text: String;prt: TPanel): TRISCOSTickBox;
+ begin
+  Result:=TRISCOSTickBox.Create(prt as TControl);
+  Result.Parent:=prt as TWinControl;
+  Result.Visible:=True;
+  Result.Caption:=text;
+  Result.Font.Color:=clBlack;
+ end;
 var
- LRefWid: Integer;
- ratio  : Real;
+ LRefWid: Integer=0;
+ ratio  : Real=0;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  //Create the texture radio boxes, and move the tiles around

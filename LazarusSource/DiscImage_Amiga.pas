@@ -5,11 +5,11 @@ Identifies a Commodore Amiga disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ID_Amiga: Boolean;
 var
- Checksum1,
- Checksum2 : Cardinal;
- ctr       : Integer;
- temp      : String;
- look4root : Boolean;
+ Checksum1 : Cardinal=0;
+ Checksum2 : Cardinal=0;
+ ctr       : Integer=0;
+ temp      : String='';
+ look4root : Boolean=False;
 const
  DiscIDs   : array[0..3] of String = ('DOS','PFS','KICK','KICKSUP');
 begin
@@ -121,8 +121,9 @@ Read Commodore Amiga Disc
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadAmigaDisc: Boolean;
 var
- d,ptr,
- sectors : Integer;
+ d       : Integer=0;
+ ptr     : Integer=0;
+ sectors : Integer=0;
 begin
  FDisc:=nil;
  //Initialise some variables
@@ -182,14 +183,16 @@ Read Commodore Amiga Directory
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadAmigaDir(dirname: String; offset: Cardinal): TDir;
 var
- address,
- i,
- link,ent: Cardinal;
+ address : Cardinal=0;
+ i       : Cardinal=0;
+ link    : Cardinal=0;
+ ent     : Cardinal=0;
  Entry   : TDirEntry;
 begin
  //Initialise the return variable (this just stops the compiler from warning)
  Result.Directory:='';
  ResetDir(Result);
+ ResetDirEntry(Entry);
  //If the checksum checks out, read in the contents
  if Read32b(offset*secsize+$14,True)=AmigaChecksum(offset*secsize) then
  begin
@@ -272,7 +275,8 @@ Extracts a file, filename contains complete path
 function TDiscImage.ExtractAmigaFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- entry,dir : Cardinal;
+ entry : Cardinal=0;
+ dir   : Cardinal=0;
 begin
  Result:=False;
  SetLength(buffer,0);
@@ -289,11 +293,11 @@ Read data following the hash table links
 function TDiscImage.ExtractAmigaData(sector,filelen: Cardinal;
                                              var buffer: TDIByteArray): Boolean;
 var
- source,
- dest,
- fragptr,
- len     : Cardinal;
- links   : TFragmentArray;
+ source  : Cardinal=0;
+ dest    : Cardinal=0;
+ fragptr : Cardinal=0;
+ len     : Cardinal=0;
+ links   : TFragmentArray=nil;
 begin
  //Default return result
  Result:=False;
@@ -329,28 +333,28 @@ Write a file to Amiga image
 function TDiscImage.WriteAmigaFile(var file_details: TDirEntry;
                                              var buffer: TDIByteArray): Integer;
 var
- index,
- fragptr,
- dir,
- entry,
- paraddr,
- days,
- mins,
- ticks,
- filelen : Cardinal;
- header  : TDIByteArray;
- frag    : TFragmentArray;
- hdrblks,
- datablks: array of Cardinal;
-procedure WriteBlockToDisc(address: Cardinal);
-var index: Cardinal;
-begin
- //Write to the disc
- for index:=0 to Length(header)-1 do
-  WriteByte(header[index],address+index);
- //Update the checksum
- Write32b(AmigaChecksum(address),address+$14,True);
-end;
+ index   : Cardinal=0;
+ fragptr : Cardinal=0;
+ dir     : Cardinal=0;
+ entry   : Cardinal=0;
+ paraddr : Cardinal=0;
+ days    : Cardinal=0;
+ mins    : Cardinal=0;
+ ticks   : Cardinal=0;
+ filelen : Cardinal=0;
+ header  : TDIByteArray=nil;
+ frag    : TFragmentArray=nil;
+ hdrblks : array of Cardinal=nil;
+ datablks: array of Cardinal=nil;
+ procedure WriteBlockToDisc(address: Cardinal);
+ var index: Cardinal=0;
+ begin
+  //Write to the disc
+  for index:=0 to Length(header)-1 do
+   WriteByte(header[index],address+index);
+  //Update the checksum
+  Write32b(AmigaChecksum(address),address+$14,True);
+ end;
 begin
  ValidateAmigaFile(file_details.Filename);
  Result:=-6; //Destination directory does not exist
@@ -503,12 +507,15 @@ Create a directory on an Amiga image
 -------------------------------------------------------------------------------}
 function TDiscImage.CreateAmigaDirectory(var dirname,parent,attributes: String): Integer;
 var
- buffer          : TDIByteArray;
- index,
- days,mins,ticks,
- dir,entry,
- paraddr         : Cardinal;
- frag            : TFragmentArray;
+ buffer  : TDIByteArray=nil;
+ index   : Cardinal=0;
+ days    : Cardinal=0;
+ mins    : Cardinal=0;
+ ticks   : Cardinal=0;
+ dir     : Cardinal=0;
+ entry   : Cardinal=0;
+ paraddr : Cardinal=0;
+ frag    : TFragmentArray=nil;
 begin
  ValidateAmigaFile(dirname);
  Result:=-6; //Destination directory does not exist
@@ -585,6 +592,7 @@ Create a new Amiga image - Floppy
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatAmigaFDD(minor: Byte): Boolean;
 begin
+ Result:=False;
  //Blank everything
  ResetVariables;
  SetDataLength(0);
@@ -609,6 +617,7 @@ Create a new Amiga image - Hard Disc
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatAmigaHDD(harddrivesize: Cardinal): Boolean;
 begin
+ Result:=False;
  //Blank everything
  ResetVariables;
  SetDataLength(0);
@@ -630,15 +639,15 @@ Create a new Amiga image - generic
 -------------------------------------------------------------------------------}
 procedure TDiscImage.FormatAmiga(size: Cardinal);
 var
- index,
- bmpsize,
- fsmblock,
- days,
- mins,
- ticks    : Cardinal;
- fsm      : TDIByteArray;
- fsmlist,
- extlist  : TFragmentArray;
+ index    : Cardinal=0;
+ bmpsize  : Cardinal=0;
+ fsmblock : Cardinal=0;
+ days     : Cardinal=0;
+ mins     : Cardinal=0;
+ ticks    : Cardinal=0;
+ fsm      : TDIByteArray=nil;
+ fsmlist  : TFragmentArray=nil;
+ extlist  : TFragmentArray=nil;
 begin
  ResetVariables;
  secsize:=$200;
@@ -732,10 +741,11 @@ Rename a file
 -------------------------------------------------------------------------------}
 function TDiscImage.RenameAmigaFile(oldfilename: String;var newfilename: String):Integer;
 var
- dirname  : String;
- dir,ref,
- entry,
- sector   : Cardinal;
+ dirname  : String='';
+ dir      : Cardinal=0;
+ ref      : Cardinal=0;
+ entry    : Cardinal=0;
+ sector   : Cardinal=0;
 begin
  Result:=-2; //File does not exist
  //Validate the new filename
@@ -775,14 +785,14 @@ Delete a file
 -------------------------------------------------------------------------------}
 function TDiscImage.DeleteAmigaFile(filename: String):Boolean;
 var
- dirref   : Integer;
- dir,
- entry,
- hashval  : Cardinal;
- success  : Boolean;
- fsmfrags,
- links    : TFragmentArray;
- fsm      : TDIByteArray;
+ dirref   : Integer=0;
+ dir      : Cardinal=0;
+ entry    : Cardinal=0;
+ hashval  : Cardinal=0;
+ success  : Boolean=False;
+ fsmfrags : TFragmentArray=nil;
+ links    : TFragmentArray=nil;
+ fsm      : TDIByteArray=nil;
 begin
  Result:=False;
  if filename=root_name then exit(False);
@@ -836,8 +846,8 @@ Update a file's attributes
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateAmigaFileAttributes(filename,attributes: String):Boolean;
 var
- dir,
- entry: Cardinal;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
 begin
  Result:=False;
  //Make sure the file actually exists
@@ -879,11 +889,14 @@ Moves a file from one directory to another
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveAmigaFile(filename,directory: String): Integer;
 var
- sdir,sentry,
- ddir,dentry,
- index       : Cardinal;
+ sdir        : Cardinal=0;
+ sentry      : Cardinal=0;
+ ddir        : Cardinal=0;
+ dentry      : Cardinal=0;
+ index       : Cardinal=0;
  file_details: TDirEntry;
 begin
+ ResetDirEntry(file_details);
  Result:=-6; //Destination does not exist
  if FileExists(directory,ddir,dentry) then
  begin
@@ -932,13 +945,14 @@ Reads the Free Space Map
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ReadAmigaFSM;
 var
- buffer   : TDIByteArray;
- fsmlist  : TFragmentArray;
- hashptr,
- fragptr,
- discaddr,
- c,d      : Cardinal;
- bit      : Byte;
+ buffer   : TDIByteArray=nil;
+ fsmlist  : TFragmentArray=nil;
+ hashptr  : Cardinal=0;
+ fragptr  : Cardinal=0;
+ discaddr : Cardinal=0;
+ c        : Cardinal=0;
+ d        : Cardinal=0;
+ bit      : Byte=0;
 begin
  //UpdateProgress('Reading Free Space Map');
  //Set up the variables
@@ -993,10 +1007,9 @@ Fill part of the FSM with a byte
 -------------------------------------------------------------------------------}
 procedure TDiscImage.AmigaFillFreeSpaceMap(address: Cardinal;usage: Byte);
 var
- t,s: Cardinal;
+ t : Cardinal=0;
+ s : Cardinal=0;
 begin
- t:=0;
- s:=0;
  //Track
  t:=address div (secspertrack*secsize);
  //Sector
@@ -1017,10 +1030,10 @@ Convert Delphi time to Amiga time
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ToAmigaTime(time: TDateTime;var days,mins,ticks: Cardinal);
 var
- hour,
- min,
- sec,
- ms   : Word;
+ hour : Word=0;
+ min  : Word=0;
+ sec  : Word=0;
+ ms   : Word=0;
 begin
  days:=DaysBetween(time,EncodeDate(1978,1,1));
  DecodeTime(time,hour,min,sec,ms);
@@ -1042,7 +1055,7 @@ Convert an attribute number to a string
 -------------------------------------------------------------------------------}
 function TDiscImage.AmigaIntToStrAttr(attr: Cardinal): String;
 var
- a: Byte;
+ a: Byte=0;
 begin
  Result:='';
  for a:=0 to 31 do
@@ -1056,7 +1069,7 @@ Convert an attribute string to a number
 -------------------------------------------------------------------------------}
 function TDiscImage.AmigaStrToIntAttr(attr: String): Cardinal;
 var
- a: Byte;
+ a: Byte=0;
 begin
  Result:=0;
  for a:=0 to 31 do
@@ -1069,7 +1082,7 @@ Calculate the hash value for a filename
 -------------------------------------------------------------------------------}
 function TDiscImage.AmigaCalculateHashValue(filename: String): Cardinal;
 var
- index: Byte;
+ index: Byte=0;
 begin
  Result:=Length(filename);
  filename:=UpperCase(filename);
@@ -1090,8 +1103,9 @@ Mark the appropriate bit in the supplied FSM
 procedure TDiscImage.AmigaAllocateFSMBlock(addr: Cardinal;used: Boolean;
                                                          var fsm: TDIByteArray);
 var
- bmpoffset: Cardinal;
- bit,use  : Byte;
+ bmpoffset: Cardinal=0;
+ bit      : Byte=0;
+ use      : Byte=0;
 begin
  if used then use:=0 else use:=1;
  //Get the offsets
@@ -1117,8 +1131,8 @@ Read an FSM from the disc to the supplied buffer
 -------------------------------------------------------------------------------}
 function TDiscImage.AmigaReadBitmap(var fsm: TDIByteArray): TFragmentArray;
 var
- hashptr,
- fragptr : Cardinal;
+ hashptr : Cardinal=0;
+ fragptr : Cardinal=0;
 begin
  Result:=nil;
  //Initialise the arrays
@@ -1158,7 +1172,7 @@ Write a supplied FSM to the disc
 -------------------------------------------------------------------------------}
 procedure TDiscImage.AmigaWriteBitmap(fsmlist: TFragmentArray;var fsm: TDIByteArray);
 var
- index: Cardinal;
+ index: Cardinal=0;
 begin
  for index:=0 to Length(fsm)-1 do
   WriteByte(fsm[index],fsmlist[index div$1FC].Offset*secsize+4+(index mod$1FC));
@@ -1172,14 +1186,14 @@ Find and allocate some space for data
 -------------------------------------------------------------------------------}
 function TDiscImage.AmigaFindFreeSpace(filelen: Cardinal): TFragmentArray;
 var
- fsm    : TDIByteArray;
- fsmlist: TFragmentArray;
- ptr,
- count,
- offset,
- test   : Cardinal;
- bit    : Byte;
- direct : Boolean;
+ fsm    : TDIByteArray=nil;
+ fsmlist: TFragmentArray=nil;
+ ptr    : Cardinal=0;
+ count  : Cardinal=0;
+ offset : Cardinal=0;
+ test   : Cardinal=0;
+ bit    : Byte=0;
+ direct : Boolean=False;
 begin
  Result:=nil;
  //Initialise the return variable
@@ -1230,11 +1244,11 @@ Date/Time stamp a file
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateAmigaTimeStamp(filename: String;newtimedate: TDateTime): Boolean;
 var
- dir,
- entry,
- days,
- mins,
- ticks : Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
+ days  : Cardinal=0;
+ mins  : Cardinal=0;
+ ticks : Cardinal=0;
 begin
  Result:=False;
  //Make sure the file actually exists
@@ -1261,15 +1275,13 @@ Get the chain links for an object
 -------------------------------------------------------------------------------}
 function TDiscImage.GetAmigaChain(sector: Cardinal): TFragmentArray;
 var
- hashptr,
- len,
- source   : Cardinal;
+ hashptr : Cardinal=$134;
+ len     : Cardinal=0;
+ source  : Cardinal=$FFFFFFFF; //Make sure this is not zero
 begin
  //Set up the variables
  Result:=nil;
  SetLength(Result,0);
- hashptr:=$134;
- source:=$FFFFFFFF; //Make sure this is not zero
  while(source<>0)and(sector<>0)do //Continue until the termination block
  begin
   //Confirm the checksum
@@ -1318,9 +1330,9 @@ Add an entry to a hash chain
 -------------------------------------------------------------------------------}
 procedure TDiscImage.AmigaAddToChain(filename: String;paraddr,sector: Cardinal);
 var
- hashval,
- fragptr,
- index   : Cardinal;
+ hashval : Cardinal=0;
+ fragptr : Cardinal=0;
+ index   : Cardinal=0;
 begin
  //Blocks now written, add it to the parent
  hashval:=AmigaCalculateHashValue(filename);//Calculate the hash value
@@ -1346,8 +1358,8 @@ Remove an entry from a hash chain
 -------------------------------------------------------------------------------}
 function TDiscImage.AmigaRemoveFromChain(filename: String;paraddr,sector: Cardinal):Boolean;
 var
- hashval,
- link    : Cardinal;
+ hashval : Cardinal=0;
+ link    : Cardinal=0;
 begin
  Result:=False;
  //Calulate the hash value
@@ -1375,7 +1387,7 @@ Validate an Amiga filename
 -------------------------------------------------------------------------------}
 procedure TDiscImage.ValidateAmigaFile(var filename: String);
 var
- index: Integer;
+ index: Integer=0;
 const
  illegal = '/:';
 begin
@@ -1393,7 +1405,7 @@ Produce a report of the image's details
 -------------------------------------------------------------------------------}
 function TDiscImage.AmigaReport(CSV: Boolean): TStringList;
 var
- temp: String;
+ temp: String='';
 begin
  Result:=TStringList.Create;
  if FMap then temp:='Fast File System' else temp:='Original File System';

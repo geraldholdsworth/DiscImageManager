@@ -1,7 +1,7 @@
 unit NewImageUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -225,9 +225,8 @@ User has clicked on create
 -------------------------------------------------------------------------------}
 procedure TNewImageForm.btn_OKClick(Sender: TObject);
 var
- ok: Boolean;
+ ok: Boolean=True;
 begin
- ok:=True;
  //Are we creating a hard drive?
  if((SystemOptions[1].Ticked)AND(ADFSOptions[8].Ticked))     //ADFS
  or((SystemOptions[8].Ticked)AND(DOSOptions[6].Ticked))      //DOS
@@ -277,14 +276,14 @@ Form creation
 -------------------------------------------------------------------------------}
 procedure TNewImageForm.FormCreate(Sender: TObject);
 var
- Index,
- LWid: Integer;
- ratio: Real;
+ Index : Integer=0;
+ LWid  : Integer=0;
+ ratio : Real=0;
 procedure CreateRadioBoxes(var LLabel: TLabel; var LPanel: TPanel;
           var LOptions: array of TRISCOSRadioBox;var LStrings: array of String);
 var
- LH,
- Index: Integer;
+ LH   : Integer=0;
+ Index: Integer=0;
 begin
  //Keep track of the Y position
  LH:=LLabel.Top+LLabel.Height+4;

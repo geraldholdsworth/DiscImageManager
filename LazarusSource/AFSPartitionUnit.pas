@@ -1,7 +1,7 @@
 unit AFSPartitionUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -95,18 +95,18 @@ end;
 //Create the form
 {------------------------------------------------------------------------------}
 procedure TAFSPartitionForm.FormCreate(Sender: TObject);
-function CreateRadioBox(text: String): TRISCOSRadioBox;
-begin
- Result:=TRISCOSRadioBox.Create(AFSPartitionForm as TControl);
- Result.Parent:=AFSPartitionForm as TWinControl;
- Result.Top:=PartitionSize.Top+PartitionSize.Height;
- Result.Visible:=True;
- Result.Caption:=text;
- Result.OnClick:=@rad_typeClick;
- Result.Font.Color:=clBlack;
-end;
+ function CreateRadioBox(text: String): TRISCOSRadioBox;
+ begin
+  Result:=TRISCOSRadioBox.Create(AFSPartitionForm as TControl);
+  Result.Parent:=AFSPartitionForm as TWinControl;
+  Result.Top:=PartitionSize.Top+PartitionSize.Height;
+  Result.Visible:=True;
+  Result.Caption:=text;
+  Result.OnClick:=@rad_typeClick;
+  Result.Font.Color:=clBlack;
+ end;
 var
- ratio  : Real;
+ ratio  : Real=0;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  //Create the slider

@@ -1,7 +1,7 @@
 unit PWordEditorUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -86,8 +86,8 @@ uses MainUnit;
 {------------------------------------------------------------------------------}
 procedure TPwordEditorForm.FormShow(Sender: TObject);
 var
- index,
- ctrl  : Integer;
+ index : Integer=0;
+ ctrl  : Integer=0;
 begin
  //Is there anything to show?
  if Length(UserAccounts)>0 then
@@ -110,7 +110,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TPwordEditorForm.FormHide(Sender: TObject);
 var
- len: Integer;
+ len: Integer=0;
 begin
  //Continue while there are some components left
  while Length(Usernames)>0 do
@@ -156,7 +156,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TPwordEditorForm.FormCreate(Sender: TObject);
 var
- ratio  : Real;
+ ratio  : Real=0;
 begin
  ratio:=PixelsPerInch/DesignTimePPI;
  OKButton:=MainForm.CreateButton(ControlsPanel as TControl,'OK',True,0,
@@ -245,7 +245,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TPwordEditorForm.OKButtonClick(Sender: TObject);
 var
- index: Integer;
+ index: Integer=0;
 begin
  //Reset the accounts to none
  SetLength(UserAccounts,0);

@@ -9,7 +9,7 @@ has also grown from being just a reader to also a writer.
 Extra 'gimmicks' have been added over time, to utilise the code in the underlying
 class.
 
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -374,7 +374,7 @@ type
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure CreateFileTypeDialogue;
    procedure Defrag(side: Byte);
-   procedure DeleteFile(confirm: Boolean);
+   function DeleteFile(confirm: Boolean): Boolean;
    procedure DisableControls;
    procedure DoCopyMove(copymode: Boolean);
    procedure DownLoadDirectory(dir,entry: Integer; path: String);
@@ -567,9 +567,9 @@ type
     TimeDateFormat = 'hh:nn:ss dd mmm yyyy';
   public
    //The image
-   Image: TDiscImage;
+   Image         :TDiscImage;
    //Debug log filename
-   debuglogfile  :String;
+   debuglogfile,
    //What are we running on?
    platform,
    arch          :String;
@@ -577,10 +577,10 @@ type
    Fguiopen      :Boolean;
    const
     //DPI that the application was designed in
-    DesignedDPI = 96;
+    DesignedDPI        = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.47.3';
+    ApplicationVersion = '1.47.4';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -604,9 +604,10 @@ Add a new file to the disc image
 -------------------------------------------------------------------------------}
 procedure TMainForm.AddFile1Click(Sender: TObject);
 var
-  i: Integer;
-  files: array of String;
+  i    : Integer=0;
+  files: array of String=nil;
 begin
+ WriteToDebug('MainForm.AddFile1Click');
  //Open the dialogue box
  if AddNewFile.Execute then
   if AddNewFile.Files.Count>0 then
@@ -626,23 +627,24 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.AddDirectoryToImage(dirname: String): Boolean;
 var
- OriginalNode,
- NewNode      : TTreeNode;
- Lparent,
- inffile,
- attr,
- dirtitle,
- disctitle,
- importname   : String;
- F            : TFileStream;
- chr          : Char;
- fields       : array of String;
+ OriginalNode : TTreeNode=nil;
+ NewNode      : TTreeNode=nil;
+ Lparent      : String='';
+ inffile      : String='';
+ attr         : String='';
+ dirtitle     : String='';
+ disctitle    : String='';
+ importname   : String='';
+ F            : TFileStream=nil;
+ chr          : Char=' ';
+ fields       : array of String=nil;
  Dir          : TSearchRec;
- Lcurrdir,
- thisdir,
- Index        : Integer;
+ Lcurrdir     : Integer=0;
+ thisdir      : Integer=0;
+ Index        : Integer=0;
 begin
  Result:=False;
+ WriteToDebug('MainForm.AddDirectoryToImage('+dirname+')');
  if Fguiopen then
  begin
   //Need to make this compatible with AmigaDOS too. *****************************
@@ -801,17 +803,18 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.AddSparkToImage(filename: String);
 var
- SparkFile  : TSpark;
- Index,
- error      : Integer;
+ SparkFile  : TSpark=nil;
+ Index      : Integer=0;
+ error      : Integer=0;
  filedetails: TDirEntry;
- ParentDir,
- temp       : String;
- buffer     : TDIByteArray;
- ok,
- bypassGUI  : Boolean;
+ ParentDir  : String='';
+ temp       : String='';
+ buffer     : TDIByteArray=nil;
+ ok         : Boolean=False;
+ bypassGUI  : Boolean=False;
 begin
- bypassGUI:=False; //Bypass the GUI part, to speed it up
+ ResetDirEntry(filedetails);
+ WriteToDebug('MainForm.AddSparkToImage('+filename+')');
  //Reset the error list
  ErrorLogForm.ErrorLog.Clear;
  ErrorReporting:=False;
@@ -976,6 +979,7 @@ function TMainForm.AddFileToImage(filename: String):Integer;
 var
  filedetails: TDirEntry;
 begin
+ WriteToDebug('MainForm.AddFileToImage('+filename+')');
  ResetDirEntry(filedetails);
  Result:=AddFileToImage(filename,filedetails);
 end;
@@ -983,27 +987,30 @@ function TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry;
                      buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer;
 var
   NewFile        : TDirEntry;
-  side,ref       : Cardinal;
-  i              : Byte;
-  importfilename,
-  inffile,
-  execaddr,
-  loadaddr,
-  attr1,
-  attributes,
-  filetype,p     : String;
+  side           : Cardinal=0;
+  ref            : Cardinal=0;
+  i              : Byte=0;
+  importfilename : String='';
+  inffile        : String='';
+  execaddr       : String='';
+  loadaddr       : String='';
+  attr1          : String='';
+  attributes     : String='';
+  filetype       : String='';
+  p              : String='';
   timestamp      : TDateTime;
-  fields         : array of String;
-  chr            : Char;
-  F              : TFileStream;
-  ok             : Boolean;
-  Node           : TTreeNode;
+  fields         : array of String=nil;
+  chr            : Char=' ';
+  F              : TFileStream=nil;
+  ok             : Boolean=False;
+  Node           : TTreeNode=nil;
  //This does the adding of the file
  function AddFile: Boolean;
  var
-  index          : Integer;
+  index          : Integer=0;
  begin
   Result:=False;
+  WriteToDebug('MainForm.AddFile');
   //Find out which side of a DFS disc it is
   if Fguiopen then
    if (Image.DoubleSided)//FormatNumber mod 2=1)
@@ -1205,6 +1212,7 @@ var
 //Main function code starts here
 begin
  Result:=-5;
+ WriteToDebug('MainForm.AddFileToImage('+filename+',TDirEntry)');
  //If there is nothing in the buffer
  if(Length(buffer)=0)and(FileExists(filename))then
  begin
@@ -1317,6 +1325,8 @@ function TMainForm.AddFileToTree(ParentNode: TTreeNode;importfilename: String;
    index: Integer;dir: Boolean;Tree:TTreeView;IsDOSPart:Boolean): TTreeNode;
 begin
  Result:=nil;
+ WriteToDebug('MainForm.AddFileToTree(TTreeNode,'
+              +importfilename+','+IntToStr(index)+',...)');
  if(ParentNode=nil)or(index<0)then exit;
  RemoveTopBit(importfilename);
  //Now add the entry to the Directory List
@@ -1371,15 +1381,17 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ExtractFiles(ShowDialogue: Boolean);
 var
- Node       : TTreeNode;
- Nodes,
- Roots      : array of TTreeNode;
- entry,
- dir,s      : Integer;
- saver,
- showsave,
- selectroot : Boolean;
+ Node       : TTreeNode=nil;
+ Nodes      : array of TTreeNode=nil;
+ Roots      : array of TTreeNode=nil;
+ entry      : Integer=0;
+ dir        : Integer=0;
+ s          : Integer=0;
+ saver      : Boolean=False;
+ showsave   : Boolean=False;
+ selectroot : Boolean=False;
 begin
+ WriteToDebug('MainForm.ExtractFiles');
  //Set up the save dialogue box
  SaveImage.DefaultExt:='';
  SaveImage.Filter:='';
@@ -1506,6 +1518,8 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.GetImageFilename(dir,entry: Integer): String;
 begin
+ WriteToDebug('MainForm.GetImageFilename('+IntToStr(dir)+','
+              +IntToStr(entry)+')');
  Result:='';
  if(dir>=0)and(dir<Length(Image.Disc))then
   if(Length(Image.Disc[dir].Entries)=0)or(entry=-1)then
@@ -1520,11 +1534,13 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DownLoadFile(dir,entry: Integer;path: String;filename: String='');
 var
- F              : TFileStream;
- buffer         : TDIByteArray;
- imagefilename,
- windowsfilename: String;
+ F              : TFileStream=nil;
+ buffer         : TDIByteArray=nil;
+ imagefilename  : String='';
+ windowsfilename: String='';
 begin
+ WriteToDebug('MainForm.DownloadFile('+IntToStr(dir)+','+IntToStr(entry)+','
+              +path+','+filename+')');
  // Ensure path ends in a directory separator
  if Length(path)>0 then
   if path[Length(path)]<>PathDelim then path:=path+PathDelim;
@@ -1567,14 +1583,16 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DownLoadDirectory(dir,entry: Integer;path: String);
 var
- imagefilename,
- windowsfilename: String;
- ref            : Cardinal;
- c,s            : Integer;
- Node           : TTreeNode;
- ok             : Boolean;
+ imagefilename  : String='';
+ windowsfilename: String='';
+ ref            : Cardinal=0;
+ c              : Integer=0;
+ s              : Integer=0;
+ Node           : TTreeNode=nil;
+ ok             : Boolean=False;
 begin
- ref:=0;
+ WriteToDebug('MainForm.DownloadDirectory('+IntToStr(dir)+','+IntToStr(entry)
+              +','+path+')');
  // Ensure path ends in a directory separator
  if Length(path)>0 then
   if path[Length(path)]<>PathDelim then path:=path+PathDelim;
@@ -1634,6 +1652,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_OpenImageClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.btn_OpenImageClick');
  OpenImageFile.Options:=[ofEnableSizing,ofViewDetail];
  if QueryUnsaved then
   //Show the open file dialogue box
@@ -1647,9 +1666,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.OpenImage(filename: String);
 var
- dir,
- entry:Cardinal;
+ dir   : Cardinal=0;
+ entry : Cardinal=0;
 begin
+ WriteToDebug('MainForm.OpenImage('+filename+')');
  //Show a progress message
  Image.ProgressIndicator:=@UpdateProgress;
  ProgressForm.Show;
@@ -1683,13 +1703,15 @@ begin
   //Write debugging information
   if Length(Image.Disc)>0 then
   begin
-   WriteToDebug('Image '+filename+' opened');
+   WriteToDebug('MainForm.OpenImage: Image '+filename+' opened');
    for dir:=0 to Length(Image.Disc)-1 do
    begin
-    WriteToDebug(IntToStr(dir)+': '+Image.Disc[dir].Directory);
+    WriteToDebug('MainForm.OpenImage: '
+                 +IntToStr(dir)+': '+Image.Disc[dir].Directory);
     if Length(Image.Disc[dir].Entries)>0 then
      for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
-      WriteToDebug(IntToStr(dir)+','+IntToStr(entry)+': '
+      WriteToDebug('MainForm.OpenImage: '
+          +IntToStr(dir)+','+IntToStr(entry)+': '
           +Image.Disc[dir].Entries[entry].Filename+' ('
           +IntToStr(Image.Disc[dir].Entries[entry].DirRef)+')');
    end;
@@ -1714,6 +1736,7 @@ var
  starttime: TDateTime;
  labcont  : TLabel;
 begin
+ WriteToDebug('MainForm.sb_ClipboardClick');
  if Sender is TLabel then
  begin
   //Get the calling control - this is so we can service multiple labels with one method
@@ -1742,10 +1765,12 @@ end;
 procedure TMainForm.AddDirectoryToTree(CurrDir:TTreeNode;dir:Integer;
                                   ImageToUse:TDiscImage;var highdir:Integer);
 var
- entry: Integer;
- Node: TTreeNode;
- Tree: TTreeView;
+ entry : Integer=0;
+ Node  : TTreeNode=nil;
+ Tree  : TTreeView=nil;
 begin
+ WriteToDebug('MainForm.AddDirectoryToTree(TTreeNode,'+IntToStr(dir)
+              +',TDiscImage,'+IntToStr(highdir)+')');
  if ImageToUse.Disc[dir].Deleted then exit;
  Tree:=TTreeView(CurrDir.Owner.Owner);
  //Make a note of the dir ref, it is the highest
@@ -1777,7 +1802,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ShowNewImage(title: String);
 begin
- WriteToDebug('Displaying Image');
+ WriteToDebug('MainForm.ShowNewImage('+title+')');
  //Clear all the labels, and enable/disable the buttons
  ResetFileFields;
  //Clear the search fields
@@ -1828,8 +1853,9 @@ procedure TMainForm.AddImageToTree(Tree: TTreeView;ImageToUse: TDiscImage);
 var
  //Used as a marker to make sure all directories are displayed.
  //Some double sided discs have each side as separate discs
- highdir    : Integer;
+ highdir    : Integer=0;
 begin
+ WriteToDebug('MainForm.AddImageToTree');
  //Clear the tree view, prior to populating it
  Tree.Items.Clear;
  //Set the highdir to zero - which will be root to start with
@@ -1873,9 +1899,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.UpdateImageInfo(partition: Cardinal=0);
 var
- i: Integer;
- title: String;
+ i    : Integer=0;
+ title: String='';
 begin
+ WriteToDebug('MainForm.UpdateImageInfo('+IntToStr(partition)+')');
  //Only if there is a valid image
  if Image.FormatNumber<>diInvalidImg then
  begin
@@ -1918,11 +1945,11 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ArrangeFileDetails;
 var
- cbpos,
- dir   : Integer;
- attr,
- afs,
- dos   : Boolean;
+ cbpos : Integer=0;
+ dir   : Integer=0;
+ attr  : Boolean=False;
+ afs   : Boolean=False;
+ dos   : Boolean=False;
  procedure ArrangeComponent(c,p: TControl;l: TLabel);
  begin
   c.Visible:=l.Caption<>'';
@@ -1931,10 +1958,7 @@ var
   c.Top    :=p.Top+p.Height;
  end;
 begin
- //Display the attributes section?
- attr:=False;
- afs:=False;
- dos:=False;
+ WriteToDebug('MainForm.ArrangeFileDetails');
  //If there is just the one item selected
  if DirList.SelectionCount=1 then
  begin
@@ -2169,6 +2193,7 @@ function TMainForm.FindPartitionRoot(filepath: String): Integer;
 begin
  //By default, use the main root
  Result:=0;
+ WriteToDebug('MainForm.FindPartitionRoot('+filepath+')');
  if Length(Image.Disc)>1 then //Definately another root present
  begin
   //Then extract the root part
@@ -2190,23 +2215,23 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListChange(Sender: TObject; Node: TTreeNode);
 var
- entry,
- dir,
- dr,
- rt,
- ft       : Integer;
- ptr      : Cardinal;
- filename,
- filetype,
- location,
- title,
- temp     : String;
- multiple : Char;
+ entry    : Integer=0;
+ dir      : Integer=0;
+ dr       : Integer=0;
+ rt       : Integer=0;
+ ft       : Integer=0;
+ ptr      : Cardinal=0;
+ filename : String='';
+ filetype : String='';
+ location : String='';
+ title    : String='';
+ temp     : String='';
+ multiple : Char=' ';
  R        : TRect;
- afspart,
- dospart  : Boolean;
+ afspart  : Boolean=False;
+ dospart  : Boolean=False;
 begin
- filetype:='';
+ WriteToDebug('MainForm.DirListChange');
  //Reset the fields to blank
  ResetFileFields;
  //More than one?
@@ -2681,7 +2706,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
 begin
- WriteToDebug('DirListGetImageIndex');
+ WriteToDebug('MainForm.DirListGetImageIndex');
  SetImageIndex(Node,Image);
 end;
 
@@ -2690,12 +2715,13 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage): Integer;
 var
- ft,i,
- dir,
- entry    : Integer;
- filetype : String;
- afspart,
- dospart  : Boolean;
+ ft       : Integer=0;
+ i        : Integer=0;
+ dir      : Integer=0;
+ entry    : Integer=0;
+ filetype : String='';
+ afspart  : Boolean=False;
+ dospart  : Boolean=False;
 begin
  Result:=0;
  if AppIsClosing then exit;
@@ -2703,15 +2729,15 @@ begin
  if(not Assigned(ImageToUse.Disc))or(ImageToUse.Disc=nil)then exit;
  if Node=nil then exit;
  filetype:='';
- WriteToDebug('Image index for '+Node.Text+' requested');
+ WriteToDebug('MainForm.GetImageIndex('+Node.Text+')');
  //The directory and entry references, as always
  dir  :=TMyTreeNode(Node).ParentDir;
  entry:=Node.Index;
  //AFS or DOS Partition?
  afspart:=False;
  dospart:=False;
- WriteToDebug('Dir: '+IntToStr(dir));
- WriteToDebug('Entry: '+IntToStr(entry));
+ WriteToDebug('MainForm.GetImageIndex: Dir: '+IntToStr(dir));
+ WriteToDebug('MainForm.GetImageIndex: Entry: '+IntToStr(entry));
  if(dir>=0)and(dir<Length(ImageToUse.Disc))then
  begin
   afspart:=ImageToUse.Disc[dir].AFSPartition;
@@ -2720,14 +2746,14 @@ begin
   if(entry>=0)and(entry<Length(ImageToUse.Disc[dir].Entries))then
    filetype:=ImageToUse.Disc[dir].Entries[entry].ShortFiletype;
  end;
- if afspart then WriteToDebug('AFS Partition present');
- if dospart then WriteToDebug('DOS Partition present');
- WriteToDebug('Looking for filetype "'+filetype+'"');
+ if afspart then WriteToDebug('MainForm.GetImageIndex: AFS Partition present');
+ if dospart then WriteToDebug('MainForm.GetImageIndex: DOS Partition present');
+ WriteToDebug('MainForm.GetImageIndex: Looking for filetype "'+filetype+'"');
  ft:=unknown; //Default icon to use
  //Directory has a different icon
  if not TMyTreeNode(Node).IsDir then
  begin
-  WriteToDebug('Non-directory');
+  WriteToDebug('MainForm.GetImageIndex: Non-directory');
   //Are we ADFS, SparkFS, AFS or DOS?
   if((ImageToUse.MajorFormatNumber=diAcornADFS)
    or(ImageToUse.MajorFormatNumber=diSpark)
@@ -2774,7 +2800,7 @@ begin
  //Diectory icons
  if TMyTreeNode(Node).IsDir then
  begin
-  WriteToDebug('Directory');
+  WriteToDebug('MainForm.GetImageIndex: Directory');
   //Different icon if it is expanded, i.e. open
   if Node.Expanded then
    ft:=directory_o
@@ -2809,15 +2835,15 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
 var
- ft: Integer;
+ ft: Integer=0;
 begin
- WriteToDebug('SetImageIndex');
+ WriteToDebug('MainForm.SetImageIndex');
  //Tell the system what the ImageList reference is
  ft:=GetImageIndex(Node,ImageToUse);
  Node.ImageIndex:=ft;
  //And ensure it stays selected
  Node.SelectedIndex:=Node.ImageIndex;
- WriteToDebug('Image index '+IntToStr(ft));
+ WriteToDebug('MainForm.SetImageIndex: Image index '+IntToStr(ft));
 end;
 
 {------------------------------------------------------------------------------}
@@ -2826,9 +2852,10 @@ end;
 function TMainForm.GetFileTypeGraphic(filetype: String;offset: Integer;
                                       const filetypes: array of String): Integer;
 var
- i: Integer;
+ i: Integer=0;
 begin
  Result:=unknown;
+ WriteToDebug('MainForm.GetFileTypeGraphic('+filetype+','+IntToStr(offset)+',...)');
  //Start of search - the filetype constant array
  i:=Low(filetypes)-1;
  //Just iterate through until we find a match, or get to the end
@@ -2903,6 +2930,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DisableControls;
 begin
+ WriteToDebug('MainForm.DisableControls');
  //Enable or disable buttons
  btn_NewImage.Enabled     :=True;
  btn_OpenImage.Enabled    :=True;
@@ -2958,9 +2986,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.Scaling;
 var
- ppi  : Integer;
- ratio: Real;
+ ppi  : Integer=0;
+ ratio: Real=0;
 begin
+ WriteToDebug('MainForm.Scaling');
  //Scaling for large DPI
  ppi:=Screen.PixelsPerInch;//Can use TMonitor.PixelsPerInch to scale to a big monitor
  ratio:=ppi/DesignedDPI;
@@ -3145,8 +3174,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.SelectNode(filename: String;casesens:Boolean=True);
 var
- Node   : TTreeNode;
+ Node   : TTreeNode=nil;
 begin
+ WriteToDebug('MainForm.SelectNode('+filename+')');
  //Unselect everything
  DirList.ClearSelection;
  //Find the node
@@ -3162,14 +3192,13 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.FindNode(filename: String;casesens:Boolean=True): TTreeNode;
 var
- i,
- found  : Integer;
- dirname: String;
- Node   : TTreeNode;
- Ldirsep: Char;
+ i      : Integer=0;
+ found  : Integer=-1;
+ dirname: String='';
+ Node   : TTreeNode=nil;
+ Ldirsep: Char=' ';
 begin
- //Marker for our found item
- found:=-1;
+ WriteToDebug('MainForm.FindNode('+filename+')');
  //Go through each one
  i:=0;
  while(i<DirList.Items.Count)AND(found=-1)do
@@ -3212,11 +3241,12 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_SaveImageClick(Sender: TObject);
 var
- ext,
- filename,
- pathname : String;
- index    : Integer;
+ ext      : String='';
+ filename : String='';
+ pathname : String='';
+ index    : Integer=0;
 begin
+ WriteToDebug('MainForm.btn_SaveImageClick');
  //Remove the existing part of the original filename
  filename:=ExtractFileName(Image.Filename);
  pathname:=ExtractFilePath(Image.Filename);
@@ -3251,6 +3281,7 @@ end;
 function TMainForm.QueryUnsaved: Boolean;
 begin
  Result:=True;
+ WriteToDebug('MainForm.QueryUnsaved');
  if HasChanged then
  begin
   WriteToDebug('Close unsaved file requested');
@@ -3275,17 +3306,18 @@ end;
 procedure TMainForm.FormDropFiles(Sender: TObject;
  const FileNames: array of String);
 var
- msg,fmt,
- FileName  : String;
- NewImage  : TDiscImage;
- open      : Byte;
- SparkFile : TSpark;
- sparksize : Cardinal;
- isspark   : Boolean;
- confirm   : TModalResult;
- ListOfFile: array of String;
+ msg       : String='';
+ fmt       : String='';
+ FileName  : String='';
+ NewImage  : TDiscImage=nil;
+ open      : Byte=0;
+ SparkFile : TSpark=nil;
+ sparksize : Cardinal=0;
+ isspark   : Boolean=False;
+ confirm   : TModalResult=mrCancel;
+ ListOfFile: array of String=nil;
 begin
- fmt:='';
+ WriteToDebug('MainForm.FormDropFiles');
  //Create a new DiscImage instance
  NewImage:=TDiscImage.Create;
  NewImage.InterleaveMethod    :=ADFSInterleave;
@@ -3423,23 +3455,25 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);
 var
- Node      : TTreeNode;
+ Node      : TTreeNode=nil;
  newentry  : TDirEntry;
- rootname,
- method    : String;
- curformat,
- newformat,
- side,
- sidecount : Byte;
- dir,dr,
- entry,
- index,
- MaxDirEnt,
- NumFiles  : Integer;
- buffer    : TDIByteArray;
- ok        : Boolean;
+ rootname  : String='';
+ method    : String='';
+ curformat : Byte=0;
+ newformat : Byte=0;
+ side      : Byte=0;
+ sidecount : Byte=0;
+ dir       : Integer=0;
+ dr        : Integer=0;
+ entry     : Integer=0;
+ index     : Integer=0;
+ MaxDirEnt : Integer=0;
+ NumFiles  : Integer=0;
+ buffer    : TDIByteArray=nil;
+ ok        : Boolean=False;
 begin
- buffer:=nil;
+ ResetDirEntry(newentry);
+ WriteToDebug('MainForm.ImportFiles');
  //Read in the catalogue of the new image, if there is none
  if Length(NewImage.Disc)=0 then
  begin
@@ -3680,10 +3714,12 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.sb_FileTypeClick(Sender: TObject);
 var
- ft,i,
- dir,
- entry: Integer;
+ ft    : Integer=0;
+ i     : Integer=0;
+ dir   : Integer=0;
+ entry : Integer=0;
 begin
+ WriteToDebug('MainForm.sb_FileTypeClick');
  //ADFS or Spark non directories only
  if((Image.MajorFormatNumber=diAcornADFS)
   or(Image.MajorFormatNumber=diSpark))
@@ -3717,12 +3753,11 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.FileTypeClick(Sender: TObject);
 var
- ft,
- dir,
- entry: Integer;
+ ft   : Integer=-1;
+ dir  : Integer=0;
+ entry: Integer=0;
 begin
- //Default filetype
- ft:=-1;
+ WriteToDebug('MainForm.FileTypeClick');
  //Get the selected filetype
  if Sender is TSpeedButton then ft:=TSpeedButton(Sender).Tag;
  //Hide the dialogue by setting it's ModalResult (doesn't matter what to)
@@ -3755,8 +3790,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.SwapLabelEdit(editcont:TEdit;labelcont:TLabel;dir,hex:Boolean);
 var
- edittext: String;
+ edittext: String='';
 begin
+ WriteToDebug('MainForm.SwapLabelEdit');
  //If there is only one selection
  if DirList.SelectionCount=1 then
   //And it is a directory
@@ -3784,6 +3820,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.lb_titleClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.lb_titleClick');
  SwapLabelEdit(ed_title,lb_title,True,False);
 end;
 
@@ -3792,10 +3829,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ShowHideToolbar(Sender: TObject);
 var
- Item: Integer;
+ Item: Integer=-1;
 begin
- //Default value
- Item:=-1;
+ WriteToDebug('MainForm.ShowHideToolbar');
  //Find the menu item
  if TMenuItem(Sender)=menuViewFileDetails then Item:=0;
  if TMenuItem(Sender)=menuViewStatus      then Item:=1;
@@ -3830,6 +3866,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.lb_execaddrClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.lb_execaddrClick');
  SwapLabelEdit(ed_execaddr,lb_execaddr,False,True);
 end;
 
@@ -3838,6 +3875,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.lb_loadaddrClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.lb_loadaddrClick');
  SwapLabelEdit(ed_loadaddr,lb_loadaddr,False,True);
 end;
 
@@ -3846,9 +3884,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.lb_timestampClick(Sender: TObject);
 var
- dir,
- entry: Integer;
+ dir  : Integer=0;
+ entry: Integer=0;
 begin
+ WriteToDebug('MainForm.lb_timestampClick');
  //ADFS and AFS only
  if(Image.MajorFormatNumber=diAcornADFS)
  or(Image.MajorFormatNumber=diAcornFS)
@@ -3881,9 +3920,10 @@ end;
 procedure TMainForm.ed_timestampEditingDone(Sender: TObject);
 var
  newtimedate: TDateTime;
- dir,
- entry      : Integer;
+ dir        : Integer=0;
+ entry      : Integer=0;
 begin
+ WriteToDebug('MainForm.ed_timestampEditingDone');
  ed_timestamp.Visible:=False;
  lb_timestamp.Visible:=True;
  //Get the adjusted time
@@ -3942,9 +3982,10 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ed_titleEditingDone(Sender: TObject);
 var
- filename,
- newtitle  : String;
+ filename : String='';
+ newtitle : String='';
 begin
+ WriteToDebug('MainForm.ed_titleEditingDone');
  //Re-enable the keyboard shortcuts
  DeleteAFile.Enabled:=True;
  //Get the filename of the directory being edited
@@ -3972,13 +4013,14 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ed_execaddrEditingDone(Sender: TObject);
 var
- filename,
- newaddr,
- oldaddr  : String;
- dir,
- entry    : Integer;
- ok       : Boolean;
+ filename : String='';
+ newaddr  : String='';
+ oldaddr  : String='';
+ dir      : Integer=0;
+ entry    : Integer=0;
+ ok       : Boolean=False;
 begin
+ WriteToDebug('MainForm.ed_execaddrEditingDone');
  //Re-enable the keyboard shortcuts
  DeleteAFile.Enabled:=True;
  //Get the filename of the file being edited
@@ -4034,18 +4076,20 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_ImageDetailsClick(Sender: TObject);
 var
- t,s,side  : Integer;
- col       : TColor;
- FSM       : array of TImage;
- FSMlabel  : array of TLabel;
+ t         : Integer=0;
+ s         : Integer=0;
+ side      : Integer=0;
+ col       : TColor=0;
+ FSM       : array of TImage=nil;
+ FSMlabel  : array of TLabel=nil;
  titles    : array[0..1] of TEdit;
  boots     : array[0..1] of TComboBox;
  bootlbs   : array[0..1] of TLabel;
- partstr,
- title     : String;
- numsides,
- skip      : Byte;
- img       : TLazIntfImage;
+ partstr   : String='';
+ title     : String='';
+ numsides  : Byte=0;
+ skip      : Byte=0;
+ img       : TLazIntfImage=nil;
  function ConvertColour(col: TColor):TFPColor;
  begin
   //Convert from TColor to TFPColor
@@ -4060,6 +4104,7 @@ var
   Result.Blue :=Result.Blue  or Result.Blue <<8;
  end;
 begin
+ WriteToDebug('MainForm.btn_ImageDetailsClick');
  //ROM FS image is open
  if Image.MajorFormatNumber=diAcornRFS then
  begin
@@ -4347,6 +4392,7 @@ Open multiple images and output as CSV
 -------------------------------------------------------------------------------}
 procedure TMainForm.btn_MultiCSVClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.btn_MultiCSVClick');
  OpenImageFile.Options:=[ofAllowMultiSelect,ofEnableSizing,ofViewDetail];
  if OpenImageFile.Execute then
   SaveAsCSV(OpenImageFile.Files);
@@ -4357,6 +4403,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_CloseImageClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.btn_CloseImageClick');
  if QueryUnsaved then
  begin
   CloseAllHexDumps;
@@ -4374,8 +4421,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_DeletePartitionClick(Sender: TObject);
 var
- side: Integer;
+ side: Integer=0;
 begin
+ WriteToDebug('MainForm.btn_DeletePartitionClick');
  //Get the root reference
  side:=FindPartitionRoot(GetFilePath(DirList.Selections[0]));
  //if valid, find the partition/side
@@ -4399,12 +4447,12 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_SavePartitionClick(Sender: TObject);
 var
- side,
- index,
- targetformat: Integer;
- exts: array of String;
+ side        : Integer=0;
+ index       : Integer=0;
+ targetformat: Integer=-1;
+ exts        : array of String=nil;
 begin
- targetformat:=-1;
+ WriteToDebug('MainForm.btn_SavePartitionClick');
  //Get the root reference
  side:=FindPartitionRoot(GetFilePath(DirList.Selections[0]));
  //if valid, find the partition/side
@@ -4458,8 +4506,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_AddPasswordClick(Sender: TObject);
 var
- index   : Integer;
+ index   : Integer=0;
 begin
+ WriteToDebug('MainForm.btn_AddPasswordFileClick');
  index:=Image.CreatePasswordFile(nil);
  if index>=0 then
  begin
@@ -4476,6 +4525,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_ChangeInterleaveClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.btn_ChangeInterleaveClick');
  //Setup the Change Interleave dialogue
  ChangeInterleaveForm.lb_Current.Caption:=Image.InterleaveInUse;
  ChangeInterleaveForm.cb_NewMethod.ItemIndex:=Image.InterleaveInUseNum-1;
@@ -4492,10 +4542,12 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_DefragClick(Sender: TObject);
 var
- side      : Byte;
- dir,
- dr,entry  : Integer;
+ side      : Byte=0;
+ dir       : Integer=0;
+ dr        : Integer=0;
+ entry     : Integer=0;
 begin
+ WriteToDebug('MainForm.btn_DefragClick');
  if Length(Image.Disc)>0 then
  begin
   ProgressForm.Show;
@@ -4525,14 +4577,15 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.Defrag(side: Byte);
 var
- NewImage  : TDiscImage;
- oldscan,
- olddos,
- ok        : Boolean;
- sidecount,
- index,root: Integer;
-// Node      : TTreeNode;
+ NewImage  : TDiscImage=nil;
+ oldscan   : Boolean=False;
+ olddos    : Boolean=False;
+ ok        : Boolean=False;
+ sidecount : Integer=0;
+ index     : Integer=0;
+ root      : Integer=0;
 begin
+ WriteToDebug('MainForm.Defrag('+IntToStr(side)+')');
  if Length(Image.Disc)>0 then
  begin
   Image.ProgressIndicator:=nil;
@@ -4563,19 +4616,18 @@ begin
   NewImage.ProgressIndicator:=nil;
   //Delete all the existing objects in the root
   Image.BeginUpdate;
-  while Length(Image.Disc[root].Entries)>0 do
+  ok:=True;
+  while(Length(Image.Disc[root].Entries)>0)and(ok)do
   begin
    ProgressForm.Show;
    Application.ProcessMessages;
-//   UpdateProgress('Preparing '
-//      +IntToStr(100-Round(Length(Image.Disc[root].Entries)/sidecount)*100)+'%');
    SelectNode(Image.Disc[root].Entries[0].Parent
              +Image.GetDirSep(Image.Disc[root].Partition)
              +Image.Disc[root].Entries[0].Filename);
    UpdateProgress('Preparing '+Image.Disc[root].Entries[0].Parent
              +Image.GetDirSep(Image.Disc[root].Partition)
              +Image.Disc[root].Entries[0].Filename);
-   DeleteFile(False);
+   ok:=DeleteFile(False);
   end;
   Image.EndUpdate;
   ok:=Length(Image.Disc[root].Entries)=0;
@@ -4597,6 +4649,7 @@ begin
   begin
    Image.Free;
    Image:=TDiscImage.Create(NewImage);
+   ReportError('Failed to defrag');
   end;
   NewImage.Free;
   ProgressForm.Hide;
@@ -4609,11 +4662,12 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_AddPartitionClick(Sender: TObject);
 var
- partsize,
- parttype : Integer;
- part     : String;
- success  : Boolean;
+ partsize : Integer=0;
+ parttype : Integer=0;
+ part     : String='';
+ success  : Boolean=False;
 begin
+ WriteToDebug('MainForm.btn_AddPartitionClick');
  //ADFS
  if Image.MajorFormatNumber=diAcornADFS then
  begin
@@ -4706,6 +4760,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_EditPasswordClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.btn_EditPasswordClick');
  //Display them on the form
  PWordEditorForm.UserAccounts:=Image.ReadPasswordFile;
  //Show the form modally
@@ -4723,6 +4778,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_FileSearchClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.btn_FileSearchClick');
  SearchForm.Show;
  SearchForm.Repaint;
 end;
@@ -4732,8 +4788,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_FixADFSClick(Sender: TObject);
 var
- c: Boolean;
+ c: Boolean=False;
 begin
+ WriteToDebug('MainForm.btn_FixADFSClick');
  //Show a progress message
  Image.ProgressIndicator:=@UpdateProgress;
  ProgressForm.Show;
@@ -4754,12 +4811,12 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewDirectoryClick(Sender: TObject);
 var
- dirname,
- parentdir : String;
- x         : Integer;
- ref       : Cardinal;
+ dirname   : String='';
+ parentdir : String='';
+ x         : Integer=0;
+ ref       : Cardinal=0;
 begin
- ref:=0;
+ WriteToDebug('MainForm.btn_NewDirectoryClick');
  //Assume the root, for now
  parentdir:='$';
  if DirList.Selections[0].Parent<>nil then //If not the root, get the parent directory
@@ -4786,6 +4843,7 @@ Save all the current image's file details to a CSV file
 -------------------------------------------------------------------------------}
 procedure TMainForm.btn_SaveAsCSVClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.btn_SaveAsCSVClick');
  SaveAsCSV;
 end;
 
@@ -4794,9 +4852,10 @@ Output an image's file details to a CSV file
 -------------------------------------------------------------------------------}
 procedure TMainForm.SaveAsCSV(filename: String='');
 var
- FileNames: TStringList;
- ok       : Boolean;
+ FileNames: TStringList=nil;
+ ok       : Boolean=False;
 begin
+ WriteToDebug('MainForm.SaveAsCSV('+filename+')');
  //Add the current image's filename to the stringlist as the only entry
  FileNames:=TStringList.Create;
  FileNames.Add(Image.Filename);
@@ -4825,16 +4884,17 @@ begin
 end;
 procedure TMainForm.SaveAsCSV(FileNames: TStrings; filename: String='');
 var
- ok       : Boolean;
- F        : TFileStream;
- dir,
- entry    : Integer;
- currfile,
- line     : String;
- hexlen   : Byte;
- report   : TStringList;
- LImage   : TDiscImage;
+ ok       : Boolean=False;
+ F        : TFileStream=nil;
+ dir      : Integer=0;
+ entry    : Integer=0;
+ currfile : String='';
+ line     : String='';
+ hexlen   : Byte=0;
+ report   : TStringList=nil;
+ LImage   : TDiscImage=nil;
 begin
+ WriteToDebug('MainForm.SaveAsCSV(TStrings,'+filename+')');
  //More than one filename given, then blank off the filename
  if FileNames.Count>1 then filename:='';
  //No filenames given, then quit
@@ -4990,6 +5050,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_SettingsClick(Sender: TObject);
 begin
+ WriteToDebug('MainForm.btn_SettingsClick');
  //Set the preferences - Texture
  SettingsForm.NoTile.Ticked    :=False;
  SettingsForm.TileRO5.Ticked   :=False;
@@ -5067,13 +5128,14 @@ procedure TMainForm.btn_ShowReportClick(Sender: TObject);
   else WriteLn(line);
  end;
 var
- pcent,
- lpcent,
- dir,
- entry,
- errorcount: Integer;
+ pcent     : Integer=0;
+ lpcent    : Integer=0;
+ dir       : Integer=0;
+ entry     : Integer=0;
+ errorcount: Integer=0;
  Lreport   : TStringList;
 begin
+ WriteToDebug('MainForm.btn_ShowReportClick');
  //Get the report
  Lreport:=Image.ImageReport(False);
  //Display it
@@ -5148,6 +5210,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.SaveConfigSettings;
 begin
+ WriteToDebug('MainForm.SaveConfigSettings');
  DIMReg.SetRegValI('Texture',             TextureType);
  DIMReg.SetRegValI('ADFS_L_Interleave',   ADFSInterleave);
  DIMReg.SetRegValB('CreateINF',           DoCreateINF);
@@ -5168,6 +5231,7 @@ end;
 procedure TMainForm.DirListContextPopup(Sender: TObject; MousePos: TPoint;
  var Handled: Boolean);
 begin
+ WriteToDebug('MainForm.DirListContextPopup');
  //This actually pops up, on a Mac, when CTRL is pressed to add to the selection
  if ssCtrl in FormShiftState then Handled:=True; //Stops the context menu popping up
 end;
@@ -5177,6 +5241,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DuplicateFile1Click(Sender: TObject);
 begin
+ WriteToDebug('MainForm.DuplicateFileClick');
  if DirList.SelectionCount=1 then
  begin
   //Get the selected file
@@ -5219,9 +5284,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.FileTypeKeyPress(Sender: TObject; var Key: char);
 var
- ft   : String;
- dir,
- entry: Integer;
+ ft   : String='';
+ dir  : Integer=0;
+ entry: Integer=0;
 begin
  //Check for enter
  if Key=chr(13) then
@@ -5269,8 +5334,8 @@ end;
 procedure TMainForm.DirListCustomDrawArrow(Sender: TCustomTreeView;
  const ARect: TRect; ACollapsed: Boolean);
 var
- Index: Integer;
- TV   : TTreeView;
+ Index: Integer=0;
+ TV   : TTreeView=nil;
 begin
  if Sender is TTreeView then
  begin
@@ -5287,13 +5352,13 @@ procedure TMainForm.DirListCustomDrawItem(Sender: TCustomTreeView;
  Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
 var
  NodeRect : TRect;
- indent,
- arrowin,
- arrowsize,
- imgidx   : Integer;
- TV       : TTreeView;
+ indent   : Integer=0;
+ arrowin  : Integer=0;
+ arrowsize: Integer=0;
+ imgidx   : Integer=0;
+ TV       : TTreeView=nil;
 begin
- WriteToDebug('DirListCustomDrawItem');
+ WriteToDebug('MainForm.DirListCustomDrawItem');
  if Sender is TTreeView then
  begin
   TV:=TTreeView(Sender);
@@ -5341,7 +5406,7 @@ begin
     NodeRect.Height:=NodeRect.Width;     //Height
     //Get the correct image
     imgidx:=Node.ImageIndex;
-    WriteToDebug('DirListCustomDrawItem: imgidx='+IntToStr(imgidx));
+    WriteToDebug('MainForm.DirListCustomDrawItem: imgidx='+IntToStr(imgidx));
     if imgidx=-1 then imgidx:=GetImageIndex(Node,Image);
     //And draw it
     TImageList(TV.Images).StretchDraw(TV.Canvas,imgidx,NodeRect);
@@ -5409,13 +5474,12 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.CreateDirectory(dirname, attr: String): TTreeNode;
 var
- parentdir: String;
- index    : Integer;
- Node     : TTreeNode;
+ parentdir: String='$';
+ index    : Integer=0;
+ Node     : TTreeNode=nil;
 begin
  Result:=nil;
- //Assume the root, for now
- parentdir:='$';
+ WriteToDebug('MainForm.CreateDirectory('+dirname+','+attr+')');
  if DirList.SelectionCount=0 then
   ReportError('Cannot find parent when adding directory "'+dirname+'"')
  else
@@ -5494,10 +5558,9 @@ end;
 procedure TMainForm.DirListMouseDown(Sender: TObject; Button: TMouseButton;
  Shift: TShiftState; X, Y: Integer);
 var
- dir,entry: Cardinal;
+ dir  : Cardinal=0;
+ entry: Cardinal=0;
 begin
- dir:=0;
- entry:=0;
  if(ssLeft in Shift)and(not(ssCtrl in Shift))then //Only if left button is clicked
  begin
   //Remember the node being dragged
@@ -5545,7 +5608,7 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.GetNodeAt(Y: Integer): TTreeNode;
 var
- xpos: Integer;
+ xpos: Integer=0;
 begin
  //We'll find the node by the mouse pointer
  xpos:=-10;
@@ -5565,15 +5628,15 @@ end;
 procedure TMainForm.DirListMouseMove(Sender: TObject; Shift: TShiftState; X,
  Y: Integer);
 var
- Xmovement,
- Ymovement,
- H,
- threshold : Integer;
+ Xmovement : Integer=0;
+ Ymovement : Integer=0;
+ H         : Integer=0;
+ threshold : Integer=0;
  R,IR      : TRect;
- B         : TBitmap;
- copymode  : Boolean;
+ B         : TBitmap=nil;
+ copymode  : Boolean=False;
  pt        : TPoint;
- Node      : TTreeNode;
+ Node      : TTreeNode=nil;
 begin
  //Get the copy mode, depending on key pressed
  copymode:=GetCopyMode(Shift);
@@ -5750,9 +5813,9 @@ end;
 procedure TMainForm.DirListMouseUp(Sender: TObject; Button: TMouseButton;
  Shift: TShiftState; X, Y: Integer);
 var
- Xmovement,
- Ymovement : Integer;
- copymode  : Boolean;
+ Xmovement : Integer=0;
+ Ymovement : Integer=0;
+ copymode  : Boolean=False;
 begin
  copymode:=GetCopyMode(Shift);
  //Remove the copied control
@@ -5794,15 +5857,15 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DoCopyMove(copymode: Boolean);
 var
- newfn  : String;
- i,
- index,
- dir,
- entry  : Integer;
- ref    : Cardinal;
- NewNode: TTreeNode;
+ newfn  : String='';
+ i      : Integer=0;
+ index  : Integer=-1;
+ dir    : Integer=0;
+ entry  : Integer=0;
+ ref    : Cardinal=0;
+ NewNode: TTreeNode=nil;
 begin
- index:=-1;
+ WriteToDebug('MainForm.DoCopyMove');
  //Are we dragging something, over something and is not the same as the source?
  if (DraggedItem<>nil)AND(Dst<>nil)
  AND((DraggedItem<>Dst)
@@ -5958,24 +6021,26 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
 function SelectMinor(LOptions: array of TRISCOSRadioBox): Byte;
-var Index: Byte;
+var Index: Byte=0;
 begin
  Result:=0;
  for Index:=0 to Length(LOptions)-1 do
   if LOptions[index].Ticked then Result:=Index;
 end;
 var
- major    : Word;
- binvers,
- minor,
- tracks   : Byte;
- ok,hdd   : Boolean;
- index    : Integer;
- title,
- version,
- copyr,
- filename : String;
+ major    : Word=0;
+ binvers  : Byte=0;
+ minor    : Byte=0;
+ tracks   : Byte=0;
+ ok       : Boolean=False;
+ hdd      : Boolean=False;
+ index    : Integer=0;
+ title    : String='';
+ version  : String='';
+ copyr    : String='';
+ filename : String='';
 begin
+ WriteToDebug('MainForm.btn_NewImageClick');
  if QueryUnsaved then
  begin
   //Show the form, modally
@@ -6119,15 +6184,15 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.AttributeChangeClick(Sender: TObject);
 var
- att,
- filepath: String;
- dir     : Integer;
- afs,dos : Boolean;
+ att     : String='';
+ filepath: String='';
+ dir     : Integer=0;
+ afs     : Boolean=False;
+ dos     : Boolean=False;
 begin
  if not DoNotUpdate then
  begin
-  afs:=False;
-  dos:=False;
+  WriteToDebug('MainForm.AttributeChangeClick');
   //Determine if this is on an AFS or DOS partition
   if DirList.SelectionCount=1 then //Assuming only one item selected
   begin
@@ -6236,6 +6301,7 @@ end;
 function TMainForm.GetFilePath(Node: TTreeNode): String;
 begin
  Result:='';
+ WriteToDebug('MainForm.GetFilePath');
  //Make sure that the node exists
  if Node<>nil then
  begin
@@ -6255,8 +6321,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DeleteFile1Click(Sender: TObject);
 var
- R  : Boolean;
+ R  : Boolean=False;
 begin
+ WriteToDebug('MainForm.DeleteFileClick');
  //Result of the confirmation - assumed Yes for now
  R:=True;
  //For mulitple deletes, ensure that the user really wants to
@@ -6270,25 +6337,31 @@ end;
 {------------------------------------------------------------------------------}
 //Delete selected files
 {------------------------------------------------------------------------------}
-procedure TMainForm.DeleteFile(confirm: Boolean);
+function TMainForm.DeleteFile(confirm: Boolean): Boolean;
 var
- LDirRef,
- j,
- nodes   : Integer;
- LIsDir,
- R,ok    : Boolean;
- filepath: String;
+ LDirRef : Integer=0;
+ j       : Integer=0;
+ nodes   : Integer=0;
+ LIsDir  : Boolean=False;
+ R       : Boolean=False;
+ ok      : Boolean=False;
+ filepath: String='';
 begin
+ WriteToDebug('MainForm.DeleteFile');
+ Result:=False;
  if DirList.SelectionCount>0 then
  begin
   //Take a note of the number of selections
   nodes:=DirList.SelectionCount;
   //Go through all the selections (or the only one)
   ok:=True;
+  WriteToDebug('MainForm.DeleteFile: DirList.SelectionCount = '
+               +IntToStr(DirList.SelectionCount));
   while(DirList.SelectionCount>0)and(ok)do
   begin
    //Get the full path to the file
    filepath:=GetFilePath(DirList.Selections[0]);
+   WriteToDebug('MainForm.DeleteFile: filepath='+filepath);
    //If singular, check if the user wants to
    if(nodes=1)and(confirm)then
     R:=AskConfirm('Delete '+filepath+'?',['Yes','No'])=mrOK
@@ -6315,6 +6388,7 @@ begin
      ok:=Image.DeleteFile(DirList.Selections[0].Index);
     if ok then
     begin
+     WriteToDebug('MainForm.DeleteFile: File deletion OK');
      //Update the directory references
      if LIsDir then
      begin
@@ -6351,11 +6425,12 @@ begin
         if HexDumpMenu.Items[j].Caption=filepath then
          HexDumpMenu.Items[j].Free;
       end;
-    end;           
+    end else WriteToDebug('MainForm.DeleteFile: File deletion failed');
     if nodes>1 then ProgressForm.Hide;
    end else ok:=False;
   end;
  end;
+ Result:=ok;
 end;
 
 {------------------------------------------------------------------------------}
@@ -6363,16 +6438,16 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListDblClick(Sender: TObject);
 var
- Node    : TTreeNode;
- index,
- i,
- entry,
- dir     : Integer;
- filename: String;
- buffer  : TDIByteArray;
- menuitem: TMenuItem;
+ Node    : TTreeNode=nil;
+ index   : Integer=0;
+ i       : Integer=0;
+ entry   : Integer=0;
+ dir     : Integer=0;
+ filename: String='';
+ buffer  : TDIByteArray=nil;
+ menuitem: TMenuItem=nil;
 begin
- buffer:=nil;
+ WriteToDebug('MainForm.DirListDblClick');
  //Reset the drag/drop flags
  imgCopy.Visible:=False;
  MouseIsDown:=False;
@@ -6461,11 +6536,12 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ReadInDirectory(Node: TTreeNode);
 var
- dir,
- entry,
- index   : Integer;
- filename: String;
+ dir     : Integer=0;
+ entry   : Integer=0;
+ index   : Integer=0;
+ filename: String='';
 begin
+ WriteToDebug('MainForm.ReadInDirectory');
  if not TMyTreeNode(Node).BeenRead then //If it hasn't been read
  begin
   entry:=Node.Index;
@@ -6497,9 +6573,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.HexDumpSubItemClick(Sender: TObject);
 var
- i: Integer;
+ i: Integer=0;
 begin
- i:=0;
+ WriteToDebug('MainForm.HexDumpSubItemClick');
  //Find and open the appropriate hex dump window
  for i:=0 to Length(HexDump)-1 do
   if HexDump[i].Caption=TMenuItem(Sender).Caption then HexDump[i].Show;
@@ -6510,6 +6586,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.CloseAllHexDumps;
 begin
+ WriteToDebug('MainForm.CloseAllHexDumps');
  //Close all the HexDump forms dynamically created
  while Length(HexDump)>0 do
  begin
@@ -6526,6 +6603,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.RenameFile1Click(Sender: TObject);
 begin
+ WriteToDebug('MainForm.RenameFile1Click');
  //Make sure we're not dealing with the root
  if DirList.Selected.Parent<>nil then
  begin
@@ -6542,6 +6620,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.DirListExit(Sender: TObject);
 begin
+ WriteToDebug('MainForm.DirListExit');
  //Make sure there is something selected
  if DirList.SelectionCount=1 then
   //Is it being edited?
@@ -6560,9 +6639,10 @@ end;
 procedure TMainForm.DirListEditing(Sender: TObject; Node: TTreeNode;
   var AllowEdit: Boolean);
 var
- ctrl: TControl;
+ ctrl: TControl=nil;
  pt  : TPoint;
 begin
+ WriteToDebug('MainForm.DirListEditing');
  //Do not allow an edit at this stage
  AllowEdit:=False;
  //Disable the keyboard shortcuts
@@ -6588,12 +6668,14 @@ end;
 procedure TMainForm.DirListEditingEnd(Sender: TObject; Node: TTreeNode;
  Cancel: Boolean);
 var
- newfilename,
- fileparent  : String;
- newindex,i  : Integer;
- NewNode     : TTreeNode;
+ newfilename : String='';
+ fileparent  : String='';
+ newindex    : Integer=0;
+ i           : Integer=0;
+ NewNode     : TTreeNode=nil;
 begin
  if AppIsClosing then exit;
+ WriteToDebug('MainForm.DirListEditingEnd');
  //Get the new filename
  newfilename:=Node.Text;
  //Re-enable the keyboard shortcuts
@@ -6673,6 +6755,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.ResetFileFields;
 begin
+ WriteToDebug('MainForm.ResetFileFields');
  //Make sure that we don't fire off the tick box OnChange event
  DoNotUpdate         :=True;
  //Blank the entries
@@ -6730,10 +6813,10 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.ConvertToKMG(size: Int64): String;
 var
- new_size_int : Int64; //Int64 will allow for huge disc sizes
- new_size_dec,
- level,
- multiplier   : Integer;
+ new_size_int : Int64=0; //Int64 will allow for huge disc sizes
+ new_size_dec : Integer=0;
+ level        : Integer=0;
+ multiplier   : Integer=0;
 const
  sizes: array[1..6] of String = ('Bytes','KB','MB','GB','TB','EB');
 begin
@@ -6801,7 +6884,7 @@ end;
 procedure TMainForm.ImageDetailsDrawPanel(StatusBar: TStatusBar;
  Panel: TStatusPanel; const Rect: TRect);
 var
- png    : Byte;
+ png    : Byte=0;
  imgRect: TRect;
 // panwid : Integer;
 begin
@@ -6872,6 +6955,7 @@ procedure TMainForm.ReportError(error: String);
 begin
  //Remove the top bit, if present
  RemoveTopBit(error);
+ WriteToDebug('MainForm.ReportError('+error+')');
  if ErrorReporting then
   if ParamCount>0 then //If we are in command line mode, then do not use the GUI
    WriteLn(error)
@@ -6887,6 +6971,7 @@ end;
 function TMainForm.AskConfirm(confim: String; Buttons: array of String): TModalResult;
 begin
  Result:=mrOK; //Default
+ WriteToDebug('MainForm.AskConfirm('+confim+',array of String)');
  if ErrorReporting then
  begin
   CustomDialogue.ShowConfirm(confim,Buttons);
@@ -6911,7 +6996,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.UpdateProgress(Fupdate: String);
 begin
- WriteToDebug(Fupdate);
+ WriteToDebug('MainForm.UpdateProgress('+Fupdate+')');
  ProgressForm.UpdateProgress.Caption:=Fupdate;
  Application.ProcessMessages;
 end;
@@ -6959,8 +7044,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.CreateFileTypeDialogue;
 var
- i,x: Integer;
- sc : TScrollBox;
+ i  : Integer=0;
+ x  : Integer=0;
+ sc : TScrollBox=nil;
 begin
  //Create the filetype pop-up
  FTDialogue:=TForm.Create(nil);
@@ -7024,7 +7110,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.WriteToDebug(line: String);
 var
- F : TFileStream;
+ F : TFileStream=nil;
 begin
  if Fdebug then
  begin

@@ -1,7 +1,7 @@
 unit CSVPrefUnit;
 
 {
-Copyright (C) 2018-2024 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -80,8 +80,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TCSVPrefForm.FormCreate(Sender: TObject);
 var
- pos,wid: Integer;
- ratio  : Real;
+ pos  : Integer=0;
+ wid  : Integer=0;
+ ratio: Real=0;
  function CreateTickBox(Ltitle: String; Ltop: Integer): TRISCOSTickBox;
  begin
   Result:=TRISCOSTickBox.Create(CSVPrefForm as TComponent);
