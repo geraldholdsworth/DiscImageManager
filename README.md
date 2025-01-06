@@ -36,5 +36,5 @@ You might like to also check out the thread on <a href="https://stardot.org.uk/f
 <br>
 If you want, you can support this project, and others, by buying me a coffee (or a tea/beer/rum/etc.): https://ko-fi.com/geraldholdsworth<br>
 <br>
-<br>
+<H3>Disc Image Manager 2</H3>
 <B>See <a href="https://github.com/geraldholdsworth/DiscImageManager2">here</a> for version 2 of Disc Image Manager...imaginatively entitled <I>Disc Image Manager 2</I>.</B>
