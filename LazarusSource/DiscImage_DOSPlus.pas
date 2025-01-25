@@ -207,11 +207,11 @@ var
  ClusterCount   : Cardinal=0;
 begin
  Result:=False;                                                     
- cluster_size:=Read16b(doshead+$B);      //Block (cluster) size
+ cluster_size:=Read16b(doshead+$B);      //Block/sector/cluster size
  if (cluster_size<>$0200)
  and(cluster_size<>$0400)
  and(cluster_size<>$0800)
- and(cluster_size<>$1000)then exit; //Must be one of these values
+ and(cluster_size<>$1000)then exit;      //Must be one of these values
  dosalloc    :=ReadByte(doshead+$D);     //Allocation unit in blocks
  if (dosalloc<>  1)
  and(dosalloc<>  2)
@@ -1754,7 +1754,9 @@ begin
  if(fat=diFAT32)    and(size<33300*KB)then size:=33300*KB; //33300KB (~33MB)
  //Max sizes - these are maximium, theoretical, sizes
  if(fat=diMaster512)and(size> 1015*MB)then size:= 1015*MB; // 1015MB ( ~1GB)
- if(fat=diFAT12)    and(size>  507*MB)then size:=  507*MB; //  507MB
+ if(fat=diFAT12)    and(size>   31*MB)then size:=   31*MB; //   31MB
+ //Max theoretical size of FAT12 is 507MB, but with a sector size of 512,
+ //31MB is more feasible
  if(fat=diFAT16)    and(size> 8157*MB)then size:= 8157*MB; // 8157MB ( ~8GB)
  if(fat=diFAT32)    and(size> 2048*GB)then size:= 2048*GB; //    2TB
  //Max theoretical size of FAT32 is actually 32640GB, but MS spec is 2TB
@@ -1892,7 +1894,14 @@ begin
  //Cluster size
  if not master512 then
  begin
-  if fat<>diFAT32 then allocSize:=(totBlocks div maxCluster)+1
+  if fat<>diFAT32 then
+  begin
+   allocSize:=(totBlocks div maxCluster)+1;
+   //Must be 1,2,4,8,16,32,64 or 128, so find the next highest value, if not
+   TmpVal1:=0;
+   while(1<<TmpVal1<allocSize)and(TmpVal1<7)do inc(TmpVal1);
+   allocSize:=1<<TmpVal1;
+  end
   else
   begin
    allocSize:=$01; //34MB to 260MB

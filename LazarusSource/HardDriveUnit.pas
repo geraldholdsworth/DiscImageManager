@@ -246,11 +246,11 @@ begin
  end;
  if DOSHDD then
  begin
-  //Set capacity to 40MB
-  CapacitySlider.Position:=40;
-  //Set max to 500MB for FAT12
-  CapacitySlider.Max:=500;//Maximum 500MB
-  CapacitySlider.Min:=20; //Minimum 20MB
+  //Set capacity to 20MB
+  CapacitySlider.Position:=20;
+  //Set max to 30MB for FAT12
+  CapacitySlider.Max:=30; //Maximum 30MB
+  CapacitySlider.Min:=10; //Minimum 10MB
   CapacitySliderChange(Sender);
   ADFSControls.Visible:=False;
   DOSControls.Visible:=True;
@@ -266,10 +266,13 @@ FAT12 has been selected
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.rb_FAT12Change(Sender: TObject);
 begin
- //Set max to 500MB for FAT12
- CapacitySlider.Max:=500;//Max 500MB
- CapacitySlider.Min:=20; //Min 20MB
- CapacitySliderChange(Sender);
+ //Set max to 30MB for FAT12
+ if rb_FAT12.Ticked then
+ begin
+  CapacitySlider.Max:=30; //Max 30MB
+  CapacitySlider.Min:=10; //Min 10MB
+  CapacitySliderChange(Sender);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -278,9 +281,12 @@ FAT16 has been selected
 procedure THardDriveForm.rb_FAT16Change(Sender: TObject);
 begin
  //Set max to 1000MB for FAT16
- CapacitySlider.Max:=1000;//Max 1000MB
- CapacitySlider.Min:=20;  //Min 20MB
- CapacitySliderChange(Sender);
+ if rb_FAT16.Ticked then
+ begin
+  CapacitySlider.Max:=1000;//Max 1000MB
+  CapacitySlider.Min:=20;  //Min 20MB
+  CapacitySliderChange(Sender);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -289,9 +295,12 @@ FAT32 has been selected
 procedure THardDriveForm.rb_FAT32Change(Sender: TObject);
 begin
  //Set max to 1024MB for FAT32
- CapacitySlider.Max:=1024;//Max 1GB
- CapacitySlider.Min:=33;  //Min 33MB
- CapacitySliderChange(Sender);
+ if rb_FAT32.Ticked then
+ begin
+  CapacitySlider.Max:=1024;//Max 1GB
+  CapacitySlider.Min:=33;  //Min 33MB
+  CapacitySliderChange(Sender);
+ end;
 end;
 
 end.

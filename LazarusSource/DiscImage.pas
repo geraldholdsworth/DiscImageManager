@@ -243,7 +243,7 @@ type
   TDisc         = array of TDir;
   //Partitions
   TPartition    = record               //Details about the partition
-   Directory       : array of TDir;    //All the directories
+   Directory       : TDisc;            //All the directories
    Title,                              //Title of the partition
    RootTitle,                          //Title of the root directory
    RootName        : String;           //Root name ($, A:, C:, DF0, DH0, etc.)
