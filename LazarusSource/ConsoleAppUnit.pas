@@ -23,7 +23,7 @@ interface
 
 uses
  {$IFDEF Windows}Windows,{$ENDIF}
- Classes, SysUtils, CustApp, MainUnit, Forms;
+ Classes, SysUtils, CustApp, MainUnit, Forms, DiscImage;
 
 type
 
@@ -67,6 +67,8 @@ const
  FcmdBlue   = #$1B'[94m';
  FcmdMagenta= #$1B'[95m';
  FcmdCyan   = #$1B'[96m';
+ //Number of rows for the console
+ ConsoleWidth=80;
 
 implementation
 
@@ -183,7 +185,7 @@ begin
  ScriptOpen:=False;
  //Write out a header
  Write(cmdRed+cmdInverse);
- WriteLn(StringOfChar('*',80));
+ WriteLn(StringOfChar('*',ConsoleWidth));
  Write(cmdNormal+cmdBold);
  Write(MainForm.ApplicationTitle+' Console V'+MainForm.ApplicationVersion);
  WriteLn(' by Gerald J Holdsworth');
@@ -197,7 +199,9 @@ begin
  WriteLn(cmdBold+'Ready'+cmdNormal);
  repeat
   //Prompt for input
-  write('>');
+  if MainForm.Image.FormatNumber<>diInvalidImg then //Change the colour depending on whether changed or not
+   if MainForm.HasChanged then Write(cmdRed) else Write(cmdBlue);
+  write(cmdBold+'>'+cmdNormal);
   //Read a line of input from the user
   ReadInput(input);
   //Process the input
@@ -220,7 +224,7 @@ begin
  if ScriptOpen then ScriptFile.Free;
  //Footer at close of console
  Write(cmdRed+cmdInverse);
- Write(StringOfChar('*',80));
+ Write(StringOfChar('*',ConsoleWidth));
  WriteLn(cmdNormal);
  //Exit or not?
  Result:=LowerCase(Lparams[0])='exit';

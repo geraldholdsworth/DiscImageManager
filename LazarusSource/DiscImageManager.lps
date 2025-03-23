@@ -4,10 +4,11 @@
     <Version Value="12"/>
     <ManyBuildModesSelection Value="&quot;Release macOS 64 bit&quot;,&quot;Release macOS 32 bit&quot;,&quot;Release macOS ARM&quot;,&quot;Release Windows 64 bit&quot;,&quot;Release Windows 32 bit&quot;,&quot;Release Linux 64 bit&quot;,&quot;Release Linux 32 bit&quot;,&quot;Release Linux ARM 32 bit&quot;,&quot;Release Linux ARM 64 bit&quot;"/>
     <BuildModes Active="Native Debugger"/>
-    <Units Count="44">
+    <Units Count="45">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
+        <TopLine Value="33"/>
         <CursorPos X="35" Y="52"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
@@ -19,8 +20,8 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="2"/>
-        <TopLine Value="552"/>
-        <CursorPos X="35" Y="583"/>
+        <TopLine Value="2948"/>
+        <CursorPos X="35" Y="2982"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -29,8 +30,8 @@
         <Filename Value="DiscImage.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="15"/>
-        <TopLine Value="708"/>
-        <CursorPos X="14" Y="743"/>
+        <TopLine Value="51"/>
+        <CursorPos X="17" Y="819"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit2>
@@ -73,6 +74,7 @@
         <Filename Value="DiscImageUtils.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="27"/>
+        <CursorPos X="2" Y="234"/>
         <UsageCount Value="205"/>
         <Loaded Value="True"/>
       </Unit6>
@@ -80,7 +82,8 @@
         <Filename Value="Global.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="28"/>
-        <CursorPos X="24" Y="4"/>
+        <TopLine Value="6"/>
+        <CursorPos X="23" Y="26"/>
         <UsageCount Value="216"/>
         <Loaded Value="True"/>
       </Unit7>
@@ -182,7 +185,7 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="10"/>
-        <TopLine Value="252"/>
+        <TopLine Value="232"/>
         <CursorPos X="2" Y="121"/>
         <UsageCount Value="212"/>
         <Loaded Value="True"/>
@@ -250,6 +253,7 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="5"/>
+        <TopLine Value="92"/>
         <CursorPos X="15" Y="85"/>
         <UsageCount Value="224"/>
         <Loaded Value="True"/>
@@ -271,7 +275,8 @@
         <Filename Value="ConsoleAppUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="1"/>
-        <CursorPos X="24" Y="4"/>
+        <TopLine Value="79"/>
+        <CursorPos X="20" Y="185"/>
         <UsageCount Value="207"/>
         <Loaded Value="True"/>
       </Unit24>
@@ -291,6 +296,8 @@
       <Unit26>
         <Filename Value="DiscImage_ADFS.pas"/>
         <EditorIndex Value="21"/>
+        <TopLine Value="4414"/>
+        <CursorPos X="54" Y="4437"/>
         <UsageCount Value="102"/>
         <Loaded Value="True"/>
       </Unit26>
@@ -342,6 +349,8 @@
       <Unit34>
         <Filename Value="DiscImage_Spark.pas"/>
         <EditorIndex Value="19"/>
+        <TopLine Value="484"/>
+        <CursorPos X="52" Y="507"/>
         <UsageCount Value="100"/>
         <Loaded Value="True"/>
       </Unit34>
@@ -353,7 +362,6 @@
       </Unit35>
       <Unit36>
         <Filename Value="DiscImage_DOSPlus.pas"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="22"/>
         <TopLine Value="1876"/>
         <CursorPos X="26" Y="1903"/>
@@ -371,8 +379,8 @@
       <Unit38>
         <Filename Value="DiscImage_Published.pas"/>
         <EditorIndex Value="17"/>
-        <TopLine Value="175"/>
-        <CursorPos Y="214"/>
+        <TopLine Value="862"/>
+        <CursorPos X="2" Y="894"/>
         <UsageCount Value="119"/>
         <Loaded Value="True"/>
       </Unit38>
@@ -391,17 +399,17 @@
       </Unit40>
       <Unit41>
         <Filename Value="MainUnit_Console.pas"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="3"/>
-        <TopLine Value="109"/>
-        <CursorPos X="29" Y="113"/>
+        <TopLine Value="355"/>
+        <CursorPos X="84" Y="381"/>
         <UsageCount Value="114"/>
         <Loaded Value="True"/>
       </Unit41>
       <Unit42>
         <Filename Value="../GJHCustomConponents/GJHCustomComponents.pas"/>
         <EditorIndex Value="35"/>
-        <TopLine Value="175"/>
-        <CursorPos X="6" Y="159"/>
+        <TopLine Value="300"/>
         <UsageCount Value="100"/>
         <Loaded Value="True"/>
       </Unit42>
@@ -411,124 +419,134 @@
         <UsageCount Value="110"/>
         <Loaded Value="True"/>
       </Unit43>
+      <Unit44>
+        <Filename Value="/usr/local/share/fpcsrc/rtl/unix/sysutils.pp"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="36"/>
+        <UsageCount Value="5"/>
+      </Unit44>
     </Units>
-    <JumpHistory Count="29" HistoryIndex="28">
+    <JumpHistory Count="30" HistoryIndex="27">
       <Position1>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1851" TopLine="1828"/>
+        <Filename Value="DiscImage.pas"/>
+        <Caret Line="796" Column="12" TopLine="752"/>
       </Position1>
       <Position2>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1852" TopLine="1810"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="7121" Column="44" TopLine="7098"/>
       </Position2>
       <Position3>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1908" TopLine="1885"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="3153" Column="13" TopLine="3130"/>
       </Position3>
       <Position4>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="94" TopLine="69"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="474" Column="16" TopLine="452"/>
       </Position4>
       <Position5>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1773" TopLine="1750"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="2889" Column="42" TopLine="2848"/>
       </Position5>
       <Position6>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1821" Column="51" TopLine="1804"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="2893" Column="51" TopLine="2865"/>
       </Position6>
       <Position7>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1773" TopLine="1750"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4943" Column="62" TopLine="4915"/>
       </Position7>
       <Position8>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1821" TopLine="1796"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4944" Column="62" TopLine="4915"/>
       </Position8>
       <Position9>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1852" TopLine="1829"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4945" Column="62" TopLine="4915"/>
       </Position9>
       <Position10>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1773" TopLine="1749"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4966" Column="29" TopLine="4941"/>
       </Position10>
       <Position11>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1821" TopLine="1796"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4967" Column="29" TopLine="4941"/>
       </Position11>
       <Position12>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1852" Column="44" TopLine="1838"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4966" Column="60" TopLine="4953"/>
       </Position12>
       <Position13>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1773" TopLine="1749"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4943" Column="23" TopLine="4919"/>
       </Position13>
       <Position14>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1821" TopLine="1796"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4966" Column="60" TopLine="4925"/>
       </Position14>
       <Position15>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1853" TopLine="1830"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4968" Column="57" TopLine="4960"/>
       </Position15>
       <Position16>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1773" TopLine="1749"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="3118" Column="7" TopLine="3108"/>
       </Position16>
       <Position17>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1821" TopLine="1796"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="442" Column="19" TopLine="420"/>
       </Position17>
       <Position18>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1909" TopLine="1872"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="1682" Column="44" TopLine="1641"/>
       </Position18>
       <Position19>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1773" TopLine="1749"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="3118" Column="16" TopLine="3078"/>
       </Position19>
       <Position20>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1852" Column="55" TopLine="1833"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="3119" Column="44" TopLine="3079"/>
       </Position20>
       <Position21>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1900" TopLine="1860"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="3323" Column="47" TopLine="3282"/>
       </Position21>
       <Position22>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1897" TopLine="1866"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4358" Column="23" TopLine="4318"/>
       </Position22>
       <Position23>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1877" TopLine="1807"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4362" Column="20" TopLine="4322"/>
       </Position23>
       <Position24>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="702" Column="13" TopLine="694"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="4366" Column="20" TopLine="4326"/>
       </Position24>
       <Position25>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="10" Column="2"/>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="5114" Column="43" TopLine="4425"/>
       </Position25>
       <Position26>
-        <Filename Value="DiscImage.pas"/>
-        <Caret Line="741" Column="16" TopLine="714"/>
+        <Filename Value="../GJHCustomConponents/GJHCustomComponents.pas"/>
+        <Caret Line="1616" Column="9" TopLine="1234"/>
       </Position26>
       <Position27>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1800" Column="4" TopLine="1670"/>
+        <Filename Value="MainUnit_Console.pas"/>
+        <Caret Line="429" Column="29" TopLine="416"/>
       </Position27>
       <Position28>
-        <Filename Value="DiscImage_DOSPlus.pas"/>
-        <Caret Line="1757" Column="67" TopLine="1734"/>
+        <Filename Value="MainUnit_Console.pas"/>
+        <Caret Line="408" Column="48" TopLine="384"/>
       </Position28>
       <Position29>
         <Filename Value="DiscImage.pas"/>
-        <Caret Line="743" Column="14" TopLine="708"/>
+        <Caret Line="819" Column="17" TopLine="812"/>
       </Position29>
+      <Position30>
+        <Filename Value="DiscImage_Published.pas"/>
+        <Caret Line="894" Column="2" TopLine="862"/>
+      </Position30>
     </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>

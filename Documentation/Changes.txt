@@ -1021,6 +1021,16 @@ New or improved features
 * Added option to add implied 'RW' attributes to the *.inf file when exporting files from DFS/CFS/RFS to the host system.
 * Expanded the diagnostics reports in the debug file.
 * Major overhaul of all the functions and procedures to ensure proper variable initialisation.
+* In the console, passing the 'config' command without enough parameters would list all the valid parameters instead of producing an error.
+* In the console, the 'status' command now lists the configuration options alphabetically.
+* In the console, the prompt will differ in colour depending on the image status: no image loaded - black; unmodified image loaded - blue; modified image loaded - red.
+* Added a new command to the console, 'search'. This is similar to 'extract', but just lists the files found rather than extracting them.
+* Added a new wildcard to file search, '|'. This needs to be the first character and is an exclusion, so that any files found following this are excluded from the search results.
+* Added a new command to the console, 'find'. This is similar to 'add', but just lists the files found on the OS folder rather than adding them.
+* Added a new command to the console, 'ls'. This catalogues the files in the local OS folder. The same as 'find *'.
+* Added a new command to the console, 'type'. This sets the filetype for a file.
+* Some text formatting and improvements in the console text.
+* Wildcards are now accepted for the console commands 'access', 'exec', 'load', 'type' and 'stamp'.
 
 Bug fixes
 * ADFS directories would use the default ID (Hugo, Nick or SBPr/oven) depending on whether it is old, new or big. This would mean that images could end up with a mis-match of IDs, which Arthur ADFS was not keen on.
@@ -1029,6 +1039,7 @@ Bug fixes
 * Decompacting an ADFS Old Map image a second time after decompacting would hang the application.
 * Creating a new ADFS Old Map image, then adding a new directory, renaming then deleting would fail to delete. This bug is related to the failure to decompact bug.
 * FAT12 HDD sizes of above 31MB were permitted to be created, which will produce invalid images.
+* When changing the load and execution addresses of a file, editing one then clicking on the other would make the one you were editing disappear.
 
 Platform History
 ----------------

@@ -23,10 +23,12 @@ Boston, MA 02110-1335, USA.
 
 interface
 
-uses Classes;
+uses Classes, SysUtils;
 
 function ReadLine(var Stream: TFileStream;var Line: string): boolean;
 function WriteLine(var Stream: TFileStream;Line: string): boolean;
+function WrapText(const Line, BreakStr: string; const BreakChars: TSysCharSet;  MaxCol: Integer): string;
+function WrapText(const Line: string; MaxCol: Integer): string; overload;
 
 implementation
 
@@ -72,6 +74,84 @@ begin
  l:=Length(S);
  x:=Stream.Write(S[1],l);
  Result:=x=l;
+end;
+
+{-------------------------------------------------------------------------------
+Wraps Text (modded version of the SysUtils method)
+-------------------------------------------------------------------------------}
+function WrapText(const Line, BreakStr: string; const BreakChars: TSysCharSet;  MaxCol: Integer): string;
+
+const
+  Quotes = ['''', '"'];
+
+Var
+  L : String;
+  C,LQ,BC : Char;
+  P,Q,BLen,Len : Integer;
+  HB,IBC : Boolean;
+
+begin
+  Result:='';
+  L:=Line;
+  Blen:=Length(BreakStr);
+  If (BLen>0) then
+    BC:=BreakStr[1]
+  else
+    BC:=#0;
+  Len:=Length(L);
+  While (Len>0) do
+    begin
+    P:=1;
+    LQ:=#0;
+    HB:=False;
+    IBC:=False;
+    While ((P<=Len) and ((P<=MaxCol) or not IBC)) and ((LQ<>#0) or Not HB) do
+      begin
+      C:=L[P];
+      If (C=LQ) then
+        LQ:=#0
+      else If (C in Quotes) then
+        LQ:=C;
+      If (LQ<>#0) then
+        Inc(P)
+      else
+        begin
+        HB:=((C=BC) and (BreakStr=Copy(L,P,BLen)));
+        If HB then
+          Inc(P,Blen)
+        else
+          begin
+          If (P>=MaxCol) then
+            IBC:=C in BreakChars;
+          Inc(P);
+          end;
+        end;
+      end;
+    if P>MaxCol then
+    begin
+     Q:=P;
+     dec(P);
+     repeat
+       dec(P);
+       IBC:=L[P] in BreakChars;
+     until(P=1)or(IBC);
+     if P=1 then P:=Q;
+    end;
+    Result:=Result+Copy(L,1,P-1);
+    Delete(L,1,P-1);
+    if Length(L)>1 then while L[1] in BreakChars do Delete(L,1,1);
+    Len:=Length(L);
+    If (Len>0) and Not HB then
+      Result:=Result+BreakStr;
+    end;
+end;
+
+{-------------------------------------------------------------------------------
+Wraps Text (modded version of the SysUtils method)
+-------------------------------------------------------------------------------}
+function WrapText(const Line: string; MaxCol: Integer): string;
+begin
+  Result:=WrapText(Line,sLineBreak, [' ', '-', #9], MaxCol);
 end;
 
 end.

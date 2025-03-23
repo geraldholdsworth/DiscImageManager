@@ -630,7 +630,7 @@ begin
   begin
    //Get the 12 bit filetype
    temp:=IntToHex((Entry.LoadAddr AND$000FFF00)>>8,3);
-   Entry.Filetype:=GetFiletypeFromNumber(StrToInt('$'+temp));
+   Entry.Filetype:=GetFiletype(StrToInt('$'+temp));
    Entry.ShortFiletype:=temp;
    //Now sort the timestamp
    rotd:=Entry.LoadAddr AND$FF; //Convert to 64 bit integer
@@ -2174,7 +2174,7 @@ begin
          FDisc[dir].Entries[ptr].LoadAddr:=FDisc[dir].Entries[ptr].LoadAddr OR
             (StrToIntDef('$'+FDisc[dir].Entries[ptr].ShortFileType,0)<<8);
          FDisc[dir].Entries[ptr].FileType:=
-          GetFiletypeFromNumber(StrToIntDef('$'+FDisc[dir].Entries[ptr].ShortFileType,0));
+          GetFiletype(StrToIntDef('$'+FDisc[dir].Entries[ptr].ShortFileType,0));
         end;
         //Timestamp it, if not already done
         if file_details.TimeStamp=0 then
@@ -4415,7 +4415,7 @@ begin
    begin
     //Hex number?
     if IntToHex(StrToIntDef('$'+newtype,0),3)<>UpperCase(newtype) then
-     newft:=GetFileTypeFromName(newtype) //No, so translate
+     newft:=GetFileType(newtype) //No, so translate
     else
      newft:=StrToInt('$'+newtype);       //Yes, just convert
     //Valid filetype?
@@ -4434,7 +4434,7 @@ begin
      begin
       //And update the local copy of the filetypes
       FDisc[dir].Entries[entry].ShortFileType:=IntToHex(newft,3);
-      FDisc[dir].Entries[entry].Filetype:=GetFileTypeFromNumber(newft);
+      FDisc[dir].Entries[entry].Filetype:=GetFileType(newft);
       //And set a positive result
       Result:=True;
      end;

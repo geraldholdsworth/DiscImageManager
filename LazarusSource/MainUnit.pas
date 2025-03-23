@@ -420,8 +420,6 @@ type
     NameBeforeEdit      :String;
     //Stop the checkbox OnClick from firing when just changing the values
     DoNotUpdate         :Boolean;
-    //Has the image changed since last saved?
-    HasChanged          :Boolean;
     //Item being dragged on Directory List, and the destination
     Dst,
     DraggedItem         :TTreeNode;
@@ -568,6 +566,8 @@ type
   public
    //The image
    Image         :TDiscImage;
+   //Has the image changed since last saved?
+   HasChanged    :Boolean;
    //Debug log filename
    debuglogfile,
    //What are we running on?
@@ -4063,12 +4063,11 @@ begin
      end;
     end;
    end;
+  //Hide the edit control and show the label
+  TEdit(Sender).Visible:=False;
+  if TEdit(Sender)=ed_execaddr then lb_execaddr.Visible:=True;
+  if TEdit(Sender)=ed_loadaddr then lb_loadaddr.Visible:=True;
  end;
- //Hide the edit control and show the label
- lb_execaddr.Visible:=True;
- ed_execaddr.Visible:=False;
- lb_loadaddr.Visible:=True;
- ed_loadaddr.Visible:=False;
 end;
 
 {------------------------------------------------------------------------------}
@@ -4584,14 +4583,19 @@ var
  sidecount : Integer=0;
  index     : Integer=0;
  root      : Integer=0;
+ filename  : String='';
 begin
- WriteToDebug('MainForm.Defrag('+IntToStr(side)+')');
+ if Fguiopen then WriteToDebug('MainForm.Defrag('+IntToStr(side)+')');
  if Length(Image.Disc)>0 then
  begin
   Image.ProgressIndicator:=nil;
-  ProgressForm.Show;
-  UpdateProgress('Preparing to defrag');
-  Application.ProcessMessages;
+  if Fguiopen then ProgressForm.Show;
+  if Fguiopen then
+  begin
+   UpdateProgress('Preparing to defrag');
+   Application.ProcessMessages;
+  end
+  else WriteLn('Preparing to defrag');
   //Create a new image, cloning the old one
   oldscan:=Image.ScanSubDirs;
   olddos :=Image.OpenDOSPartitions;
@@ -4602,15 +4606,31 @@ begin
   Image.OpenDOSPartitions:=olddos;
   //We need to work out the root reference
   root:=0;
-  if DirList.Items.Count>0 then
+  if Fguiopen then
   begin
-   sidecount:=0;
-   for index:=0 to DirList.Items.Count-1 do
-    if DirList.Items[index].Parent=nil then
-    begin
-     if sidecount=side then root:=TMyTreeNode(DirList.Items[index]).DirRef;
-     inc(sidecount);
-    end;
+   if DirList.Items.Count>0 then
+   begin
+    sidecount:=0;
+    for index:=0 to DirList.Items.Count-1 do
+     if DirList.Items[index].Parent=nil then
+     begin
+      if sidecount=side then root:=TMyTreeNode(DirList.Items[index]).DirRef;
+      inc(sidecount);
+     end;
+   end;
+  end
+  else
+  begin
+   if Length(Image.Disc)>0 then
+   begin
+    sidecount:=0;
+    for index:=0 to Length(Image.Disc)-1 do
+     if Image.Disc[index].Parent=-1 then
+     begin
+      if sidecount=side then root:=index;
+      inc(sidecount);
+     end;
+   end;
   end;
   sidecount:=Length(Image.Disc[root].Entries);
   NewImage.ProgressIndicator:=nil;
@@ -4619,31 +4639,51 @@ begin
   ok:=True;
   while(Length(Image.Disc[root].Entries)>0)and(ok)do
   begin
-   ProgressForm.Show;
-   Application.ProcessMessages;
-   SelectNode(Image.Disc[root].Entries[0].Parent
-             +Image.GetDirSep(Image.Disc[root].Partition)
-             +Image.Disc[root].Entries[0].Filename);
-   UpdateProgress('Preparing '+Image.Disc[root].Entries[0].Parent
-             +Image.GetDirSep(Image.Disc[root].Partition)
-             +Image.Disc[root].Entries[0].Filename);
-   ok:=DeleteFile(False);
+   if Fguiopen then
+   begin
+    ProgressForm.Show;
+    Application.ProcessMessages;
+   end;
+   filename:=Image.Disc[root].Entries[0].Parent
+            +Image.GetDirSep(Image.Disc[root].Partition)
+            +Image.Disc[root].Entries[0].Filename;
+   if Fguiopen then
+   begin
+    SelectNode(filename);
+    UpdateProgress('Preparing '+filename);
+    ok:=DeleteFile(False);
+   end
+   else
+   begin
+    WriteLn('Preparing '+filename);
+    ok:=Image.DeleteFile(filename);
+   end;
   end;
   Image.EndUpdate;
   ok:=Length(Image.Disc[root].Entries)=0;
-  ProgressForm.Show;
-  Application.ProcessMessages;
-  Image.ProgressIndicator:=@UpdateProgress;
+  if Fguiopen then
+  begin
+   ProgressForm.Show;
+   Application.ProcessMessages;
+   Image.ProgressIndicator:=@UpdateProgress;
+  end;
   if ok then //Deleted all the files OK, so import again
   begin
-   SelectNode(Image.Disc[root].Directory);
-   //Import the contents of the current image into it
-   ImportFiles(NewImage,False);
+   if Fguiopen then
+   begin
+    SelectNode(Image.Disc[root].Directory);
+    //Import the contents of the current image into it
+    ImportFiles(NewImage,False);
+    //And the directory display
+    ShowNewImage(Image.Filename);
+    UpdateImageInfo;
+   end
+   else
+   begin
+    //
+   end;
    //Update the changed flag
    HasChanged:=True;
-   //And the directory display
-   ShowNewImage(Image.Filename);
-   UpdateImageInfo;
   end
   else //Didn't create a new image, so revert
   begin
@@ -4652,7 +4692,7 @@ begin
    ReportError('Failed to defrag');
   end;
   NewImage.Free;
-  ProgressForm.Hide;
+  if Fguiopen then ProgressForm.Hide;
   Image.ProgressIndicator:=nil;
  end;
 end;
@@ -6997,8 +7037,11 @@ end;
 procedure TMainForm.UpdateProgress(Fupdate: String);
 begin
  WriteToDebug('MainForm.UpdateProgress('+Fupdate+')');
- ProgressForm.UpdateProgress.Caption:=Fupdate;
- Application.ProcessMessages;
+ if Fguiopen then
+ begin
+  ProgressForm.UpdateProgress.Caption:=Fupdate;
+  Application.ProcessMessages;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -7075,7 +7118,7 @@ begin
   FTButtons[i-x].Parent:=sc;
   FTButtons[i-x].Width:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
   FTButtons[i-x].Height:=Round(64*(Screen.PixelsPerInch/DesignedDPI));
-  FTButtons[i-x].Caption:=Image.GetFileTypeFromNumber(StrToInt('$'+RISCOSFileTypes[i]));
+  FTButtons[i-x].Caption:=Image.GetFileType(StrToInt('$'+RISCOSFileTypes[i]));
   FTButtons[i-x].Tag:=StrToInt('$'+RISCOSFileTypes[i]);
   FTButtons[i-x].Left:=((i-x)mod 5)*FTButtons[i-x].Width;
   FTButtons[i-x].Top :=((i-x)div 5)*FTButtons[i-x].Height;

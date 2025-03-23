@@ -816,7 +816,7 @@ type
                                                    sfn: Boolean=False): Boolean;
   function FileExists(filename: String;var dir,entry: Cardinal;
                                          sfn: Boolean=False): Boolean; overload;
-  function FileSearch(search: TDirEntry): TSearchResults;
+  function FileSearch(search: TDirEntry;AddTo: TSearchResults=nil): TSearchResults;
   function FixDirectories: Boolean;
   function FormatFDD(major: Word;minor: Byte;tracks: Byte=0): Boolean;
   function FormatFDD(major: Word;filename: String): Boolean; overload;
@@ -832,8 +832,8 @@ type
   function GetDirSep(partition: Byte): Char;
   function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function GetFileMD5(filename: String;entry:Cardinal=0): String;
-  function GetFileTypeFromName(filetype: String): Integer;
-  function GetFileTypeFromNumber(filetype: Integer): String;
+  function GetFileType(filetype: String): Integer;
+  function GetFileType(filetype: Integer): String; overload;
   function GetInterleaveString(Inter: Byte): String;
   function GetMaxLength: Cardinal;
   function GetNumberOfInterleaves: Byte;

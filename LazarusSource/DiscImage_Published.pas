@@ -862,7 +862,7 @@ end;
 {-------------------------------------------------------------------------------
 Searches for a file, and returns the result in a TSearchResults
 -------------------------------------------------------------------------------}
-function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
+function TDiscImage.FileSearch(search: TDirEntry;AddTo: TSearchResults=nil): TSearchResults;
 //Comparison functions...saves a lot of if...then statements
  function CompStr(S1,S2: String): Byte; //Compares Strings
  begin
@@ -884,14 +884,23 @@ function TDiscImage.FileSearch(search: TDirEntry): TSearchResults;
 var
  dir    : Integer=0;
  entry  : Integer=0;
+ Index  : Integer=0;
  found  : Byte=0;
  target : Byte=0;
  Ldirsep: Char='.';
+ Exclude: Boolean=False;
+ nodups : Boolean=False;
 begin
- Result:=nil;
+ Result:=AddTo; //We're adding to a previous search
  Ldirsep:='.';
  //Reset the search results array to empty
- SetLength(Result,0);
+ //SetLength(Result,0);
+ //Are we removing entries?
+ if search.Filename[1]='|' then
+ begin
+  Exclude:=True;
+  search.Filename:=Copy(search.Filename,2);
+ end;
  //Has the complete path been included in the Filename?
  if(Pos(GetDirSep(0),search.Filename)>0)
  or(Pos(GetDirSep(1),search.Filename)>0)then
@@ -981,12 +990,47 @@ begin
      //found is the number of matches found, and target is what we're aiming for
      if found=target then
      begin
-      //Yes, so add this to the results
-      SetLength(Result,Length(Result)+1);
-      Result[Length(Result)-1]:=FDisc[dir].Entries[entry];
+      //Yes, are we excluding or including?
+      if Exclude then
+      begin //Remove from the results
+       for Index:=0 to Length(Result)-1 do
+        if (Result[Index].Parent=FDisc[dir].Entries[entry].Parent)
+        and(Result[Index].Filename=FDisc[dir].Entries[entry].Filename)then
+         ResetDirEntry(Result[Index]);
+      end
+      else
+      begin //Add to the results
+       //But only if they're not there already
+       nodups:=False;
+       for Index:=0 to Length(Result)-1 do
+        if (Result[Index].Parent=FDisc[dir].Entries[entry].Parent)
+        and(Result[Index].Filename=FDisc[dir].Entries[entry].Filename)then
+         nodups:=True;
+       if not nodups then
+       begin
+        SetLength(Result,Length(Result)+1);
+        Result[Length(Result)-1]:=FDisc[dir].Entries[entry];
+       end;
+      end;
       //User will still need to call FileExists to get the dir and entry references
      end;
     end;
+ //Now remove any blank entries
+ if Length(Result)>0 then
+ begin
+  Index:=0;
+  while Index<Length(Result) do
+  begin
+   if(Result[Index].Parent='')and(Result[Index].Filename='')then
+   begin
+    if Index<Length(Result)-2 then
+     for dir:=Index to Length(Result)-2 do Result[dir]:=Result[dir+1];
+    SetLength(Result,Length(Result)-1);
+    dec(Index);
+   end;
+   inc(Index);
+  end;
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1369,7 +1413,7 @@ end;
 {-------------------------------------------------------------------------------
 Convert a filetype number to a string
 -------------------------------------------------------------------------------}
-function TDiscImage.GetFileTypeFromNumber(filetype: Integer): String;
+function TDiscImage.GetFileType(filetype: Integer): String;
 var
  i: Integer=1;
 begin
@@ -1386,7 +1430,7 @@ end;
 {-------------------------------------------------------------------------------
 Convert a filetype name into a number
 -------------------------------------------------------------------------------}
-function TDiscImage.GetFileTypeFromName(filetype: String): Integer;
+function TDiscImage.GetFileType(filetype: String): Integer;
 var
  i: Integer=1;
 begin

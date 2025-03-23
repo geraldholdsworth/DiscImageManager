@@ -2,6 +2,11 @@
 Parse commands sent through via the console
 -------------------------------------------------------------------------------}
 procedure TMainForm.ParseCommand(var Command: TStringArray);
+type
+  searchresult = Record
+    Filename: String;
+    Directory: Boolean;
+  end;
 var
  error        : Integer=0;
  Lcurrdir     : Integer=0;
@@ -20,6 +25,7 @@ var
  newmap       : Boolean=False;
  searchlist   : TSearchRec;
  Files        : TSearchResults;
+ OSFiles      : array of searchresult;
  filedetails  : TDirEntry;
  filelist     : TStringList;
 const
@@ -33,32 +39,34 @@ const
   $410   ,$500   ,$A00   ,$A01   ,$A02   ,$A03   ,$A04   ,$A05);
  Options : array[0..3] of String = ('none','load','run','exec'); //Boot options
  Inter   : array[0..3] of String = ('auto','seq', 'int','mux' ); //Interleave
- Configs : array[0..24] of array[0..1] of String = (
- ('Texture'          ,'I'),
- ('ADFS_L_Interleave','I'),
- ('Spark_Is_FS'      ,'B'),
- ('CreateINF'        ,'B'),
- ('Hide_CDR_DEL'     ,'B'),
- ('DFS_Zero_Sectors' ,'B'),
- ('DFS_Beyond_Edge'  ,'B'),
- ('DFS_Allow_Blanks' ,'B'),
- ('UEF_Compress'     ,'B'),
- ('Scan_SubDirs'     ,'B'),
- ('Open_DOS'         ,'B'),
- ('View_Options'     ,'I'),
- ('Debug_Mode'       ,'B'),
- ('CSVIncDir'        ,'B'),
- ('CSVIncFilename'   ,'B'),
- ('CSVIncReport'     ,'B'),
- ('CSVParent'        ,'B'),
- ('CSVFilename'      ,'B'),
- ('CSVLoadAddr'      ,'B'),
- ('CSVExecAddr'      ,'B'),
- ('CSVLength'        ,'B'),
- ('CSVAttributes'    ,'B'),
- ('CSVAddress'       ,'B'),
- ('CSVCRC32'         ,'B'),
- ('CSVMD5'           ,'B'));
+ Configs : array[0..26] of array[0..2] of String = (
+ ('AddImpliedAttributes','B','Add Implied Attributes for DFS/CFS/RFS'),
+ ('ADFS_L_Interleave'   ,'I','0=Automatic; 1=Sequential; 2=Interleave; 3=Multiplex'),
+ ('Create_DSC'          ,'B','Create *.dsc file with hard drives'),
+ ('CreateINF'           ,'B','Create a *.inf file when extracting'),
+ ('CSVAddress'          ,'B','Include the disc address in CSV file'),
+ ('CSVAttributes'       ,'B','Include the file attributes in CSV file'),
+ ('CSVCRC32'            ,'B','Include the CRC-32 in CSV file'),
+ ('CSVExecAddr'         ,'B','Include the execution address in CSV file'),
+ ('CSVFilename'         ,'B','Include the filename in CSV file'),
+ ('CSVIncDir'           ,'B','Include directories in CSV file'),
+ ('CSVIncFilename'      ,'B','Include image filename in CSV file'),
+ ('CSVIncReport'        ,'B','Include image report in CSV file'),
+ ('CSVLength'           ,'B','Include the file length in CSV file'),
+ ('CSVLoadAddr'         ,'B','include the load address in CSV file'),
+ ('CSVMD5'              ,'B','Include the MD5 in CSV file'),
+ ('CSVParent'           ,'B','Include the parent in CSV file'),
+ ('Debug_Mode'          ,'B','Is debug mode on?'),
+ ('DFS_Allow_Blanks'    ,'B','Allow blank filenames in DFS'),
+ ('DFS_Beyond_Edge'     ,'B','Check for files going over the DFS disc edge'),
+ ('DFS_Zero_Sectors'    ,'B','Allow DFS images with zero sectors'),
+ ('Hide_CDR_DEL'        ,'B','Hide DEL files in Commodore images'),
+ ('Open_DOS'            ,'B','Automatically open DOS partitions in ADFS'),
+ ('Scan_SubDirs'        ,'B','Automatically scan sub-directories'),
+ ('Spark_Is_FS'         ,'B','Treat Spark archives as file system'),
+ ('Texture'             ,'I','Which texture background to use'),
+ ('UEF_Compress'        ,'B','Compress UEF images when saving'),
+ ('View_Options'        ,'I','Displays which menus are visible'));
  //Validate a filename, building a complete path if required
  function ValidFile(thisfile: String): Boolean;
  begin
@@ -108,12 +116,38 @@ const
   if UpperCase(RightStr(GivenSize,1))='M' then
    Result:=StrToIntDef(LeftStr(GivenSize,Length(GivenSize)-1),0)*1024;
  end;
+ //Wildcard filename search
+ function GetListOfFiles(Lfilesearch: String; LFiles: TSearchResults=nil): TSearchResults;
+ begin
+  ResetDirEntry(filedetails);
+  //Select the file
+  filedetails.Filename:=Lfilesearch;
+  filedetails.Parent:=Image.GetParent(Fcurrdir);
+  //First we look for the files - this will allow wildcarding
+  Result:=Image.FileSearch(filedetails,LFiles);
+ end;
+ //Build the filename
+ function BuildFilename(Lfile: TDirEntry): String;
+ begin
+  Result:='';
+  if Lfile.Parent<>'' then
+   Result:=Lfile.Parent
+        +Image.GetDirSep(Image.Disc[Fcurrdir].Partition);
+  Result:=Result+Lfile.Filename;
+ end;
 //Main procedure definition starts here
 begin
  ResetDirEntry(filedetails);
  if Length(Command)=0 then exit;
  //Convert the command to lower case
  Command[0]:=LowerCase(Command[0]);
+ //'ls' command is the same as 'find *'
+ if Command[0]='ls' then
+ begin
+  SetLength(Command,2);
+  Command[0]:='find';
+  Command[1]:='*';
+ end;
  //Error number
  error:=0;
  //Parse the command
@@ -129,53 +163,124 @@ begin
       SetLength(Command,3);
       Command[2]:='';
      end;
-     if ValidFile(Command[1]) then
-     begin
-      Write('Changing attributes for '+temp+' ');
-      if Image.UpdateAttributes(temp,Command[2])then
+     Files:=nil;
+     Files:=GetListOfFiles(Command[1]);
+     if Length(Files)>0 then
+      for Index:=0 to Length(Files)-1 do
       begin
-       WriteLn('success.');
-       HasChanged:=True;
-      end else WriteLn('failed.');
-     end else WriteLn(cmdRed+''''+Command[1]+''' not found.'+cmdNormal)
+       temp:=BuildFilename(Files[Index]);
+       Write('Changing attributes for '+temp+' ');
+       if Image.UpdateAttributes(temp,Command[2])then
+       begin
+        WriteLn(cmdGreen+'success.'+cmdNormal);
+        HasChanged:=True;
+       end else WriteLn(cmdRed+'failed.'+cmdNormal);
+      end
+     else WriteLn(cmdRed+'No files not found.'+cmdNormal)
     end
     else error:=2
    else error:=1;
   //Add files ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  'add':
-   if Image.FormatNumber<>diInvalidImg then
+  'add','find':
+   if((Image.FormatNumber<>diInvalidImg)and(Command[0]='add'))
+   or (Command[0]='find')then
     if Length(Command)>1 then //Are there any files given?
-     for Index:=1 to Length(Command)-1 do//Just add a file
+    begin
+     SetLength(OSFiles,0);
+     for Index:=1 to Length(Command)-1 do //Just add a file
      begin
+      ok:=True; //Add to list
+      if Command[Index][1]='|' then //Remove from list
+      begin
+       ok:=False;
+       Command[Index]:=Copy(Command[Index],2);
+      end;
       //Can contain a wild card
       FindFirst(Command[Index],faDirectory,searchlist);
+      //First thing we do is collate a list of files/directories
       repeat
-       //These are previous and top directories
-       if(searchlist.Name<>'.')and(searchlist.Name<>'..')then
+       //These are previous and top directories, and nothing found
+       if (searchlist.Name<>'.')
+       and(searchlist.Name<>'..')
+       and(searchlist.Name<>'')then
        begin
-        temp:=ExtractFilePath(Command[Index])+searchlist.Name;
-        if(searchlist.Attr AND faDirectory)=faDirectory then
-        begin //Add directory
-         Write('Adding directory: '''+temp+'''.');
-         if AddDirectoryToImage(temp) then
-         begin
-          HasChanged:=True;
-          WriteLn(' Success.');
-         end else WriteLn(' Failed.');
-        end
-        else //Add a single file
+        //New entry
+        if ok then
         begin
-         Write('Adding file: '''+temp+'''.');
-         if AddFileToImage(temp)>=0 then
-         begin
-          HasChanged:=True;
-          WriteLn(' Success.');
-         end else WriteLn(' Failed.');
+         ptr:=Length(OSFiles);
+         SetLength(OSFiles,ptr+1);
+         //Make a note of the filename
+         OSFiles[ptr].Filename:=ExtractFilePath(Command[Index])+searchlist.Name;
+         //And whether it is a directory or not
+         if(searchlist.Attr AND faDirectory)=faDirectory then
+          OSFiles[ptr].Directory:=True
+         else
+          OSFiles[ptr].Directory:=False;
+        end
+        else //Remove an entry
+        begin
+         temp:=ExtractFilePath(Command[Index])+searchlist.Name;
+         for ptr:=0 to Length(OSFiles)-1 do
+          if (OSFiles[ptr].Filename=temp)
+          and(OSFiles[ptr].Directory=((searchlist.Attr AND faDirectory)=faDirectory))then
+           OSFiles[ptr].Filename:='';
         end;
        end;
+       //Next entry
       until FindNext(searchlist)<>0;
+      //All done, then close the search
       FindClose(searchlist);
-     end
+      //Next parameter
+     end;
+     //Now remove blank entries
+     ptr:=0;
+     while ptr<Length(OSFiles) do
+     begin
+      if OSFiles[ptr].Filename='' then
+      begin
+       if ptr<Length(OSFiles)-2 then
+        for Index:=ptr to Length(OSFiles)-2 do OSFiles[Index]:=OSFiles[Index+1];
+       SetLength(OSFiles,Length(OSFiles)-1);
+       dec(ptr);
+      end;
+      inc(ptr);
+     end;
+     //Report the number of entries found
+     WriteLn(IntToStr(Length(OSFiles))+' entries found.');
+     //Now we add/list them
+     for ptr:=0 to Length(OSFiles)-1 do
+     begin
+      //Add directory
+      if OSFiles[ptr].Directory then
+      begin
+       if Command[0]='add' then
+       begin
+        Write('Adding directory: '''+OSFiles[ptr].Filename+'''.');
+        ok:=AddDirectoryToImage(OSFiles[ptr].Filename);
+       end //Or list the directory
+       else WriteLn(cmdBlue+'Directory'+cmdNormal+': '''
+                   +OSFiles[ptr].Filename+'''.');
+      end
+      else //Add a single file
+      begin
+       if Command[0]='add' then
+       begin
+        Write('Adding file: '''+OSFiles[ptr].Filename+'''.');
+        ok:=AddFileToImage(OSFiles[ptr].Filename)>=0;
+       end //Or list the file
+       else WriteLn(cmdBlue+'File'+cmdNormal+': '''
+                   +OSFiles[ptr].Filename+'''.');
+      end;
+      //Write was a success
+      if(Command[0]='add')and(ok)then
+      begin
+       HasChanged:=True;
+       WriteLn(cmdGreen+' Success.'+cmdNormal);
+      end;
+      //Write was a failure
+      if(Command[0]='add')and(not ok)then WriteLn(cmdRed+' Failed.'+cmdNormal);
+     end;
+    end
     else error:=2//Nothing has been passed
    else error:=1;//No image
   //Display a catalogue of the current directory +++++++++++++++++++++++++++++++
@@ -226,6 +331,11 @@ begin
         //Files
         if Image.Disc[Lcurrdir].Entries[Index].DirRef=-1 then
         begin
+         //Filetype - ADFS, Spark only
+         if  (Image.Disc[Lcurrdir].Entries[Index].FileType<>'')
+         and((Image.MajorFormatNumber=diAcornADFS)
+         or  (Image.MajorFormatNumber=diSpark))then
+          Write(' '+Image.Disc[Lcurrdir].Entries[Index].FileType);
          //Timestamp - ADFS, Spark, FileStore, Amiga and DOS only
          if  (Image.Disc[Lcurrdir].Entries[Index].TimeStamp>0)
          and((Image.MajorFormatNumber=diAcornADFS)
@@ -266,10 +376,31 @@ begin
     end;
    end else error:=1;
   //Change the host directory ++++++++++++++++++++++++++++++++++++++++++++++++++
-  'chdir': if Length(Command)>1 then SetCurrentDir(Command[1]) else error:=2;
-  //Set a configuration option +++++++++++++++++++++++++++++++++++++++++++++++++
-  'config':
-   if Length(Command)>2 then
+  'chdir': if Length(Command)>1 then SetCurrentDir(Command[1]) else error:=2;   
+  //Defrag +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  'compact':WriteLn(cmdRed+'This command has not been implemented yet.'+cmdNormal);
+{   if Image.FormatNumber<>diInvalidImg then //Image inserted?
+   begin
+    //Get the drive/partition specification, default to 0 if none specified
+    if Length(Command)>1 then ptr:=StrToIntDef(Command[1],-1)
+    else ptr:=Image.Disc[Fcurrdir].Partition;
+    //Count number of sides/partitions
+    dir:=0;
+    for Index:=0 to Length(Image.Disc)-1 do
+     if Image.Disc[Index].Parent=-1 then inc(dir);
+    //Is it valid?
+    if(ptr>=0)and(ptr<dir)then
+    begin
+     WriteLn(cmdBold+cmdBlue+'Defragging drive/partition '
+            +IntToStr(ptr)+cmdNormal);
+     Defrag(ptr);
+    end
+    else WriteLn(cmdRed+'Invalid drive or partition specification'+cmdNormal);
+   end
+   else error:=1;}
+  //Set a configuration option, display available options or current settings ++
+  'config','status':
+   if(Command[0]='config')and(Length(Command)>2)then
    begin
     ok:=False;
     for Index:=0 to Length(Configs)-1 do
@@ -296,7 +427,46 @@ begin
     end;
     if ok then WriteLn('Configuration option set.')
     else WriteLn(cmdRed+'Invalid configuration option.'+cmdNormal);
-   end else error:=2;
+   end else
+   //Not enough parameters, so list the config options or current settings
+   begin
+    Write(cmdBold+cmdBlue);
+    if Command[0]='config' then Write('Valid configuration options')
+    else Write('Current configuration settings');
+    WriteLn(cmdNormal);
+    WriteLn('Not all configurations are used by the console.');
+    //Get the longest string
+    ptr:=1;
+    for Index:=0 to Length(Configs)-1 do
+     if Length(Configs[Index,0])>ptr then ptr:=Length(Configs[Index,0]);
+    //Display the current configs, or current settings
+    for Index:=0 to Length(Configs)-1 do
+    begin
+     Write(cmdRed+cmdBold+PadRight(Configs[Index,0],ptr)+cmdNormal+': ');
+     if Command[0]='config' then //Available settings
+     begin
+      Write(cmdRed);
+      case Configs[Index,1] of
+       'B': Write('True|False');
+       'I': Write('<Integer>');
+       'S': Write('<String>');
+      end;
+      WriteLn(cmdNormal);
+      if Configs[Index,2]<>'' then
+       WriteLn(StringOfChar(' ',ptr+2)+Configs[Index,2]);
+     end
+     else //Current settings
+     begin
+      if DIMReg.DoesKeyExist(Configs[Index,0]) then
+       case Configs[Index,1] of
+        'B' : WriteLn(DIMReg.GetRegValB(Configs[Index,0]));
+        'I' : WriteLn('0x'+IntToHex(DIMReg.GetRegValI(Configs[Index,0]),4));
+        'S' : WriteLn(DIMReg.GetRegValS(Configs[Index,0]));
+       end
+      else WriteLn(cmdRed+'Not set'+cmdNormal);
+     end;
+    end;
+   end;
   //Creates a directory ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'create':
    if Image.FormatNumber<>diInvalidImg then
@@ -312,10 +482,10 @@ begin
     //Create the directory
     if Image.CreateDirectory(temp,Lparent,format)>=0 then
     begin
-     WriteLn('success.');
+     WriteLn(cmdGreen+'success.'+cmdNormal);
      HasChanged:=True;
     end
-    else WriteLn('failed.');
+    else WriteLn(cmdRed+'failed.'+cmdNormal);
    end
    else error:=1;//No image
   //Delete a specified file or directory +++++++++++++++++++++++++++++++++++++++
@@ -420,43 +590,57 @@ begin
      Write('Retitle directory '+temp+' ');
      if Image.RetitleDirectory(temp,Command[1]) then
      begin
-      WriteLn('success.');
+      WriteLn(cmdGreen+'success.'+cmdNormal);
       HasChanged:=True;
      end
-     else WriteLn('failed.');
+     else WriteLn(cmdRed+'failed.'+cmdNormal);
     end
     else error:=2//Nothing has been passed
    else error:=1;//No image
   //Change exec or load address ++++++++++++++++++++++++++++++++++++++++++++++++
-  'exec','load':
+  'exec','load','type':
    if Image.FormatNumber<>diInvalidImg then
     if Length(Command)>2 then
      if IntToHex(StrToIntDef('$'+Command[2],0),8)
        =UpperCase(RightStr('00000000'+Command[2],8)) then
      begin
-      //Does it exist?
-      if ValidFile(Command[1]) then
+     Files:=nil;
+     Files:=GetListOfFiles(Command[1]);
+     if Length(Files)>0 then
+      for Index:=0 to Length(Files)-1 do
       begin
+       temp:=BuildFilename(Files[Index]);
        ok:=False;
-       //Print the text
-       format:=LowerCase(Command[0]);
-       if format='exec' then format:='execution'; //Expand exec
-       Write('Change '+format+' address for '+temp
-            +' to 0x'+IntToHex(StrToIntDef('$'+Command[2],0),8)+' ');
-       //Attempt to update address
+       //Print the text - Load or Exec
+       if(Command[0]='load')or(Command[0]='exec')then
+       begin
+        if format='exec' then format:='execution'; //Expand exec
+        Write('Change '+format+' address for '+temp
+             +' to 0x'+IntToHex(StrToIntDef('$'+Command[2],0),8)+' ');
+       end;
+       //Print the text - Filetype
+       if Command[0]='type' then
+       begin
+        Command[2]:=RightStr('000'+Command[2],3); //Ensure filetype is 12 bits
+        Write('Change filetype for '+temp+' to 0x'
+             +IntToHex(StrToIntDef('$'+Command[2],0),3)+' ');
+       end;
+       //Attempt to update details
        if LowerCase(Command[0])='exec' then //Execution address
-        ok:=Image.UpdateExecAddr(Command[1],StrToIntDef('$'+Command[2],0));
+        ok:=Image.UpdateExecAddr(temp,StrToIntDef('$'+Command[2],0));
        if LowerCase(Command[0])='load' then //Load address
-        ok:=Image.UpdateLoadAddr(Command[1],StrToIntDef('$'+Command[2],0));
+        ok:=Image.UpdateLoadAddr(temp,StrToIntDef('$'+Command[2],0));
+       if LowerCase(Command[0])='type' then //Filetype
+        ok:=Image.ChangeFileType(temp,Command[2]); //We can take a filetype name here
        //Report back
        if ok then
        begin
         HasChanged:=True;
-        WriteLn('success.');
+        WriteLn(cmdGreen+'success.'+cmdNormal);
        end
-       else WriteLn('failed.');
+       else WriteLn(cmdRed+'failed.'+cmdNormal);
       end
-      else WriteLn(cmdRed+''''+Command[1]+''' not found.'+cmdNormal);
+      else WriteLn(cmdRed+'No files found'+cmdNormal);
      end
      else WriteLn(cmdRed+'Invalid hex number.'+cmdNormal)
     else error:=2//Nothing has been passed
@@ -465,30 +649,24 @@ begin
   'exit': if not Confirm then Command[0]:='';
   //Enter the GUI application ++++++++++++++++++++++++++++++++++++++++++++++++++
   'exittogui': WriteLn('Entering GUI.');
-  //Extract command ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  'extract':
+  //Extract and search commands ++++++++++++++++++++++++++++++++++++++++++++++++
+  'extract','search':
    if Image.FormatNumber<>diInvalidImg then
     if Length(Command)>1 then
+    begin
+     Files:=nil;
      for Index:=1 to Length(Command)-1 do
-     begin
-      ResetDirEntry(filedetails);
-      //Select the file
-      filedetails.Filename:=Command[Index];
-      filedetails.Parent:=Image.GetParent(Fcurrdir);
-      //First we look for the files - this will allow wildcarding
-      Files:=Image.FileSearch(filedetails);
+      Files:=GetListOfFiles(Command[Index],Files);
+     if Command[0]='search' then
+      WriteLn(IntToStr(Length(Files))+' file(s) found.');
       //Now go through all the results, if any, and extract each of them
-      if Length(Files)>0 then //If there are any, of course
-       for opt:=0 to Length(Files)-1 do
-       begin
-        temp:='';
-        //Build the filename
-        if Files[opt].Parent<>'' then
-         temp:=Files[opt].Parent
-              +Image.GetDirSep(Image.Disc[Fcurrdir].Partition);
-        temp:=temp+Files[opt].Filename;
-        //And extract it
-        if Image.FileExists(temp,dir,entry) then
+     if Length(Files)>0 then //If there are any, of course
+      for opt:=0 to Length(Files)-1 do
+      begin
+       temp:=BuildFilename(Files[opt]);
+       //And extract or print it
+       if Image.FileExists(temp,dir,entry) then
+        if Command[0]='extract' then //Extract
         begin
          Write('Extracting '+temp+' ');
          //Ensure we are within range
@@ -501,10 +679,12 @@ begin
           Write(cmdRed+'Cannot extract the root in this way. ');
           WriteLn('Try selecting the root and entering ''extract *''.'+cmdNormal);
          end;
-        end;
-       end
-      else WriteLn(cmdRed+'No files found.'+cmdNormal);
-     end
+        end
+        else WriteLn(temp); //Print
+      end
+     else
+      if Command[0]='extract' then WriteLn(cmdRed+'No files found.'+cmdNormal);
+    end
     else error:=2//Nothing has been passed
    else error:=1;//No image
   //Multi CSV output of files ++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -534,6 +714,19 @@ begin
     filelist.Free;
    end
    else error:=2;//Nothing has been passed
+  //Translate filetype +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  'filetype':
+   //List all filetypes
+   if Length(Command)>1 then
+    //Name passed?
+    if IntToHex(StrToIntDef('$'+Command[1],0),3)<>UpperCase(Command[1]) then
+    begin
+     ptr:=Image.GetFileType(Command[1]);
+     if ptr<>-1 then WriteLn('0x'+IntToHex(ptr,3))
+     else WriteLn('Unknown filetype');
+    end //No, hex number passed
+    else WriteLn(Image.GetFileType(StrToInt('$'+Command[1])))
+   else error:=2;
   //Get the free space +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'free':
    if Image.FormatNumber<>diInvalidImg then ReportFreeSpace
@@ -542,15 +735,13 @@ begin
   'help':
    begin
     WriteLn(cmdBlue+cmdBold+'Console Help'+cmdNormal);
-    {format:='';
-    if Length(Command)>1 then format:=Command[1];}
     for Index:=0 to Help.Lines.Count-1 do
     begin
      temp:=Help.Lines[Index];
      if Length(temp)>1 then
       if temp[1]<>' ' then temp:=cmdRed+cmdBold+temp
       else temp:=Copy(temp,2);
-     WriteLn(temp+cmdNormal);
+     WriteLn(WrapText(temp,ConsoleWidth)+cmdNormal);
     end;
    end;
   //Open command +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -598,6 +789,8 @@ begin
      else WriteLn(cmdRed+'Not possible in this format.'+cmdNormal)
     else error:=2
    else error:=1;
+  //Join partitions ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  'join':WriteLn(cmdRed+'This command has not been implemented yet.'+cmdNormal);
   //Show the contents of a file ++++++++++++++++++++++++++++++++++++++++++++++++
   'list':
    if Image.FormatNumber<>diInvalidImg then
@@ -757,9 +950,9 @@ begin
       if Image.UpdateBootOption(opt,ptr) then
       begin
        HasChanged:=True;
-       WriteLn('success.');
+       WriteLn(cmdGreen+'success.'+cmdNormal);
       end
-      else WriteLn('failed.')
+      else WriteLn(cmdRed+'failed.'+cmdNormal)
      end
      else WriteLn(cmdRed+'Invalid boot option.'+cmdNormal)
     end
@@ -777,10 +970,10 @@ begin
       opt:=Image.RenameFile(temp,Command[2]);
       if opt>=0 then
       begin
-       WriteLn('success.');
+       WriteLn(cmdGreen+'success.'+cmdNormal);
        HasChanged:=True;
       end
-      else WriteLn('failed ('+IntToStr(opt)+').');
+      else WriteLn(cmdRed+'failed ('+IntToStr(opt)+').'+cmdNormal);
      end else WriteLn(cmdRed+''''+Command[1]+''' not found.'+cmdNormal)
     else error:=2
    else error:=1;
@@ -820,26 +1013,22 @@ begin
     WriteLn('CSV output complete.');
    end
    else error:=1;
-  //Display the current configurations +++++++++++++++++++++++++++++++++++++++++
-  'status':
-   begin
-    WriteLn(cmdBold+cmdBlue+'Configuration'+cmdNormal);
-    WriteLn('Not all configurations are used by the console.');
-    //Get the longest string
-    ptr:=1;
-    for Index:=0 to Length(Configs)-1 do
-     if Length(Configs[Index,0])>ptr then ptr:=Length(Configs[Index,0]);
-    //Display the current configs
-    for Index:=0 to Length(Configs)-1 do
-    begin
-     Write(cmdRed+cmdBold+PadRight(Configs[Index,0],ptr)+cmdNormal+': ');
-     case Configs[Index,1] of
-      'B' : WriteLn(DIMReg.GetRegValB(Configs[Index,0]));
-      'I' : WriteLn('0x'+IntToHex(DIMReg.GetRegValI(Configs[Index,0]),4));
-      'S' : WriteLn(DIMReg.GetRegValS(Configs[Index,0]));
-     end;
-    end;
-   end;
+  //Split partitions +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  'split':WriteLn(cmdRed+'This command has not been implemented yet.'+cmdNormal);
+  //Change the timestamp +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  'stamp':
+   if Image.FormatNumber<>diInvalidImg then
+    if Length(Command)>1 then
+     if ValidFile(Command[1]) then
+      if Image.TimeStampFile(temp,Now) then
+      begin
+       HasChanged:=True;
+       WriteLn(cmdGreen+'Success'+cmdNormal);
+      end
+      else WriteLn(cmdRed+'Failed'+cmdNormal)
+     else WriteLn(cmdRed+'File not found'+cmdNormal)
+    else error:=2
+   else error:=1;
   //Change the disc title ++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'title':
    if Image.FormatNumber<>diInvalidImg then
@@ -855,9 +1044,9 @@ begin
      if Image.UpdateDiscTitle(Command[1],ptr) then
      begin
       HasChanged:=True;
-      WriteLn('success.');
+      WriteLn(cmdGreen+'success.'+cmdNormal);
      end
-     else WriteLn('failed.')
+     else WriteLn(cmdRed+'failed.'+cmdNormal)
     end
     else error:=2
    end
