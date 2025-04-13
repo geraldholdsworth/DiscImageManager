@@ -786,7 +786,7 @@ var                   //Track and sector number for the directory
  attr      : Byte=0;
  c         : Cardinal=0;
  ptr       : Cardinal=0;
- sectors   : TDIByteArray=nil;
+ Lsectors  : TDIByteArray=nil;
  temp      : String='';
 begin
  //1581 track and sector number
@@ -796,8 +796,8 @@ begin
   sector:=3;
   maxsector:=40;
  end;
- SetLength(sectors,maxsector+1); //Pointer to directories
- for i:=0 to maxsector do sectors[i]:=$FF;
+ SetLength(Lsectors,maxsector+1); //Pointer to directories
+ for i:=0 to maxsector do Lsectors[i]:=$FF;
  //Clear the FSM for the system track
  for i:=sector to maxsector do
  begin
@@ -822,7 +822,7 @@ begin
    end;
    //Claim this sector
    free_space_map[0,track-1,dirsector]:=$FE;
-   sectors[i DIV 8]:=dirsector;
+   Lsectors[i DIV 8]:=dirsector;
   end;
   ptr:=ConvertDxxTS(GetMinorFormatNumber,track,dirsector)+(i MOD 8)*$20;
   //t/s link to next directory - they are all 00/00 except for the first
@@ -882,11 +882,11 @@ begin
  for i:=0 to j do
  begin
   //Pointer to this directory
-  ptr:=ConvertDxxTS(GetMinorFormatNumber,track,sectors[i]);
+  ptr:=ConvertDxxTS(GetMinorFormatNumber,track,Lsectors[i]);
   if i=j then WriteByte($00,ptr) else WriteByte(track,ptr);
-  WriteByte(sectors[i+1],ptr+1);
+  WriteByte(Lsectors[i+1],ptr+1);
   //Update the BAM for the system track
-  CDRSetClearBAM(track,sectors[i],True);
+  CDRSetClearBAM(track,Lsectors[i],True);
  end;
 end;
 

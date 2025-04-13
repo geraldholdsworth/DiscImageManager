@@ -123,7 +123,7 @@ function TDiscImage.ReadAmigaDisc: Boolean;
 var
  d       : Integer=0;
  ptr     : Integer=0;
- sectors : Integer=0;
+ Lsectors : Integer=0;
 begin
  FDisc:=nil;
  //Initialise some variables
@@ -131,9 +131,9 @@ begin
  if FFormat<>diInvalidImg then
  begin
   //Total number of sectors will be double where the root is
-  sectors   :=root*2;
+  Lsectors  :=root*2;
   //Disc size
-  disc_size[0]:=Cardinal(sectors)*secsize;
+  disc_size[0]:=Cardinal(Lsectors)*secsize;
   //Disc name
   disc_name[0]:=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
   //Create an entry for the root

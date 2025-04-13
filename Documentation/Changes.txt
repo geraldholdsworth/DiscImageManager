@@ -1011,8 +1011,8 @@ Bug fixes
 * Some DFS images were producing a "phantom directory".
 * When files were getting written to a DOS image, the same block was being used for each segment of the file resulting in the file being overwritten by itself.
 
-1.47.5
----------------------
+1.48 13th April 2025
+--------------------
 New or improved features
 * Added keyboard shortcuts to the confirm/error/information dialogue boxes.
 * Added a fourth button to the confirm/error/information dialogue boxes.
@@ -1031,6 +1031,7 @@ New or improved features
 * Added a new command to the console, 'type'. This sets the filetype for a file.
 * Some text formatting and improvements in the console text.
 * Wildcards are now accepted for the console commands 'access', 'exec', 'load', 'type' and 'stamp'.
+* Added new commands to the console, 'compact' and 'defrag'. These are identical and will perform a defrag, or compact, the image, if possible.
 
 Bug fixes
 * ADFS directories would use the default ID (Hugo, Nick or SBPr/oven) depending on whether it is old, new or big. This would mean that images could end up with a mis-match of IDs, which Arthur ADFS was not keen on.
@@ -1040,6 +1041,7 @@ Bug fixes
 * Creating a new ADFS Old Map image, then adding a new directory, renaming then deleting would fail to delete. This bug is related to the failure to decompact bug.
 * FAT12 HDD sizes of above 31MB were permitted to be created, which will produce invalid images.
 * When changing the load and execution addresses of a file, editing one then clicking on the other would make the one you were editing disappear.
+* Defragging (compacting) an image with no free space would fail and not revert back to the original image. Now, it fails and returns to the original image with no changes made.
 
 Platform History
 ----------------

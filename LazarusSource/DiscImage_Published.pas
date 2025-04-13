@@ -34,13 +34,13 @@ var
  index: Cardinal=0;
 begin
  inherited Create;
+ //Can only clone the shape on ADFS, currently
+ if Clone.GetMajorFormatNumber<>diAcornADFS then keepfiles:=True;
  //Reset the variables to default
  ResetVariables;
  SetDataLength(Length(Clone.RAWData));
  //Copy the raw data across
- if keepfiles then
-  for index:=0 to Length(Fdata)-1 do
-   Fdata[index]:=Clone.RAWData[index];
+ for index:=0 to Length(Fdata)-1 do Fdata[index]:=Clone.RAWData[index];
  //ADFS Interleaving option
  FForceInter          :=Clone.InterleaveMethod;
  //Deal with Spark archives as a filing system (i.e. in this class)
@@ -65,6 +65,28 @@ begin
  If IDImage then ReadImage;
  //And set the filename
  imagefilename:=FFilename;
+ //We just need the shape of the clone - no files.
+ if not keepfiles then
+ begin
+  case Clone.GetMajorFormatNumber of
+   diAcornADFS: //Create an identical shape ADFS image
+    //Format the image
+    if Clone.GetMinorFormatNumber<$F then //Floppy Drive
+     FormatADFSFloppy(Clone.GetMinorFormatNumber)
+    else                                  //Hard Drive
+     FormatADFSHDD(Length(Fdata),
+                   Clone.MapType=diADFSNewMap,
+                   Clone.DirectoryType,
+                   (Clone.HDDHeads=16)AND(Clone.Sectors=63),
+                   (Clone.HeaderSize>0));
+  end;
+  //Update the boot options and disc titles
+  for Index:=0 to Length(Clone.BootOpt)-1 do
+  begin
+   UpdateBootOption(Clone.BootOpt[Index],Index);
+   UpdateDiscTitle(Clone.Title(Index),Index);
+  end;
+ end;
 end;
 
 {-------------------------------------------------------------------------------

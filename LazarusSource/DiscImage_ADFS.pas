@@ -2263,10 +2263,15 @@ begin
  if not FMap then //Old map
  begin
   ptr:=ReadByte($1FE); //Number of free space entries
+  //Find a space equal to the size of the file
   freeptr:=0;
-  while(freeptr<ptr)
-    and(Read24b($100+freeptr)*$100<safilelen)do
-   inc(freeptr,3);
+  while(freeptr<ptr)and(Read24b($100+freeptr)*$100<>safilelen)do inc(freeptr,3);
+  //If this fails, find a space bigger than the size of the file
+  if freeptr>=ptr then
+  begin
+   freeptr:=0;
+   while(freeptr<ptr)and(Read24b($100+freeptr)*$100<safilelen)do inc(freeptr,3);
+  end;
   if freeptr<ptr then //Space found
   begin
    //Fill in the details

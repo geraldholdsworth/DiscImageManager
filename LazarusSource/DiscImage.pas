@@ -1,14 +1,14 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.47 and TSpark class V1.05
+TDiscImage class V1.48 and TSpark class V1.05
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
 1541, Commodore 1571, Commodore 1581, Commodore AmigaDOS, Acorn File Server,
 SparkFS, PackDir, MS-DOS, and Acorn DOS Plus.
 
-Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright ©2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -902,6 +902,8 @@ type
   property FormatNumber:        Word          read FFormat;
   property FormatString:        String        read FormatToString;
   property FreeSpaceMap:        TSide         read free_space_map;
+  property HDDHeads:            Byte          read heads;
+  property HeaderSize:          Cardinal      read emuheader;
   property InterleaveInUse:     String        read InterleaveString;
   property InterleaveInUseNum:  Byte          read FInterleave;
   property InterleaveMethod:    Byte          read FForceInter
@@ -919,6 +921,7 @@ type
   property RootAddress:         Cardinal      read GetRootAddress;
   property ScanSubDirs:         Boolean       read FScanSubDirs
                                               write FScanSubDirs;
+  property Sectors:             Byte          read secspertrack;
   property SparkAsFS:           Boolean       read FSparkAsFS
                                               write FSparkAsFS;
   property VersionNumber:       Byte          read GetRFSVersionNumber

@@ -9,7 +9,7 @@ has also grown from being just a reader to also a writer.
 Extra 'gimmicks' have been added over time, to utilise the code in the underlying
 class.
 
-Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright ©2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -373,7 +373,7 @@ type
                          LLeft,LTop: Integer; LModal: TModalResult): TRISCOSButton;
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure CreateFileTypeDialogue;
-   procedure Defrag(side: Byte);
+   procedure Defrag(side: Byte=0);
    function DeleteFile(confirm: Boolean): Boolean;
    procedure DisableControls;
    procedure DoCopyMove(copymode: Boolean);
@@ -391,7 +391,8 @@ type
    procedure SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
    function GetNodeAt(Y: Integer): TTreeNode;
    function GetTextureTile(Ltile:Integer=-1): TBitmap;
-   procedure ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);
+   function ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
+                                                 Errors: Boolean=True): Integer;
    function IntToStrComma(size: Int64): String;
    procedure OpenImage(filename: String);
    procedure ParseCommand(var Command: TStringArray);
@@ -580,7 +581,7 @@ type
     DesignedDPI        = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.47.5';
+    ApplicationVersion = '1.48';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -775,7 +776,7 @@ begin
     begin
      if(Dir.Attr AND faDirectory)=faDirectory then
      begin //Add any sub-directories
-      if Fguiopen then UpdateProgress('Adding '+Dir.Name);
+      UpdateProgress('Adding '+Dir.Name);
       Result:=(AddDirectoryToImage(dirname+pathdelim+Dir.Name))and(Result);
      end
      else
@@ -1570,10 +1571,7 @@ begin
   end
   //Happens if the file could not be located
   else
-   if Fguiopen then
-    ReportError('Could not download file "'+imagefilename+'"')
-   else
-    WriteLn('Could not download file '''+imagefilename+'''.');
+   ReportError('Could not download file "'+imagefilename+'"');
  end
  else DownLoadDirectory(dir,entry,path+windowsfilename);
 end;
@@ -1640,10 +1638,7 @@ begin
   end
   //Happens if the file could not be located
   else
-   if Fguiopen then
-    ReportError('Could not locate directory "'+imagefilename+'"')
-   else
-    WriteLn('Could not located directory '''+imagefilename+'''.');
+   ReportError('Could not locate directory "'+imagefilename+'"');
  end;
 end;
 
@@ -3453,12 +3448,14 @@ end;
 {------------------------------------------------------------------------------}
 //Import an image's contents into the current image
 {------------------------------------------------------------------------------}
-procedure TMainForm.ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True);
+function TMainForm.ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
+                                                 Errors: Boolean=True): Integer;
 var
  Node      : TTreeNode=nil;
  newentry  : TDirEntry;
- rootname  : String='';
- method    : String='';
+ rootname  : String='$';
+ method    : String='Moving';
+ temp      : String='';
  curformat : Byte=0;
  newformat : Byte=0;
  side      : Byte=0;
@@ -3470,67 +3467,77 @@ var
  MaxDirEnt : Integer=0;
  NumFiles  : Integer=0;
  buffer    : TDIByteArray=nil;
- ok        : Boolean=False;
+ ok        : Boolean=True;
 begin
+ Result:=0;
  ResetDirEntry(newentry);
- WriteToDebug('MainForm.ImportFiles');
+ if Fguiopen then WriteToDebug('MainForm.ImportFiles');
  //Read in the catalogue of the new image, if there is none
  if Length(NewImage.Disc)=0 then
  begin
   //Show a progress message
-  Image.ProgressIndicator:=@UpdateProgress;
-  ProgressForm.Show;
-  //Process the messages to close the file dialogue box
-  Application.ProcessMessages;
+  if Fguiopen then
+  begin
+   Image.ProgressIndicator:=@UpdateProgress;
+   ProgressForm.Show;
+   //Process the messages to close the file dialogue box
+   Application.ProcessMessages;
+  end;
   //Read the catalogue
   NewImage.ReadImage;
-  ProgressForm.Hide;
-  Application.ProcessMessages;
+  if Fguiopen then
+  begin
+   ProgressForm.Hide;
+   Application.ProcessMessages;
+  end;
  end;
- //Show the contents in the import selector box
- ImportSelectorForm.Show; //The TTreeView needs to be visible
- //Copy the DiscImage across
- ImportSelectorForm.FImage:=NewImage;
- //Add the disc image to the tree
- AddImageToTree(ImportSelectorForm.ImportDirList,NewImage);
- //Which side to tick
- side:=0;
- if DirList.SelectionCount>0 then
- begin
-  entry:=DirList.Selections[0].Index;
-  if DirList.Selections[0].Parent<>nil then
-   dir:=TMyTreeNode(DirList.Selections[0].Parent).DirRef
-  else
-   dir:=-1;
-  dr:=TMyTreeNode(DirList.Selections[0]).DirRef;
-  if dir>=0 then side:=Image.Disc[dir].Entries[entry].Side
-  else side:=Image.Disc[dr].Partition;
- end;
- //Tick them all (just by ticking the roots...i.e. those without parents)
- if ImportSelectorForm.ImportDirList.Items.Count>0 then
- begin
-  sidecount:=0;
-  for index:=0 to ImportSelectorForm.ImportDirList.Items.Count-1 do
-   if ImportSelectorForm.ImportDirList.Items[index].Parent=nil then
-   begin
-    if sidecount=side then //Only tick the root on the first side/partition
-    begin
-     ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],True);
-     ImportSelectorForm.ImportDirList.Items[index].Expand(False);
-    end
-    else                   //And untick the other side/partition
-    begin
-     ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],False);
-     ImportSelectorForm.ImportDirList.Items[index].Collapse(True);
-    end;
-    inc(sidecount);
-   end;
- end;
- //Now we need to hide the form so we can show it again, but modally.
- ImportSelectorForm.Hide;
- //And, finally, modally
  ok:=True;
- if Dialogue then ok:=ImportSelectorForm.ShowModal=mrOK;
+ if Fguiopen then
+ begin
+  //Show the contents in the import selector box
+  ImportSelectorForm.Show; //The TTreeView needs to be visible
+  //Copy the DiscImage across
+  ImportSelectorForm.FImage:=NewImage;
+  //Add the disc image to the tree
+  AddImageToTree(ImportSelectorForm.ImportDirList,NewImage);
+  //Which side to tick
+  side:=0;
+  if DirList.SelectionCount>0 then
+  begin
+   entry:=DirList.Selections[0].Index;
+   if DirList.Selections[0].Parent<>nil then
+    dir:=TMyTreeNode(DirList.Selections[0].Parent).DirRef
+   else
+    dir:=-1;
+   dr:=TMyTreeNode(DirList.Selections[0]).DirRef;
+   if dir>=0 then side:=Image.Disc[dir].Entries[entry].Side
+   else side:=Image.Disc[dr].Partition;
+  end;
+  //Tick them all (just by ticking the roots...i.e. those without parents)
+  if ImportSelectorForm.ImportDirList.Items.Count>0 then
+  begin
+   sidecount:=0;
+   for index:=0 to ImportSelectorForm.ImportDirList.Items.Count-1 do
+    if ImportSelectorForm.ImportDirList.Items[index].Parent=nil then
+    begin
+     if sidecount=side then //Only tick the root on the first side/partition
+     begin
+      ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],True);
+      ImportSelectorForm.ImportDirList.Items[index].Expand(False);
+     end
+     else                   //And untick the other side/partition
+     begin
+      ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],False);
+      ImportSelectorForm.ImportDirList.Items[index].Collapse(True);
+     end;
+     inc(sidecount);
+    end;
+  end;
+  //Now we need to hide the form so we can show it again, but modally.
+  ImportSelectorForm.Hide;
+  //And, finally, modally
+  if Dialogue then ok:=ImportSelectorForm.ShowModal=mrOK;
+ end;
  if ok then //And start the import
  begin
   //Work out the Maximum Directory Entries, now the user has chosen which files
@@ -3543,11 +3550,18 @@ begin
     index:=0; //Use this as a per-directory counter
     if Length(NewImage.Disc[dir].Entries)>0 then
      for entry:=0 to Length(NewImage.Disc[dir].Entries)-1 do
-      if ImportSelectorForm.IsNodeTicked(dir,entry) then
+     begin
+      //When this is not open in a GUI, assume everything is ticked
+      //This function is used when defragging an image
+      ok:=not Fguiopen;
+      if Fguiopen then
+       if ImportSelectorForm.IsNodeTicked(dir,entry) then ok:=True;
+      if ok then
       begin
        inc(index);
-       {if NewImage.Disc[dir].Entries[entry].DirRef<>-1 then }inc(NumFiles);
+       inc(NumFiles);
       end;
+     end;
     //Update the Maximum Directory Entries, per directory
     if index>MaxDirEnt then MaxDirEnt:=index;
    end;
@@ -3560,43 +3574,45 @@ begin
   or  ((Image.MajorFormatNumber=diAcornDFS)and(NumFiles>31))     //Check DFS
   or  ((Image.MajorFormatNumber=diCommodore)and(NumFiles>144))   //Check Commodore
   then
-   if Dialogue then ok:=AskConfirm(
+   if(Dialogue)and(Fguiopen)then ok:=AskConfirm(
            'The current open image is not suitable for this archive. '
           +'Would you like to continue regardless?',
           ['Yes','No'])=mrOK;
   //If all OK, then continue
   if ok then
   begin
-   //We don't need progress update from the class as we'll produce our own
-   NewImage.ProgressIndicator:=nil;
-   Image.ProgressIndicator:=@UpdateProgress;
-   //Show the progress form again
-   ProgressForm.Show;
-   Application.ProcessMessages;
-   //Importing or moving (this is also used by defrag)
-   method:='Importing';
-   if not Dialogue then method:='Moving';
-   //Turn error reporting off
-   ErrorReporting:=False;
-   //Clear the log
-   ErrorLogForm.ErrorLog.Clear;
-   //Get the name of the directory where this is being imported
-   if DirList.SelectionCount>0 then
+   rootname:=Image.Disc[0].Directory;
+   if Fguiopen then
    begin
-    if TMyTreeNode(DirList.Selections[0]).IsDir then
-     Node:=DirList.Selections[0]
-    else
-     Node:=DirList.Selections[0].Parent;
-    //We need the complete path, from the root
-    rootname:=Node.Text;
-    while Node.Parent<>nil do
+    //We don't need progress update from the class as we'll produce our own
+    NewImage.ProgressIndicator:=nil;
+    Image.ProgressIndicator:=@UpdateProgress;
+    //Show the progress form again
+    ProgressForm.Show;
+    Application.ProcessMessages;
+    //Importing or moving (this is also used by defrag)
+    method:='Importing';
+    if not Dialogue then method:='Moving';
+    //Turn error reporting off
+    ErrorReporting:=False;
+    //Clear the log
+    ErrorLogForm.ErrorLog.Clear;
+    //Get the name of the directory where this is being imported
+    if DirList.SelectionCount>0 then
     begin
-     Node:=Node.Parent;
-     rootname:=Node.Text+Image.DirSep+rootname;
+     if TMyTreeNode(DirList.Selections[0]).IsDir then
+      Node:=DirList.Selections[0]
+     else
+      Node:=DirList.Selections[0].Parent;
+     //We need the complete path, from the root
+     rootname:=Node.Text;
+     while Node.Parent<>nil do
+     begin
+      Node:=Node.Parent;
+      rootname:=Node.Text+Image.DirSep+rootname;
+     end;
     end;
-   end
-   else //Nothing selected, then this is the root
-    rootname:=Image.Disc[0].Directory;
+   end;
    curformat:=Image.MajorFormatNumber;   //Format of the current open image
    newformat:=NewImage.MajorFormatNumber;//Format of the importing image
    //Go through each directory
@@ -3613,7 +3629,8 @@ begin
                       +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
                       +newentry.Filename);
         //Validate the filename, as it could be different across file systems
-        if newformat<>diAcornDFS then WinToBBC(newentry.Filename); //Not DFS
+        if(newformat<>diAcornDFS)and(newformat<>curformat)then
+         WinToBBC(newentry.Filename);//Unless the systems are the same, but not DFS
         //DFS and C64 don't have directories, so the parent is the selected node
         if(newformat=diCommodore)or(newformat=diAcornDFS)then
          newentry.Parent:=rootname;
@@ -3640,10 +3657,13 @@ begin
         and((curformat=diAcornADFS)or(curformat=diAmiga)) then
         begin
          //Then create the directory
-         SelectNode(rootname);
+         if Fguiopen then SelectNode(rootname);
          //This will fail if already created, but we've suppressed errors
-         CreateDirectory(newentry.Filename[1],'DLR');
-         newentry.Parent:=rootname+Image.DirSep+newentry.Filename[1];
+         temp:=newentry.Filename[1];
+         newentry.Attributes:='DLR';
+         if Fguiopen then CreateDirectory(temp,newentry.Attributes)
+         else Image.CreateDirectory(temp,rootname,newentry.Attributes);
+         newentry.Parent:=rootname+Image.DirSep+temp;
          newentry.Filename:=Copy(newentry.Filename,3,Length(newentry.Filename));
         end;
         //Going to ADFS, from another system, ensure it has 'WR' attributes
@@ -3654,20 +3674,38 @@ begin
          if Pos('R',newentry.Attributes)=0 then
           newentry.Attributes:=newentry.Attributes+'R';
         end;
-        //Select the parent directory
-        SelectNode(newentry.Parent);
-        if DirList.SelectionCount=0 then
-         ReportError('Cannot find directory "'+newentry.Parent
-                     +'" when adding "'+newentry.Filename+'"')
-        else
+        ok:=True;
+        if Fguiopen then
+        begin
+         //Select the parent directory
+         SelectNode(newentry.Parent);
+         if DirList.SelectionCount=0 then
+         begin
+          if Errors then
+           ReportError('Cannot find directory "'+newentry.Parent
+                       +'" when adding "'+newentry.Filename+'"');
+          inc(Result);
+          ok:=False;
+         end;
+        end;
+        if ok then
         begin
          //Make sure it has been read in
-         if not TMyTreeNode(DirList.Selected).BeenRead then
-          ReadInDirectory(DirList.Selected);
+         if Fguiopen then
+          if not TMyTreeNode(DirList.Selected).BeenRead then
+           ReadInDirectory(DirList.Selected);
          //Is it a directory we're adding? ADFS and Amiga only
          if(newentry.DirRef>=0)and((curformat=diAcornADFS)or(curformat=diAmiga))then
           if newentry.Filename<>'$' then //Create the directory
-           CreateDirectory(newentry.Filename,'DLR');
+          begin
+           newentry.Attributes:='DLR';
+           if Fguiopen then
+            CreateDirectory(newentry.Filename,newentry.Attributes)
+           else
+            Image.CreateDirectory(newentry.Filename,
+                                  newentry.Parent,
+                                  newentry.Attributes);
+          end;
          //Is it a file
          if newentry.DirRef=-1 then
          begin
@@ -3684,29 +3722,40 @@ begin
             AddFileToTree(DirList.Selected,newentry.Filename,index,False,
                           DirList,False)
            else //Failed to write the file
-            ReportError('Failed when '+method+' '+newentry.Parent+NewImage.DirSep
-                                                 +newentry.Filename
-                                                 +' : '
-                                                 +AddFileErrorToText(-index));
+           begin
+            if Errors then
+             ReportError('Failed when '+method+' '+newentry.Parent+NewImage.DirSep
+                                                  +newentry.Filename
+                                                  +' : '
+                                                  +AddFileErrorToText(-index));
+            inc(Result);
+           end;
           end
           else //Failed to read the file
-           ReportError('Failed to read '+NewImage.GetParent(dir)
-                                        +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
-                                        +NewImage.Disc[dir].Entries[entry].Filename);
+          begin
+           if Errors then
+            ReportError('Failed to read '+NewImage.GetParent(dir)
+                                         +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                                         +NewImage.Disc[dir].Entries[entry].Filename);
+           inc(Result);
+          end;
          end;
         end;
        end;
-   UpdateImageInfo;
-   //Turn error reporting on
-   ErrorReporting:=True;
-   //Show the log
-   ShowErrorLog;
-   //Hide the progress message
-   ProgressForm.Hide;
+   if Fguiopen then
+   begin
+    UpdateImageInfo;
+    //Turn error reporting on
+    ErrorReporting:=True;
+    //Show the log
+    ShowErrorLog;
+    //Hide the progress message
+    ProgressForm.Hide;
+   end;
   end;
  end;
  //Clear the Import Selector Form List, otherwise this could cause issues later
- ImportSelectorForm.ImportDirList.Items.Clear;
+ if Fguiopen then ImportSelectorForm.ImportDirList.Items.Clear;
 end;
 
 {------------------------------------------------------------------------------}
@@ -4574,7 +4623,7 @@ end;
 {------------------------------------------------------------------------------}
 //Defrags (Compacts) the image
 {------------------------------------------------------------------------------}
-procedure TMainForm.Defrag(side: Byte);
+procedure TMainForm.Defrag(side: Byte=0);
 var
  NewImage  : TDiscImage=nil;
  oldscan   : Boolean=False;
@@ -4584,19 +4633,22 @@ var
  index     : Integer=0;
  root      : Integer=0;
  filename  : String='';
+{We're using different algorithms here:
+ 0: Clone the drive, delete everything on the OG drive, then re-import all objects
+ 1: Clone the drive, reformat the OG drive, then re-import all objects
+ 2: Clone the drive, delete and re-import each object one by one}
+const DefragMethod=0;
+ //DefragMethod 1 is not fully implemented on the class side.
 begin
  if Fguiopen then WriteToDebug('MainForm.Defrag('+IntToStr(side)+')');
- if Length(Image.Disc)>0 then
+ //Can only defrag if there are objects and free space
+ if(Length(Image.Disc)>0){and(Image.FreeSpace(side)>0)}then
  begin
+  //Display progress form
   Image.ProgressIndicator:=nil;
   if Fguiopen then ProgressForm.Show;
-  if Fguiopen then
-  begin
-   UpdateProgress('Preparing to defrag');
-   Application.ProcessMessages;
-  end
-  else WriteLn('Preparing to defrag');
-  //Create a new image, cloning the old one
+  UpdateProgress('Preparing to defrag');
+  //Create a new image, with the same shape as the original
   oldscan:=Image.ScanSubDirs;
   olddos :=Image.OpenDOSPartitions;
   Image.ScanSubDirs:=True;
@@ -4604,23 +4656,15 @@ begin
   NewImage:=TDiscImage.Create(Image);
   Image.ScanSubDirs:=oldscan;
   Image.OpenDOSPartitions:=olddos;
-  //We need to work out the root reference
-  root:=0;
-  if Fguiopen then
+  if DefragMethod=1 then //Method 1 only
   begin
-   if DirList.Items.Count>0 then
-   begin
-    sidecount:=0;
-    for index:=0 to DirList.Items.Count-1 do
-     if DirList.Items[index].Parent=nil then
-     begin
-      if sidecount=side then root:=TMyTreeNode(DirList.Items[index]).DirRef;
-      inc(sidecount);
-     end;
-   end;
-  end
-  else
+   ok:=True;
+   Image.Create(NewImage,False);
+  end;
+  root:=0; //Default pointer
+  if DefragMethod<>1 then //Methods 0 and 2 only
   begin
+   //We need to work out the root references
    if Length(Image.Disc)>0 then
    begin
     sidecount:=0;
@@ -4631,69 +4675,77 @@ begin
       inc(sidecount);
      end;
    end;
+   sidecount:=Length(Image.Disc[root].Entries);
+   NewImage.ProgressIndicator:=nil;
   end;
-  sidecount:=Length(Image.Disc[root].Entries);
-  NewImage.ProgressIndicator:=nil;
-  //Delete all the existing objects in the root
-  Image.BeginUpdate;
-  ok:=True;
-  while(Length(Image.Disc[root].Entries)>0)and(ok)do
+  if DefragMethod=0 then //Method 0 only
   begin
+   //Delete all the existing objects in the root
+   Image.BeginUpdate;
+   ok:=True;
+   while(Length(Image.Disc[root].Entries)>0)and(ok)do
+   begin
+    if Fguiopen then
+    begin
+     ProgressForm.Show;
+     Application.ProcessMessages;
+    end;
+    filename:=Image.Disc[root].Entries[0].Parent
+             +Image.GetDirSep(Image.Disc[root].Partition)
+             +Image.Disc[root].Entries[0].Filename;
+    UpdateProgress('Preparing '+filename);
+    if Fguiopen then
+    begin
+     SelectNode(filename);
+     ok:=DeleteFile(False);
+    end
+    else
+     ok:=Image.DeleteFile(filename);
+   end;
+   Image.EndUpdate;
+   ok:=Length(Image.Disc[root].Entries)=0;
    if Fguiopen then
    begin
     ProgressForm.Show;
     Application.ProcessMessages;
-   end;
-   filename:=Image.Disc[root].Entries[0].Parent
-            +Image.GetDirSep(Image.Disc[root].Partition)
-            +Image.Disc[root].Entries[0].Filename;
-   if Fguiopen then
-   begin
-    SelectNode(filename);
-    UpdateProgress('Preparing '+filename);
-    ok:=DeleteFile(False);
-   end
-   else
-   begin
-    WriteLn('Preparing '+filename);
-    ok:=Image.DeleteFile(filename);
+    Image.ProgressIndicator:=@UpdateProgress;
    end;
   end;
-  Image.EndUpdate;
-  ok:=Length(Image.Disc[root].Entries)=0;
-  if Fguiopen then
-  begin
-   ProgressForm.Show;
-   Application.ProcessMessages;
-   Image.ProgressIndicator:=@UpdateProgress;
-  end;
-  if ok then //Deleted all the files OK, so import again
-  begin
-   if Fguiopen then
+  if DefragMethod<2 then //Methods 0 and 1 only
+   if ok then //Deleted all the files OK, so import again
    begin
-    SelectNode(Image.Disc[root].Directory);
+    if Fguiopen then SelectNode(Image.Disc[root].Directory);
     //Import the contents of the current image into it
-    ImportFiles(NewImage,False);
-    //And the directory display
-    ShowNewImage(Image.Filename);
-    UpdateImageInfo;
-   end
-   else
-   begin
-    //
+    ok:=ImportFiles(NewImage,False,False)=0;
+    if ok then HasChanged:=True;//Update the changed flag
    end;
-   //Update the changed flag
-   HasChanged:=True;
-  end
-  else //Didn't create a new image, so revert
+  if DefragMethod=2 then //Method 2 only
+  begin
+   // NOT WRITTEN
+  end;
+  if not ok then //Didn't create a new image, so revert
   begin
    Image.Free;
    Image:=TDiscImage.Create(NewImage);
    ReportError('Failed to defrag');
   end;
+  if Fguiopen then
+  begin
+   //Update the directory display, whether it failed or not
+   ShowNewImage(Image.Filename);
+   UpdateImageInfo;
+  end;
+  //Free up resources and hide the progress form
   NewImage.Free;
   if Fguiopen then ProgressForm.Hide;
   Image.ProgressIndicator:=nil;
+ end
+ else //Report an error
+ begin
+  if Length(Image.Disc)=0 then //No objects to move
+   ReportError('No objects in catalogue');
+  if Image.FreeSpace(side)=0 then //No free space
+   ReportError('No free space to perform a defrag');
  end;
 end;
 
@@ -6995,14 +7047,15 @@ procedure TMainForm.ReportError(error: String);
 begin
  //Remove the top bit, if present
  RemoveTopBit(error);
- WriteToDebug('MainForm.ReportError('+error+')');
- if ErrorReporting then
-  if ParamCount>0 then //If we are in command line mode, then do not use the GUI
-   WriteLn(error)
-  else //Otherwise, display a nice window on the screen
+ if Fguiopen then
+ begin
+  WriteToDebug('MainForm.ReportError('+error+')');
+  if ErrorReporting then
    CustomDialogue.ShowError(error,'')
- else
-  ErrorLogForm.ErrorLog.Lines.Add(error);
+  else
+   ErrorLogForm.ErrorLog.Lines.Add(error);
+ end
+ else if ErrorReporting then WriteLn(cmdRed+error+cmdNormal);
 end;
 
 {------------------------------------------------------------------------------}
@@ -7041,7 +7094,8 @@ begin
  begin
   ProgressForm.UpdateProgress.Caption:=Fupdate;
   Application.ProcessMessages;
- end;
+ end
+ else WriteLn(Fupdate);
 end;
 
 {------------------------------------------------------------------------------}

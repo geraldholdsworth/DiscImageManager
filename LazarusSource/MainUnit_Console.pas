@@ -378,8 +378,8 @@ begin
   //Change the host directory ++++++++++++++++++++++++++++++++++++++++++++++++++
   'chdir': if Length(Command)>1 then SetCurrentDir(Command[1]) else error:=2;   
   //Defrag +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  'compact':WriteLn(cmdRed+'This command has not been implemented yet.'+cmdNormal);
-{   if Image.FormatNumber<>diInvalidImg then //Image inserted?
+  'compact','defrag':
+   if Image.FormatNumber<>diInvalidImg then //Image inserted?
    begin
     //Get the drive/partition specification, default to 0 if none specified
     if Length(Command)>1 then ptr:=StrToIntDef(Command[1],-1)
@@ -391,13 +391,13 @@ begin
     //Is it valid?
     if(ptr>=0)and(ptr<dir)then
     begin
-     WriteLn(cmdBold+cmdBlue+'Defragging drive/partition '
-            +IntToStr(ptr)+cmdNormal);
+     if Command[0]='compact' then temp:='Compacting' else temp:='Defragging';
+     WriteLn(cmdBold+cmdBlue+temp+' drive/partition '+IntToStr(ptr)+cmdNormal);
      Defrag(ptr);
     end
     else WriteLn(cmdRed+'Invalid drive or partition specification'+cmdNormal);
    end
-   else error:=1;}
+   else error:=1;
   //Set a configuration option, display available options or current settings ++
   'config','status':
    if(Command[0]='config')and(Length(Command)>2)then
@@ -1019,14 +1019,23 @@ begin
   'stamp':
    if Image.FormatNumber<>diInvalidImg then
     if Length(Command)>1 then
-     if ValidFile(Command[1]) then
-      if Image.TimeStampFile(temp,Now) then
+    begin
+     Files:=nil;
+     Files:=GetListOfFiles(Command[1]);
+     if Length(Files)>0 then
+      for Index:=0 to Length(Files)-1 do
       begin
-       HasChanged:=True;
-       WriteLn(cmdGreen+'Success'+cmdNormal);
+       temp:=BuildFilename(Files[Index]);
+       Write('Setting date/time stamp for '+temp);
+       if Image.TimeStampFile(temp,Now) then
+       begin
+        HasChanged:=True;
+        WriteLn(cmdGreen+' Success'+cmdNormal);
+       end
+       else WriteLn(cmdRed+' Failed'+cmdNormal);
       end
-      else WriteLn(cmdRed+'Failed'+cmdNormal)
-     else WriteLn(cmdRed+'File not found'+cmdNormal)
+     else WriteLn(cmdRed+'No files found'+cmdNormal);
+    end
     else error:=2
    else error:=1;
   //Change the disc title ++++++++++++++++++++++++++++++++++++++++++++++++++++++

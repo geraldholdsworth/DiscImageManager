@@ -220,32 +220,38 @@ end;
 {------------------------------------------------------------------------------}
 function TImportSelectorForm.IsNodeTicked(ANode:TTreeNode): Boolean;
 begin
- Result:=False;
- If Assigned(ANode) then
-  Result:=ANode.StateIndex<>ImgIndexUnTicked;
+ if MainForm.Fguiopen then
+ begin
+  Result:=False;
+  If Assigned(ANode) then
+   Result:=ANode.StateIndex<>ImgIndexUnTicked;
+ end else Result:=True;
 end;
 function TImportSelectorForm.IsNodeTicked(dir,entry: Integer): Boolean;
 var
  index: Integer=0;
  Node : TTreeNode=nil;
 begin
- //Counter into all the nodes
- index:=0;
- //Setup the Node to eventually query
- Node:=nil;
- //Go through the nodes until we either find it, or run out of nodes
- while(Node=nil)and(index<ImportDirList.Items.Count)do
+ if MainForm.Fguiopen then
  begin
-  //Check each node
-  if(TMyTreeNode(ImportDirList.Items[index]).ParentDir=dir)
-  and(ImportDirList.Items[index].Index=entry)
-  and(ImportDirList.Items[index].Level>0)then
-   Node:=ImportDirList.Items[index];
-  //Move onto the next
-  inc(index);
- end;
- //Query this node for a result (a nil Node will return False)
- Result:=IsNodeTicked(Node);
+  //Counter into all the nodes
+  index:=0;
+  //Setup the Node to eventually query
+  Node:=nil;
+  //Go through the nodes until we either find it, or run out of nodes
+  while(Node=nil)and(index<ImportDirList.Items.Count)do
+  begin
+   //Check each node
+   if(TMyTreeNode(ImportDirList.Items[index]).ParentDir=dir)
+   and(ImportDirList.Items[index].Index=entry)
+   and(ImportDirList.Items[index].Level>0)then
+    Node:=ImportDirList.Items[index];
+   //Move onto the next
+   inc(index);
+  end;
+  //Query this node for a result (a nil Node will return False)
+  Result:=IsNodeTicked(Node);
+ end else Result:=True;
 end;
 
 {------------------------------------------------------------------------------}
