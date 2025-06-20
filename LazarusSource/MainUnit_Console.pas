@@ -26,7 +26,7 @@ var
  searchlist   : TSearchRec;
  Files        : TSearchResults;
  OSFiles      : array of searchresult;
- filedetails  : TDirEntry;
+ filedetails  : TDirEntry=();
  filelist     : TStringList;
 const
  DiscFormats = //Accepted format strings
@@ -39,34 +39,50 @@ const
   $410   ,$500   ,$A00   ,$A01   ,$A02   ,$A03   ,$A04   ,$A05);
  Options : array[0..3] of String = ('none','load','run','exec'); //Boot options
  Inter   : array[0..3] of String = ('auto','seq', 'int','mux' ); //Interleave
- Configs : array[0..26] of array[0..2] of String = (
- ('AddImpliedAttributes','B','Add Implied Attributes for DFS/CFS/RFS'),
- ('ADFS_L_Interleave'   ,'I','0=Automatic; 1=Sequential; 2=Interleave; 3=Multiplex'),
- ('Create_DSC'          ,'B','Create *.dsc file with hard drives'),
- ('CreateINF'           ,'B','Create a *.inf file when extracting'),
- ('CSVAddress'          ,'B','Include the disc address in CSV file'),
- ('CSVAttributes'       ,'B','Include the file attributes in CSV file'),
- ('CSVCRC32'            ,'B','Include the CRC-32 in CSV file'),
- ('CSVExecAddr'         ,'B','Include the execution address in CSV file'),
- ('CSVFilename'         ,'B','Include the filename in CSV file'),
- ('CSVIncDir'           ,'B','Include directories in CSV file'),
- ('CSVIncFilename'      ,'B','Include image filename in CSV file'),
- ('CSVIncReport'        ,'B','Include image report in CSV file'),
- ('CSVLength'           ,'B','Include the file length in CSV file'),
- ('CSVLoadAddr'         ,'B','include the load address in CSV file'),
- ('CSVMD5'              ,'B','Include the MD5 in CSV file'),
- ('CSVParent'           ,'B','Include the parent in CSV file'),
- ('Debug_Mode'          ,'B','Is debug mode on?'),
- ('DFS_Allow_Blanks'    ,'B','Allow blank filenames in DFS'),
- ('DFS_Beyond_Edge'     ,'B','Check for files going over the DFS disc edge'),
- ('DFS_Zero_Sectors'    ,'B','Allow DFS images with zero sectors'),
- ('Hide_CDR_DEL'        ,'B','Hide DEL files in Commodore images'),
- ('Open_DOS'            ,'B','Automatically open DOS partitions in ADFS'),
- ('Scan_SubDirs'        ,'B','Automatically scan sub-directories'),
- ('Spark_Is_FS'         ,'B','Treat Spark archives as file system'),
- ('Texture'             ,'I','Which texture background to use'),
- ('UEF_Compress'        ,'B','Compress UEF images when saving'),
- ('View_Options'        ,'I','Displays which menus are visible'));
+ //Configuration settings (registry)
+ Configs : array[0..41] of array[0..2] of String = (
+ ('AddImpliedAttributes' ,'B','Add Implied Attributes for DFS/CFS/RFS'),
+ ('ADFS_L_Interleave'    ,'I','0=Automatic; 1=Sequential; 2=Interleave; 3=Multiplex'),
+ ('Create_DSC'           ,'B','Create *.dsc file with hard drives'),
+ ('CreateINF'            ,'B','Create a *.inf file when extracting'),
+ ('CSVAddress'           ,'B','Include the disc address in CSV file'),
+ ('CSVAttributes'        ,'B','Include the file attributes in CSV file'),
+ ('CSVCRC32'             ,'B','Include the CRC-32 in CSV file'),
+ ('CSVExecAddr'          ,'B','Include the execution address in CSV file'),
+ ('CSVFilename'          ,'B','Include the filename in CSV file'),
+ ('CSVIncDir'            ,'B','Include directories in CSV file'),
+ ('CSVIncFilename'       ,'B','Include image filename in CSV file'),
+ ('CSVIncReport'         ,'B','Include image report in CSV file'),
+ ('CSVLength'            ,'B','Include the file length in CSV file'),
+ ('CSVLoadAddr'          ,'B','include the load address in CSV file'),
+ ('CSVMD5'               ,'B','Include the MD5 in CSV file'),
+ ('CSVParent'            ,'B','Include the parent in CSV file'),
+ ('Debug_Mode'           ,'B','Is debug mode on?'),
+ ('DefaultADFSOptions'   ,'I','Which ADFS format for new image dialogue'),
+ ('DefaultAFSCreatePWord','B','Whether to create password file for new AFS'),
+ ('DefaultAFSImageSize'  ,'I','Default AFS image size'),
+ ('DefaultAFSOptions'    ,'I','Which Acorn FS format for new image dialogue'),
+ ('DefaultAmigaOptions'  ,'I','Which Amiga format for new image dialogue'),
+ ('DefaultC64Options'    ,'I','Which Commodore 64 format for new image dialogue'),
+ ('DefaultDFSOptions'    ,'I','Which DFS format for new image dialogue'),
+ ('DefaultDFSTOptions'   ,'I','Which DFS track setting for new image dialogue'),
+ ('DefaultDOSOptions'    ,'I','Which DOS format for new image dialogue'),
+ ('DefaultROMFSBinVers'  ,'I','Default binary version number for new ROM FS'),
+ ('DefaultROMFSCopy'     ,'S','Default copyright string to use for new ROM FS'),
+ ('DefaultROMFSTitle'    ,'S','Default title to use for new ROM FS'),
+ ('DefaultROMFSVersion'  ,'S','Default version to use for new ROM FS'),
+ ('DefaultSpecOptions'   ,'I','Which Spectrum format for new image dialogue'),
+ ('DefaultSystemOptions' ,'I','Which system for new image dialogue'),
+ ('DFS_Allow_Blanks'     ,'B','Allow blank filenames in DFS'),
+ ('DFS_Beyond_Edge'      ,'B','Check for files going over the DFS disc edge'),
+ ('DFS_Zero_Sectors'     ,'B','Allow DFS images with zero sectors'),
+ ('Hide_CDR_DEL'         ,'B','Hide DEL files in Commodore images'),
+ ('Open_DOS'             ,'B','Automatically open DOS partitions in ADFS'),
+ ('Scan_SubDirs'         ,'B','Automatically scan sub-directories'),
+ ('Spark_Is_FS'          ,'B','Treat Spark archives as file system'),
+ ('Texture'              ,'I','Which texture background to use'),
+ ('UEF_Compress'         ,'B','Compress UEF images when saving'),
+ ('View_Options'         ,'I','Displays which menus are visible'));
  //Validate a filename, building a complete path if required
  function ValidFile(thisfile: String): Boolean;
  begin
@@ -83,7 +99,9 @@ const
  //Report the free space
  procedure ReportFreeSpace;
  var
-  free,used,total: QWord;
+  free : QWord=0;
+  used : QWord=0;
+  total: QWord=0;
  begin
   free:=Image.FreeSpace(Image.Disc[Fcurrdir].Partition);
   total:=Image.DiscSize(Image.Disc[Fcurrdir].Partition);
@@ -95,7 +113,7 @@ const
  //Check for modified image
  function Confirm: Boolean;
  var
-  Lconfirm: String;
+  Lconfirm: String='';
  begin
   Result:=True;
   if HasChanged then

@@ -781,7 +781,7 @@ begin
   //Directory name - as DFS only has $, this will be the drive number + '$'
   FDisc[s].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
   //Get the disc title(s)
-  FDisc[s].Title:=disctitle;
+  FDisc[s].Title:=Fdisctitle;
   disc_name[s]:=FDisc[s].Title;
   FDisc[s].BeenRead:=True;
   //Disc Size
@@ -796,7 +796,7 @@ begin
   if FDSD then
    SetDataLength(disc_size[0]+disc_size[1]);
   //Disc Title
-  UpdateDFSDiscTitle(disctitle,s);
+  UpdateDFSDiscTitle(Fdisctitle,s);
   //Watford ID
   if minor>1 then
   begin

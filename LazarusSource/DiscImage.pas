@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.48 and TSpark class V1.05
+TDiscImage class V1.48 and TSpark class V1.06
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -153,7 +153,7 @@ type
    TProgressProc = procedure(Sender: TObject;const Fupdate: Double) of Object;
    private
    Fcache,                     //Data cache for receiving uncompressed file
-   Fbuffer     : TDIByteArray;//Buffer to hold the archive
+   Fbuffer     : TDIByteArray; //Buffer to hold the archive
    ZipFilename : String;       //Filename of the archive
    FIsSpark    : Boolean;      //Is it a valid !Spark archive?
    FIsPack     : Boolean;      //Is it a valid !Pack archive?
@@ -173,18 +173,28 @@ type
                                                       AItem: TFullZipFileEntry);
    function GetUncompressedSize: Cardinal;
    function IsItSpark: Boolean;
-   function FindEoCL(var CL: Cardinal): Cardinal;
-   procedure UpdateCL(CL,EoCL: Cardinal);
+   function FindCL(var EoCL: Integer;var buffer: TDIByteArray): Integer;
+   procedure UpdateCL(CL,EoCL: Cardinal; var buffer: TDIByteArray);
    function ExtractFileDataFromSpark(index: Integer):TDIByteArray;
    function ExtractFileDataFromPack(index: Integer):TDIByteArray;
    procedure SaveData;
    function FindEntry(path: String;matchpath: Boolean;var CLptr: Cardinal;
-                                                  var dataptr: Cardinal): Boolean;
+                      var dataptr: Cardinal;var LBuffer: TDIByteArray): Boolean;
    function RenameTheFile(oldpath, newpath: String): Boolean;
    function DeleteTheFile(filename: String):Boolean;
+   function CombineZIP(files: array of String; outputfile: String): Boolean;
+   procedure WriteSignature(header: Byte;var buffer: TDIByteArray;ptr: Cardinal=0);
    //Private constants
    const
-    NewAtts: array[0..7] of Char = ('R','W','L','D','r','w',' ',' ');
+    NewAtts  : array[0..7] of Char = ('R','W','L','D','r','w',' ',' ');
+    clsig    : array[0..3] of Byte = ($50,$4B,$01,$02);
+    headersig: array[0..3] of Byte = ($50,$4B,$03,$04);
+    eoclsig  : array[0..3] of Byte = ($50,$4B,$05,$06);
+    spansig  : array[0..3] of Byte = ($50,$4B,$07,$08);//Added for completeness
+    ZIPCL    = 0;
+    ZIPHeader= 1;
+    ZIPEoCL  = 2;
+    ZIPSpan  = 3;
   published
    //Published methods
    constructor Create(filename: String;blank: Boolean=false);
@@ -201,6 +211,7 @@ type
    procedure SwapDirSep(var path: String);
    function ConvertAttribute(attr: Byte): String;
    function ConvertAttribute(attr: String): Byte; overload;
+   function Validate: Boolean;
    //Published properties
    property IsSpark:           Boolean       read IsItSpark;
    property FileList:          TFileList     read FFileList;
@@ -302,7 +313,8 @@ type
   FScanSubDirs,                 //Scan sub directories on opening (ADFS/Amiga/DOS/Spark)
   FOpenDOSPart,                 //Open DOS Partitions on ADFS
   FcreateDSC,                   //Create *.dsc files with ADFS hard drives
-  FDOSUseSFN    : Boolean;      //Use short filenames, even if there are long filenames (DOS)
+  FDOSUseSFN,                   //Use short filenames, even if there are long filenames (DOS)
+  FHasDirs      : Boolean;      //Format is directory capable
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   dosalloc,                     //Allocation Unit (DOS Plus)
@@ -364,6 +376,12 @@ type
   FilesData     : array of TDIByteArray;//All the data for CFS or Spark files
   FProgress     : TProgressProc;//Used for feedback
   SparkFile     : TSpark;       //For reading in Spark archives
+  //Disc title for new images
+  Fdisctitle,
+  Fafsdisctitle,                //AFS has longer titles
+  Famigadisctitle,              //Amiga has even longer titles
+  Frfstitle,                    //ROM FS Header title
+  Frfscopyright : String;       //Copyright string for ROM FS
   //Private methods
   procedure ResetVariables;
   procedure AddPartition;
@@ -429,6 +447,11 @@ type
   function InterleaveString: String;
   function VolumeSerialNumber: Cardinal;
   procedure UpdateDirRef(dirref: Cardinal);
+  procedure SetDefaultDiscTitle(ADiscTitle: String);
+  procedure SetDefaultAFSDiscTitle(ADiscTitle: String);
+  procedure SetDefaultAmigaDiscTitle(ADiscTitle: String);
+  procedure SetDefaultRFSTitle(ADiscTitle: String);
+  procedure SetDefaultRFSCopyRight(ADiscTitle: String);
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
@@ -583,7 +606,7 @@ type
   function RenameCDRFile(oldfilename: String;var newfilename: String):Integer;
   function DeleteCDRFile(filename: String):Boolean;
   function UpdateCDRFileAttributes(filename,attributes: String): Boolean;
-  function CDRReport(CSV: Boolean): TStringList;
+  function CDRReport{(CSV: Boolean)}: TStringList;
   //Sinclair Spectrum +3/Amstrad Routines
   function ID_Sinclair: Boolean;
   function ReadSinclairDisc: Boolean;
@@ -636,7 +659,7 @@ type
   function AmigaRemoveFromChain(filename: String;
                                               paraddr,sector: Cardinal):Boolean;
   procedure ValidateAmigaFile(var filename: String);
-  function AmigaReport(CSV: Boolean): TStringList;
+  function AmigaReport{(CSV: Boolean)}: TStringList;
   //Acorn CFS Routines
   function ID_CFS: Boolean;
   function ReadUEFFile: Boolean;
@@ -758,12 +781,12 @@ type
                                    'USRUser File','RELRelative' ,'CBMCBM'      );
    //Interleave types
    Fints        : array[0..2] of String=('Sequential','Interleave','Multiplex');
-   //Disc title for new images
-   disctitle     = 'DiscImgMgr';
-   afsdisctitle  = 'DiscImageManager'; //AFS has longer titles
-   amigadisctitle= 'Disc Image Manager';//Amiga has even longer titles
-   rfstitle      = 'Disc Image Manager';//ROM FS Header title
-   rfscopyright  = '(C)GJH Software 2024';//Copyright string for ROM FS
+   //Default disc title for new images
+   defdisctitle     = 'DiscImgMgr';
+   defafsdisctitle  = 'DiscImageManager'; //AFS has longer titles
+   defamigadisctitle= 'Disc Image Manager';//Amiga has even longer titles
+   defrfstitle      = 'Disc Image Manager';//ROM FS Header title
+   defrfscopyright  = '(C)GJH Software';//Copyright string for ROM FS
    //Root name to use when AFS is partition on ADFS
    afsrootname   = ':AFS$';
    //ROM FS Signature
@@ -799,7 +822,7 @@ type
   function CopyFile(filename,directory,newfilename: String): Integer; overload;
   function CopyFile(source: Cardinal;dest: Integer): Integer; overload;
   constructor Create;
-  constructor Create(Clone: TDiscImage; keepfiles:Boolean=True); overload;
+  constructor Create(Clone: TDiscImage); overload;
   function CreateDirectory(var filename,parent,attributes: String): Integer;
   procedure CreateINFFile(dir,entry: Integer; path: String;filename: String='');
   function CreatePasswordFile(Accounts: TUserAccounts): Integer;
@@ -815,6 +838,8 @@ type
   function FileExists(filename: String;var Ref: Cardinal;
                                                    sfn: Boolean=False): Boolean;
   function FileExists(filename: String;var dir,entry: Cardinal;
+                                         sfn: Boolean=False): Boolean; overload;
+  function FileExists(filename: String;var dir,entry: Integer;
                                          sfn: Boolean=False): Boolean; overload;
   function FileSearch(search: TDirEntry;AddTo: TSearchResults=nil): TSearchResults;
   function FixDirectories: Boolean;
@@ -889,6 +914,17 @@ type
   property CRC32:               String        read GetImageCrc;
   property CreateDSC:           Boolean       read FcreateDSC
                                               write FcreateDSC;
+  property DefaultDiscTitle:    String        read Fdisctitle
+                                              write SetDefaultDiscTitle;
+  property DefaultAFSDiscTitle: String        read Fafsdisctitle
+                                              write SetDefaultAFSDiscTitle;
+  property DefaultAmigaDiscTitle:String       read Famigadisctitle
+                                              write SetDefaultAmigaDiscTitle;
+  property DefaultRFSTitle:     String        read Frfstitle
+                                              write SetDefaultRFSTitle;
+  property DefaultRFSCopyRight: String        read Frfscopyright
+                                              write SetDefaultRFSCopyright;
+  property DirectoryCapable:    Boolean       read FHasDirs;
   property DirectoryType:       Byte          read FDirType;
   property DirectoryTypeString: String        read DirTypeToString;
   property DirSep:              Char          read dir_sep;
@@ -919,6 +955,7 @@ type
   property ProgressIndicator:   TProgressProc write FProgress;
   property RAWData:             TDIByteArray  read Fdata;
   property RootAddress:         Cardinal      read GetRootAddress;
+  property RootName:            String        read root_name;
   property ScanSubDirs:         Boolean       read FScanSubDirs
                                               write FScanSubDirs;
   property Sectors:             Byte          read secspertrack;

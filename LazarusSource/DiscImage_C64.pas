@@ -300,7 +300,7 @@ begin
   for t:=0 to 15 do
   begin
    c:=$A0;//Top bit set space, by default
-   if t<Length(disctitle) then c:=Ord(disctitle[t+1]);
+   if t<Length(Fdisctitle) then c:=Ord(Fdisctitle[t+1]);
    WriteByte(c,$16590+t);
   end;
   //Reserved
@@ -1099,7 +1099,7 @@ end;
 {-------------------------------------------------------------------------------
 Produce a report of the image's details
 -------------------------------------------------------------------------------}
-function TDiscImage.CDRReport(CSV: Boolean): TStringList;
+function TDiscImage.CDRReport{(CSV: Boolean)}: TStringList;
 begin
  Result:=TStringList.Create;
  if FDSD then Result.Add('Double Sided') else Result.Add('Single Sided');

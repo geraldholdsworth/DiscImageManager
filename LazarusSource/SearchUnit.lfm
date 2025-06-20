@@ -10,11 +10,11 @@ object SearchForm: TSearchForm
   ClientWidth = 451
   Color = 15527148
   Font.Color = clBlack
-  OnCreate = FormCreate
-  OnPaint = FormPaint
   Position = poMainFormCenter
   ShowHint = True
-  LCLVersion = '3.0.0.3'
+  LCLVersion = '4.0.0.4'
+  OnCreate = FormCreate
+  OnPaint = FormPaint
   object SearchEntryPanel: TPanel
     Left = 0
     Height = 88

@@ -66,7 +66,7 @@ uses MainUnit;
 {------------------------------------------------------------------------------}
 procedure TSearchForm.sb_searchClick(Sender: TObject);
 var
- search : TDirEntry;
+ search : TDirEntry=();
  results: TSearchResults=nil;
  i      : Integer=0;
  line   : String='';

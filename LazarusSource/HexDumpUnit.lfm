@@ -1,7 +1,7 @@
 object HexDumpForm: THexDumpForm
-  Left = 308
+  Left = 650
   Height = 603
-  Top = 117
+  Top = 254
   Width = 635
   Caption = 'HexDumpForm'
   ClientHeight = 603
@@ -10,11 +10,11 @@ object HexDumpForm: THexDumpForm
   Constraints.MaxWidth = 635
   Constraints.MinHeight = 290
   Constraints.MinWidth = 635
+  Position = poMainFormCenter
+  LCLVersion = '4.0.0.4'
   OnCreate = FormCreate
   OnResize = FormResize
   OnShow = FormShow
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
   object PageControl: TPageControl
     Left = 0
     Height = 603
@@ -289,7 +289,7 @@ object HexDumpForm: THexDumpForm
         end
         object edFontSize: TEdit
           Left = 144
-          Height = 22
+          Height = 21
           Top = 2
           Width = 32
           NumbersOnly = True
@@ -299,7 +299,7 @@ object HexDumpForm: THexDumpForm
         end
         object udFontSize: TUpDown
           Left = 176
-          Height = 22
+          Height = 21
           Top = 2
           Width = 17
           Associate = edFontSize

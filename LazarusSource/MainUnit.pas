@@ -48,6 +48,7 @@ type
    FBeenRead,
    FBroken,
    FIsDOSPart : Boolean;
+   FParentName: String;
   public
    property ParentDir: Integer read FParentDir write FParentDir;//Parent directory reference
    property IsDir    : Boolean read FIsDir     write FIsDir;    //Is it a directory
@@ -55,6 +56,7 @@ type
    property BeenRead : Boolean read FBeenRead  write FBeenRead; //Has the directory been read in
    property Broken   : Boolean read FBroken    write FBroken;   //Is the ADFS directory broken?
    property IsDOSPart: Boolean read FIsDOSPart write FIsDOSPart;//This is the DOS Partition file
+   property ParentName:String  read FParentName write FParentName;
  end;
 
  //Form definition
@@ -373,6 +375,7 @@ type
                          LLeft,LTop: Integer; LModal: TModalResult): TRISCOSButton;
    function CreateDirectory(dirname,attr: String): TTreeNode;
    procedure CreateFileTypeDialogue;
+   procedure CreateNewImage;
    procedure Defrag(side: Byte=0);
    function DeleteFile(confirm: Boolean): Boolean;
    procedure DisableControls;
@@ -479,8 +482,6 @@ type
     FOpenDOS            :Boolean;
     //Create *.dsc files with ADFS hard drives
     FCreateDSC          :Boolean;
-    //Registry
-    DIMReg              :TGJHRegistry;
     AppIsClosing        :Boolean;
     //Currently selected directory, when in console mode
     Fcurrdir            :Integer;
@@ -576,12 +577,14 @@ type
    arch          :String;
    //Is the GUI open?
    Fguiopen      :Boolean;
+   //Registry
+   DIMReg        :TGJHRegistry;
    const
     //DPI that the application was designed in
     DesignedDPI        = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.48';
+    ApplicationVersion = '1.48.1';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -807,7 +810,7 @@ var
  SparkFile  : TSpark=nil;
  Index      : Integer=0;
  error      : Integer=0;
- filedetails: TDirEntry;
+ filedetails: TDirEntry=();
  ParentDir  : String='';
  temp       : String='';
  buffer     : TDIByteArray=nil;
@@ -978,7 +981,7 @@ end;
 {------------------------------------------------------------------------------}
 function TMainForm.AddFileToImage(filename: String):Integer;
 var
- filedetails: TDirEntry;
+ filedetails: TDirEntry=();
 begin
  WriteToDebug('MainForm.AddFileToImage('+filename+')');
  ResetDirEntry(filedetails);
@@ -987,7 +990,7 @@ end;
 function TMainForm.AddFileToImage(filename:String;filedetails: TDirEntry;
                      buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer;
 var
-  NewFile        : TDirEntry;
+  NewFile        : TDirEntry=();
   side           : Cardinal=0;
   ref            : Cardinal=0;
   i              : Byte=0;
@@ -1151,7 +1154,7 @@ var
     and(importfilename[2]='/')then
      importfilename[2]:=Image.DirSep;
     //Remove any spaces, unless it is a big directory
-    if Image.DirectoryType<>2 then
+    if Image.DirectoryType<>diADFSBigDir then
      importfilename:=ReplaceStr(importfilename,' ','_');
    end;
    //Setup the record
@@ -1456,50 +1459,52 @@ begin
    if Node<>nil then
    begin
     //Get the entry and directory references into 'Image'
-    entry:=Node.Index;
-    dir:=-1;//This will remain as -1 with the root
-    if Node.Parent<>nil then
-     dir  :=TMyTreeNode(Node).ParentDir;
-    if dir>=0 then //dir = -1 would be the root
+    if Image.FileExists(GetFilePath(Node),dir,entry) then
     begin
-     //Open the Save As dialogue box, but only if the first in the list
-     if ShowDialogue then saver:=False;
-     if not showsave then
+     dir:=-1;//This will remain as -1 with the root
+     if Node.Parent<>nil then
+      dir  :=TMyTreeNode(Node).ParentDir;
+     if dir>=0 then //dir = -1 would be the root
      begin
-      //Indicate that we have shown the dialogue
-      showsave:=True;
-      //Set the default filename
-      if selectroot then //Root was selected
+      //Open the Save As dialogue box, but only if the first in the list
+      if ShowDialogue then saver:=False;
+      if not showsave then
       begin
-       //Set the default filename as either the disc title or '$'
-       if Image.Title(Image.Disc[dir].Partition)='' then
-        SaveImage.FileName:=DirList.Items[0].Text
+       //Indicate that we have shown the dialogue
+       showsave:=True;
+       //Set the default filename
+       if selectroot then //Root was selected
+       begin
+        //Set the default filename as either the disc title or '$'
+        if Image.Title(Image.Disc[dir].Partition)='' then
+         SaveImage.FileName:=DirList.Items[0].Text
+        else
+         SaveImage.FileName:=Image.Title(Image.Disc[dir].Partition);
+       end
        else
-        SaveImage.FileName:=Image.Title(Image.Disc[dir].Partition);
-      end
-      else
-       SaveImage.FileName:=Image.GetWindowsFilename(dir,entry);
-      //Get the result
-      saver:=SaveImage.Execute;
-      //User clicked on Cancel, so exit
-      if not saver then exit;
-      if(saver)and(selectroot)then //Root was selected, so create the directory
-      begin
-       CreateDir(SaveImage.FileName);
-       Image.CreateRootInf(SaveImage.FileName,Image.Disc[dir].Partition);
-       SaveImage.Filename:=SaveImage.Filename+PathDelim+'root';
+        SaveImage.FileName:=Image.GetWindowsFilename(dir,entry);
+       //Get the result
+       saver:=SaveImage.Execute;
+       //User clicked on Cancel, so exit
+       if not saver then exit;
+       if(saver)and(selectroot)then //Root was selected, so create the directory
+       begin
+        CreateDir(SaveImage.FileName);
+        Image.CreateRootInf(SaveImage.FileName,Image.Disc[dir].Partition);
+        SaveImage.Filename:=SaveImage.Filename+PathDelim+'root';
+       end;
       end;
+      if s>0 then saver:=True;
+      //Download a single file
+      if saver then
+       //Do not download if the parent is selected, as this will get downloaded anyway
+       if not DirList.Selections[s].Parent.Selected then
+        if DirList.SelectionCount>1 then //If multi-selection, just use the path
+         DownLoadFile(dir,entry,ExtractFilePath(SaveImage.FileName))
+        else //otherwise we'll use the filename specified
+         DownLoadFile(dir,entry,ExtractFilePath(SaveImage.FileName)
+                               ,ExtractFileName(SaveImage.FileName));
      end;
-     if s>0 then saver:=True;
-     //Download a single file
-     if saver then
-      //Do not download if the parent is selected, as this will get downloaded anyway
-      if not DirList.Selections[s].Parent.Selected then
-       if DirList.SelectionCount>1 then //If multi-selection, just use the path
-        DownLoadFile(dir,entry,ExtractFilePath(SaveImage.FileName))
-       else //otherwise we'll use the filename specified
-        DownLoadFile(dir,entry,ExtractFilePath(SaveImage.FileName)
-                              ,ExtractFileName(SaveImage.FileName));
     end;
    end;
   end;
@@ -2330,369 +2335,371 @@ begin
    menuNewDir.Enabled      :=True;
   end;
   //Get the entry and dir references
-  entry:=Node.Index;
-  dir:=-1;
-  dr:=TMyTreeNode(Node).DirRef;
-  //Clear the filename variable
-  filename:='';
-  //If the node does not have a parent, then the dir ref is the one contained
-  //in the extra info. Otherwise is -1
-  if Node.Parent<>nil then
-   dir  :=TMyTreeNode(Node.Parent).DirRef;
-  afspart:=False;//AFS or DOS Partition?
-  dospart:=False;
-  if dir>=0 then
+  if Image.FileExists(GetFilePath(Node),dir,entry) then
   begin
-   afspart:=Image.Disc[dir].AFSPartition;
-   dospart:=Image.Disc[dir].DOSPartition;
-  end
-  else
-   if dr>=0 then
-   begin
-    afspart:=Image.Disc[dr].AFSPartition;
-    dospart:=Image.Disc[dr].DOSPartition;
-   end;
-  //Enable the add/edit password buttons
-  if(Image.MajorFormatNumber=diAcornFS)
-  or((Image.MajorFormatNumber=diAcornADFS)and(Image.AFSPresent))then
-  begin
-   rt:=FindPartitionRoot(GetFilePath(DirList.Selections[0]));
-   //ADFS...find the AFS parent
-   if(Image.MajorFormatNumber=diAcornADFS)and(rt=0)then rt:=-1;
-   if rt>=0 then
-   begin
-    //Does the password file exist on the root?
-    if Image.FileExists(Image.Disc[rt].Directory
-                       +Image.GetDirSep(Image.Disc[rt].Partition)
-                       +'Passwords',ptr) then
-    begin
-     //Yes, so enable the edit button
-     btn_EditPassword.Enabled:=True;
-     menuEditPasswordFile.Enabled:=True;
-    end
-    else
-    begin
-     //No, so enable the add button
-     btn_AddPassword.Enabled :=True;
-     menuAddPasswordFile.Enabled:=True;
-    end;
-   end;
-  end;
-  //Then, get the filename and filetype of the file...not root directory
-  if dir>=0 then
-  begin
-   filename:=Image.Disc[dir].Entries[entry].Filename;
-   //Attributes
-   DoNotUpdate   :=True; //Make sure the event doesn't fire
-   //DFS and UEF
-   if(Image.MajorFormatNumber=diAcornDFS)
-   or(Image.MajorFormatNumber=diAcornUEF)
-   or(Image.MajorFormatNumber=diAcornRFS)then
-    //Tick/untick it
-    cb_DFS_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-   //ADFS and SparkFS
-   if((Image.MajorFormatNumber=diAcornADFS)
-   or(Image.MajorFormatNumber=diSpark))
-   and(not afspart)and(not dospart)then
-   begin
-    //Tick/untick them
-    cb_ADFS_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_ownl.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_owne.Ticked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_pube.Ticked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_ADFS_pubp.Ticked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
-   end;
-   //Acorn FS
-   if(Image.MajorFormatNumber=diAcornFS)
-   or((Image.MajorFormatNumber=diAcornADFS)
-   and(afspart))then
-   begin
-    //Tick/untick them
-    cb_AFS_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_AFS_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_AFS_ownl.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_AFS_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_AFS_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
-   end;
-   //DOS Plus
-   if(Image.MajorFormatNumber=diDOSPlus)
-   or((Image.MajorFormatNumber=diAcornADFS)
-   and(dospart))then
-   begin
-    //Tick/untick them
-    cb_DOS_hidden.Ticked :=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_DOS_read.Ticked   :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_DOS_system.Ticked :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_DOS_archive.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
-   end;
-   //Commodore 64
-   if Image.MajorFormatNumber=diCommodore then
-   begin
-    //Tick/untick them
-    cb_C64_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_C64_c.Ticked:=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
-   end;
-   //Amiga
-   if Image.MajorFormatNumber=diAmiga then
-   begin
-    //Tick/untick them
-    cb_Amiga_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_ownd.Ticked:=Pos('D',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_owne.Ticked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_pubd.Ticked:=Pos('d',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_pube.Ticked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_othw.Ticked:=Pos('i',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_othr.Ticked:=Pos('a',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_othd.Ticked:=Pos('l',Image.Disc[dir].Entries[entry].Attributes)=0;
-    cb_Amiga_othe.Ticked:=Pos('x',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_arch.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_pure.Ticked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_scri.Ticked:=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
-    cb_Amiga_hold.Ticked:=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
-   end;
-   DoNotUpdate   :=False;  //Re-enable the event firing
-   //Filetype
-   filetype:=Image.Disc[dir].Entries[entry].Filetype;
-  end
-  else //Disable buttons as we are on the root
-  begin
-   DeleteFile1.Enabled      :=False;
-   btn_Delete.Enabled       :=False;
-   menuDeleteFile.Enabled   :=False;
-   DeleteAFile.Enabled      :=False;
-   RenameFile1.Enabled      :=False;
-   btn_Rename.Enabled       :=False;
-   menuRenameFile.Enabled   :=False;
-   DuplicateFile1.Enabled   :=False;
-   menuDuplicateFile.Enabled:=False;
-   btn_DuplicateFile.Enabled:=False;
-  end;
-  //If it is a directory, however, we need to get the filename from somewhere else
-  //and the filetype will be either Directory or Application (RISC OS only)
-  if TMyTreeNode(Node).IsDir then
-  begin
-   //Determine if it is a Directory or an ADFS Application
+   dir:=-1;
+   dr:=TMyTreeNode(Node).DirRef;
+   //Clear the filename variable
+   filename:='';
+   //If the node does not have a parent, then the dir ref is the one contained
+   //in the extra info. Otherwise is -1
+   if Node.Parent<>nil then
+    dir  :=TMyTreeNode(Node.Parent).DirRef;
+   afspart:=False;//AFS or DOS Partition?
+   dospart:=False;
    if dir>=0 then
    begin
-    if filename='' then
-     filename:=Image.Disc[dir].Directory;
-    //Pick up from the Node if it is an application or not
-    if(Node.ImageIndex=appicon)
-    or((Node.ImageIndex>=Low(RISCOSApplications))
-    and(Node.ImageIndex<=High(RISCOSApplications)))then
-     filetype:='Application'
-    else
-     filetype:='Directory';
-    //Change the menu text
-    ExtractFile1.Caption   :='&Extract '+filetype+'...';
-    menuExtractFile.Caption:='&Extract '+filetype+'...';
-    btn_download.Hint      :='Extract '+filetype;
-    RenameFile1.Caption    :='&Rename '+filetype;
-    menuRenameFile.Caption :='&Rename '+filetype;
-    btn_Rename.Hint        :='Rename '+filetype;
-    DeleteFile1.Caption    :='&Delete '+filetype;
-    menuDeleteFile.Caption :='&Delete '+filetype;
-    btn_Delete.Hint        :='Delete '+filetype;
-    //Report if directory is broken and include the error code
-    if (Image.Disc[dir].Entries[entry].DirRef>=0)
-    and(Image.Disc[dir].Entries[entry].DirRef<Length(Image.Disc))then
+    afspart:=Image.Disc[dir].AFSPartition;
+    dospart:=Image.Disc[dir].DOSPartition;
+   end
+   else
+    if dr>=0 then
     begin
-     if Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken then
-      filetype:=filetype+' (BROKEN - 0x'
-               +IntToHex(
-                  Image.Disc[Image.Disc[dir].Entries[entry].DirRef].ErrorCode
-                  ,2)+')';
-     //Title of the subdirectory
-     title:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
+     afspart:=Image.Disc[dr].AFSPartition;
+     dospart:=Image.Disc[dr].DOSPartition;
+    end;
+   //Enable the add/edit password buttons
+   if(Image.MajorFormatNumber=diAcornFS)
+   or((Image.MajorFormatNumber=diAcornADFS)and(Image.AFSPresent))then
+   begin
+    rt:=FindPartitionRoot(GetFilePath(DirList.Selections[0]));
+    //ADFS...find the AFS parent
+    if(Image.MajorFormatNumber=diAcornADFS)and(rt=0)then rt:=-1;
+    if rt>=0 then
+    begin
+     //Does the password file exist on the root?
+     if Image.FileExists(Image.Disc[rt].Directory
+                        +Image.GetDirSep(Image.Disc[rt].Partition)
+                        +'Passwords',ptr) then
+     begin
+      //Yes, so enable the edit button
+      btn_EditPassword.Enabled:=True;
+      menuEditPasswordFile.Enabled:=True;
+     end
+     else
+     begin
+      //No, so enable the add button
+      btn_AddPassword.Enabled :=True;
+      menuAddPasswordFile.Enabled:=True;
+     end;
+    end;
+   end;
+   //Then, get the filename and filetype of the file...not root directory
+   if(dir>=0)and(entry>=0)then
+   begin
+    filename:=Image.Disc[dir].Entries[entry].Filename;
+    //Attributes
+    DoNotUpdate   :=True; //Make sure the event doesn't fire
+    //DFS and UEF
+    if(Image.MajorFormatNumber=diAcornDFS)
+    or(Image.MajorFormatNumber=diAcornUEF)
+    or(Image.MajorFormatNumber=diAcornRFS)then
+     //Tick/untick it
+     cb_DFS_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+    //ADFS and SparkFS
+    if((Image.MajorFormatNumber=diAcornADFS)
+    or(Image.MajorFormatNumber=diSpark))
+    and(not afspart)and(not dospart)then
+    begin
+     //Tick/untick them
+     cb_ADFS_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_ADFS_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_ADFS_ownl.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_ADFS_owne.Ticked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_ADFS_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_ADFS_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_ADFS_pube.Ticked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_ADFS_pubp.Ticked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
+    end;
+    //Acorn FS
+    if(Image.MajorFormatNumber=diAcornFS)
+    or((Image.MajorFormatNumber=diAcornADFS)
+    and(afspart))then
+    begin
+     //Tick/untick them
+     cb_AFS_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_AFS_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_AFS_ownl.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_AFS_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_AFS_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+    end;
+    //DOS Plus
+    if(Image.MajorFormatNumber=diDOSPlus)
+    or((Image.MajorFormatNumber=diAcornADFS)
+    and(dospart))then
+    begin
+     //Tick/untick them
+     cb_DOS_hidden.Ticked :=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_DOS_read.Ticked   :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_DOS_system.Ticked :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_DOS_archive.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
+    end;
+    //Commodore 64
+    if Image.MajorFormatNumber=diCommodore then
+    begin
+     //Tick/untick them
+     cb_C64_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_C64_c.Ticked:=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
+    end;
+    //Amiga
+    if Image.MajorFormatNumber=diAmiga then
+    begin
+     //Tick/untick them
+     cb_Amiga_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)=0;
+     cb_Amiga_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)=0;
+     cb_Amiga_ownd.Ticked:=Pos('D',Image.Disc[dir].Entries[entry].Attributes)=0;
+     cb_Amiga_owne.Ticked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)=0;
+     cb_Amiga_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_pubd.Ticked:=Pos('d',Image.Disc[dir].Entries[entry].Attributes)=0;
+     cb_Amiga_pube.Ticked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_othw.Ticked:=Pos('i',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_othr.Ticked:=Pos('a',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_othd.Ticked:=Pos('l',Image.Disc[dir].Entries[entry].Attributes)=0;
+     cb_Amiga_othe.Ticked:=Pos('x',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_arch.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_pure.Ticked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_scri.Ticked:=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_hold.Ticked:=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
+    end;
+    DoNotUpdate   :=False;  //Re-enable the event firing
+    //Filetype
+    filetype:=Image.Disc[dir].Entries[entry].Filetype;
+   end
+   else //Disable buttons as we are on the root
+   begin
+    DeleteFile1.Enabled      :=False;
+    btn_Delete.Enabled       :=False;
+    menuDeleteFile.Enabled   :=False;
+    DeleteAFile.Enabled      :=False;
+    RenameFile1.Enabled      :=False;
+    btn_Rename.Enabled       :=False;
+    menuRenameFile.Enabled   :=False;
+    DuplicateFile1.Enabled   :=False;
+    menuDuplicateFile.Enabled:=False;
+    btn_DuplicateFile.Enabled:=False;
+   end;
+   //If it is a directory, however, we need to get the filename from somewhere else
+   //and the filetype will be either Directory or Application (RISC OS only)
+   if TMyTreeNode(Node).IsDir then
+   begin
+    //Determine if it is a Directory or an ADFS Application
+    if dir>=0 then
+    begin
+     if filename='' then
+      filename:=Image.Disc[dir].Directory;
+     //Pick up from the Node if it is an application or not
+     if(Node.ImageIndex=appicon)
+     or((Node.ImageIndex>=Low(RISCOSApplications))
+     and(Node.ImageIndex<=High(RISCOSApplications)))then
+      filetype:='Application'
+     else
+      filetype:='Directory';
+     //Change the menu text
+     ExtractFile1.Caption   :='&Extract '+filetype+'...';
+     menuExtractFile.Caption:='&Extract '+filetype+'...';
+     btn_download.Hint      :='Extract '+filetype;
+     RenameFile1.Caption    :='&Rename '+filetype;
+     menuRenameFile.Caption :='&Rename '+filetype;
+     btn_Rename.Hint        :='Rename '+filetype;
+     DeleteFile1.Caption    :='&Delete '+filetype;
+     menuDeleteFile.Caption :='&Delete '+filetype;
+     btn_Delete.Hint        :='Delete '+filetype;
+     //Report if directory is broken and include the error code
+     if (Image.Disc[dir].Entries[entry].DirRef>=0)
+     and(Image.Disc[dir].Entries[entry].DirRef<Length(Image.Disc))then
+     begin
+      if Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken then
+       filetype:=filetype+' (BROKEN - 0x'
+                +IntToHex(
+                   Image.Disc[Image.Disc[dir].Entries[entry].DirRef].ErrorCode
+                   ,2)+')';
+      //Title of the subdirectory
+      title:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
+      RemoveTopBit(title);
+      if title='' then title:=' ';
+      DirTitleLabel.Caption:='Directory Title';
+      lb_title.Caption:=title;
+      ed_title.Enabled:=True; //Can be edited
+     end;
+    end
+    else
+    begin //Root directory
+     filename:=Image.Disc[dr].Directory;
+     filetype:='Root Directory';
+     title:=Image.Disc[dr].Title;
      RemoveTopBit(title);
      if title='' then title:=' ';
-     DirTitleLabel.Caption:='Directory Title';
-     lb_title.Caption:=title;
+     if Image.MajorFormatNumber=diAcornADFS then
+      DirTitleLabel.Caption:='Directory Title'
+     else
+      DirTitleLabel.Caption:='Disc Name';//Also see UpdateImageInfo
+     lb_title.Caption:=title; //Title
      ed_title.Enabled:=True; //Can be edited
+     //Report if directory is broken and include the error code
+     if Image.Disc[dr].Broken then
+      filetype:=filetype+' (BROKEN - 0x'
+                        +IntToHex(Image.Disc[dr].ErrorCode,2)+')';
     end;
-   end
-   else
-   begin //Root directory
-    filename:=Image.Disc[dr].Directory;
-    filetype:='Root Directory';
-    title:=Image.Disc[dr].Title;
-    RemoveTopBit(title);
-    if title='' then title:=' ';
-    if Image.MajorFormatNumber=diAcornADFS then
-     DirTitleLabel.Caption:='Directory Title'
-    else
-     DirTitleLabel.Caption:='Disc Name';//Also see UpdateImageInfo
-    lb_title.Caption:=title; //Title
-    ed_title.Enabled:=True; //Can be edited
-    //Report if directory is broken and include the error code
-    if Image.Disc[dr].Broken then
-     filetype:=filetype+' (BROKEN - 0x'
-                       +IntToHex(Image.Disc[dr].ErrorCode,2)+')';
-   end;
-   //Can't edit a directory's filetype
-   img_Filetype.Hint:='';
-   lb_FileType.Hint :='';
-  end;
-  if not TMyTreeNode(Node).IsDir then //Can only add files to a directory
-  begin
-   AddFile1.Enabled        :=False;
-   btn_AddFiles.Enabled    :=False;
-   menuAddFile.Enabled     :=False;
-   NewDirectory1.Enabled   :=False;
-   btn_NewDirectory.Enabled:=False;
-   menuNewDir.Enabled      :=False;
-   //Filetype hints
-   if Image.MajorFormatNumber=diDOSPlus then
-   begin //Can't edit
+    //Can't edit a directory's filetype
     img_Filetype.Hint:='';
     lb_FileType.Hint :='';
-   end
-   else
-   begin //Can edit
-    img_Filetype.Hint:='Click to edit';
-    lb_FileType.Hint :='Click to edit';
    end;
-  end;
-  //Filename
-  RemoveTopBit(filename);
-  if filename='' then filename:='unnamed';
-  lb_FileName.Caption:=ReplaceStr(filename,'&','&&');
-  //Filetype Image
-  ft:=Node.ImageIndex;
-  if (ft=directory) or (ft=directory_o) then
-  begin
-   if filename[1]='!' then //or application
-    ft:=appicon
-   else
-    ft:=directory;
-  end;
-  //Paint the picture onto it
-  R.Top:=0;
-  R.Left:=0;
-  R.Width:=img_FileType.Width;
-  R.Height:=img_FileType.Height;
-  //Draw the texture over it
-  TileCanvas(img_FileType.Canvas,R);
-  //Draw the filetype icon
-  FileImages.StretchDraw(img_FileType.Canvas,ft,R);
-  img_FileType.Tag:=ft; //To keep track of which image it is
-  //Filetype text - only show for certain systems
-  if(Image.MajorFormatNumber=diAcornADFS) //ADFS
-  or(Image.MajorFormatNumber=diCommodore) //C64
-  or(Image.MajorFormatNumber=diAmiga)     //AmigaDOS
-  or(Image.MajorFormatNumber=diSpark)     //Spark
-  or(Image.MajorFormatNumber=diAcornFS)   //Acorn FS
-  or(Image.MajorFormatNumber=diDOSPlus)then//DOS Plus
-   lb_FileType.Caption:=filetype;
-  location:=''; //Default location string
-  if dir>=0 then
-  begin
-   temp:=Image.GetParent(dir);
-   //Status bar
-   UpdateImageInfo(Image.Disc[dir].Entries[entry].Side);
-   //CRC32
-   if Image.Disc[dir].Entries[entry].DirRef=-1 then
-    lb_CRC32.Caption:=Image.GetFileCRC(temp
-                                      +Image.GetDirSep(Image.Disc[dir].Partition)
-                                      +filename,entry);
-   //Parent
-   RemoveTopBit(temp);
-   lb_parent.Caption:=temp;
-   //Timestamp - ADFS, Spark, FileStore, Amiga and DOS only
-   if  (Image.Disc[dir].Entries[entry].TimeStamp>0)
-   and((Image.MajorFormatNumber=diAcornADFS)
-   or  (Image.MajorFormatNumber=diSpark)
-   or  (Image.MajorFormatNumber=diAcornFS)
-   or  (Image.MajorFormatNumber=diAmiga)
-   or  (Image.MajorFormatNumber=diDOSPlus))then
-    lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
-                                       Image.Disc[dir].Entries[entry].TimeStamp);
-   if(Image.Disc[dir].Entries[entry].TimeStamp=0)
-   or(Image.MajorFormatNumber=diAcornFS)then
-    if Image.Disc[dir].Entries[entry].DirRef=-1 then
-    begin
-     //Load address
-     lb_loadaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
-     ed_loadaddr.Enabled:=True; //Allow editing
-     //Execution address
-     lb_execaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
-     ed_execaddr.Enabled:=True; //Allow editing
-    end;
-   //Length
-   if Image.Disc[dir].Entries[entry].DirRef=-1 then
-    lb_length.Caption:=ConvertToKMG(Image.Disc[dir].Entries[entry].Length)+
-                    ' (0x'+IntToHex(Image.Disc[dir].Entries[entry].Length,8)+')'
-   else //Number of entries in a directory
+   if not TMyTreeNode(Node).IsDir then //Can only add files to a directory
    begin
-    ptr:=Length(Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Entries);
+    AddFile1.Enabled        :=False;
+    btn_AddFiles.Enabled    :=False;
+    menuAddFile.Enabled     :=False;
+    NewDirectory1.Enabled   :=False;
+    btn_NewDirectory.Enabled:=False;
+    menuNewDir.Enabled      :=False;
+    //Filetype hints
+    if Image.MajorFormatNumber=diDOSPlus then
+    begin //Can't edit
+     img_Filetype.Hint:='';
+     lb_FileType.Hint :='';
+    end
+    else
+    begin //Can edit
+     img_Filetype.Hint:='Click to edit';
+     lb_FileType.Hint :='Click to edit';
+    end;
+   end;
+   //Filename
+   RemoveTopBit(filename);
+   if filename='' then filename:='unnamed';
+   lb_FileName.Caption:=ReplaceStr(filename,'&','&&');
+   //Filetype Image
+   ft:=Node.ImageIndex;
+   if (ft=directory) or (ft=directory_o) then
+   begin
+    if filename[1]='!' then //or application
+     ft:=appicon
+    else
+     ft:=directory;
+   end;
+   //Paint the picture onto it
+   R.Top:=0;
+   R.Left:=0;
+   R.Width:=img_FileType.Width;
+   R.Height:=img_FileType.Height;
+   //Draw the texture over it
+   TileCanvas(img_FileType.Canvas,R);
+   //Draw the filetype icon
+   FileImages.StretchDraw(img_FileType.Canvas,ft,R);
+   img_FileType.Tag:=ft; //To keep track of which image it is
+   //Filetype text - only show for certain systems
+   if(Image.MajorFormatNumber=diAcornADFS) //ADFS
+   or(Image.MajorFormatNumber=diCommodore) //C64
+   or(Image.MajorFormatNumber=diAmiga)     //AmigaDOS
+   or(Image.MajorFormatNumber=diSpark)     //Spark
+   or(Image.MajorFormatNumber=diAcornFS)   //Acorn FS
+   or(Image.MajorFormatNumber=diDOSPlus)then//DOS Plus
+    lb_FileType.Caption:=filetype;
+   location:=''; //Default location string
+   if dir>=0 then
+   begin
+    temp:=Image.GetParent(dir);
+    //Status bar
+    UpdateImageInfo(Image.Disc[dir].Entries[entry].Side);
+    //CRC32
+    if Image.Disc[dir].Entries[entry].DirRef=-1 then
+     lb_CRC32.Caption:=Image.GetFileCRC(temp
+                                       +Image.GetDirSep(Image.Disc[dir].Partition)
+                                       +filename,entry);
+    //Parent
+    RemoveTopBit(temp);
+    lb_parent.Caption:=temp;
+    //Timestamp - ADFS, Spark, FileStore, Amiga and DOS only
+    if  (Image.Disc[dir].Entries[entry].TimeStamp>0)
+    and((Image.MajorFormatNumber=diAcornADFS)
+    or  (Image.MajorFormatNumber=diSpark)
+    or  (Image.MajorFormatNumber=diAcornFS)
+    or  (Image.MajorFormatNumber=diAmiga)
+    or  (Image.MajorFormatNumber=diDOSPlus))then
+     lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
+                                        Image.Disc[dir].Entries[entry].TimeStamp);
+    if(Image.Disc[dir].Entries[entry].TimeStamp=0)
+    or(Image.MajorFormatNumber=diAcornFS)then
+     if Image.Disc[dir].Entries[entry].DirRef=-1 then
+     begin
+      //Load address
+      lb_loadaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
+      ed_loadaddr.Enabled:=True; //Allow editing
+      //Execution address
+      lb_execaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
+      ed_execaddr.Enabled:=True; //Allow editing
+     end;
+    //Length
+    if Image.Disc[dir].Entries[entry].DirRef=-1 then
+     lb_length.Caption:=ConvertToKMG(Image.Disc[dir].Entries[entry].Length)+
+                     ' (0x'+IntToHex(Image.Disc[dir].Entries[entry].Length,8)+')'
+    else //Number of entries in a directory
+    begin
+     ptr:=Length(Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Entries);
+     lb_length.Caption:=IntToStr(ptr)+' item';
+     if ptr<>1 then lb_length.Caption:=lb_length.Caption+'s';
+    end;
+    //Location of object - varies between formats
+    //ADFS Old map and Acorn FS - Sector is an offset
+    if(Image.MapType=diADFSOldMap)
+    or(Image.MajorFormatNumber=diAcornFS)then
+     location:='Sector offset: 0x'
+              +IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
+    //ADFS New map - Sector is an indirect address (fragment and sector)
+    if Image.MapType=diADFSNewMap then
+     location:='Indirect address: 0x'
+              +IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
+    //DOS Plus - Sector is the starting cluster
+    if(Image.MajorFormatNumber=diDOSPlus)
+    or(Image.Disc[dir].DOSPartition)then
+     location:='Starting Cluster: 0x'
+              +IntToHex(Image.Disc[dir].Entries[entry].Sector,4);
+    //Commodore formats - Sector and Track
+    if Image.MajorFormatNumber=diCommodore then
+     location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)+' ';
+    //All other formats - Sector
+    if(Image.MajorFormatNumber=diAcornDFS)
+    or(Image.MajorFormatNumber=diAmiga) then
+     location:=location+'Sector '
+              +IntToStr(Image.Disc[dir].Entries[entry].Sector)+' ';
+    //DFS - indicates which side also
+    if Image.MajorFormatNumber=diAcornDFS then
+     location:=location+'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side);
+    //CFS - indicates offset to starting block
+    if(Image.MajorFormatNumber=diAcornUEF)
+    or(Image.MajorFormatNumber=diAcornRFS)then
+     location:='Starting Block 0x'
+              +IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
+   end;
+   if dir=-1 then //Root directory
+   begin
+    //Status bar
+    UpdateImageInfo(Image.Disc[dr].Partition);
+    //Location of root - varies between formats
+    location:='';
+    //ADFS Old map and Acorn File Server - Sector is an offset
+    if(Image.MapType=diADFSOldMap)
+    or(Image.MajorFormatNumber=diAcornFS)
+    or((Image.MajorFormatNumber=diDOSPlus)and(Image.MapType<>diFAT32))
+    or(Image.Disc[dr].AFSPartition)
+    or(Image.Disc[dr].DOSPartition)then
+     location:='Sector Offset: 0x'+IntToHex(Image.Disc[dr].Sector,8);
+    if(Image.MajorFormatNumber=diDOSPlus)and(Image.MapType=diFAT32)then
+     location:='Starting Cluster: 0x'+IntToHex(Image.Disc[dr].Sector,8);
+    //Number of entries in a directory
+    ptr:=Length(Image.Disc[dr].Entries);
     lb_length.Caption:=IntToStr(ptr)+' item';
     if ptr<>1 then lb_length.Caption:=lb_length.Caption+'s';
+    //ADFS New map - Sector is an indirect address (fragment and sector)
+    if Image.MapType=diADFSNewMap then
+     location:='Indirect address: 0x'+IntToHex(Image.Disc[dr].Sector,8);
    end;
-   //Location of object - varies between formats
-   //ADFS Old map and Acorn FS - Sector is an offset
-   if(Image.MapType=diADFSOldMap)
-   or(Image.MajorFormatNumber=diAcornFS)then
-    location:='Sector offset: 0x'
-             +IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
-   //ADFS New map - Sector is an indirect address (fragment and sector)
-   if Image.MapType=diADFSNewMap then
-    location:='Indirect address: 0x'
-             +IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
-   //DOS Plus - Sector is the starting cluster
-   if(Image.MajorFormatNumber=diDOSPlus)
-   or(Image.Disc[dir].DOSPartition)then
-    location:='Starting Cluster: 0x'
-             +IntToHex(Image.Disc[dir].Entries[entry].Sector,4);
-   //Commodore formats - Sector and Track
-   if Image.MajorFormatNumber=diCommodore then
-    location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)+' ';
-   //All other formats - Sector
-   if(Image.MajorFormatNumber=diAcornDFS)
-   or(Image.MajorFormatNumber=diAmiga) then
-    location:=location+'Sector '
-             +IntToStr(Image.Disc[dir].Entries[entry].Sector)+' ';
-   //DFS - indicates which side also
-   if Image.MajorFormatNumber=diAcornDFS then
-    location:=location+'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side);
-   //CFS - indicates offset to starting block
-   if(Image.MajorFormatNumber=diAcornUEF)
-   or(Image.MajorFormatNumber=diAcornRFS)then
-    location:='Starting Block 0x'
-             +IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
+   //Update the location label
+   lb_location.Caption:=location;
+   //And arrange the file details pane
+   ArrangeFileDetails;
   end;
-  if dir=-1 then //Root directory
-  begin
-   //Status bar
-   UpdateImageInfo(Image.Disc[dr].Partition);
-   //Location of root - varies between formats
-   location:='';
-   //ADFS Old map and Acorn File Server - Sector is an offset
-   if(Image.MapType=diADFSOldMap)
-   or(Image.MajorFormatNumber=diAcornFS)
-   or((Image.MajorFormatNumber=diDOSPlus)and(Image.MapType<>diFAT32))
-   or(Image.Disc[dr].AFSPartition)
-   or(Image.Disc[dr].DOSPartition)then
-    location:='Sector Offset: 0x'+IntToHex(Image.Disc[dr].Sector,8);
-   if(Image.MajorFormatNumber=diDOSPlus)and(Image.MapType=diFAT32)then
-    location:='Starting Cluster: 0x'+IntToHex(Image.Disc[dr].Sector,8);
-   //Number of entries in a directory
-   ptr:=Length(Image.Disc[dr].Entries);
-   lb_length.Caption:=IntToStr(ptr)+' item';
-   if ptr<>1 then lb_length.Caption:=lb_length.Caption+'s';
-   //ADFS New map - Sector is an indirect address (fragment and sector)
-   if Image.MapType=diADFSNewMap then
-    location:='Indirect address: 0x'+IntToHex(Image.Disc[dr].Sector,8);
-  end;
-  //Update the location label
-  lb_location.Caption:=location;
-  //And arrange the file details pane
-  ArrangeFileDetails;
  end;
 end;
 
@@ -2726,103 +2733,105 @@ begin
  filetype:='';
  WriteToDebug('MainForm.GetImageIndex('+Node.Text+')');
  //The directory and entry references, as always
- dir  :=TMyTreeNode(Node).ParentDir;
- entry:=Node.Index;
- //AFS or DOS Partition?
- afspart:=False;
- dospart:=False;
- WriteToDebug('MainForm.GetImageIndex: Dir: '+IntToStr(dir));
- WriteToDebug('MainForm.GetImageIndex: Entry: '+IntToStr(entry));
- if(dir>=0)and(dir<Length(ImageToUse.Disc))then
+ if Image.FileExists(GetFilePath(Node),dir,entry) then
  begin
-  afspart:=ImageToUse.Disc[dir].AFSPartition;
-  dospart:=ImageToUse.Disc[dir].DOSPartition;
-  //Get the filetype to look for
-  if(entry>=0)and(entry<Length(ImageToUse.Disc[dir].Entries))then
-   filetype:=ImageToUse.Disc[dir].Entries[entry].ShortFiletype;
- end;
- if afspart then WriteToDebug('MainForm.GetImageIndex: AFS Partition present');
- if dospart then WriteToDebug('MainForm.GetImageIndex: DOS Partition present');
- WriteToDebug('MainForm.GetImageIndex: Looking for filetype "'+filetype+'"');
- ft:=unknown; //Default icon to use
- //Directory has a different icon
- if not TMyTreeNode(Node).IsDir then
- begin
-  WriteToDebug('MainForm.GetImageIndex: Non-directory');
-  //Are we ADFS, SparkFS, AFS or DOS?
-  if((ImageToUse.MajorFormatNumber=diAcornADFS)
-   or(ImageToUse.MajorFormatNumber=diSpark)
-   or(ImageToUse.MajorFormatNumber=diAcornFS))
-  and(Length(ImageToUse.Disc)>0)and(not dospart)then
+  dir  :=TMyTreeNode(Node).ParentDir;
+  //AFS or DOS Partition?
+  afspart:=False;
+  dospart:=False;
+  WriteToDebug('MainForm.GetImageIndex: Dir: '+IntToStr(dir));
+  WriteToDebug('MainForm.GetImageIndex: Entry: '+IntToStr(entry));
+  if(dir>=0)and(dir<Length(ImageToUse.Disc))then
   begin
-   //Default
-   ft:=ROunknown; //Default icon
-   //Make sure we are in range
-   if dir<Length(ImageToUse.Disc)then
-    if entry<Length(ImageToUse.Disc[dir].Entries)then
-    begin
-     //If it has a Load and/or Exec address
-     if(ImageToUse.Disc[dir].Entries[entry].LoadAddr<>0)
-     or(ImageToUse.Disc[dir].Entries[entry].ExecAddr<>0)then
-      ft:=loadexec;
-     //If it has a timestamp
-     if(ImageToUse.Disc[dir].Entries[entry].TimeStamp>0)
-     and(not afspart)and(not dospart)then
+   afspart:=ImageToUse.Disc[dir].AFSPartition;
+   dospart:=ImageToUse.Disc[dir].DOSPartition;
+   //Get the filetype to look for
+   if(entry>=0)and(entry<Length(ImageToUse.Disc[dir].Entries))then
+    filetype:=ImageToUse.Disc[dir].Entries[entry].ShortFiletype;
+  end;
+  if afspart then WriteToDebug('MainForm.GetImageIndex: AFS Partition present');
+  if dospart then WriteToDebug('MainForm.GetImageIndex: DOS Partition present');
+  WriteToDebug('MainForm.GetImageIndex: Looking for filetype "'+filetype+'"');
+  ft:=unknown; //Default icon to use
+  //Directory has a different icon
+  if not TMyTreeNode(Node).IsDir then
+  begin
+   WriteToDebug('MainForm.GetImageIndex: Non-directory');
+   //Are we ADFS, SparkFS, AFS or DOS?
+   if((ImageToUse.MajorFormatNumber=diAcornADFS)
+    or(ImageToUse.MajorFormatNumber=diSpark)
+    or(ImageToUse.MajorFormatNumber=diAcornFS))
+   and(Length(ImageToUse.Disc)>0)and(not dospart)then
+   begin
+    //Default
+    ft:=ROunknown; //Default icon
+    //Make sure we are in range
+    if dir<Length(ImageToUse.Disc)then
+     if entry<Length(ImageToUse.Disc[dir].Entries)then
      begin
-      i:=GetFileTypeGraphic(filetype,Low(RISCOSFileTypes),RISCOSFileTypes);
-      if i<>unknown then ft:=i;
+      //If it has a Load and/or Exec address
+      if(ImageToUse.Disc[dir].Entries[entry].LoadAddr<>0)
+      or(ImageToUse.Disc[dir].Entries[entry].ExecAddr<>0)then
+       ft:=loadexec;
+      //If it has a timestamp
+      if(ImageToUse.Disc[dir].Entries[entry].TimeStamp>0)
+      and(not afspart)and(not dospart)then
+      begin
+       i:=GetFileTypeGraphic(filetype,Low(RISCOSFileTypes),RISCOSFileTypes);
+       if i<>unknown then ft:=i;
+      end;
      end;
-    end;
+   end;
+   //Is it a Commodore format?
+   if(ImageToUse.MajorFormatNumber=diCommodore)
+   and(Length(ImageToUse.Disc)>0)then
+   begin
+    //Default is a PRG file
+    ft:=C64unknown;
+    i:=GetFileTypeGraphic(filetype,Low(C64FileTypes),C64FileTypes);
+    if i<>unknown then ft:=i;
+   end;
+   //DOS Plus (DOS)
+   if((ImageToUse.MajorFormatNumber=diDOSPlus)
+   or((ImageToUse.MajorFormatNumber=diAcornADFS)and(dospart)))
+   and(Length(ImageToUse.Disc)>0)then
+   begin
+    i:=GetFileTypeGraphic(filetype,Low(DOSFileTypes),DOSFileTypes);
+    if i<>unknown then ft:=i;
+   end;
   end;
-  //Is it a Commodore format?
-  if(ImageToUse.MajorFormatNumber=diCommodore)
-  and(Length(ImageToUse.Disc)>0)then
+  //Diectory icons
+  if TMyTreeNode(Node).IsDir then
   begin
-   //Default is a PRG file
-   ft:=C64unknown;
-   i:=GetFileTypeGraphic(filetype,Low(C64FileTypes),C64FileTypes);
-   if i<>unknown then ft:=i;
+   WriteToDebug('MainForm.GetImageIndex: Directory');
+   //Different icon if it is expanded, i.e. open
+   if Node.Expanded then
+    ft:=directory_o
+   else
+    //to a closed one
+    ft:=directory;
+   //If RISC OS, and an application
+   if(not dospart)and(not afspart)then
+    if(ImageToUse.MajorFormatNumber=diAcornADFS)
+    or(ImageToUse.MajorFormatNumber=diSpark)then //ADFS and Spark only
+     if(ImageToUse.DirectoryType=diADFSNewDir)
+     OR(ImageToUse.DirectoryType=diADFSBigDir)then //New or Big
+      if Node.Text[1]='!' then
+      begin
+       ft:=appicon; //Default icon for application
+       i:=GetFileTypeGraphic(Node.Text,Low(RISCOSApplications),RISCOSApplications);
+       if i<>unknown then ft:=i;
+      end;
+   //If MMB
+   if ImageToUse.MajorFormatNumber=diMMFS then
+   begin
+    ft:=mmbdisc;
+    if ImageToUse.Disc[Node.Index].Locked then ft:=mmbdisclock;
+    if RightStr(Node.Text,5)='empty' then ft:=mmbdiscempt;
+   end;
   end;
-  //DOS Plus (DOS)
-  if((ImageToUse.MajorFormatNumber=diDOSPlus)
-  or((ImageToUse.MajorFormatNumber=diAcornADFS)and(dospart)))
-  and(Length(ImageToUse.Disc)>0)then
-  begin
-   i:=GetFileTypeGraphic(filetype,Low(DOSFileTypes),DOSFileTypes);
-   if i<>unknown then ft:=i;
-  end;
+  Result:=ft;
  end;
- //Diectory icons
- if TMyTreeNode(Node).IsDir then
- begin
-  WriteToDebug('MainForm.GetImageIndex: Directory');
-  //Different icon if it is expanded, i.e. open
-  if Node.Expanded then
-   ft:=directory_o
-  else
-   //to a closed one
-   ft:=directory;
-  //If RISC OS, and an application
-  if(not dospart)and(not afspart)then
-   if(ImageToUse.MajorFormatNumber=diAcornADFS)
-   or(ImageToUse.MajorFormatNumber=diSpark)then //ADFS and Spark only
-    if(ImageToUse.DirectoryType=diADFSNewDir)
-    OR(ImageToUse.DirectoryType=diADFSBigDir)then //New or Big
-     if Node.Text[1]='!' then
-     begin
-      ft:=appicon; //Default icon for application
-      i:=GetFileTypeGraphic(Node.Text,Low(RISCOSApplications),RISCOSApplications);
-      if i<>unknown then ft:=i;
-     end;
-  //If MMB
-  if ImageToUse.MajorFormatNumber=diMMFS then
-  begin
-   ft:=mmbdisc;
-   if ImageToUse.Disc[Node.Index].Locked then ft:=mmbdisclock;
-   if RightStr(Node.Text,5)='empty' then ft:=mmbdiscempt;
-  end;
- end;
- Result:=ft;
 end;
 
 {------------------------------------------------------------------------------}
@@ -3452,10 +3461,12 @@ function TMainForm.ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
                                                  Errors: Boolean=True): Integer;
 var
  Node      : TTreeNode=nil;
- newentry  : TDirEntry;
+ newentry  : TDirEntry=();
+// oldroot   : String='$';
  rootname  : String='$';
  method    : String='Moving';
  temp      : String='';
+ tempattr  : String='';
  curformat : Byte=0;
  newformat : Byte=0;
  side      : Byte=0;
@@ -3466,6 +3477,7 @@ var
  index     : Integer=0;
  MaxDirEnt : Integer=0;
  NumFiles  : Integer=0;
+ DirEntry  : Cardinal=0;
  buffer    : TDIByteArray=nil;
  ok        : Boolean=True;
 begin
@@ -3615,6 +3627,7 @@ begin
    end;
    curformat:=Image.MajorFormatNumber;   //Format of the current open image
    newformat:=NewImage.MajorFormatNumber;//Format of the importing image
+//   oldroot  :=NewImage.RootName;
    //Go through each directory
    if Length(NewImage.Disc)>0 then
     for dir:=0 to Length(NewImage.Disc)-1 do
@@ -3639,7 +3652,8 @@ begin
         begin
          //If coming from ADFS, AFS or Amiga, and is inside a directory,
          //add the first letter of this.
-         if((newformat=diAcornADFS)or(newformat=diAmiga)or(newformat=diAcornFS))
+         //if((newformat=diAcornADFS)or(newformat=diAmiga)or(newformat=diAcornFS))
+         if(NewImage.DirectoryCapable)
          and(newentry.Parent<>NewImage.Disc[0].Directory)then
          begin
           index:=Length(newentry.Parent);
@@ -3652,28 +3666,46 @@ begin
          newentry.Parent:=rootname;
         end;
         //Coming from DFS and first letter holds the directory?
-        //And going to ADFS or Amiga?
+        //And going to directory capable system?
         if (newformat=diAcornDFS)and(newentry.Filename[2]='.')
-        and((curformat=diAcornADFS)or(curformat=diAmiga)) then
+        and(Image.DirectoryCapable) then
         begin
          //Then create the directory
-         if Fguiopen then SelectNode(rootname);
-         //This will fail if already created, but we've suppressed errors
+         if Fguiopen then SelectNode(rootname);//First, get the root
+         //Get the temporary filename
          temp:=newentry.Filename[1];
-         newentry.Attributes:='DLR';
-         if Fguiopen then CreateDirectory(temp,newentry.Attributes)
-         else Image.CreateDirectory(temp,rootname,newentry.Attributes);
+         //Does it exist already?
+         if not Image.FileExists(rootname+'.'+temp,DirEntry) then
+         begin
+          //New attributes
+          tempattr:='LR';
+          //Create it
+          if Fguiopen then CreateDirectory(temp,tempattr)
+          else Image.CreateDirectory(temp,rootname,tempattr);
+         end;
+         //Move the Parent
          newentry.Parent:=rootname+Image.DirSep+temp;
+         //And rename the file
          newentry.Filename:=Copy(newentry.Filename,3,Length(newentry.Filename));
         end;
-        //Going to ADFS, from another system, ensure it has 'WR' attributes
-        if(curformat=diAcornADFS)and(curformat<>newformat)then
+        //Going to ADFS or !Spark, from another system, ensure it has 'WR' attributes
+        if ((curformat= diAcornADFS) or(curformat= diSpark))
+        and((newformat<>diAcornADFS)and(newformat<>diSpark))then
         begin
          if Pos('W',newentry.Attributes)=0 then
           newentry.Attributes:=newentry.Attributes+'W';
          if Pos('R',newentry.Attributes)=0 then
           newentry.Attributes:=newentry.Attributes+'R';
         end;
+        //Convert the parent name to the new path system
+        newentry.Parent:=StringReplace(newentry.Parent
+                                      ,NewImage.DirSep
+                                      ,Image.DirSep
+                                      ,[rfReplaceAll,rfIgnoreCase]);
+        newentry.Parent:=StringReplace(newentry.Parent
+                                      ,NewImage.RootName
+                                      ,rootname
+                                      ,[rfReplaceAll,rfIgnoreCase]);
         ok:=True;
         if Fguiopen then
         begin
@@ -3694,9 +3726,9 @@ begin
          if Fguiopen then
           if not TMyTreeNode(DirList.Selected).BeenRead then
            ReadInDirectory(DirList.Selected);
-         //Is it a directory we're adding? ADFS and Amiga only
-         if(newentry.DirRef>=0)and((curformat=diAcornADFS)or(curformat=diAmiga))then
-          if newentry.Filename<>'$' then //Create the directory
+         //Is it a directory we're adding?
+         if(newentry.DirRef>=0)and(Image.DirectoryCapable)then
+          if newentry.Filename<>rootname then //Create the directory
           begin
            newentry.Attributes:='DLR';
            if Fguiopen then
@@ -3724,7 +3756,7 @@ begin
            else //Failed to write the file
            begin
             if Errors then
-             ReportError('Failed when '+method+' '+newentry.Parent+NewImage.DirSep
+             ReportError('Failed when '+method+' '+newentry.Parent+Image.DirSep
                                                   +newentry.Filename
                                                   +' : '
                                                   +AddFileErrorToText(-index));
@@ -4633,12 +4665,6 @@ var
  index     : Integer=0;
  root      : Integer=0;
  filename  : String='';
-{We're using different algorithms here:
- 0: Clone the drive, delete everything on the OG drive, then re-import all objects
- 1: Clone the drive, reformat the OG drive, then re-import all objects
- 2: Clone the drive, delete and re-import each object one by one}
-const DefragMethod=0;
- //DefragMethod 1 is not fully implemented on the class side.
 begin
  if Fguiopen then WriteToDebug('MainForm.Defrag('+IntToStr(side)+')');
  //Can only defrag if there are objects and free space
@@ -4656,74 +4682,60 @@ begin
   NewImage:=TDiscImage.Create(Image);
   Image.ScanSubDirs:=oldscan;
   Image.OpenDOSPartitions:=olddos;
-  if DefragMethod=1 then //Method 1 only
-  begin
-   ok:=True;
-   Image.Create(NewImage,False);
-  end;
   root:=0; //Default pointer
-  if DefragMethod<>1 then //Methods 0 and 2 only
+  //We need to work out the root references
+  if Length(Image.Disc)>0 then
   begin
-   //We need to work out the root references
-   if Length(Image.Disc)>0 then
-   begin
-    sidecount:=0;
-    for index:=0 to Length(Image.Disc)-1 do
-     if Image.Disc[index].Parent=-1 then
-     begin
-      if sidecount=side then root:=index;
-      inc(sidecount);
-     end;
-   end;
-   sidecount:=Length(Image.Disc[root].Entries);
-   NewImage.ProgressIndicator:=nil;
-  end;
-  if DefragMethod=0 then //Method 0 only
-  begin
-   //Delete all the existing objects in the root
-   Image.BeginUpdate;
-   ok:=True;
-   while(Length(Image.Disc[root].Entries)>0)and(ok)do
-   begin
-    if Fguiopen then
+   sidecount:=0;
+   for index:=0 to Length(Image.Disc)-1 do
+    if Image.Disc[index].Parent=-1 then
     begin
-     ProgressForm.Show;
-     Application.ProcessMessages;
+     if sidecount=side then root:=index;
+     inc(sidecount);
     end;
-    filename:=Image.Disc[root].Entries[0].Parent
-             +Image.GetDirSep(Image.Disc[root].Partition)
-             +Image.Disc[root].Entries[0].Filename;
-    UpdateProgress('Preparing '+filename);
-    if Fguiopen then
-    begin
-     SelectNode(filename);
-     ok:=DeleteFile(False);
-    end
-    else
-     ok:=Image.DeleteFile(filename);
-   end;
-   Image.EndUpdate;
-   ok:=Length(Image.Disc[root].Entries)=0;
+  end;
+  sidecount:=Length(Image.Disc[root].Entries);
+  NewImage.ProgressIndicator:=nil;
+  //Delete all the existing objects in the root
+  Image.BeginUpdate;
+  ok:=True;
+  while(Length(Image.Disc[root].Entries)>0)and(ok)do
+  begin
    if Fguiopen then
    begin
     ProgressForm.Show;
     Application.ProcessMessages;
-    Image.ProgressIndicator:=@UpdateProgress;
    end;
-  end;
-  if DefragMethod<2 then //Methods 0 and 1 only
-   if ok then //Deleted all the files OK, so import again
+   filename:=Image.Disc[root].Entries[0].Parent
+            +Image.GetDirSep(Image.Disc[root].Partition)
+            +Image.Disc[root].Entries[0].Filename;
+   UpdateProgress('Preparing '+filename);
+   if Fguiopen then
    begin
-    if Fguiopen then SelectNode(Image.Disc[root].Directory);
-    //Import the contents of the current image into it
-    ok:=ImportFiles(NewImage,False,False)=0;
-    if ok then HasChanged:=True;//Update the changed flag
-   end;
-  if DefragMethod=2 then //Method 2 only
-  begin
-   // NOT WRITTEN
+    SelectNode(filename);
+    ok:=DeleteFile(False);
+   end
+   else
+    ok:=Image.DeleteFile(filename);
   end;
-  if not ok then //Didn't create a new image, so revert
+  Image.EndUpdate;
+  ok:=Length(Image.Disc[root].Entries)=0;
+  if Fguiopen then
+  begin
+   ProgressForm.Show;
+   Application.ProcessMessages;
+   Image.ProgressIndicator:=@UpdateProgress;
+  end;
+  //Deleted all the files OK, so import again
+  if ok then
+  begin
+   if Fguiopen then SelectNode(Image.Disc[root].Directory);
+   //Import the contents of the current image into it
+   ok:=ImportFiles(NewImage,False,False)=0;
+   if ok then HasChanged:=True;//Update the changed flag
+  end;
+  //Didn't create a new image, so revert
+  if not ok then
   begin
    Image.Free;
    Image:=TDiscImage.Create(NewImage);
@@ -5569,6 +5581,7 @@ var
  parentdir: String='$';
  index    : Integer=0;
  Node     : TTreeNode=nil;
+// dir,entry:Cardinal;
 begin
  Result:=nil;
  WriteToDebug('MainForm.CreateDirectory('+dirname+','+attr+')');
@@ -5618,6 +5631,7 @@ begin
     If index=-7 then ReportError('Could not write directory "'+dirname+'" - map full');
     if index=-8 then ReportError('Could not write directory "'+dirname+'" - nothing to write');
     if index=-9 then ReportError('Could not extend parent directory when adding "'+dirname+'"');
+    if index<-9 then ReportError('Could not create directory "'+dirname+'" - unknown error');
    end;
  end;
 end;
@@ -6109,9 +6123,18 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
-//Create a new blank image
+//Create a new blank image - button clicked
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_NewImageClick(Sender: TObject);
+begin
+ WriteToDebug('MainForm.btn_NewImageClick');
+ CreateNewImage;
+end;
+
+{------------------------------------------------------------------------------}
+//Create a new blank image or set default image format
+{------------------------------------------------------------------------------}
+procedure TMainForm.CreateNewImage;
 function SelectMinor(LOptions: array of TRISCOSRadioBox): Byte;
 var Index: Byte=0;
 begin
@@ -6120,9 +6143,9 @@ begin
   if LOptions[index].Ticked then Result:=Index;
 end;
 var
- major    : Word=0;
+ major    : Word=$FFF;
  binvers  : Byte=0;
- minor    : Byte=0;
+ minor    : Byte=$F;
  tracks   : Byte=0;
  ok       : Boolean=False;
  hdd      : Boolean=False;
@@ -6132,55 +6155,57 @@ var
  copyr    : String='';
  filename : String='';
 begin
- WriteToDebug('MainForm.btn_NewImageClick');
+ ok:=True;
  if QueryUnsaved then
  begin
   //Show the form, modally
   NewImageForm.ShowModal;
-  //If Create was clicked, then create a new image
+  //If OK was clicked, then create a new image
   if NewImageForm.ModalResult=mrOK then
   begin
    CloseAllHexDumps; //From this point, all loaded data will be dumped
-   //Get the main format
-   major:=$FFF;
-   if NewImageForm.SystemOptions[0].Ticked then major:=diAcornDFS;
-   if NewImageForm.SystemOptions[1].Ticked then major:=diAcornADFS;
-   if NewImageForm.SystemOptions[2].Ticked then major:=diCommodore;
-   if NewImageForm.SystemOptions[3].Ticked then major:=diSinclair;
-   if NewImageForm.SystemOptions[4].Ticked then major:=diAmiga;
-   if NewImageForm.SystemOptions[5].Ticked then major:=diAcornUEF;
-   if NewImageForm.SystemOptions[6].Ticked then major:=diSpark;
-   if NewImageForm.SystemOptions[7].Ticked then major:=diAcornFS;
-   if NewImageForm.SystemOptions[8].Ticked then major:=diDOSPlus;
-   if NewImageForm.SystemOptions[9].Ticked then major:=diAcornRFS;
-   //Get the sub-format
-   minor:=$F;
-   if NewImageForm.SystemOptions[0].Ticked then //DFS
-    minor:=SelectMinor(NewImageForm.DFSOptions);
-   if NewImageForm.SystemOptions[1].Ticked then //ADFS
-    minor:=SelectMinor(NewImageForm.ADFSOptions);
-   if NewImageForm.SystemOptions[2].Ticked then //C64
-    minor:=SelectMinor(NewImageForm.C64Options);
-   if NewImageForm.SystemOptions[3].Ticked then //Spectrum
-    minor:=SelectMinor(NewImageForm.SpecOptions);
-   if NewImageForm.SystemOptions[4].Ticked then //Amiga
-    minor:=SelectMinor(NewImageForm.AmigaOptions);
-   if NewImageForm.SystemOptions[5].Ticked then minor:=$0;//CFS
-   if NewImageForm.SystemOptions[6].Ticked then minor:=$0;//!Spark
-   if NewImageForm.SystemOptions[7].Ticked then //AFS
-    minor:=SelectMinor(NewImageForm.AFSOptions);
-   if NewImageForm.SystemOptions[8].Ticked then //DOS
-    minor:=SelectMinor(NewImageForm.DOSOptions);
-   if NewImageForm.SystemOptions[9].Ticked then minor:=$0;//ROM FS
-   tracks:=0; //Default
-   //Number of tracks (DFS only)
-   if major=diAcornDFS then tracks:=SelectMinor(NewImageForm.DFSTOptions);
-   //Now create the image
-   ok:=False;
-   //Get the filename for a new Spark
-   filename:='';
-   if major=diSpark then
+   //DFS
+   if NewImageForm.SystemOptions[0].Ticked then
    begin
+    major:=diAcornDFS;
+    minor:=SelectMinor(NewImageForm.DFSOptions);
+    tracks:=SelectMinor(NewImageForm.DFSTOptions);
+   end;
+   //ADFS
+   if NewImageForm.SystemOptions[1].Ticked then
+   begin
+    major:=diAcornADFS;
+    minor:=SelectMinor(NewImageForm.ADFSOptions);
+   end;
+   //C64
+   if NewImageForm.SystemOptions[2].Ticked then
+   begin
+    major:=diCommodore;
+    minor:=SelectMinor(NewImageForm.C64Options);
+   end;
+   //Spectrum
+   if NewImageForm.SystemOptions[3].Ticked then
+   begin
+    major:=diSinclair;
+    minor:=SelectMinor(NewImageForm.SpecOptions);
+   end;
+   //Amiga
+   if NewImageForm.SystemOptions[4].Ticked then
+   begin
+    major:=diAmiga;
+    minor:=SelectMinor(NewImageForm.AmigaOptions);
+   end;
+   //CFS
+   if NewImageForm.SystemOptions[5].Ticked then
+   begin
+    major:=diAcornUEF;
+    minor:=$0;
+   end;
+   //Spark
+   if NewImageForm.SystemOptions[6].Ticked then
+   begin
+    major:=diSpark;
+    minor:=$0;
     SaveImage.Title:='Create New !Spark Image As';
     //Populate the filter part of the dialogue
     index:=0;
@@ -6193,22 +6218,33 @@ begin
     //Show the dialogue and set the filename
     if SaveImage.Execute then filename:=SaveImage.FileName else exit;
    end;
-   //ROM FS options
-   title:='';
-   version:='';
-   copyr:='';
-   binvers:=0;
-   if major=diAcornRFS then
+   //AFS
+   if NewImageForm.SystemOptions[7].Ticked then
    begin
+    major:=diAcornFS;
+    minor:=SelectMinor(NewImageForm.AFSOptions);
+   end;
+   //DOS
+   if NewImageForm.SystemOptions[8].Ticked then
+   begin
+    major:=diDOSPlus;
+    minor:=SelectMinor(NewImageForm.DOSOptions);
+   end;
+   //ROM FS
+   if NewImageForm.SystemOptions[9].Ticked then
+   begin
+    major:=diAcornRFS;
+    minor:=$0;
     title  :=NewImageForm.ROMFSTitle.Text;
     version:=NewImageForm.ROMFSVersion.Text;
     binvers:=NewImageForm.ROMFSBinVersAdj.Position;
     copyr  :=NewImageForm.ROMFSCopy.Text;
    end;
+   //Create the new image
+   //Show the progress indicator
    Image.ProgressIndicator:=@UpdateProgress;
    ProgressForm.Show;
    Application.ProcessMessages;
-   hdd:=False;
    //ADFS Hard Drive
    if(major=diAcornADFS)and(minor=8)then
    begin
@@ -6555,63 +6591,66 @@ begin
   if not (TMyTreeNode(Node).IsDir) then
   begin
    //Get the entry and dir references
-   entry:=Node.Index;
-   dir:=-1;
-   //If the node does not have a parent, then the dir ref is the one contained
-   //in the extra info. Otherwise is -1
-   if Node.Parent<>nil then
+   //entry:=Node.Index;
+   if Image.FileExists(GetFilePath(Node),dir,entry) then
    begin
-    dir  :=TMyTreeNode(Node).ParentDir;
-    //Get the full filename with path
-    filename:=Image.GetParent(dir)+
-              Image.GetDirSep(Image.Disc[dir].Partition)+
-              Image.Disc[dir].Entries[entry].Filename;
-    //Load the file
-    if Image.ExtractFile(filename,buffer,entry) then
+    dir:=-1;
+    //If the node does not have a parent, then the dir ref is the one contained
+    //in the extra info. Otherwise is -1
+    if Node.Parent<>nil then
     begin
-     RemoveTopBit(filename);
-     //Check it is not already open
-     i:=0;
-     index:=-1;
-     while(i<Length(HexDump))and(index=-1)do
+     dir  :=TMyTreeNode(Node).ParentDir;
+     //Get the full filename with path
+     filename:=Image.GetParent(dir)+
+               Image.GetDirSep(Image.Disc[dir].Partition)+
+               Image.Disc[dir].Entries[entry].Filename;
+     //Load the file
+     if Image.ExtractFile(filename,buffer,entry) then
      begin
-      if HexDump[i].Caption=filename then index:=i;
-      inc(i);
+      RemoveTopBit(filename);
+      //Check it is not already open
+      i:=0;
+      index:=-1;
+      while(i<Length(HexDump))and(index=-1)do
+      begin
+       if HexDump[i].Caption=filename then index:=i;
+       inc(i);
+      end;
+      if index=-1 then
+      begin
+       //Get the current number of windows open
+       index:=Length(HexDump);    //this will also point to the last index
+       SetLength(HexDump,index+1);//now that we've increased it by one
+       //Create a new instance of the form
+       HexDump[index]:=THexDumpForm.Create(nil);
+       //Put the name in the caption
+       HexDump[index].Caption:=filename;
+       //Switch to the Hex Dump tab (this can change, depending on the contents)
+       HexDump[index].PageControl.ActivePage:=HexDump[index].HexDump;
+       //Add to the menu
+       menuitem:=TMenuItem.Create(HexDumpMenu);
+       menuitem.Caption:=filename;
+       menuitem.OnClick:=@HexDumpSubItemClick;
+       HexDumpMenu.Add(menuitem);
+      end;
+      //Move the file across
+      SetLength(HexDump[index].buffer,Length(buffer));
+      for i:=0 to Length(buffer)-1 do
+       HexDump[index].buffer[i]:=buffer[i];
+      //And show it
+      HexDump[index].Show;
+      //Is it a BASIC file, or a text viewable file?
+      if(Image.Disc[dir].Entries[entry].ShortFileType='FFB')
+      or(Image.Disc[dir].Entries[entry].ShortFileType='FFF')
+      or(Image.Disc[dir].Entries[entry].ShortFileType='FEB')
+      or(HexDump[index].IsBasicFile)
+      or(HexDump[index].IsTextFile)then HexDump[index].DecodeBasicFile;
+      //Is in an image we can show?
+      HexDump[index].DisplayImage; //If not, it won't show it
+      //Is it a sprite file?
+      if Image.Disc[dir].Entries[entry].ShortFileType='FF9' then
+       HexDump[index].DisplaySpriteFile;
      end;
-     if index=-1 then
-     begin
-      //Get the current number of windows open
-      index:=Length(HexDump);    //this will also point to the last index
-      SetLength(HexDump,index+1);//now that we've increased it by one
-      //Create a new instance of the form
-      HexDump[index]:=THexDumpForm.Create(nil);
-      //Put the name in the caption
-      HexDump[index].Caption:=filename;
-      //Switch to the Hex Dump tab (this can change, depending on the contents)
-      HexDump[index].PageControl.ActivePage:=HexDump[index].HexDump;
-      //Add to the menu
-      menuitem:=TMenuItem.Create(HexDumpMenu);
-      menuitem.Caption:=filename;
-      menuitem.OnClick:=@HexDumpSubItemClick;
-      HexDumpMenu.Add(menuitem);
-     end;
-     //Move the file across
-     SetLength(HexDump[index].buffer,Length(buffer));
-     for i:=0 to Length(buffer)-1 do
-      HexDump[index].buffer[i]:=buffer[i];
-     //And show it
-     HexDump[index].Show;
-     //Is it a BASIC file, or a text viewable file?
-     if(Image.Disc[dir].Entries[entry].ShortFileType='FFB')
-     or(Image.Disc[dir].Entries[entry].ShortFileType='FFF')
-     or(Image.Disc[dir].Entries[entry].ShortFileType='FEB')
-     or(HexDump[index].IsBasicFile)
-     or(HexDump[index].IsTextFile)then HexDump[index].DecodeBasicFile;
-     //Is in an image we can show?
-     HexDump[index].DisplayImage; //If not, it won't show it
-     //Is it a sprite file?
-     if Image.Disc[dir].Entries[entry].ShortFileType='FF9' then
-      HexDump[index].DisplaySpriteFile;
     end;
    end;
   end
@@ -6636,25 +6675,27 @@ begin
  WriteToDebug('MainForm.ReadInDirectory');
  if not TMyTreeNode(Node).BeenRead then //If it hasn't been read
  begin
-  entry:=Node.Index;
-  dir:=-1;
-  //dir variable, as above
-  if Node.Parent<>nil then //We will only act on this if not the root
+  if Image.FileExists(GetFilePath(Node),dir,entry) then
   begin
-   dir:=TMyTreeNode(Node).ParentDir;
-   //Get the full filename with path
-   filename:=Image.GetParent(dir)+
-             Image.GetDirSep(Image.Disc[dir].Partition)+
-             Image.Disc[dir].Entries[entry].Filename;
-   //And read in the directory
-   index:=Image.ReadDirectory(filename);
-   if index<>-1 then
+   dir:=-1;
+   //dir variable, as above
+   if Node.Parent<>nil then //We will only act on this if not the root
    begin
-    //Add the entire directory contents
-    AddDirectoryToTree(Node,index,Image,index);
-    //Mark this directory as having been read
-    TMyTreeNode(Node).BeenRead:=True;
-    TMyTreeNode(Node).Broken:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken;
+    dir:=TMyTreeNode(Node).ParentDir;
+    //Get the full filename with path
+    filename:=Image.GetParent(dir)+
+              Image.GetDirSep(Image.Disc[dir].Partition)+
+              Image.Disc[dir].Entries[entry].Filename;
+    //And read in the directory
+    index:=Image.ReadDirectory(filename);
+    if index<>-1 then
+    begin
+     //Add the entire directory contents
+     AddDirectoryToTree(Node,index,Image,index);
+     //Mark this directory as having been read
+     TMyTreeNode(Node).BeenRead:=True;
+     TMyTreeNode(Node).Broken:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken;
+    end;
    end;
   end;
  end;

@@ -28,14 +28,18 @@ begin
  FOpenDOSPart         :=True;
  //Add implied attributes for DFS/CFS/RFS
  FAddImpliedAttributes:=True;
+ //Set the titles
+ Fdisctitle           :=defdisctitle;
+ Fafsdisctitle        :=defafsdisctitle;
+ Famigadisctitle      :=defamigadisctitle;
+ Frfstitle            :=defrfstitle;
+ Frfscopyright        :=defrfscopyright;
 end;
-constructor TDiscImage.Create(Clone: TDiscImage; keepfiles:Boolean=True);
+constructor TDiscImage.Create(Clone: TDiscImage);
 var
  index: Cardinal=0;
 begin
  inherited Create;
- //Can only clone the shape on ADFS, currently
- if Clone.GetMajorFormatNumber<>diAcornADFS then keepfiles:=True;
  //Reset the variables to default
  ResetVariables;
  SetDataLength(Length(Clone.RAWData));
@@ -59,34 +63,18 @@ begin
  FOpenDOSPart         :=Clone.OpenDOSPartitions;
  //Add implied attributes for DFS/CFS/RFS
  FAddImpliedAttributes:=Clone.AddImpliedAttributes;
+ //Set the titles
+ Fdisctitle           :=Clone.DefaultDiscTitle;
+ Fafsdisctitle        :=Clone.DefaultAFSDiscTitle;
+ Famigadisctitle      :=Clone.DefaultAmigaDiscTitle;
+ Frfstitle            :=Clone.DefaultRFSTitle;
+ Frfscopyright        :=Clone.DefaultRFSCopyright;
  //Filename
  FFilename    :=Clone.Filename;
  //Just read the data in
  If IDImage then ReadImage;
  //And set the filename
  imagefilename:=FFilename;
- //We just need the shape of the clone - no files.
- if not keepfiles then
- begin
-  case Clone.GetMajorFormatNumber of
-   diAcornADFS: //Create an identical shape ADFS image
-    //Format the image
-    if Clone.GetMinorFormatNumber<$F then //Floppy Drive
-     FormatADFSFloppy(Clone.GetMinorFormatNumber)
-    else                                  //Hard Drive
-     FormatADFSHDD(Length(Fdata),
-                   Clone.MapType=diADFSNewMap,
-                   Clone.DirectoryType,
-                   (Clone.HDDHeads=16)AND(Clone.Sectors=63),
-                   (Clone.HeaderSize>0));
-  end;
-  //Update the boot options and disc titles
-  for Index:=0 to Length(Clone.BootOpt)-1 do
-  begin
-   UpdateBootOption(Clone.BootOpt[Index],Index);
-   UpdateDiscTitle(Clone.Title(Index),Index);
-  end;
- end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -625,8 +613,17 @@ var
 begin
  dir:=$FFFF;
  entry:=$FFFF;
- Result:=FileExists(filename,dir,entry);
+ Result:=FileExists(filename,dir,entry,sfn);
  Ref:=dir*$10000+entry;
+end;
+function TDiscImage.FileExists(filename: String;var dir,entry: Integer;sfn: Boolean=False): Boolean;
+var
+ Ldir  :Cardinal=0;
+ Lentry:Cardinal=0;
+begin
+ Result:=FileExists(filename,Ldir,Lentry,sfn);
+ if dir=$FFFF then dir:=-1 else dir:=Ldir;
+ if entry=$FFFF then entry:=-1 else entry:=Lentry;
 end;
 function TDiscImage.FileExists(filename: String;var dir,entry: Cardinal;sfn: Boolean=False): Boolean;
 var
@@ -642,6 +639,8 @@ begin
  //This will not work with CFS as you can have multiple files with the same name
  //in the same 'directory'. It will just find the first occurance.
  Result:=False;
+ dir:=$FFFF;
+ entry:=$FFFF;
  //Blank filename, so quit
  if Length(filename)=0 then exit;
  //Ends in a DOS directory separator
@@ -1151,7 +1150,7 @@ var
  e           : Cardinal=0;
  tempfn      : String='';
  newparent   : String='';
- file_details: TDirEntry;
+ file_details: TDirEntry=();
 begin
  ResetDirEntry(file_details);
  SetLength(buffer,0);
@@ -1885,8 +1884,8 @@ begin
   if(GetMajorFormatNumber=diDOSPlus)
   or((GetMajorFormatNumber=diAcornADFS)
   and(FDOSPresent))                   then report:=DOSReport(CSV);//DOS
-  if GetMajorFormatNumber=diCommodore then report:=CDRReport(CSV);//C64
-  if GetMajorFormatNumber=diAmiga     then report:=AmigaReport(CSV);//Amiga
+  if GetMajorFormatNumber=diCommodore then report:=CDRReport{(CSV)};//C64
+  if GetMajorFormatNumber=diAmiga     then report:=AmigaReport{(CSV)};//Amiga
   if GetMajorFormatNumber=diSinclair  then report:=TStringList.Create;//Not written yet
   if GetMajorFormatNumber=diAcornUEF  then report:=TStringList.Create;//Nothing to report
   if GetMajorFormatNumber=diAcornRFS  then report:=TStringList.Create;//Nothing to report
@@ -2079,14 +2078,19 @@ Create the instance
 -------------------------------------------------------------------------------}
 constructor TSpark.Create(filename: String;blank: Boolean=false);
 var
- F: TFileStream=nil;
+ F        : TFileStream=nil;
+ outbuffer: array of Byte;
 begin
  //Set the filename
  ZipFilename:=filename;
  //Create a blank file
  if blank then
  begin
+  SetLength(outbuffer,22);
+  WriteSignature(ZIPEoCL,outbuffer);
   F:=TFileStream.Create(ZipFilename,fmCreate or fmShareDenyNone);
+  F.Position:=0;
+  F.Write(outbuffer[0],Length(outbuffer));
   F.Free;
  end;
  //Create a stream
@@ -2101,7 +2105,7 @@ begin
  inherited Create;
  //Initialise the variables
  Fbuffer    :=nil;
- Fversion   :='1.05';
+ Fversion   :='1.06';
  FTimeOut   :=30;
  FIsSpark   :=False;
  FIsPack    :=False;
@@ -2139,27 +2143,26 @@ end;
 Write a file to the archive
 -------------------------------------------------------------------------------}
 procedure TSpark.WriteFile(var filetozip: TFileEntry;var buffer: TDIByteArray);
-var
- tempname : String='';
- tempfile : TFileStream=nil;
- zipfile  : TZipper=nil;
- EoCL     : Cardinal=0;
- CL       : Cardinal=0;
- ptr      : Cardinal=0;
- dataptr  : Cardinal=0;
- fnL      : Word=0;
- exL      : Word=0;
- index    : Integer=0;
- adjust   : Integer=0;
-const newExL = $18;
-begin
- if FIsPack then exit;
- if filetozip.Directory then CreateDirectory(filetozip.ArchiveName)
- else
+ function CreateTempZip: String;
+ var
+  tempname : String='';
+  tempfile : TFileStream=nil;
+  zipfile  : TZipper=nil;
+  EoCL     : Integer=-1;
+  CL       : Integer=-1;
+  ptr      : Cardinal=0;
+  dataptr  : Cardinal=0;
+  fnL      : Word=0;
+  exL      : Word=0;
+  index    : Integer=0;
+  adjust   : Integer=0;
+  Lbuffer  : TDIByteArray=nil;
+ const newExL = $18;
  begin
+  Result:=ExtractFilePath(ZIPFileName)+'__DIM__TempArchive.zip';//Get a temporary filename for the ZIP
   //Zipper will only zip up existing files, so we'll need to save the data to a
   //temporary file first, then zip that.
-  tempname:=GetTempFileName;//Get a temporary name
+  tempname:=ExtractFilePath(ZIPFileName)+'__DIM__TempFile.dat';//Get a temporary name
   tempfile:=TFileStream.Create(tempname,fmCreate);//Create the file
   tempfile.Position:=0;
   tempfile.Write(buffer[0],Length(buffer)); //Write the file data to it
@@ -2167,105 +2170,132 @@ begin
   //Now we can open the zipfile
   zipfile:=TZipper.Create;
   try
-   zipfile.Filename:=ZipFilename; //Set the zipfile name
+   zipfile.Filename:=Result; //Set the zipfile name
    zipfile.Entries.AddFileEntry(tempname,filetozip.ArchiveName); //Add the file
    zipfile.ZipAllFiles; //Then zip all the files
   finally
    zipfile.Free; //And close it
   end;
   //Finally, delete the temporary file
-  DeleteFile(tempname);
+  SysUtils.DeleteFile(tempname);
   //Then we will need to load the zip file in and change the values and add to
   //the library at the end.
-  tempfile:=TFileStream.Create(ZipFilename,fmOpenRead or fmShareDenyNone);
-  SetLength(Fbuffer,tempfile.Size);
+  tempfile:=TFileStream.Create(Result,fmOpenRead or fmShareDenyNone);
+  SetLength(Lbuffer,tempfile.Size);
   tempfile.Position:=0;
-  tempfile.Read(Fbuffer[0],tempfile.Size);
+  tempfile.Read(Lbuffer[0],tempfile.Size);
   tempfile.Free;
-  CL:=0;
-  EoCL:=FindEoCL(CL); //Get the end of central library marker
-  if EoCL<>0 then
+  CL:=FindCL(EoCL,Lbuffer); //Get the end of central library marker
+  if(EoCL<>-1)and(CL<>-1)then
   begin
    //Find the entry for this file
-   if FindEntry(filetozip.ArchiveName,false,ptr,dataptr) then
-   begin
-    //Get the variable length fields lengths
-    fnL:=Fbuffer[ptr+$1C]+Fbuffer[ptr+$1D]<<8;
-    exL:=Fbuffer[ptr+$1E]+Fbuffer[ptr+$1F]<<8;
-    //We need to add up to 24 bytes, so everything from the next entry needs to shift along
-    adjust:=0;
-    if exL<newExL then adjust:=newExL-exL;
-    if adjust>0 then
+   if FindEntry(filetozip.ArchiveName,false,ptr,dataptr,LBuffer) then
+    if ptr+$1F<Length(Lbuffer) then
     begin
-     SetLength(Fbuffer,Length(Fbuffer)+adjust);
-     for index:=Length(Fbuffer)-1 downto ptr+$2E+fnL+exL+adjust do
-      Fbuffer[index]:=Fbuffer[index-adjust];
+     //Get the variable length fields lengths
+     fnL:=Lbuffer[ptr+$1C]+Lbuffer[ptr+$1D]<<8;
+     exL:=Lbuffer[ptr+$1E]+Lbuffer[ptr+$1F]<<8;
+     //We need to add up to 24 bytes, so everything from the next entry needs to shift along
+     adjust:=0;
+     if exL<newExL then adjust:=newExL-exL;
+     if adjust>0 then
+     begin
+      SetLength(Lbuffer,Length(Lbuffer)+adjust);
+      for index:=Length(Lbuffer)-1 downto ptr+$2E+fnL+exL+adjust do
+       Lbuffer[index]:=Lbuffer[index-adjust];
+     end;
+     if ptr+$3E+fnL<Length(Lbuffer) then
+     begin
+      //Update the OS type to RISC OS
+      Lbuffer[ptr+$05]:=13;
+      //Update the extra field length
+      Lbuffer[ptr+$1E]:=(exL+adjust)mod$100;
+      Lbuffer[ptr+$1F]:=(exL+adjust)>>8;
+      //Fill in the extra field
+      Lbuffer[ptr+$2E+fnL]:=$41;//A
+      Lbuffer[ptr+$2F+fnL]:=$43;//C
+      //Length of extra -4
+      Lbuffer[ptr+$30+fnL]:=((exL+adjust)-4)mod$100;
+      Lbuffer[ptr+$31+fnL]:=((exL+adjust)-4)>>8;
+      Lbuffer[ptr+$32+fnL]:=$41;//A
+      Lbuffer[ptr+$33+fnL]:=$52;//R
+      Lbuffer[ptr+$34+fnL]:=$43;//C
+      Lbuffer[ptr+$35+fnL]:=$30;//0
+      //Load address
+      Lbuffer[ptr+$36+fnL]:=filetozip.LoadAddr mod $100;
+      Lbuffer[ptr+$37+fnL]:=(filetozip.LoadAddr>>8)mod $100;
+      Lbuffer[ptr+$38+fnL]:=(filetozip.LoadAddr>>16)mod $100;
+      Lbuffer[ptr+$39+fnL]:=(filetozip.LoadAddr>>24)mod $100;
+      //Exec address
+      Lbuffer[ptr+$3A+fnL]:=filetozip.ExecAddr mod $100;
+      Lbuffer[ptr+$3B+fnL]:=(filetozip.ExecAddr>>8)mod $100;
+      Lbuffer[ptr+$3C+fnL]:=(filetozip.ExecAddr>>16)mod $100;
+      Lbuffer[ptr+$3D+fnL]:=(filetozip.ExecAddr>>24)mod $100;
+      //Attributes
+      Lbuffer[ptr+$3E+fnL]:=filetozip.Attributes;
+      //Blank off the rest
+      if adjust>0 then
+      begin
+       for index:=17 to adjust-1 do Lbuffer[ptr+fnL+index+$2E]:=0;
+       //Now we need to replicate this extra field into the main header
+       SetLength(Lbuffer,Length(Lbuffer)+adjust);//First, extend again
+       for index:=Length(Lbuffer)-1 downto dataptr+$1E+fnL+exL+adjust do
+        Lbuffer[index]:=Lbuffer[index-adjust];
+      end;
+      //Now just replicate from above
+      inc(ptr,adjust);//Don't forget this has moved too
+      for index:=0 to newExL-1 do
+       Lbuffer[dataptr+$1E+fnL+index]:=Lbuffer[ptr+$2E+fnL+index];
+      //And update the field in the main header
+      Lbuffer[dataptr+$1C]:=(exL+adjust)mod$100;
+      Lbuffer[dataptr+$1D]:=(exL+adjust)>>8;
+      //Get the compressed size of the file
+      filetozip.Length:=Length(buffer);
+      filetozip.Size:=Lbuffer[dataptr+$12]
+                     +Lbuffer[dataptr+$13]<<8
+                     +Lbuffer[dataptr+$14]<<16
+                     +Lbuffer[dataptr+$15]<<24;
+      //And the data offset
+      filetozip.DataOffset:=dataptr;
+      //Update the End of Central Library
+      inc(EoCL,adjust*2);
+      //Update Offset of CL
+      inc(CL,adjust);
+      UpdateCL(CL,EoCL,Lbuffer); //Write both fields
+      //Save it back again
+      tempfile:=TFileStream.Create(Result,fmCreate or fmShareDenyNone);
+      tempfile.Position:=0;
+      tempfile.Write(Lbuffer[0],Length(Lbuffer));
+      tempfile.Free;
+     end;
     end;
-    //Update the OS type to RISC OS
-    Fbuffer[ptr+$05]:=13;
-    //Update the extra field length
-    Fbuffer[ptr+$1E]:=(exL+adjust)mod$100;
-    Fbuffer[ptr+$1F]:=(exL+adjust)>>8;
-    //Fill in the extra field
-    Fbuffer[ptr+$2E+fnL]:=$41;//A
-    Fbuffer[ptr+$2F+fnL]:=$43;//C
-    //Length of extra -4
-    Fbuffer[ptr+$30+fnL]:=((exL+adjust)-4)mod$100;
-    Fbuffer[ptr+$31+fnL]:=((exL+adjust)-4)>>8;
-    Fbuffer[ptr+$32+fnL]:=$41;//A
-    Fbuffer[ptr+$33+fnL]:=$52;//R
-    Fbuffer[ptr+$34+fnL]:=$43;//C
-    Fbuffer[ptr+$35+fnL]:=$30;//0
-    //Load address
-    Fbuffer[ptr+$36+fnL]:=filetozip.LoadAddr mod $100;
-    Fbuffer[ptr+$37+fnL]:=(filetozip.LoadAddr>>8)mod $100;
-    Fbuffer[ptr+$38+fnL]:=(filetozip.LoadAddr>>16)mod $100;
-    Fbuffer[ptr+$39+fnL]:=(filetozip.LoadAddr>>24)mod $100;
-    //Exec address
-    Fbuffer[ptr+$3A+fnL]:=filetozip.ExecAddr mod $100;
-    Fbuffer[ptr+$3B+fnL]:=(filetozip.ExecAddr>>8)mod $100;
-    Fbuffer[ptr+$3C+fnL]:=(filetozip.ExecAddr>>16)mod $100;
-    Fbuffer[ptr+$3D+fnL]:=(filetozip.ExecAddr>>24)mod $100;
-    //Attributes
-    Fbuffer[ptr+$3E+fnL]:=filetozip.Attributes;
-    //Blank off the rest
-    if adjust>0 then
-    begin
-     for index:=17 to adjust-1 do Fbuffer[ptr+fnL+index+$2E]:=0;
-     //Now we need to replicate this extra field into the main header
-     SetLength(Fbuffer,Length(Fbuffer)+adjust);//First, extend again
-     for index:=Length(Fbuffer)-1 downto dataptr+$1E+fnL+exL+adjust do
-      Fbuffer[index]:=Fbuffer[index-adjust];
-    end;
-    //Now just replicate from above
-    inc(ptr,adjust);//Don't forget this has moved too
-    for index:=0 to newExL-1 do
-     Fbuffer[dataptr+$1E+fnL+index]:=Fbuffer[ptr+$2E+fnL+index];
-    //And update the field in the main header
-    Fbuffer[dataptr+$1C]:=(exL+adjust)mod$100;
-    Fbuffer[dataptr+$1D]:=(exL+adjust)>>8;
-    //Get the compressed size of the file
-    filetozip.Length:=Length(buffer);
-    filetozip.Size:=Fbuffer[dataptr+$12]
-                   +Fbuffer[dataptr+$13]<<8
-                   +Fbuffer[dataptr+$14]<<16
-                   +Fbuffer[dataptr+$15]<<24;
-    //And the data offset
-    filetozip.DataOffset:=dataptr;
-    //Update the End of Central Library
-    inc(EoCL,adjust*2);
-    //Update Offset of CL
-    inc(CL,adjust);
-    UpdateCL(CL,EoCL); //Write both fields
-    //Save it back again
-    SaveData;
-    //And now add it to the overall list
-    SetLength(FFileList,Length(FFileList)+1);
-    FFileList[Length(FFileList)-1]:=filetozip;
-    //Set the spark flag
-    FIsSpark:=True;
-   end;
   end;
+ end;
+var
+ tempzipfile: String='';
+ Lfile      : TFileStream=nil;
+begin
+ if FIsPack then exit;
+ if filetozip.Directory then CreateDirectory(filetozip.ArchiveName)
+ else
+ begin
+  //First, ZIP up the file - this creates a new file
+  tempzipfile:=CreateTempZip;
+  //Combine the existing and new files
+  CombineZIP([ZIPFilename,tempzipfile],ZIPFilename);
+  //Now delete the temporary ZIP file
+  SysUtils.DeleteFile(tempzipfile);
+  //Read the file into the buffer
+  Lfile:=TFileStream.Create(ZIPFilename,fmOpenRead OR fmShareDenyNone);
+  Lfile.Position:=0;
+  SetLength(Fbuffer,Lfile.Size);
+  Lfile.Read(Fbuffer[0],Lfile.Size);
+  Lfile.Free;
+  //And now add it to the overall list
+  SetLength(FFileList,Length(FFileList)+1);
+  FFileList[Length(FFileList)-1]:=filetozip;
+  //Set the spark flag
+  FIsSpark:=True;
  end;
 end;
 
@@ -2274,26 +2304,26 @@ Create an empty directory
 -------------------------------------------------------------------------------}
 procedure TSpark.CreateDirectory(path: String);
 var
- index    : Integer=0;
- ctr      : Integer=0;
- buffer   : TDIByteArray=nil;
- EoCL     : Cardinal=0;
- CL       : Cardinal=0;
- offset   : Cardinal=0;
- datetime : QWord=0;
- year     : Word=0;
- month    : Word=0;
- day      : Word=0;
- hour     : Word=0;
- minute   : Word=0;
- second   : Word=0;
- ms       : Word=0;
- filetozip: TFileEntry;
-const
- headersig: array[0..3] of Byte = ($50,$4B,$03,$04);
- clsig    : array[0..3] of Byte = ($50,$4B,$01,$02);
- eoclsig  : array[0..3] of Byte = ($50,$4B,$05,$06);
+ index     : Integer=0;
+ ctr       : Integer=0;
+ databuffer: TDIByteArray=nil;
+ clbuffer  : TDIByteArray=nil;
+ EoCL      : Integer=-1;
+ CL        : Integer=-1;
+ offset    : Cardinal=0;
+ datetime  : QWord=0;
+ year      : Word=0;
+ month     : Word=0;
+ day       : Word=0;
+ hour      : Word=0;
+ minute    : Word=0;
+ second    : Word=0;
+ ms        : Word=0;
+ filetozip : TFileEntry=();
 begin
+ //In this procedure, I've assigned each value to the array individually, even
+ //though I could use a loop to do the same thing. Just because it is easier to
+ //read and maintain.
  ResetFileEntry(filetozip);
  if FIsPack then exit;
  //Make sure that the path is not empty
@@ -2304,123 +2334,198 @@ begin
   //And does not start with the root
   if Length(path)>2 then if path[1]='$' then path:=Copy(path,3);
   //Set up the buffer for the header entry
-  SetLength(buffer,Length(path)+$36);
-  for index:=0 to 3 do buffer[index]:=headersig[index];
-  //Version
-  buffer[4]:=$0A;
-  //Blank the rest
-  for index:=5 to $1D do buffer[index]:=$00;
+  SetLength(databuffer,Length(path)+$36); // $36=$1E header + $18 extra
+  WriteSignature(ZIPHeader,databuffer);
+  //Version $04/$05
+  databuffer[$04]:=$0A;
+  databuffer[$05]:=$00;
+  //Flags $06/$07
+  databuffer[$06]:=$00;
+  databuffer[$07]:=$00;
+  //Compression $08/$09
+  databuffer[$08]:=$00;
+  databuffer[$09]:=$00;
   //Modification time $0A/$0B
   DecodeDateTime(Now,year,month,day,hour,minute,second,ms);
   datetime:=(hour<<$B)OR(minute<<5)OR(second div 2);
-  buffer[$0A]:=datetime mod $100;
-  buffer[$0B]:=datetime>>8;
+  databuffer[$0A]:=datetime mod $100;
+  databuffer[$0B]:=datetime>>8;
   //Modification date $0C/$0D
   datetime:=((year-1980)<<9)OR(month<<5)OR day;
-  buffer[$0C]:=datetime mod $100;
-  buffer[$0D]:=datetime>>8;
-  //Filename length
-  buffer[$1A]:=Length(path)mod$100;
-  buffer[$1B]:=Length(path)>>8;
-  //Extra length
-  buffer[$1C]:=$18;
-  //Filename
-  for index:=1 to Length(path) do buffer[$1D+index]:=Ord(path[index]);
-  //Fill in the extra field
-  buffer[$1E+Length(path)]:=$41;//A
-  buffer[$1F+Length(path)]:=$43;//C
-  //Length of extra -4
-  buffer[$20+Length(path)]:=$14;
-  buffer[$21+Length(path)]:=$00;
-  buffer[$22+Length(path)]:=$41;//A
-  buffer[$23+Length(path)]:=$52;//R
-  buffer[$24+Length(path)]:=$43;//C
-  buffer[$25+Length(path)]:=$30;//0
+  databuffer[$0C]:=datetime mod $100;
+  databuffer[$0D]:=datetime>>8;
+  //CRC32 $0E/$0F/$10/$11 - just blank as there isn't any data
+  databuffer[$0E]:=$00;
+  databuffer[$0F]:=$00;
+  databuffer[$10]:=$00;
+  databuffer[$11]:=$00;
+  //Compressed size $12/$13/$14/$15 - just blank as there isn't any data
+  databuffer[$12]:=$00;
+  databuffer[$13]:=$00;
+  databuffer[$14]:=$00;
+  databuffer[$15]:=$00;
+  //Uncompressed $16/$17/$18/$19 - just blank as there isn't any data
+  databuffer[$16]:=$00;
+  databuffer[$17]:=$00;
+  databuffer[$18]:=$00;
+  databuffer[$19]:=$00;
+  //Filename length $1A/$1B
+  databuffer[$1A]:=Length(path)mod$100;
+  databuffer[$1B]:=Length(path)>>8;
+  //Extra length $1C/$1D - 24 bytes
+  databuffer[$1C]:=$18;
+  databuffer[$1D]:=$00;
+  //Filename from $1E
+  for index:=1 to Length(path) do databuffer[$1D+index]:=Ord(path[index]);
+  //Fill in the extra fields
+  //Two byte identifier 'AC'
+  databuffer[$1E+Length(path)]:=$41;//A
+  databuffer[$1F+Length(path)]:=$43;//C
+  //Length of extra field
+  databuffer[$20+Length(path)]:=$14; //20 bytes (24 minus the identifier and length)
+  databuffer[$21+Length(path)]:=$00;
+  //!SparkFS signature, followed by RISC OS stuff
+  databuffer[$22+Length(path)]:=$41;//A
+  databuffer[$23+Length(path)]:=$52;//R
+  databuffer[$24+Length(path)]:=$43;//C
+  databuffer[$25+Length(path)]:=$30;//0
   //Load address
   datetime:=((Floor(Now)-2)*8640000)+Floor((Now-Floor(Now))*8640000);
-  buffer[$26+Length(path)]:=(datetime>>32)mod$100;//last byte of the time/date
-  buffer[$27+Length(path)]:=$FD;
-  buffer[$28+Length(path)]:=$FF;
-  buffer[$29+Length(path)]:=$FF;
+  databuffer[$26+Length(path)]:=(datetime>>32)mod$100;//last byte of the time/date
+  databuffer[$27+Length(path)]:=$FD;
+  databuffer[$28+Length(path)]:=$FF;
+  databuffer[$29+Length(path)]:=$FF;
   //Exec address
-  buffer[$2A+Length(path)]:= datetime mod $100; //RISC OS time/date
-  buffer[$2B+Length(path)]:=(datetime>>8)mod $100;
-  buffer[$2C+Length(path)]:=(datetime>>16)mod $100;
-  buffer[$2D+Length(path)]:=(datetime>>24)mod $100;
+  databuffer[$2A+Length(path)]:= datetime mod $100; //RISC OS time/date
+  databuffer[$2B+Length(path)]:=(datetime>>8)mod $100;
+  databuffer[$2C+Length(path)]:=(datetime>>16)mod $100;
+  databuffer[$2D+Length(path)]:=(datetime>>24)mod $100;
   //Attributes
-  buffer[$2E+Length(path)]:=$0F;
+  databuffer[$2E+Length(path)]:=$0F;
   //Blank off the rest
-  for index:=0 to 7 do buffer[$2F+Length(path)+index]:=$00;
+  for index:=0 to 6 do databuffer[$2F+Length(path)+index]:=$00;
   //Find the end of the list
-  CL:=0;
-  EoCL:=FindEoCL(CL);
+  CL:=FindCL(EoCL,Fbuffer);
   //Increase the archive size
-  SetLength(Fbuffer,Length(Fbuffer)+Length(buffer));
+  SetLength(Fbuffer,Length(Fbuffer)+Length(databuffer));
   //Move the data up
-  if EoCL>0 then
+  if(EoCL<>-1)and(CL<>-1)then
    for index:=Length(Fbuffer)-1 downto CL do
-    Fbuffer[index]:=Fbuffer[index-Length(buffer)];
+    Fbuffer[index]:=Fbuffer[index-Length(databuffer)];
   //There is no EoCL, so we need to create one
-  if EoCL=0 then
+  if EoCL=-1 then
   begin
    EoCL:=Length(Fbuffer);
    SetLength(Fbuffer,Length(Fbuffer)+$16);
    //Write the signature
-   for index:=0 to 3 do Fbuffer[EoCL+index]:=eoclsig[index];
+   WriteSignature(ZIPEoCL,Fbuffer,EoCL);
    //Reset the EoCL back to 0, for now
    EoCL:=0;
   end;
+  if CL=-1 then CL:=0;
   //Then insert where the CL was
-  for index:=0 to Length(buffer)-1 do Fbuffer[CL+index]:=buffer[index];
+  for index:=0 to Length(databuffer)-1 do Fbuffer[CL+index]:=databuffer[index];
   //Remember where we put it
   offset:=CL;
   //Adjust the CL and EoCL
-  inc(EoCL,Length(buffer));
-  inc(CL,Length(buffer));
+  inc(EoCL,Length(databuffer));
+  inc(CL,Length(databuffer));
   //Update the CL location
-  UpdateCL(CL,EoCL);
-  //Now add the entry to the central database
-  SetLength(buffer,Length(buffer)+$10);
-  //Now move data around - start at the end so we don't overwrite anything
-  for index:=Length(buffer)-1 downto $2E do buffer[index]:=buffer[index-$10];
-  //Middle part
-  for index:=$1F downto $06 do buffer[index]:=buffer[index-2];
-  //CL signature
-  for index:=0 to 3 do buffer[index]:=clsig[index];
-  //Version
-  buffer[$04]:=$14;
-  //OS
-  buffer[$05]:=$0D;
-  //Zero out the non-required fields
-  for index:=$20 to $29 do buffer[index]:=$00;
-  //Offset of main entry
-  buffer[$2A]:=offset mod$100;
-  buffer[$2B]:=(offset>>8)mod$100;
-  buffer[$2C]:=(offset>>16)mod$100;
-  buffer[$2D]:=(offset>>24)mod$100;
+  UpdateCL(CL,EoCL,Fbuffer);
+  //Now add the entry to the central database - this is largely the same as above
+  SetLength(clbuffer,Length(databuffer)+$10);//But the CL is 16 bytes bigger
+  //CL signature $00-$03
+  WriteSignature(ZIPCL,clbuffer);
+  //Version made by: ZIP Spec version $04
+  clbuffer[$04]:=$14;
+  //OS made by $05
+  clbuffer[$05]:=$0D; //RISC OS
+  //Version needed $06/$07
+  clbuffer[$06]:=databuffer[$04];
+  clbuffer[$07]:=databuffer[$05];
+  //Flags $08/$09
+  clbuffer[$08]:=databuffer[$06];
+  clbuffer[$09]:=databuffer[$07];
+  //Compression $0A/$0B
+  clbuffer[$0A]:=databuffer[$08];
+  clbuffer[$0B]:=databuffer[$09];
+  //Modification time $0C/$0D
+  clbuffer[$0C]:=databuffer[$0A];
+  clbuffer[$0D]:=databuffer[$0B];
+  //Modification date $0E/$0F
+  clbuffer[$0E]:=databuffer[$0C];
+  clbuffer[$0F]:=databuffer[$0D];
+  //CRC-32 $10-$13
+  clbuffer[$10]:=databuffer[$0E];
+  clbuffer[$11]:=databuffer[$0F];
+  clbuffer[$12]:=databuffer[$10];
+  clbuffer[$13]:=databuffer[$11];
+  //Compressed Size $14-$17
+  clbuffer[$14]:=databuffer[$12];
+  clbuffer[$15]:=databuffer[$13];
+  clbuffer[$16]:=databuffer[$14];
+  clbuffer[$17]:=databuffer[$15];
+  //Uncompressed size $18-$1B
+  clbuffer[$18]:=databuffer[$16];
+  clbuffer[$19]:=databuffer[$17];
+  clbuffer[$1A]:=databuffer[$18];
+  clbuffer[$1B]:=databuffer[$19];
+  //Filename length $1C/$1D
+  clbuffer[$1C]:=databuffer[$1A];
+  clbuffer[$1D]:=databuffer[$1B];
+  //Extra fields length $1E/$1F
+  clbuffer[$1E]:=databuffer[$1C];
+  clbuffer[$1F]:=databuffer[$1D];
+  //File comment length $20/$21
+  clbuffer[$20]:=$00;
+  clbuffer[$21]:=$00;
+  //Disk # start $22/$23       
+  clbuffer[$22]:=$00;
+  clbuffer[$23]:=$00;
+  //Internal address $24/$25
+  clbuffer[$24]:=$00;
+  clbuffer[$25]:=$00;
+  //External address $26-$29
+  clbuffer[$26]:=$00;
+  clbuffer[$27]:=$00;
+  clbuffer[$28]:=$00;
+  clbuffer[$29]:=$00;
+  //Offset of local header $2A-$2D
+  databuffer[$2A]:= offset     mod$100;
+  databuffer[$2B]:=(offset>> 8)mod$100;
+  databuffer[$2C]:=(offset>>16)mod$100;
+  databuffer[$2D]:=(offset>>24)mod$100;
+  //Filename from $2E
+  for index:=1 to Length(path) do clbuffer[$2D+index]:=Ord(path[index]);
+  //Extra fields
+  for index:=0 to $17 do
+   clbuffer[$2E+Length(path)+index]:=databuffer[$1E+Length(path)+index];
   //Now to insert this into the Central Library
   //Increase the archive size
-  SetLength(Fbuffer,Length(Fbuffer)+Length(buffer));
+  SetLength(Fbuffer,Length(Fbuffer)+Length(clbuffer));
   //Move the data up
   for index:=Length(Fbuffer)-1 downto EoCL do
-   Fbuffer[index]:=Fbuffer[index-Length(buffer)];
+   Fbuffer[index]:=Fbuffer[index-Length(clbuffer)];
   //Then insert where the EoCL was
-  for index:=0 to Length(buffer)-1 do Fbuffer[EoCL+index]:=buffer[index];
+  for index:=0 to Length(clbuffer)-1 do Fbuffer[EoCL+index]:=clbuffer[index];
   //And update again
-  inc(EoCL,Length(buffer));
-  UpdateCL(CL,EoCL);
+  inc(EoCL,Length(clbuffer));
+  UpdateCL(CL,EoCL,Fbuffer);
   //Count the number of entries
   ctr:=0;
-  for index:=CL to EoCL do
-   if (Fbuffer[index]=$50)
+  for index:=CL to EoCL-3 do
+   if (Fbuffer[index  ]=$50)
    and(Fbuffer[index+1]=$4B)
    and(Fbuffer[index+2]=$01)
    and(Fbuffer[index+3]=$02)then inc(ctr);
   //Number of entries
-  Fbuffer[EoCL+$8]:=ctr mod$100;
-  Fbuffer[EoCL+$9]:=(ctr>>8)mod$100;
-  Fbuffer[EoCL+$A]:=ctr mod $100;
-  Fbuffer[EoCL+$B]:=(ctr>>8)mod$100;
+  if EoCL+$B<Length(Fbuffer) then
+  begin
+   Fbuffer[EoCL+$8]:=ctr mod$100;
+   Fbuffer[EoCL+$9]:=(ctr>>8)mod$100;
+   Fbuffer[EoCL+$A]:=ctr mod $100;
+   Fbuffer[EoCL+$B]:=(ctr>>8)mod$100;
+  end;
   //Save it back again
   SaveData;
   //Populate the entry
@@ -2497,7 +2602,7 @@ begin
   dataptr:=0;
   fnL:=Length(path);
   //Find the entry
-  if FindEntry(path,False,ptr,dataptr) then
+  if FindEntry(path,False,ptr,dataptr,FBuffer) then
   begin
    //Update the entries (CL)
    Fbuffer[ptr+fnL+$36]:=load mod$100;
@@ -2554,7 +2659,7 @@ begin
   dataptr:=0;
   fnL:=Length(path);
   //Find the entry
-  if FindEntry(path,False,ptr,dataptr) then
+  if FindEntry(path,False,ptr,dataptr,FBuffer) then
   begin
    //Update the entries (CL)
    Fbuffer[ptr+fnL+$3E]:=attributes mod$100;
@@ -2645,4 +2750,128 @@ begin
  for cnt:=0 to Length(NewAtts)-1 do
   if Pos(NewAtts[cnt],attr)>0 then
    Result:=Result OR 1<<cnt;
+end;
+
+{-------------------------------------------------------------------------------
+Validate the file in memory
+-------------------------------------------------------------------------------}
+function TSpark.Validate: Boolean;
+var
+ CL      : Integer=-1;
+ EoCL    : Integer=-1;
+ temp    : Cardinal=0;
+ numfiles: Integer=0;
+ index   : Integer=0;
+ ptr     : Cardinal=0;
+ data    : Cardinal=0;
+ size    : Cardinal=0;
+ usize   : Cardinal=0;
+ //Check the length of the extra field
+ function CheckExtraField(addr,len: Cardinal): Boolean;
+ var
+  total: Cardinal=0;
+ begin
+  Result:=False;
+  while(total<len)and(addr<Length(Fbuffer)-4)do
+  begin
+   //Extra field has pairs of 2 byte tag + 2 byte length
+   inc(total,4+Fbuffer[addr+2]+Fbuffer[addr+3]<<8);
+   inc(addr,4+Fbuffer[addr+2]+Fbuffer[addr+3]<<8);
+  end;
+  Result:=total=len;
+ end;
+begin
+ Result:=False;
+ //Minimum size of a ZIP file is 22 bytes
+ if Length(Fbuffer)>=22 then
+ begin
+  //Find the central library
+  CL:=FindCL(EoCL,Fbuffer);
+  if(CL<>-1)and(EoCL<>-1)then
+  begin
+   Result:=True;
+   //Size of Central Library
+   temp:=Fbuffer[EoCL+$C]
+        +Fbuffer[EoCL+$D]<<8
+        +Fbuffer[EoCL+$E]<<16
+        +Fbuffer[EoCL+$F]<<24;
+   //Test to see if it matches the references already found
+   Result:=(temp=EoCL-CL)AND(Result);
+   //Total number of files
+   numfiles:=Fbuffer[EoCL+$A]
+            +Fbuffer[EoCL+$B]<<8;
+   ptr:=CL;
+   index:=0;
+   while(index<numfiles)and(ptr<EoCL)do
+   begin
+    //Check the signature
+    Result:=(Fbuffer[ptr  ]=$50)
+         and(Fbuffer[ptr+1]=$4B)
+         and(Fbuffer[ptr+2]=$01)
+         and(Fbuffer[ptr+3]=$02)
+         AND(Result);
+    //Check the extra field
+    temp:=Fbuffer[ptr+$1E]+Fbuffer[ptr+$1F]<<8;
+    if temp>0 then
+     Result:=(CheckExtraField(ptr+$2E+Fbuffer[ptr+$1C]+Fbuffer[ptr+$1D]<<8,temp))
+         AND(Result);
+    //Compressed size
+    size:=Fbuffer[ptr+$14]
+         +Fbuffer[ptr+$15]<<8
+         +Fbuffer[ptr+$16]<<16
+         +Fbuffer[ptr+$17]<<24;
+    //Uncompressed size
+    usize:=Fbuffer[ptr+$18]
+          +Fbuffer[ptr+$19]<<8
+          +Fbuffer[ptr+$1A]<<16
+          +Fbuffer[ptr+$1B]<<24;
+    //Data pointer
+    data:=Fbuffer[ptr+$2A]
+         +Fbuffer[ptr+$2B]<<8
+         +Fbuffer[ptr+$2C]<<16
+         +Fbuffer[ptr+$2D]<<24;
+    //Check the local file entry
+    Result:=(Fbuffer[data]=$50)
+         and(Fbuffer[data+1]=$4B)
+         and(Fbuffer[data+2]=$03)
+         and(Fbuffer[data+3]=$04)
+         AND(Result);
+    //Check compressed size
+    Result:=(Fbuffer[data+$12]
+            +Fbuffer[data+$13]<<8
+            +Fbuffer[data+$14]<<16
+            +Fbuffer[data+$15]<<24=size)
+         AND(Result);
+    //Check uncompressed size
+    Result:=(Fbuffer[data+$16]
+            +Fbuffer[data+$17]<<8
+            +Fbuffer[data+$18]<<16
+            +Fbuffer[data+$19]<<24=usize)
+         AND(Result);
+    //Check the extra field
+    temp:=Fbuffer[data+$1C]+Fbuffer[data+$1D]<<8;
+    if temp>0 then
+     Result:=(CheckExtraField(data+$1E+Fbuffer[data+$1A]+Fbuffer[data+$1B]<<8,temp))
+          AND(Result);
+    //Next entry - here we work out where it should be
+    temp:=ptr+$2E
+             +Fbuffer[ptr+$1C]+Fbuffer[ptr+$1D]<<8
+             +Fbuffer[ptr+$1E]+Fbuffer[ptr+$1F]<<8
+             +Fbuffer[ptr+$20]+Fbuffer[ptr+$21]<<8;
+    //Now we find the next marker
+    repeat
+     inc(ptr);
+    until(ptr=EoCL)or((Fbuffer[ptr  ]=$50)
+                   and(Fbuffer[ptr+1]=$4B)
+                   and(Fbuffer[ptr+2]=$01)
+                   and(Fbuffer[ptr+3]=$02));
+    //And check if they match
+    Result:=(ptr=temp)AND(Result);
+    //Next file
+    inc(index);
+   end;
+   //Check we got all the files
+   Result:=(index=numfiles)AND(Result);
+  end;
+ end;
 end;

@@ -14,12 +14,11 @@ General - Ideas, currently unlikely to be added
 
 General - Ideas which are maybe possible
 * Ask to force overwrite if many files are getting written.
-* Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
+* Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows. - VERSION 2?
 * Cancel button for progress display?
-* Open multiple images at the same time and allow interaction between them (e.g. copying files from one to another).
+* Open multiple images at the same time and allow interaction between them (e.g. copying files from one to another). - VERSION 2
 * For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
-* Ablity to add/remove/delete partitions using the command line.
-* Allow for multiple (>2) partitions - i.e. two or more DOS partitions on an ADFS structure, or ADFS/AFS/DOS hybrid.
+* Allow for multiple (>2) partitions - i.e. two or more DOS partitions on an ADFS structure, or ADFS/AFS/DOS hybrid. - VERSION 2
 * ADFS: When a DOS image file is added to an ADFS image (and the "Open DOS Partition" setting is set), automatically open as the second partition (if there isn't one already).
 * ADFS: Rebuild the Old Map FS Map by scanning the files and rebuilding from scratch (in the class definition).
 * ADFS: Use the above, along with other functions, to create a new function to fix ADFS Old Map images which otherwise won't load.
@@ -28,16 +27,18 @@ General - Ideas which are maybe possible
 * AFS: When extracting the AFS partition, remove the ADFS partition and re-address all the objects, instead of just blanking out the ADFS part - IN PROGRESS.
 * AFS: Consolidate the JesMap fragments which are concurrent (as per Old Map ADFS).
 * AFS: Expand the reading of objects to include the extended JesMap.
-* Amiga: Add in support for Rigid Disks (multi-partition hard discs) - NEED TO IMPLEMENT MULTI-PARTITION SUPPORT FIRST.
+* AFS/ADFS: Change the size of the ADFS partition.
+* Amiga: Add in support for Rigid Disks (multi-partition hard discs) - NEED TO IMPLEMENT MULTI-PARTITION SUPPORT FIRST...VERSION 2.
 * Amiga: Add in support for Professional File System - AWAITING FORMAT DETAILS AND SAMPLE(S).
 * Amiga: Add in support for Smart File System - AWAITING SAMPLE(S).
 * Spectrum/Amstrad: Write entire module - REQUIRE MORE INFO ON SPECTRUM FORMAT.
 * MMFS: Rewrite/rethink entire MMFS idea - might be more viable once multi-partitions are implemented.
-* DOS: Add in support for partitioned hard drive images - NEED TO IMPLEMENT MULTI_PARTITION SUPPORT FIRST.
+* DOS: Add in support for partitioned hard drive images - NEED TO IMPLEMENT MULTI_PARTITION SUPPORT FIRST...VERSION 2.
 * CFS and ROM FS: Validate new filename when renaming.
 * Have different TImageList components for each format.
 * Function (and button) to consolidate the free space map for ADFS and AFS (using the functions built into the class).
 * Hex editor: Editable.
 * macOS: Dark mode - PARTIAL: Import image contents still needs to be looked at).
-* Console: add commands: stamp <filename> [<timedate>] - change the timestamp; type <filename> <filetype> - change the filetype; split/join - to add or remove sides/partitions.
-* Console: detect how the binary is launched and either open direct to console (if launched from Command Prompt/Terminal) or GUI (if launched from Explorer/Filer).
+* Console: add commands: split/join - to add or remove sides/partitions.
+* Move the code for compacting an image from the GUI code to the class code.
+* Add RiscOS ISO format (and general ISO format).

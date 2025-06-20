@@ -81,6 +81,7 @@ function TDiscImage.ID_AFS: Boolean;
    end else FFormat:=diInvalidImg; //No header ID, invalid image
   end;
   Result:=GetMajorFormatNumber=diAcornFS;
+  FHasDirs:=Result;
  end;
 var
  start: Byte=0;
@@ -1099,7 +1100,7 @@ begin
    //ID at $00
    WriteString('AFS0',afshead,0,0);
    //Title at $04
-   WriteString(afsdisctitle,afshead+$04,16,32);
+   WriteString(Fafsdisctitle,afshead+$04,16,32);
    //Sectors for one side at $14
    Write16b((harddrivesize>>8)div 2,afshead+$14);
    //Root SIN at $16
@@ -1206,11 +1207,12 @@ begin
    Write24b(afshead2>>8,$1F6);//AFS Header copy 2
    WriteByte(ByteCheckSum($0100,$100,False),$1FF);//Checksum sector 1
    //Write the AFS headers
-   WriteAFSPartition(afsdisctitle,harddrivesize);
+   WriteAFSPartition(Fafsdisctitle,harddrivesize);
    //Mark as a success
    Result:=True;
   end;
   //Finalise the the variables by reading in the partition
+  FHasDirs:=Result;
   if Result then
   begin
    UpdateProgress('Reading in the newly created image');
@@ -1349,7 +1351,7 @@ var
  dir    : Cardinal=0;
  entry  : Cardinal=0;
  dirsize: Cardinal=0;
- newfile: TDirEntry;
+ newfile: TDirEntry=();
  ok     : Boolean=False;
 const
  cycle    = 42;
@@ -1546,7 +1548,7 @@ function TDiscImage.CreateAFSPassword(Accounts: TUserAccounts): Integer;
 var
  buffer  : TDIByteArray=nil;
  index   : Integer=0;
- newentry: TDirEntry;
+ newentry: TDirEntry=();
  ptr     : Cardinal=0;
  ok      : Boolean=False;
  entry   : Byte=0;
@@ -1941,7 +1943,7 @@ var
  dir    : Cardinal=0;
  entry  : Cardinal=0;
  ptr    : Cardinal=0;
- swap   : TDirEntry;
+ swap   : TDirEntry=();
  changed: Boolean=False;
 begin
  ResetDirEntry(swap);
@@ -2258,7 +2260,7 @@ Move a file/directory
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveAFSFile(filename,directory: String): Integer;
 var
- direntry : TDirEntry;
+ direntry : TDirEntry=();
  sdir     : Cardinal=0;
  sentry   : Cardinal=0;
  ddir     : Cardinal=0;

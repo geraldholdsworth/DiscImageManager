@@ -40,6 +40,7 @@ begin
  lowsector     :=$00;
  disctype      :=$00;
  FDirType      :=diUnknownDir;
+ FHasDirs      :=False;
  share_size    :=$00;
  big_flag      :=$00;
  SetLength(disc_name,1);
@@ -1100,6 +1101,30 @@ begin
  SetLength(FDisc,Length(FDisc)-1);
 end;
 
+{-------------------------------------------------------------------------------
+Update the disc titles
+-------------------------------------------------------------------------------}
+procedure TDiscImage.SetDefaultDiscTitle(ADiscTitle: String);
+begin
+ if ADiscTitle<>'' then Fdisctitle:=ADiscTitle;
+end;
+procedure TDiscImage.SetDefaultAFSDiscTitle(ADiscTitle: String);
+begin
+ if ADiscTitle<>'' then Fafsdisctitle:=ADiscTitle;
+end;
+procedure TDiscImage.SetDefaultAmigaDiscTitle(ADiscTitle: String);
+begin
+ if ADiscTitle<>'' then Famigadisctitle:=ADiscTitle;
+end;
+procedure TDiscImage.SetDefaultRFSTitle(ADiscTitle: String);
+begin
+ if ADiscTitle<>'' then Frfstitle:=ADiscTitle;
+end;
+procedure TDiscImage.SetDefaultRFSCopyRight(ADiscTitle: String);
+begin
+ if ADiscTitle<>'' then Frfscopyright:=ADiscTitle;
+end;
+
 //++++++++++++++++++ TSpark Private methods ++++++++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------
@@ -1118,8 +1143,8 @@ Extract the list of files (!Spark)
 function TSpark.ExtractSparkFiles: TFileList;
 var
  ptr        : Cardinal=0;
- EoCL       : Cardinal=0;
- CL         : Cardinal=0;
+ EoCL       : Integer=-1;
+ CL         : Integer=-1;
  ctr        : Cardinal=0;
  fnc        : Cardinal=0;
  fnL        : LongWord=0;
@@ -1128,7 +1153,7 @@ var
  fn         : String='';
  zipfn      : String='';
  exists     : Integer=0;
- temp       : TFileEntry;
+ temp       : TFileEntry=();
 begin
  Result:=nil;
  ResetFileEntry(temp);
@@ -1136,10 +1161,9 @@ begin
  begin
   FBitLength:=0; //Not used with !Spark
   //Find the 'End of central library'
-  CL:=0;
-  EoCL:=FindEoCL(CL);
+  CL:=FindCL(EoCL,Fbuffer);
   //Only continue of we have a marker
-  if EoCL<>0 then
+  if(EoCL<>-1)and(CL<>-1)then
   begin
    //Set up the result to the number of entries
    SetLength(Result,Fbuffer[EoCL+$0A]+Fbuffer[EoCL+$0B]<<8);
@@ -1722,40 +1746,41 @@ end;
 Find a file entry in the central library and main header
 -------------------------------------------------------------------------------}
 function TSpark.FindEntry(path: String;matchpath: Boolean;var CLptr: Cardinal;
-                                                var dataptr: Cardinal): Boolean;
+                      var dataptr: Cardinal;var LBuffer: TDIByteArray): Boolean;
 var
- CL    : Cardinal=0;
- EoCL  : Cardinal=0;
+ CL    : Integer=-1;
+ EoCL  : Integer=-1;
  temp  : String='';
  fnL   : Word=0;
  index : Integer=0;
 begin
  Result:=False;
  //Get the location of the central library
- EoCL:=FindEoCL(CL);
+ CL:=FindCL(EoCL,Lbuffer);
  //If it exists
- if CL<>EoCL then
+ if(CL<>EoCL)and(CL<>-1)and(EoCL<Length(Lbuffer))then
  begin
   //Find the entry in the Central Library (and, hence, the main header)
   CLptr:=CL;
   temp:='';
-  while(temp<>path)and(CLptr<EoCL)do
+  while(temp<>path)and(CLptr+$2E<EoCL)do
   begin
-   if (Fbuffer[CLptr]=$50)       //Entry signature
-   and(Fbuffer[CLptr+1]=$4B)
-   and(Fbuffer[CLptr+2]=$01)
-   and(Fbuffer[CLptr+3]=$02)then
+   if (Lbuffer[CLptr]=$50)       //Entry signature
+   and(Lbuffer[CLptr+1]=$4B)
+   and(Lbuffer[CLptr+2]=$01)
+   and(Lbuffer[CLptr+3]=$02)then
    begin
     //Filename length
     if matchpath then fnL:=Length(path) //Either match the path
-    else fnL:=Fbuffer[CLptr+$1C]+Fbuffer[CLptr+$1D]<<8; //Or the given length
+    else fnL:=Lbuffer[CLptr+$1C]+Lbuffer[CLptr+$1D]<<8; //Or the given length
     //Get the location in the main data area
-    dataptr:=Fbuffer[CLptr+$2A]
-            +Fbuffer[CLptr+$2B]<<8
-            +Fbuffer[CLptr+$2C]<<16
-            +Fbuffer[CLptr+$2D]<<24;
+    dataptr:=Lbuffer[CLptr+$2A]
+            +Lbuffer[CLptr+$2B]<<8
+            +Lbuffer[CLptr+$2C]<<16
+            +Lbuffer[CLptr+$2D]<<24;
     temp:=''; //Build the filename
-    for index:=0 to fnL-1 do temp:=temp+chr(Fbuffer[CLptr+$2E+index]);
+    if CLptr+$2E+fnL<Length(Lbuffer) then
+     for index:=0 to fnL-1 do temp:=temp+chr(Lbuffer[CLptr+$2E+index]);
    end;
    inc(CLptr); //Next byte
   end;
@@ -1775,8 +1800,8 @@ function TSpark.RenameTheFile(oldpath, newpath: String): Boolean;
 var
  ptr     : Cardinal=0;
  dataptr : Cardinal=0;
- EoCL    : Cardinal=0;
- CL      : Cardinal=0;
+ EoCL    : Integer=-1;
+ CL      : Integer=-1;
  hdrpos  : Cardinal=0;
  index   : Integer=0;
  fnL     : Integer=0;
@@ -1801,13 +1826,13 @@ begin
   if(Length(Fbuffer)>0)and(oldpath<>newpath)then
   begin
    //Get the Central Library markers
-   EoCL:=FindEoCL(CL);
+   CL:=FindCL(EoCL,Fbuffer);
    //And the difference between the two names
    diff:=Length(newpath)-Length(oldpath); //+ve move forwards, -ve move back
    //Find the entry in the main header
    ptr:=0;
    dataptr:=0;
-   if FindEntry(oldpath,true,ptr,dataptr) then
+   if FindEntry(oldpath,true,ptr,dataptr,FBuffer) then
    begin
     //Filename length
     fnL:=Fbuffer[dataptr+$1A]+Fbuffer[dataptr+$1B]<<8;
@@ -1835,7 +1860,7 @@ begin
     //Update the central library markers
     inc(EoCL,diff);
     inc(CL,diff);
-    UpdateCL(CL,EoCL);
+    UpdateCL(CL,EoCL,Fbuffer);
      //New name is bigger?
      if diff>0 then
      begin
@@ -1876,7 +1901,7 @@ begin
       end;
      //Update the central library markers, again
      inc(EoCL,diff);
-     UpdateCL(CL,EoCL);
+     UpdateCL(CL,EoCL,Fbuffer);
      //Save the data
      SaveData;
      Result:=True;
@@ -1908,8 +1933,8 @@ Delete a file/directory (internal)
 -------------------------------------------------------------------------------}
 function TSpark.DeleteTheFile(filename: String):Boolean;
 var
- EoCL    : Cardinal=0;
- CL      : Cardinal=0;
+ EoCL    : Integer=-1;
+ CL      : Integer=-1;
  hdrsize : Cardinal=0;
  clsize  : Cardinal=0;
  fnL     : Cardinal=0;
@@ -1925,17 +1950,13 @@ begin
  Result:=False;
  //Remove the root, if present
  if Length(filename)>2 then if filename[1]='$' then filename:=Copy(filename,3);
- //Set up our variables
- CL:=0;
- ptr:=0;
- CLptr:=0;
  //Find the Central library
- EoCL:=FindEoCL(CL);
- if EoCL<>CL then
+ CL:=FindCL(EoCL,Fbuffer);
+ if(EoCL<>CL)and(CL<>-1)then
  begin
   //Find the entry in both the CL and header
   if filename[Length(filename)]='/' then match:=True else match:=False;
-  if FindEntry(filename,match,CLptr,ptr) then
+  if FindEntry(filename,match,CLptr,ptr,FBuffer) then
   begin
    //Move the data following the entry in the header down
    fnL:=Fbuffer[ptr+$1A]+Fbuffer[ptr+$1B]<<8; //Filename length
@@ -1950,7 +1971,7 @@ begin
    //Recalculate, and update, the EoCL
    dec(CL,hdrsize);
    dec(EoCL,hdrsize);
-   UpdateCL(CL,EoCL);
+   UpdateCL(CL,EoCL,Fbuffer);
    SetLength(Fbuffer,Length(Fbuffer)-hdrsize);
    //Move the data following the entry in the CL down, updating the data pointers
    dec(CLptr,hdrsize);
@@ -1982,7 +2003,7 @@ begin
    end;
    //Recalculate, and update, the EoCL and CL size
    dec(EoCL,CLsize);
-   UpdateCL(CL,EoCL);
+   UpdateCL(CL,EoCL,Fbuffer);
    SetLength(Fbuffer,Length(Fbuffer)-CLsize);
    //Recalculate, and update, the number of entries in the CL
    data:=0;
@@ -2040,44 +2061,50 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Find the 'End of central library'
+Finds the central library and returns the end of central library
 -------------------------------------------------------------------------------}
-function TSpark.FindEoCL(var CL: Cardinal): Cardinal;
+function TSpark.FindCL(var EoCL: Integer;var buffer: TDIByteArray): Integer;
 var
- ptr: Cardinal=0;
+ i: Integer=0;
 begin
- //Set up the result - 0 means not found
- Result:=0;
- if Length(Fbuffer)>4 then
+ //Start with a default (i.e., not found)
+ Result:=-1;
+ EoCL  :=-1;
+ //Can't have a file smaller than 22 bytes
+ if Length(buffer)>=22 then
  begin
-  //Start at the end
-  ptr :=Length(Fbuffer)-4;
-  //And decrease the pointer until we find the signature, or get to the start of file
+  //Start here
+  i:=Length(buffer)-3;
+  //And work backwards until we find the EoCL marker
   repeat
-   dec(ptr);
-  until((Fbuffer[ptr]  =$50)
-     and(Fbuffer[ptr+1]=$4B)
-     and(Fbuffer[ptr+2]=$05)
-     and(Fbuffer[ptr+3]=$06))
-     or(ptr=0);
-  //Signature found, so mark it
-  if (Fbuffer[ptr]=$50)
-  and(Fbuffer[ptr+1]=$4B)
-  and(Fbuffer[ptr+2]=$05)
-  and(Fbuffer[ptr+3]=$06)then Result:=ptr;
-  //Return the central library beginning too
-  if Result>0 then
-   CL:=Fbuffer[Result+$10]
-      +Fbuffer[Result+$11]<<8
-      +Fbuffer[Result+$12]<<16
-      +Fbuffer[Result+$13]<<24;
+    dec(i);
+  until((buffer[i  ]=$50)
+     and(buffer[i+1]=$4B)
+     and(buffer[i+2]=$05)
+     and(buffer[i+3]=$06))
+     or (i=0);
+  //Found OK?
+  if (buffer[i  ]=$50)
+  and(buffer[i+1]=$4B)
+  and(buffer[i+2]=$05)
+  and(buffer[i+3]=$06)
+  and(i+$13<Length(buffer))then
+  begin
+   //Mark it
+   EoCL:=i;
+   //Retreive where the central library starts
+   Result:=buffer[i+$10]
+          +buffer[i+$11]<<8
+          +buffer[i+$12]<<16
+          +buffer[i+$13]<<24;
+  end;
  end;
 end;
 
 {-------------------------------------------------------------------------------
 Update the Central Library pointer, with EoCL having already been moved
 -------------------------------------------------------------------------------}
-procedure TSpark.UpdateCL(CL,EoCL: Cardinal);
+procedure TSpark.UpdateCL(CL,EoCL: Cardinal; var buffer: TDIByteArray);
 var
  ptr : Cardinal=0;
 begin
@@ -2086,14 +2113,146 @@ begin
   //Work out the length
   ptr:=EoCL-CL;
   //And write it
-  Fbuffer[EoCL+$0C]:=ptr mod $100;
-  Fbuffer[EoCL+$0D]:=(ptr>>8)mod$100;
-  Fbuffer[EoCL+$0E]:=(ptr>>16)mod$100;
-  Fbuffer[EoCL+$0F]:=(ptr>>24)mod$100;
+  buffer[EoCL+$0C]:= ptr     mod$100;
+  buffer[EoCL+$0D]:=(ptr>> 8)mod$100;
+  buffer[EoCL+$0E]:=(ptr>>16)mod$100;
+  buffer[EoCL+$0F]:=(ptr>>24)mod$100;
   //And the location of the central library
-  Fbuffer[EoCL+$10]:=CL mod$100;
-  Fbuffer[EoCL+$11]:=(CL>>8)mod$100;
-  Fbuffer[EoCL+$12]:=(CL>>16)mod$100;
-  Fbuffer[EoCL+$13]:=(CL>>24)mod$100;
+  buffer[EoCL+$10]:= CL     mod$100;
+  buffer[EoCL+$11]:=(CL>> 8)mod$100;
+  buffer[EoCL+$12]:=(CL>>16)mod$100;
+  buffer[EoCL+$13]:=(CL>>24)mod$100;
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Merges two ZIP files
+-------------------------------------------------------------------------------}
+function TSpark.CombineZIP(files: array of String; outputfile: String): Boolean;
+var
+ input     : TFileStream=nil;
+ output    : TFileStream=nil;
+ inbuffer  : array[0..1] of TDIByteArray=(nil,nil);
+ outbuffer : TDIByteArray=nil;
+ ptr       : Integer=0;
+ cnt       : Integer=0;
+ fileptr   : Cardinal=0;
+ CL        : array[0..1] of Integer=(-1,-1);
+ EoCL      : array[0..1] of Integer=(-1,-1);
+ temp      : Cardinal=0;
+ numfiles  : Cardinal=0;
+ CLsize    : Cardinal=0;
+ filesize  : Cardinal=0;
+begin
+ Result:=False;
+ if Length(files)>=2 then //Only works with two files, the rest are ignored
+ begin
+  Result:=True;
+  //Read in the files
+  for ptr:=0 to 1 do
+  begin
+   input:=TFileStream.Create(files[ptr],fmOpenRead OR fmShareDenyNone);
+   input.Position:=0;
+   SetLength(inbuffer[ptr],input.Size);
+   input.Read(inbuffer[ptr][0],input.Size);
+   input.Free;
+   //Get the position of the central library for each
+   CL[ptr]:=FindCL(EoCL[ptr],inbuffer[ptr]);
+   Result:=(Result)AND(CL[ptr]<>-1)AND(EoCL[ptr]<>-1);
+   //Count the number of files stored
+   if EoCL[ptr]<>-1 then
+    inc(numfiles,inbuffer[ptr][EoCL[ptr]+$A]+inbuffer[ptr][EoCL[ptr]+$B]<<8);
+  end;
+  //Create the output file
+  if Result then
+  begin
+   //This will be the eventual central library size
+   CLsize:=(EoCL[0]-CL[0])+(EoCL[1]-CL[1]);
+   //This will be the eventual file size
+   filesize:=CL[0]+CL[1]+CLsize+22;
+   SetLength(outbuffer,filesize);
+   //Write the files. The files from the second ZIP goes where the first CL was
+   fileptr:=0;
+   for cnt:=0 to 1 do
+   begin
+    for ptr:=0 to CL[cnt]-1 do outbuffer[fileptr+ptr]:=inbuffer[cnt][ptr];
+    inc(fileptr,CL[cnt]);
+   end;
+   //Write the CLs
+   for cnt:=0 to 1 do
+   begin
+    //We'll need to find each file entry and adjust by adding CL1 to the adddress
+    for ptr:=CL[cnt] to EoCL[cnt]-1 do
+    begin
+     outbuffer[fileptr-CL[cnt]+ptr]:=inbuffer[cnt][ptr];
+     if(cnt>0)and(ptr>$2D)then
+      //Found a file?
+      if (inbuffer[cnt][ptr-$2E]=$50)
+      and(inbuffer[cnt][ptr-$2D]=$4B)
+      and(inbuffer[cnt][ptr-$2C]=$01)
+      and(inbuffer[cnt][ptr-$2B]=$02)then
+      begin
+       //Get the data offset
+       temp:=inbuffer[cnt][ptr-4]
+            +inbuffer[cnt][ptr-3]<<8
+            +inbuffer[cnt][ptr-2]<<16
+            +inbuffer[cnt][ptr-1]<<24;
+       //Adjust the data offset
+       inc(temp,CL[cnt-1]);
+       //Save back
+       outbuffer[(fileptr-CL[cnt]+ptr)-4]:= temp AND $000000FF;
+       outbuffer[(fileptr-CL[cnt]+ptr)-3]:=(temp AND $0000FF00)>>8;
+       outbuffer[(fileptr-CL[cnt]+ptr)-2]:=(temp AND $00FF0000)>>16;
+       outbuffer[(fileptr-CL[cnt]+ptr)-1]:=(temp AND $FF000000)>>24;
+      end;
+    end;
+    inc(fileptr,EoCL[cnt]-CL[cnt]);
+   end;
+   //Write the central directory
+   fileptr:=filesize-22;
+   //Signature
+   outbuffer[fileptr    ]:=$50;
+   outbuffer[fileptr+$01]:=$4B;
+   outbuffer[fileptr+$02]:=$05;
+   outbuffer[fileptr+$03]:=$06;
+   //Number of files on this disc
+   outbuffer[fileptr+$08]:= numfiles AND $00FF;
+   outbuffer[fileptr+$09]:=(numfiles AND $FF00)>>8;
+   //Total number of files
+   outbuffer[fileptr+$0A]:= numfiles AND $00FF;
+   outbuffer[fileptr+$0B]:=(numfiles AND $FF00)>>8;
+   //Central Library size
+   outbuffer[fileptr+$0C]:= CLsize AND $000000FF;
+   outbuffer[fileptr+$0D]:=(CLsize AND $0000FF00)>>8;
+   outbuffer[fileptr+$0E]:=(CLsize AND $00FF0000)>>16;
+   outbuffer[fileptr+$0F]:=(CLsize AND $FF000000)>>24;
+   //Data size
+   outbuffer[fileptr+$10]:= (CL[0]+CL[1]) AND $000000FF;
+   outbuffer[fileptr+$11]:=((CL[0]+CL[1]) AND $0000FF00)>>8;
+   outbuffer[fileptr+$12]:=((CL[0]+CL[1]) AND $00FF0000)>>16;
+   outbuffer[fileptr+$13]:=((CL[0]+CL[1]) AND $FF000000)>>24;
+   //Save the data to a file
+   output:=TFileStream.Create(outputfile,fmCreate OR fmShareDenyNone);
+   output.Position:=0;
+   output.Write(outbuffer[0],Length(outbuffer));
+   output.Free;
+  end;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Writes a ZIP header to the buffer
+-------------------------------------------------------------------------------}
+procedure TSpark.WriteSignature(header: Byte;var buffer: TDIByteArray;ptr: Cardinal=0);
+var
+ index: Integer;
+begin
+ if Length(buffer)>3 then
+  for index:=0 to 3 do
+   case header of
+    ZIPCL    : buffer[ptr+index]:=clsig[index];
+    ZIPHeader: buffer[ptr+index]:=headersig[index];
+    ZIPEoCL  : buffer[ptr+index]:=eoclsig[index];
+    ZIPSpan  : buffer[ptr+index]:=spansig[index];
+   end;
 end;

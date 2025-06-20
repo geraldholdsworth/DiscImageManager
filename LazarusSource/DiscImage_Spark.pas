@@ -108,6 +108,7 @@ begin
  disc_size[0]:=SparkFile.UncompressedSize;
  //Return a result
  Result:=Length(FDisc)>0;
+ FHasDirs:=Result;
  //And restore FDisc to what it was
  //FDisc:=OldDisc;
 end;
@@ -157,6 +158,7 @@ begin
  FDisc[0].BeenRead:=True;
  //Set the format
  FFormat:=diSpark<<4;
+ FHasDirs:=Result;
  //Create a blank file
  SparkFile:=TSpark.Create(Zipfilename,True);
  //Set the filename
@@ -303,25 +305,30 @@ Add a file to an existing archive
 function TDiscImage.WriteSparkFile(var file_details: TDirEntry;
                                              var buffer: TDIByteArray): Integer;
 var
- dir          : Integer=0;
+ dir          : Cardinal=0;
+ entry        : Cardinal=0;
  timestamp    : Int64=0;
- ref          : Cardinal=0;
+// ref          : Cardinal=0;
  ptr          : Cardinal=0;
- filetozip    : TFileEntry;
+ filetozip    : TFileEntry=();
 begin
  ResetFileEntry(filetozip);
  //Start with a negative result
  Result:=-3;//File already exists
  //First make sure it doesn't exist already
- if not FileExists(file_details.Parent+dir_sep+file_details.Filename,ref)then
+ if not FileExists(file_details.Parent+dir_sep+file_details.Filename,dir,entry)then
   //Get the directory where we are adding it to, and make sure it exists
-  if FileExists(file_details.Parent,ref)then
+  if FileExists(file_details.Parent,dir,entry)then
   begin
-   //Where we are inserting this into
-   if file_details.Parent='$' then
-    dir  :=0
-   else
-    dir  :=FDisc[ref div $10000].Entries[ref mod $10000].DirRef;
+   //Validate the return values
+   if dir<Length(FDisc) then
+    if entry<Length(FDisc[dir].Entries) then
+     if FDisc[dir].Entries[entry].DirRef<Length(FDisc) then
+      dir:=FDisc[dir].Entries[entry].DirRef else dir:=0 else dir:=0 else dir:=0;
+   //If it's going into the root, then dir will be zero
+   if file_details.Parent='$' then dir:=0;
+   //If, for some reason, dir is still bigger than the number of directories
+   if dir>=Length(FDisc) then exit; //Then quit the method before it causes an issue
    //Has it been read in?
    if not FDisc[dir].BeenRead then ReadDirectory(file_details.Parent);
    //Get the length of the file
@@ -330,7 +337,7 @@ begin
    if file_details.filename<>'$' then
    begin
     //Get the number of entries in the directory
-    ref:=Length(FDisc[dir].Entries);
+//    ref:=Length(FDisc[dir].Entries);
     //Convert load/exec address into filetype and datestamp, if necessary
     ADFSCalcFileDate(file_details); //Spark is based on ADFS
     //Now we add the entry into the directory catalogue
@@ -597,7 +604,7 @@ Create a directory
 -------------------------------------------------------------------------------}
 function TDiscImage.CreateSparkDirectory(filename, parent, attributes: String): Integer;
 var
- file_details: TDirEntry;
+ file_details: TDirEntry=();
  buffer      : TDIByteArray=nil;
 begin
  ResetDirEntry(file_details);

@@ -269,7 +269,7 @@ Read ADFS Directory
 -------------------------------------------------------------------------------}
 function TDiscImage.ReadADFSDir(dirname: String; sector: Cardinal): TDir;
 var
- Entry     : TDirEntry;
+ Entry     : TDirEntry=();
  temp      : String='';
  StartName : String='';
  EndName   : String='';
@@ -1156,6 +1156,7 @@ begin
     Result:=ReadTheADFSDisc;
    until(brokendircount=0)or(Finterleave=2);//Until we get back to the start
   end;
+  FHasDirs:=Result;
  end;
 end;
 
@@ -1421,9 +1422,9 @@ begin
  SetLength(free_space_map,1); //Free Space Map
  //Write the map
  if not FMap then //Old Map
-  FormatOldMapADFS(disctitle);
+  FormatOldMapADFS(Fdisctitle);
  if FMap then //New Map
-  FormatNewMapADFS(disctitle,False);
+  FormatNewMapADFS(Fdisctitle,False);
  //Set the Directory Identifier
  if FDirType=diADFSOldDir then FDirID:=1;
  if FDirType=diADFSNewDir then FDirID:=2;
@@ -1704,7 +1705,7 @@ begin
   SetLength(free_space_map,1); //Free Space Map
   disc_size[0]:=harddrivesize;    //Disc Size
   //Set up old map
-  if not FMap then FormatOldMapADFS(disctitle);
+  if not FMap then FormatOldMapADFS(Fdisctitle);
   //Set up new map
   if FMap then
   begin
@@ -1734,7 +1735,7 @@ begin
     big_flag:=0;
     if disc_size[0]>512*1024*1024 then big_flag:=1;
    end;
-   FormatNewMapADFS(disctitle,ide);
+   FormatNewMapADFS(Fdisctitle,ide);
   end;
   //Set the Directory Identifier
   if FDirType=diADFSOldDir then FDirID:=1;
@@ -1960,7 +1961,7 @@ var
   if ADFSSectorAlignLength(entrylength,False)=entrylength then inc(sharedbyte);
  end;
  //Check for shared fragment
- procedure CheckForShared(start: Integer);
+ procedure CheckForShared;//(start: Integer);
  var
   entry2  : Cardinal=0;
 //  currfile: String='';
@@ -2077,7 +2078,7 @@ begin
         SetSharedByte(FDisc[dir].Length,True);
         inc(sharedbyte,FDisc[dir].Sector AND$FF);
         //And check the children for the same ID
-        CheckForShared(-1);
+        CheckForShared;//(-1);
        end;
       end;
       //No space, so go through the children and do the same checks
@@ -2094,7 +2095,7 @@ begin
           fragid:=FDisc[dir].Entries[entry].Sector>>8;
           //And the sharing offset
           SetSharedByte(FDisc[dir].Entries[entry].Length,True);
-          CheckForShared(entry);
+          CheckForShared;//(entry);
          end;
         end;
      end;
@@ -2618,7 +2619,7 @@ var
  dirtail   : Cardinal=0;
  parentaddr: Cardinal=0;
  buffer    : TDIByteArray=nil;
- fileentry : TDirEntry;
+ fileentry : TDirEntry=();
 begin
  ResetDirEntry(fileentry);
  //Is this on the AFS partition?
@@ -3094,7 +3095,7 @@ var
  entry  : Cardinal=0;
  dir    : Cardinal=0;
  space  : Integer=0;
- swap   : TDirEntry;
+ swap   : TDirEntry=();
  changed: Boolean=False;
 begin
  ResetDirEntry(swap);
@@ -3780,7 +3781,7 @@ Moves a file from one directory to another
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveADFSFile(filename,directory: String): Integer;
 var
- direntry : TDirEntry;
+ direntry : TDirEntry=();
  sdir     : Cardinal=0;
  sentry   : Cardinal=0;
  ddir     : Cardinal=0;

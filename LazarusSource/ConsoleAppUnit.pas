@@ -1,5 +1,9 @@
 unit ConsoleAppUnit;
 
+{$IFDEF Darwin}
+{$modeswitch objectivec1}
+{$ENDIF}
+
 {
 Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
@@ -22,7 +26,9 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- {$IFDEF Windows}Windows,{$ENDIF}
+ {$IFDEF Windows}Windows,{$ENDIF} //For Windows console
+ {$IFDEF Linux}BaseUnix,{$ENDIF}  //For Linux console
+ {$IFDEF Darwin}typinfo,CocoaAll,{$ENDIF} //For macOS console
  Classes, SysUtils, CustApp, MainUnit, Forms, DiscImage;
 
 type
@@ -76,6 +82,25 @@ implementation
 Create the class instance
 -------------------------------------------------------------------------------}
 function CheckConsole: Boolean;
+ function IsRunFromConsole: Boolean;
+ {$IFDEF Windows}
+ var
+  StartUp: StartUpInfoA;
+ {$ENDIF}
+ begin
+  Result:=False;//Default, if not covered by Windows, Linux or Darwin
+ {$IFDEF Windows}
+  StartUp.dwFlags:=0;//Prevents 'variable not initialised' message
+  GetStartupInfo(StartUp);
+  Result:=(StartUp.dwFlags AND 1)<>1;
+ {$ENDIF}
+ {$IFDEF Linux}
+  Result:=fpReadLink('/proc/'+fpGetppid.ToString+'/exe')<>'';
+ {$ENDIF}
+ {$IFDEF Darwin}
+  Result:=NSProcessInfo.ProcessInfo.environment.objectForKey(NSStr('XPC_SERVICE_NAME')).UTF8String='0';
+ {$ENDIF}
+ end;
 {$IFDEF Windows}
 var
  hwConsole : hWnd;
@@ -84,7 +109,9 @@ var
 begin
  Result:=False;
  //'console' passed as a parameter
- if Application.HasOption('c','console') then
+ if((Application.HasOption('c','console'))
+ or(IsRunFromConsole))
+ and(not Application.HasOption('g','gui'))then
  begin
   //Windows does not create a console for GUI applications, so we need to
   {$IFDEF Windows}

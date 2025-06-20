@@ -62,6 +62,7 @@ begin
     if FATType=diFAT32 then inc(FFormat,3);
    end;
   Result:=GetMajorFormatNumber=diDOSPlus;
+  FHasDirs:=Result;
  end;
 end;
 
@@ -1474,7 +1475,7 @@ var
  dir    : Cardinal=0;
  entry  : Cardinal=0;
  ok     : Boolean=False;
- NewFile: TDirEntry;
+ NewFile: TDirEntry=();
  side   : Byte=0;
 begin
  ResetDirEntry(NewFile);
@@ -1524,7 +1525,7 @@ begin
    for ptr:=0 to dosroot_size-1 do
     WriteByte(0,Fdosroot+ptr);
    //Volume name
-   WriteString(disctitle,$00+Fdosroot,11,32);
+   WriteString(Fdisctitle,$00+Fdosroot,11,32);
    WriteByte($08,$0B+Fdosroot);//Attribute for volume title
    Result:=0;
   end;
@@ -2042,7 +2043,7 @@ Move a file/directory
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveDOSFile(filename,directory: String): Integer;
 var
- direntry : TDirEntry;
+ direntry : TDirEntry=();
  sdir     : Cardinal=0;
  sentry   : Cardinal=0;
  ddir     : Cardinal=0;

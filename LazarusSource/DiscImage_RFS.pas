@@ -362,7 +362,7 @@ begin
  //Version number
  WriteByte(binvers,8);
  //Title string
- if title='' then title:=rfstitle;
+ if title='' then title:=Frfstitle else Frfstitle:=title;
  WriteString(title,$9,0,0);
  Result:=Length(title)+9;
  WriteByte(0,Result);
@@ -375,7 +375,7 @@ begin
  //Pointer to (C)
  WriteByte(Result,7);
  //(C) string
- if copyright='' then copyright:=rfscopyright;
+ if copyright='' then copyright:=Frfscopyright else Frfscopyright:=copyright;
  if(copyright[1]<>'(')
  or(copyright[2]<>'C')
  or(copyright[3]<>')')then copyright:='(C)'+copyright;
@@ -701,7 +701,7 @@ Copy an RFS file
 function TDiscImage.CopyRFSFile(entry: Cardinal;dest: Integer): Integer;
 var
  buffer     : TDIByteArray=nil;
- filedetails: TDirEntry;
+ filedetails: TDirEntry=();
 begin
  ResetDirEntry(filedetails);
  Result:=-1;
@@ -732,7 +732,7 @@ Rename an RFS file
 function TDiscImage.RenameRFSFile(entry: Cardinal;newfilename: String): Integer;
 var
  buffer     : TDIByteArray=nil;
- filedetails: TDirEntry;
+ filedetails: TDirEntry=();
 begin
  ResetDirEntry(filedetails);
  Result:=-1; //Failed to rename
@@ -783,9 +783,9 @@ var
 begin
  Result:=False;
  //Only proceed if something has changed
- if(title<>disc_name[0])
- or(copyright<>Fcopyright)
- or(version<>Fversion)then
+ if(title<>disc_name[0])  or(title<>'')
+ or(copyright<>Fcopyright)or(copyright<>'')
+ or(version<>Fversion)    or(version<>'')then
  begin
   //What is the difference in size?
   diff:=(Length(title)-Length(disc_name[0]))

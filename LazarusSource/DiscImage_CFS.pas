@@ -459,7 +459,7 @@ Moves a CFS file (reorder) to after dest
 -------------------------------------------------------------------------------}
 function TDiscImage.MoveCFSFile(entry: Cardinal;dest: Integer): Integer;
 var
- file_details: TDirEntry;
+ file_details: TDirEntry=();
  buffer      : TDIByteArray=nil;
  i           : Integer=0;
 begin
@@ -521,7 +521,7 @@ Copies a CFS file to after dest
 -------------------------------------------------------------------------------}
 function TDiscImage.CopyCFSFile(entry: Cardinal;dest: Integer): Integer;
 var
- file_details: TDirEntry;
+ file_details: TDirEntry=();
  buffer      : TDIByteArray=nil;
  i           : Integer=0;
 begin

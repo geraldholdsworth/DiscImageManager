@@ -1043,6 +1043,25 @@ Bug fixes
 * When changing the load and execution addresses of a file, editing one then clicking on the other would make the one you were editing disappear.
 * Defragging (compacting) an image with no free space would fail and not revert back to the original image. Now, it fails and returns to the original image with no changes made.
 
+1.49
+--------------------
+New or improved features
+* Remembers the last used format when creating a new image.
+* Can now specify the disc title when creating a new image.
+* When run from the console/command line with no parameters, it will open the console automatically without the -c or --console paramter being specified.
+* Added a new console/command line parameter, '-g' or '--gui', to force the application to start in GUI mode.
+
+Bug fixes
+* There were possibilities where a blank title, version or copyright string could be applied when updating an ROM FS Header.
+* Create a blank !Spark file produced an invalid ZIP file.
+* When files were added to a !Spark file, it created a new ZIP file with only this file inside.
+* When importing files, sometimes a directory would not be created unless it was ADFS or Amiga.
+* Importing files from one system to another sometimes failed as the path structure is different.
+* Selecting a file on the directory listing sometimes resulting the details of another file being displayed.
+* Creating a new sub-directory, or adding a file, to a sub-directory of the root on an Amiga format image would appear to fail.
+* Importing from DFS to a directory capable system, apart from ADFS or Amiga, would not create any subdirectories.
+* Adding to a ZIP file would sometimes crash the application.
+
 Platform History
 ----------------
 

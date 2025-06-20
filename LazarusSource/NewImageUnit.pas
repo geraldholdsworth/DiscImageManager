@@ -64,6 +64,7 @@ type
   btn_OK,
   btn_Cancel: TRISCOSButton;
   ROMFSBinVersAdj: TUpDown;
+  ImageTitle: TLabeledEdit;
   procedure AFSClick(Sender: TObject);
   procedure AFSImageSizeChange(Sender: TObject);
   procedure btn_OKClick(Sender: TObject);
@@ -159,6 +160,26 @@ begin
  //And tertiary panels
  DFSTracks.Visible :=DFS.Visible;
  AFSSize.Visible   :=AFS.Visible;
+ //Image Title field
+ ImageTitle.Enabled:=(SystemOptions[0].Ticked) //DFS
+                   OR(SystemOptions[1].Ticked) //ADFS
+                   OR(SystemOptions[2].Ticked) //C64
+                   OR(SystemOptions[4].Ticked) //Amiga
+                   OR(SystemOptions[7].Ticked) //AFS
+                   OR(SystemOptions[8].Ticked);//DOS
+ if ImageTitle.Enabled then
+ begin
+  if(SystemOptions[0].Ticked) //DFS
+  OR(SystemOptions[1].Ticked) //ADFS
+  OR(SystemOptions[2].Ticked) //C64
+  OR(SystemOptions[8].Ticked) //DOS
+                             then ImageTitle.MaxLength:=10;//10 for DFS,ADFS,C64,DOS
+  if SystemOptions[4].Ticked then ImageTitle.MaxLength:=18;//18 for Amiga
+  if SystemOptions[7].Ticked then ImageTitle.MaxLength:=16;//16 for AFS
+  if ImageTitle.MaxLength=10 then ImageTitle.Text:=MainForm.Image.DefaultDiscTitle;
+  if ImageTitle.MaxLength=16 then ImageTitle.Text:=MainForm.Image.DefaultAFSDiscTitle;
+  if ImageTitle.MaxLength=18 then ImageTitle.Text:=MainForm.Image.DefaultAmigaDiscTitle;
+ end;
  //Currently, only certain types of format can be created
  btn_OK.Enabled:=(SystemOptions[0].Ticked) //DFS
                OR(SystemOptions[1].Ticked) //ADFS
@@ -187,43 +208,40 @@ Form is being displayed
 procedure TNewImageForm.FormShow(Sender: TObject);
 begin
  //Reset to the default options
- SystemOptions[0].Ticked:=True;
- DFSOptions[0].Ticked   :=True;
- DFSTOptions[0].Ticked  :=True;
- ADFSOptions[0].Ticked  :=True;
- C64Options[0].Ticked   :=True;
- SpecOptions[0].Ticked  :=True;
- AmigaOptions[0].Ticked :=True;
- AFSOptions[0].Ticked   :=True;
- DOSOptions[0].Ticked   :=True;
- cb_AFScreatepword.Ticked:=False;
- AFSImageSize.Position:=AFSImageSize.Min;
+ SystemOptions[MainForm.DIMReg.GetRegValI('DefaultSystemOptions',0)].Ticked:=True;
+ DFSOptions[MainForm.DIMReg.GetRegValI(   'DefaultDFSOptions',0)].Ticked   :=True;
+ DFSTOptions[MainForm.DIMReg.GetRegValI(  'DefaultDFSTOptions',0)].Ticked  :=True;
+ ADFSOptions[MainForm.DIMReg.GetRegValI(  'DefaultADFSOptions',0)].Ticked  :=True;
+ C64Options[MainForm.DIMReg.GetRegValI(   'DefaultC64Options',0)].Ticked   :=True;
+ SpecOptions[MainForm.DIMReg.GetRegValI(  'DefaultSpecOptions',0)].Ticked  :=True;
+ AmigaOptions[MainForm.DIMReg.GetRegValI( 'DefaultAmigaOptions',0)].Ticked :=True;
+ AFSOptions[MainForm.DIMReg.GetRegValI(   'DefaultAFSOptions',0)].Ticked   :=True;
+ DOSOptions[MainForm.DIMReg.GetRegValI(   'DefaultDOSOptions',0)].Ticked   :=True;
+ cb_AFScreatepword.Ticked:=MainForm.DIMReg.GetRegValB('DefaultAFSCreatePword',False);
+ AFSImageSize.Position   :=MainForm.DIMReg.GetRegValI('DefaultAFSImageSize'  ,AFSImageSize.Min);
  AFSClick(Sender);
  AFSImageSizeChange(Sender);
- ROMFSTitle.Text     :=MainForm.ApplicationTitle;
- ROMFSVersion.Text   :=MainForm.ApplicationVersion;
- ROMFSCopy.Text      :='(C)GJH Software 2024';
- ROMFSBinVersAdj.Position:=1;
- ROMFSBinVers.Caption:=IntToHex(ROMFSBinVersAdj.Position,2);
- //Hide all the sub options, except for the first one
- DFS.Visible         :=True;
- DFSTracks.Visible   :=True;
- ADFS.Visible        :=False;
- C64.Visible         :=False;
- Spectrum.Visible    :=False;
- Amiga.Visible       :=False;
- AFS.Visible         :=False;
- AFSSize.Visible     :=False;
- DOS.Visible         :=False;
- ROMFS.Visible       :=False;
- //Enable the create button
- btn_OK.Enabled      :=True;
+ ROMFSTitle.Text         :=MainForm.DIMReg.GetRegValS('DefaultROMFSTitle'    ,MainForm.ApplicationTitle);
+ ROMFSVersion.Text       :=MainForm.DIMReg.GetRegValS('DefaultROMFSVersion'  ,MainForm.ApplicationVersion);
+ ROMFSCopy.Text          :=MainForm.DIMReg.GetRegValS('DefaultROMFSCopy'     ,MainForm.Image.DefaultRFSCopyright);
+ ROMFSBinVersAdj.Position:=MainForm.DIMReg.GetRegValI('DefaultROMFSBinVers'  ,1);
+ ROMFSBinVers.Caption    :=IntToHex(ROMFSBinVersAdj.Position,2);
+ //Show/Hide appropriate panels and enable/disable OK button
+ MainFormatClick(Sender);
 end;
 
 {-------------------------------------------------------------------------------
 User has clicked on create
 -------------------------------------------------------------------------------}
 procedure TNewImageForm.btn_OKClick(Sender: TObject);
+ procedure SaveToRegistry(regentry: String; control: array of TRISCOSRadioBox);
+ var sel: Integer=0;
+ begin
+  sel:=0;
+  while(not control[sel].Ticked)and(sel<High(control))do inc(sel);
+  if not control[sel].Ticked then sel:=0;
+  MainForm.DIMReg.SetRegValI('Default'+regentry,sel);
+ end;
 var
  ok: Boolean=True;
 begin
@@ -268,7 +286,33 @@ begin
   end;
  end;
  //Return to the calling form
- if ok then btn_OK.ModalResult:=mrOK else btn_OK.ModalResult:=mrNone;
+ if ok then
+ begin
+  //Write the selection to the registry
+  SaveToRegistry('SystemOptions',SystemOptions);
+  SaveToRegistry('DFSOptions'   ,DFSOptions);
+  SaveToRegistry('DFSTOptions'  ,DFSTOptions);
+  SaveToRegistry('ADFSOptions'  ,ADFSOptions);
+  SaveToRegistry('C64Options'   ,C64Options);
+  SaveToRegistry('SpecOptions'  ,SpecOptions);
+  SaveToRegistry('AmigaOptions' ,AmigaOptions);
+  SaveToRegistry('AFSOptions'   ,AFSOptions);
+  SaveToRegistry('DOSOptions'   ,DOSOptions);
+  MainForm.DIMReg.SetRegValB('DefaultAFSCreatePWord',cb_AFScreatepword.Ticked);
+  MainForm.DIMReg.SetRegValI('DefaultAFSImageSize'  ,AFSImageSize.Position);
+  MainForm.DIMReg.SetRegValS('DefaultROMFSTitle'    ,ROMFSTitle.Text);
+  MainForm.DIMReg.SetRegValS('DefaultROMFSVersion'  ,ROMFSVersion.Text);
+  MainForm.DIMReg.SetRegValS('DefaultROMFSCopy'     ,ROMFSCopy.Text);
+  MainForm.DIMReg.SetRegValI('DefaultROMFSBinVers'  ,ROMFSBinVersAdj.Position);
+  //Update the default image title (no need to test for invalid entries - the
+  //class will deal with that)
+  if ImageTitle.MaxLength=10 then MainForm.Image.DefaultDiscTitle     :=ImageTitle.Text;
+  if ImageTitle.MaxLength=16 then MainForm.Image.DefaultAFSDiscTitle  :=ImageTitle.Text;
+  if ImageTitle.MaxLength=18 then MainForm.Image.DefaultAmigaDiscTitle:=ImageTitle.Text;
+  //Return
+  btn_OK.ModalResult:=mrOK;
+ end
+ else btn_OK.ModalResult:=mrNone;
 end;
 
 {-------------------------------------------------------------------------------
@@ -417,8 +461,10 @@ begin
  ROMFSCopy.Width:=ROMFSTitle.Width;
  ROMFSCopy.Top:=ROMFSBinVers.Top+ROMFSBinVers.Height+Round(8*ratio);
  //Align the buttons -----------------------------------------------------------
+ ImageTitle.Top:=MainFormatPanel.Top+MainFormatPanel.Height+Round(8*ratio);
+ ImageTitle.Left:=(LWid*2)-ImageTitle.Width-Round(8*ratio);
  btn_Cancel:=MainForm.CreateButton(NewImageForm as TControl,'Cancel',False,0,
-                      MainFormatPanel.Top+MainFormatPanel.Height+Round(8*ratio),
+                      ImageTitle.Top+ImageTitle.Height+Round(8*ratio),
                       mrCancel);
  btn_OK:=MainForm.CreateButton(NewImageForm as TControl,'Create',True,0,
                                btn_Cancel.Top-Round(4*ratio),mrNone);

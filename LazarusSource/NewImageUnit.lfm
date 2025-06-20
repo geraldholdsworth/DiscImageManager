@@ -10,11 +10,10 @@ object NewImageForm: TNewImageForm
   ClientWidth = 532
   Color = 15527148
   Font.Color = clBlack
+  Position = poMainFormCenter
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
   object MainFormatPanel: TPanel
     Left = 0
     Height = 178
@@ -312,10 +311,10 @@ object NewImageForm: TNewImageForm
     end
     object ROMFSTitle: TLabeledEdit
       Left = 72
-      Height = 22
+      Height = 21
       Top = 24
       Width = 184
-      EditLabel.Height = 16
+      EditLabel.Height = 21
       EditLabel.Width = 30
       EditLabel.Caption = 'Title:'
       LabelPosition = lpLeft
@@ -324,10 +323,10 @@ object NewImageForm: TNewImageForm
     end
     object ROMFSVersion: TLabeledEdit
       Left = 72
-      Height = 22
+      Height = 21
       Top = 56
       Width = 184
-      EditLabel.Height = 16
+      EditLabel.Height = 21
       EditLabel.Width = 49
       EditLabel.Caption = 'Version:'
       LabelPosition = lpLeft
@@ -336,10 +335,10 @@ object NewImageForm: TNewImageForm
     end
     object ROMFSCopy: TLabeledEdit
       Left = 72
-      Height = 22
+      Height = 21
       Top = 112
       Width = 184
-      EditLabel.Height = 16
+      EditLabel.Height = 21
       EditLabel.Width = 63
       EditLabel.Caption = 'Copyright:'
       LabelPosition = lpLeft
@@ -353,9 +352,9 @@ object NewImageForm: TNewImageForm
       Width = 17
       Max = 255
       Min = 0
-      OnClick = ROMFSBinVersAdjClick
       Position = 1
       TabOrder = 3
+      OnClick = ROMFSBinVersAdjClick
     end
     object ROMFSBinVersLabel: TLabel
       Left = 0
@@ -374,5 +373,18 @@ object NewImageForm: TNewImageForm
       Font.Style = [fsBold]
       ParentFont = False
     end
+  end
+  object ImageTitle: TLabeledEdit
+    Left = 336
+    Height = 21
+    Top = 176
+    Width = 184
+    EditLabel.Height = 21
+    EditLabel.Width = 71
+    EditLabel.Caption = 'Image Title:'
+    LabelPosition = lpLeft
+    MaxLength = 10
+    TabOrder = 11
+    Text = 'ImageTitle'
   end
 end

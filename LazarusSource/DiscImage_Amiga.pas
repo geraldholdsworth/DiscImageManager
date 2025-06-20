@@ -112,6 +112,7 @@ begin
     end;
    end;
    Result:=GetMajorFormatNumber=diAmiga;
+   FHasDirs:=Result;
   end;
  end;
 end;
@@ -176,6 +177,7 @@ begin
   ReadAmigaFSM;
  end;
  Result:=Length(FDisc)>0;
+ FHasDirs:=Result;
 end;
 
 {-------------------------------------------------------------------------------
@@ -187,7 +189,7 @@ var
  i       : Cardinal=0;
  link    : Cardinal=0;
  ent     : Cardinal=0;
- Entry   : TDirEntry;
+ Entry   : TDirEntry=();
 begin
  //Initialise the return variable (this just stops the compiler from warning)
  Result.Directory:='';
@@ -357,11 +359,11 @@ var
  end;
 begin
  ValidateAmigaFile(file_details.Filename);
- Result:=-6; //Destination directory does not exist
+ Result:=-3; //File already exists
  //Ensure that the file does not alredy exist
  if not FileExists(file_details.Parent+dir_sep+file_details.Filename,dir,entry) then
  begin
-  Result:=-3; //File already exists
+  Result:=-6; //Destination directory does not exist
   //Ensure that the parent exists
   if FileExists(file_details.Parent,dir,entry) then
   begin
@@ -487,6 +489,8 @@ begin
     //Blocks now written, add it to the parent
     AmigaAddtoChain(file_details.Filename,paraddr,frag[0].Offset);
     //Update our local copy
+    if(entry<Length(FDisc[dir].Entries))then
+     dir:=FDisc[dir].Entries[entry].DirRef;
     Result:=Length(FDisc[dir].Entries);
     SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)+1);
     //Update our local FSM
@@ -568,20 +572,31 @@ begin
     //Add to the parent directory
     AmigaAddToChain(dirname,paraddr,frag[0].Offset);
     //Update our local copy
+    if(entry<Length(FDisc[dir].Entries))then
+     dir:=FDisc[dir].Entries[entry].DirRef;
     Result:=Length(FDisc[dir].Entries);
     SetLength(FDisc[dir].Entries,Length(FDisc[dir].Entries)+1);
+    ResetDirEntry(FDisc[dir].Entries[Result]);
+    entry:=Length(FDisc);
     //Update our local FSM
     AmigaFillFreeSpaceMap(frag[0].Offset*secsize,$FF);
     //Write the fields
-    FDisc[dir].Entries[Result].Sector:=frag[0].Offset;
-    FDisc[dir].Entries[Result].Parent:=parent;
-    FDisc[dir].Entries[Result].Filename:=dirname;
+    FDisc[dir].Entries[Result].Sector    :=frag[0].Offset;
+    FDisc[dir].Entries[Result].Parent    :=parent;
+    FDisc[dir].Entries[Result].Filename  :=dirname;
     FDisc[dir].Entries[Result].Attributes:='F'+attributes;//'F' is directory
-    FDisc[dir].Entries[Result].Timestamp:=Now;
-    FDisc[dir].Entries[Result].Length:=secsize;
-    FDisc[dir].Entries[Result].Filetype:='Directory';
-    FDisc[dir].Entries[Result].DirRef:=Length(FDisc); //Reference to this directory
+    FDisc[dir].Entries[Result].Timestamp :=Now;
+    FDisc[dir].Entries[Result].Length    :=secsize;
+    FDisc[dir].Entries[Result].Filetype  :='Directory';
+    FDisc[dir].Entries[Result].DirRef    :=entry; //Reference to this directory
     SetLength(FDisc,Length(FDisc)+1);//Make room
+    ResetDir(FDisc[entry]);
+    FDisc[entry].Directory:=FDisc[dir].Entries[Result].Filename;
+    FDisc[entry].Title    :=FDisc[dir].Entries[Result].Filename;
+    FDisc[entry].Broken   :=False;
+    FDisc[entry].Parent   :=dir;
+    FDisc[entry].Sector   :=FDisc[dir].Entries[Result].Sector;
+    SetLength(FDisc[entry].Entries,0);
    end;
   end;
  end;
@@ -680,8 +695,8 @@ begin
  Write32b(ticks,root*secsize+$1AC,True);    //Last access time
  Write32b(ticks,root*secsize+$1E0,True);    //Last access time
  Write32b(ticks,root*secsize+$1EC,True);    //Creation time
- WriteByte(Length(amigadisctitle),root*secsize+$1B0);//Length of disc name
- WriteString(amigadisctitle,root*secsize+$1B1,30,0); //Disc name
+ WriteByte(Length(Famigadisctitle),root*secsize+$1B0);//Length of disc name
+ WriteString(Famigadisctitle,root*secsize+$1B1,30,0); //Disc name
  //Bitmap block
  bmpsize:=Ceil(((size-secsize*2)div secsize)/8);
  //We'll create it all in a temporary store first
@@ -894,7 +909,7 @@ var
  ddir        : Cardinal=0;
  dentry      : Cardinal=0;
  index       : Cardinal=0;
- file_details: TDirEntry;
+ file_details: TDirEntry=();
 begin
  ResetDirEntry(file_details);
  Result:=-6; //Destination does not exist
@@ -1403,7 +1418,7 @@ end;
 {-------------------------------------------------------------------------------
 Produce a report of the image's details
 -------------------------------------------------------------------------------}
-function TDiscImage.AmigaReport(CSV: Boolean): TStringList;
+function TDiscImage.AmigaReport{(CSV: Boolean)}: TStringList;
 var
  temp: String='';
 begin
