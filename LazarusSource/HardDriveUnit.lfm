@@ -9,11 +9,11 @@ object HardDriveForm: THardDriveForm
   ClientHeight = 118
   ClientWidth = 490
   Color = 15527148
+  Position = poMainFormCenter
+  LCLVersion = '4.0.0.4'
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
   object HDDImage: TImage
     Left = 8
     Height = 68

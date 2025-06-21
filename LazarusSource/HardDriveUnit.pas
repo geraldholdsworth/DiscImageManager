@@ -91,21 +91,24 @@ Change of the new map tick box
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.cb_NewMapChange(Sender: TObject);
 begin
- //Enable/disable the appropriate radio boxes
- rb_BigDir.Enabled:=cb_NewMap.Ticked;
- rb_OldDir.Enabled:=not cb_NewMap.Ticked;
- cb_IDE.Enabled:=cb_NewMap.Ticked;
- //If Old map is selected
- if not cb_NewMap.Ticked then
+ if ADFSHDD then
  begin
-  //Ensure the hard drive capactiy is <512MB
-  if CapacitySlider.Position*MB>OldMapLimit then
-   CapacitySlider.Position:=OldMapLimit div MB;
-  //And Big Dir is not selected
-  if rb_BigDir.Ticked then rb_NewDir.Ticked:=True;
+  //Enable/disable the appropriate radio boxes
+  rb_BigDir.Enabled:=cb_NewMap.Ticked;
+  rb_OldDir.Enabled:=not cb_NewMap.Ticked;
+  cb_IDE.Enabled:=cb_NewMap.Ticked;
+  //If Old map is selected
+  if not cb_NewMap.Ticked then
+  begin
+   //Ensure the hard drive capactiy is <512MB
+   if CapacitySlider.Position*MB>OldMapLimit then
+    CapacitySlider.Position:=OldMapLimit div MB;
+   //And Big Dir is not selected
+   if rb_BigDir.Ticked then rb_NewDir.Ticked:=True;
+  end;
+  //If New map is selected, ensure Old Dir is not
+  if(cb_NewMap.Ticked)and(rb_OldDir.Ticked)then rb_NewDir.Ticked:=True;
  end;
- //If New map is selected, ensure Old Dir is not
- if(cb_NewMap.Ticked)and(rb_OldDir.Ticked)then rb_NewDir.Ticked:=True;
 end;
 
 {-------------------------------------------------------------------------------
@@ -266,13 +269,14 @@ FAT12 has been selected
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.rb_FAT12Change(Sender: TObject);
 begin
- //Set max to 30MB for FAT12
- if rb_FAT12.Ticked then
- begin
-  CapacitySlider.Max:=30; //Max 30MB
-  CapacitySlider.Min:=10; //Min 10MB
-  CapacitySliderChange(Sender);
- end;
+ if DOSHDD then
+  //Set max to 30MB for FAT12
+  if rb_FAT12.Ticked then
+  begin
+   CapacitySlider.Max:=30; //Max 30MB
+   CapacitySlider.Min:=10; //Min 10MB
+   CapacitySliderChange(Sender);
+  end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -280,13 +284,14 @@ FAT16 has been selected
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.rb_FAT16Change(Sender: TObject);
 begin
- //Set max to 1000MB for FAT16
- if rb_FAT16.Ticked then
- begin
-  CapacitySlider.Max:=1000;//Max 1000MB
-  CapacitySlider.Min:=20;  //Min 20MB
-  CapacitySliderChange(Sender);
- end;
+ if DOSHDD then
+  //Set max to 1000MB for FAT16
+  if rb_FAT16.Ticked then
+  begin
+   CapacitySlider.Max:=1000;//Max 1000MB
+   CapacitySlider.Min:=20;  //Min 20MB
+   CapacitySliderChange(Sender);
+  end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -294,13 +299,14 @@ FAT32 has been selected
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.rb_FAT32Change(Sender: TObject);
 begin
- //Set max to 1024MB for FAT32
- if rb_FAT32.Ticked then
- begin
-  CapacitySlider.Max:=1024;//Max 1GB
-  CapacitySlider.Min:=33;  //Min 33MB
-  CapacitySliderChange(Sender);
- end;
+ if DOSHDD then
+  //Set max to 1024MB for FAT32
+  if rb_FAT32.Ticked then
+  begin
+   CapacitySlider.Max:=1024;//Max 1GB
+   CapacitySlider.Min:=33;  //Min 33MB
+   CapacitySliderChange(Sender);
+  end;
 end;
 
 end.

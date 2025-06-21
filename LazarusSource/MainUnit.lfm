@@ -4284,9 +4284,6 @@ object MainForm: TMainForm
     00000FE00000000000000FE00000000000000F
   }
   Menu = Main_Menu
-  Position = poScreenCenter
-  ShowHint = True
-  LCLVersion = '4.0.0.4'
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
@@ -4295,6 +4292,9 @@ object MainForm: TMainForm
   OnKeyUp = FormKeyUp
   OnPaint = FileInfoPanelPaint
   OnShow = FormShow
+  Position = poScreenCenter
+  ShowHint = True
+  LCLVersion = '3.0.0.3'
   object ImageContentsPanel: TPanel
     Left = 0
     Height = 513
@@ -4353,8 +4353,6 @@ object MainForm: TMainForm
       StateImages = StateIcons
       StateImagesWidth = 16
       TabOrder = 0
-      Options = [tvoAllowMultiselect, tvoAutoItemHeight, tvoHideSelection, tvoHotTrack, tvoKeepCollapsedNodes, tvoShowButtons, tvoShowRoot, tvoToolTips, tvoThemedDraw]
-      TreeLineColor = clNone
       OnChange = DirListChange
       OnContextPopup = DirListContextPopup
       OnCreateNodeClass = DirListCreateNodeClass
@@ -4371,6 +4369,8 @@ object MainForm: TMainForm
       OnMouseDown = DirListMouseDown
       OnMouseMove = DirListMouseMove
       OnMouseUp = DirListMouseUp
+      Options = [tvoAllowMultiselect, tvoAutoItemHeight, tvoHideSelection, tvoHotTrack, tvoKeepCollapsedNodes, tvoShowButtons, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+      TreeLineColor = clNone
     end
   end
   object ImageDetails: TStatusBar
@@ -4706,8 +4706,8 @@ object MainForm: TMainForm
         Hint = 'Click to edit'
         Top = 1
         Width = 34
-        Transparent = True
         OnClick = sb_FileTypeClick
+        Transparent = True
       end
     end
     object ParentPanel: TPanel
@@ -4799,7 +4799,7 @@ object MainForm: TMainForm
       end
       object ed_execaddr: TEdit
         Left = 0
-        Height = 15
+        Height = 19
         Top = 31
         Width = 353
         Align = alTop
@@ -4862,7 +4862,7 @@ object MainForm: TMainForm
       end
       object ed_loadaddr: TEdit
         Left = 0
-        Height = 15
+        Height = 19
         Top = 31
         Width = 353
         Align = alTop
@@ -5046,7 +5046,7 @@ object MainForm: TMainForm
       end
       object ed_title: TEdit
         Left = 0
-        Height = 15
+        Height = 19
         Top = 31
         Width = 353
         Align = alTop
@@ -32606,28 +32606,28 @@ object MainForm: TMainForm
       Category = 'Clipboard'
       Caption = 'CopyToClipboard'
       Enabled = False
-      ShortCut = 16451
       OnExecute = CopyToClipboardExecute
+      ShortCut = 16451
     end
     object PasteFromClipboard: TAction
       Category = 'Clipboard'
       Caption = 'PasteFromClipboard'
       Enabled = False
-      ShortCut = 16470
       OnExecute = PasteFromClipboardExecute
+      ShortCut = 16470
     end
     object CancelDragDrop: TAction
       Category = 'General'
       Caption = 'CancelDragDrop'
-      ShortCut = 27
       OnExecute = CancelDragDropExecute
+      ShortCut = 27
     end
     object DeleteAFile: TAction
       Category = 'General'
       Caption = 'DeleteAFile'
       Enabled = False
-      ShortCut = 8
       OnExecute = DeleteFile1Click
+      ShortCut = 8
     end
   end
   object HoverTimer: TTimer

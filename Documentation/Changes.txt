@@ -1061,6 +1061,7 @@ Bug fixes
 * Creating a new sub-directory, or adding a file, to a sub-directory of the root on an Amiga format image would appear to fail.
 * Importing from DFS to a directory capable system, apart from ADFS or Amiga, would not create any subdirectories.
 * Adding to a ZIP file would sometimes crash the application.
+* A bug crept in, since version 1.47, where creating a new hard drive was limited to 30MB for all types.
 
 Platform History
 ----------------
