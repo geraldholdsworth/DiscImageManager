@@ -179,7 +179,7 @@ const
  FS  : array[0..$B] of String = ('DFS',
                                 'Acorn ADFS',
                                 'Commodore',
-                                'Sinclair Spectrum +3/Amstrad',
+                                'Spectrum +3',
                                 'Commodore Amiga',
                                 'Acorn CFS',
                                 'MMFS',
@@ -1020,7 +1020,7 @@ Convert the interleave into a string
 -------------------------------------------------------------------------------}
 function TDiscImage.InterleaveString: String;
 begin
- Result:='';
+ Result:='unknown';
  if(GetMajorFormatNumber=diAcornDFS)and(GetDoubleSided)then Result:=Fints[1];
  {if(FFormat=diAcornADFS<<4+2)
  or(FFormat=diAcornADFS<<4+$E)}

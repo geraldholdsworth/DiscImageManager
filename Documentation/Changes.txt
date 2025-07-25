@@ -1050,6 +1050,8 @@ New or improved features
 * Can now specify the disc title when creating a new image.
 * When run from the console/command line with no parameters, it will open the console automatically without the -c or --console paramter being specified.
 * Added a new console/command line parameter, '-g' or '--gui', to force the application to start in GUI mode.
+* Added functionality to read in Sinclair Spectrum +3/Amstrad DSK images.
+* Now shows the Interleave in use in the status bar.
 
 Bug fixes
 * There were possibilities where a blank title, version or copyright string could be applied when updating an ROM FS Header.
@@ -1062,6 +1064,8 @@ Bug fixes
 * Importing from DFS to a directory capable system, apart from ADFS or Amiga, would not create any subdirectories.
 * Adding to a ZIP file would sometimes crash the application.
 * A bug crept in, since version 1.47, where creating a new hard drive was limited to 30MB for all types.
+* Selecting a file in a DOS partition of an ADFS/DOS hybrid image would fail to show the file's details.
+* Removed the ability to change the interleave type in the image details dialogue box.
 
 Platform History
 ----------------

@@ -13,7 +13,6 @@ object AboutForm: TAboutForm
   Font.Color = clBlack
   Font.Name = 'Tahoma'
   Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
   object CreditsPanel: TPanel
     Left = 0
     Height = 357
@@ -60,7 +59,7 @@ object AboutForm: TAboutForm
     object lb_Version: TLabel
       Left = 1
       Height = 19
-      Top = 79
+      Top = 92
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -75,7 +74,7 @@ object AboutForm: TAboutForm
     object GHWebsiteLabel: TLabel
       Left = 1
       Height = 19
-      Top = 98
+      Top = 111
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -91,7 +90,7 @@ object AboutForm: TAboutForm
     object GitHubWebsiteLabel: TLabel
       Left = 1
       Height = 19
-      Top = 121
+      Top = 134
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -106,12 +105,12 @@ object AboutForm: TAboutForm
     end
     object LicenceLabel: TLabel
       Left = 1
-      Height = 13
-      Top = 144
+      Height = 26
+      Top = 157
       Width = 518
       Align = alTop
       Alignment = taCenter
-      Caption = 'Distributed under GNU GPL v3 licence'
+      Caption = 'Distributed under GNU GPL v3 licence'#10'DSK Image distributed under Apache2 licence'
       Font.Color = clRed
       Font.Height = -11
       Font.Name = 'Tahoma'
@@ -122,7 +121,7 @@ object AboutForm: TAboutForm
     object AckLabel: TLabel
       Left = 1
       Height = 208
-      Top = 157
+      Top = 183
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -136,7 +135,7 @@ object AboutForm: TAboutForm
     object GraphicsLabel: TLabel
       Left = 1
       Height = 13
-      Top = 66
+      Top = 79
       Width = 518
       Align = alTop
       Alignment = taCenter
@@ -156,7 +155,6 @@ object AboutForm: TAboutForm
       Width = 32
       Anchors = []
       Center = True
-      OnClick = IconImageClick
       Picture.Data = {
         1754506F727461626C654E6574776F726B47726170686963ED08000089504E47
         0D0A1A0A0000000D4948445200000020000000200806000000737A7AF4000000
@@ -234,16 +232,17 @@ object AboutForm: TAboutForm
       }
       Stretch = True
       Transparent = True
+      OnClick = IconImageClick
     end
     object AdditionsByLabel: TLabel
       Left = 1
-      Height = 13
+      Height = 26
       Top = 53
       Width = 518
       Align = alTop
       Alignment = taCenter
       AutoSize = False
-      Caption = 'with additions by Greg Cook'
+      Caption = 'with additions by Greg Cook'#10'DSK Image written by Damien Guard'
       Font.Color = clBlack
       Font.Height = -11
       Font.Name = 'Tahoma'

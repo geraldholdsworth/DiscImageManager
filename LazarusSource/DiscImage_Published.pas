@@ -82,6 +82,7 @@ Free the instance
 -------------------------------------------------------------------------------}
 destructor TDiscImage.Destroy;
 begin
+ if FDSKImage<>nil then FDSKImage.Free;
  Close;
  inherited;
 end;
@@ -1909,7 +1910,7 @@ Convert an interleave into a string
 -------------------------------------------------------------------------------}
 function TDiscImage.GetInterleaveString(Inter: Byte): String;
 begin
- Result:='';
+ Result:='unknown';
  if(FFormat=diAcornADFS<<4+2)
  or(FFormat=diAcornADFS<<4+$E)
  or(GetMajorFormatNumber=diAcornFS)then

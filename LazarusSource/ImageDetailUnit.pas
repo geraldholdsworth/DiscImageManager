@@ -69,6 +69,7 @@ type
   BBCMasterLogo: TImage;
   SystemLabel: TLabel;
   DirectoryLabel: TLabel;
+  UnformattedLabel: TLabel;
   FileLabel: TLabel;
   LegendLabel: TLabel;
   Legend: TPanel;
@@ -76,6 +77,7 @@ type
   colSystem: TShape;
   colDir: TShape;
   colFile: TShape;
+  colUnformatted: TShape;
   btn_OK,
   btn_Cancel: TRISCOSButton;
   procedure FormCreate(Sender: TObject);

@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.48 and TSpark class V1.06
+TDiscImage class V1.49 and TSpark class V1.06
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -24,6 +24,8 @@ A copy of the GNU General Public Licence is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
+
+DSK Image modules written by Damien Guard and covered under the Apache2 licence
 }
 
 {$MODE objFPC}{$H+}
@@ -36,7 +38,8 @@ with different filing systems. This is done to separate the systems and make
 maintenance easier.
 }
 
-uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,ExtCtrls,DateUtils,md5;
+uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,ExtCtrls,DateUtils,md5,
+  DskImage,FileSystem;
 
 {$M+}
 
@@ -143,6 +146,11 @@ type
   diAmigaDir   = $10;
   diAmigaCache = $11;
   diUnknownDir = $FF;
+  diFSMUnformat= $01;
+  diFSMBlank   = $00;
+  diFSMDir     = $FD;
+  diFSMSystem  = $FE;
+  diFSMUsed    = $FF;
 
  //TSpark class definition
  type
@@ -376,6 +384,7 @@ type
   FilesData     : array of TDIByteArray;//All the data for CFS or Spark files
   FProgress     : TProgressProc;//Used for feedback
   SparkFile     : TSpark;       //For reading in Spark archives
+  FDSKImage     : TDSKImage;    //For reading in Sinclair/Amstrad DSK files
   //Disc title for new images
   Fdisctitle,
   Fafsdisctitle,                //AFS has longer titles

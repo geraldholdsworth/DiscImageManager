@@ -17,6 +17,8 @@ A copy of the GNU General Public Licence is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
+
+DSK Image modules written by Damien Guard and covered under the Apache2 licence
 }
 
 {$MODE objFPC}{$H+}

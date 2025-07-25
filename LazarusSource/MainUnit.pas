@@ -25,6 +25,8 @@ A copy of the GNU General Public Licence is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
+
+DSK Image modules written by Damien Guard and covered under the Apache2 licence
 }
 
 {$MODE objFPC}{$H+}
@@ -42,6 +44,7 @@ type
  //Will need to set the OnCreateNodeClass event in the TTreeView
  TMyTreeNode = class(TTreeNode)
   private
+   FPart      : Cardinal;
    FDirRef,
    FParentDir : Integer;
    FIsDir,
@@ -50,13 +53,14 @@ type
    FIsDOSPart : Boolean;
    FParentName: String;
   public
-   property ParentDir: Integer read FParentDir write FParentDir;//Parent directory reference
-   property IsDir    : Boolean read FIsDir     write FIsDir;    //Is it a directory
-   property DirRef   : Integer read FDirRef    write FDirRef;   //Reference into TDiscImage.Disc
-   property BeenRead : Boolean read FBeenRead  write FBeenRead; //Has the directory been read in
-   property Broken   : Boolean read FBroken    write FBroken;   //Is the ADFS directory broken?
-   property IsDOSPart: Boolean read FIsDOSPart write FIsDOSPart;//This is the DOS Partition file
-   property ParentName:String  read FParentName write FParentName;
+   property ParentDir : Integer  read FParentDir  write FParentDir;//Parent directory reference
+   property IsDir     : Boolean  read FIsDir      write FIsDir;    //Is it a directory
+   property DirRef    : Integer  read FDirRef     write FDirRef;   //Reference into TDiscImage.Disc
+   property BeenRead  : Boolean  read FBeenRead   write FBeenRead; //Has the directory been read in
+   property Broken    : Boolean  read FBroken     write FBroken;   //Is the ADFS directory broken?
+   property IsDOSPart : Boolean  read FIsDOSPart  write FIsDOSPart;//This is the DOS Partition file
+   property ParentName: String   read FParentName write FParentName;
+   property Partition : Cardinal read FPart       write FPart;
  end;
 
  //Form definition
@@ -69,6 +73,8 @@ type
    AFSAttrPanel: TPanel;
    DOSAttributeLabel: TLabel;
    DOSAttrPanel: TPanel;
+   SinclairAttributeLabel: TLabel;
+   SinclairAttrPanel: TPanel;
    CancelDragDrop: TAction;
    Help: TMemo;
    menuFixADFS: TMenuItem;
@@ -251,6 +257,9 @@ type
    cb_DOS_read,
    cb_DOS_hidden,
    cb_DOS_archive,
+   cb_Sinclair_system, //Sinclair
+   cb_Sinclair_readonly,
+   cb_Sinclair_archive,
    cb_Amiga_othd, //Amiga
    cb_Amiga_arch,
    cb_Amiga_othe,
@@ -584,7 +593,7 @@ type
     DesignedDPI        = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.48.2';
+    ApplicationVersion = '1.48.3';
     //Current platform and architecture (compile time directive)
     TargetOS = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
@@ -1781,6 +1790,7 @@ begin
  TMyTreeNode(CurrDir).BeenRead :=ImageToUse.Disc[dir].BeenRead;
  TMyTreeNode(CurrDir).Broken   :=ImageToUse.Disc[dir].Broken;
  TMyTreeNode(CurrDir).IsDOSPart:=False;
+ TMyTreeNode(CurrDir).Partition:=ImageToUse.Disc[dir].Partition;
  //Iterate though all the entries
  for entry:=0 to Length(ImageToUse.Disc[dir].Entries)-1 do
  begin
@@ -1933,9 +1943,12 @@ begin
   ImageDetails.Panels[6].Text:=Image.MapTypeString;
   //Directory type (ADFS/AmigaDOS only)
   ImageDetails.Panels[7].Text:=Image.DirectoryTypeString;
+  //Interleave (ADFS/DFS only)
+  ImageDetails.Panels[8].Text:=Image.InterleaveInUse;
  end
  else //Reset all to blank
-  for i:=1 to 7 do ImageDetails.Panels[i].Text:='';
+  for i:=1 to 8 do
+   ImageDetails.Panels[i].Text:='';
  //Update the status bar
  ImageDetails.Repaint;
 end;
@@ -2067,7 +2080,7 @@ begin
    cb_AFS_ownw.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
    cb_AFS_ownr.Top:=cb_AFS_ownw.Top;
    cb_AFS_ownl.Top:=cb_AFS_ownw.Top;
-   cbpos:=AFSAttrPanel.Width div 4; //Equally space them
+   cbpos:=AFSAttrPanel.Width div 3; //Equally space them
    cb_AFS_ownw.Left:=cbpos*0;
    cb_AFS_ownr.Left:=cbpos*1;
    cb_AFS_ownl.Left:=cbpos*2;
@@ -2104,6 +2117,26 @@ begin
    cb_DOS_archive.Left:=cbpos*3;
    //And change the panel height to accomodate
    DOSAttrPanel.Height:=cb_DOS_hidden.Top+cb_DOS_hidden.Height;
+  end;
+  //Sinclair/Amstrad
+  if Image.MajorFormatNumber=diSinclair then
+  begin
+   //Make it visible
+   SinclairAttrPanel.Visible:=True;
+   //Position it below the CRC32 section
+   SinclairAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside
+   SinclairAttributeLabel.Top:=0;
+   SinclairAttributeLabel.Left:=(SinclairAttrPanel.Width-SinclairAttributeLabel.Width)div 2;
+   cb_Sinclair_readonly.Top :=SinclairAttributeLabel.Top+SinclairAttributeLabel.Height;
+   cb_Sinclair_system.Top   :=cb_Sinclair_readonly.Top;
+   cb_Sinclair_archive.Top  :=cb_Sinclair_readonly.Top;
+   cbpos:=SinclairAttrPanel.Width div 3; //Equally space them
+   cb_Sinclair_readonly.Left :=cbpos*0;
+   cb_Sinclair_system.Left   :=cbpos*1;
+   cb_Sinclair_archive.Left  :=cbpos*2;
+   //And change the panel height to accomodate
+   SinclairAttrPanel.Height:=cb_Sinclair_readonly.Top+cb_Sinclair_readonly.Height;
   end;
   //Commodore 64
   if Image.MajorFormatNumber=diCommodore then
@@ -2324,11 +2357,7 @@ begin
   btn_Rename.Enabled    :=True;
   menuRenameFile.Enabled:=True;
   //Enable the create directory button
-  if(Image.MajorFormatNumber=diAcornADFS)
-  OR(Image.MajorFormatNumber=diAmiga)
-  or(Image.MajorFormatNumber=diAcornFS)
-  or(Image.MajorFormatNumber=diSpark)
-  or(Image.MajorFormatNumber=diDOSPlus)then //ADFS, Amiga, Acorn FS, Spark and DOS Plus
+  if Image.DirectoryCapable then //ADFS, Amiga, Acorn FS, Spark and DOS Plus
   begin
    NewDirectory1.Enabled   :=True;
    btn_NewDirectory.Enabled:=True;
@@ -2433,6 +2462,14 @@ begin
      cb_DOS_read.Ticked   :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
      cb_DOS_system.Ticked :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
      cb_DOS_archive.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
+    end;
+    //Sinclair
+    if Image.MajorFormatNumber=diSinclair then
+    begin
+     //Tick/untick them
+     cb_Sinclair_readonly.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Sinclair_system.Ticked  :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Sinclair_archive.Ticked :=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
     end;
     //Commodore 64
     if Image.MajorFormatNumber=diCommodore then
@@ -2571,13 +2608,9 @@ begin
    lb_FileName.Caption:=ReplaceStr(filename,'&','&&');
    //Filetype Image
    ft:=Node.ImageIndex;
-   if (ft=directory) or (ft=directory_o) then
-   begin
-    if filename[1]='!' then //or application
-     ft:=appicon
-    else
-     ft:=directory;
-   end;
+   if Image.MajorFormatNumber=diAcornADFS then
+    if(ft=directory)or(ft=directory_o)then
+     if filename[1]='!' then ft:=appicon;// else ft:=directory;
    //Paint the picture onto it
    R.Top:=0;
    R.Left:=0;
@@ -2671,6 +2704,11 @@ begin
     or(Image.MajorFormatNumber=diAcornRFS)then
      location:='Starting Block 0x'
               +IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
+    //Sinclair - indicates Side, Track and Sector
+    if Image.MajorFormatNumber=diSinclair then
+     location:= 'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side)
+              +' Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)
+              +' Sector '+IntToStr(Image.Disc[dir].Entries[entry].Sector);
    end;
    if dir=-1 then //Root directory
    begin
@@ -2725,7 +2763,7 @@ var
  afspart  : Boolean=False;
  dospart  : Boolean=False;
 begin
- Result:=0;
+ Result:=unknown;
  if AppIsClosing then exit;
  if(not Assigned(ImageToUse))or(ImageToUse=nil)then exit;
  if(not Assigned(ImageToUse.Disc))or(ImageToUse.Disc=nil)then exit;
@@ -3010,7 +3048,8 @@ begin
  ImageDetails.Panels[5].Width   :=Round(100*ratio);
  ImageDetails.Panels[6].Width   :=Round(100*ratio);
  ImageDetails.Panels[7].Width   :=Round(130*ratio);
- ImageDetails.Panels[8].Width   :=Round( 50*ratio);
+ ImageDetails.Panels[8].Width   :=Round(130*ratio);
+ ImageDetails.Panels[9].Width   :=Round( 50*ratio);
  //Directory Listing
  DirList.ImagesWidth            :=Round( 17*ratio);
  //Toolbars
@@ -3070,10 +3109,14 @@ begin
  cb_AFS_pubr:=CreateTickBox('Read',AFSAttrPanel);
  cb_AFS_pubw:=CreateTickBox('Write',AFSAttrPanel);
  //Create the attribute panel tick boxes (DOS)
- cb_DOS_hidden:=CreateTickBox('Hidden',DOSAttrPanel);
- cb_DOS_read:=CreateTickBox('Read',DOSAttrPanel);
- cb_DOS_system:=CreateTickBox('System',DOSAttrPanel);
- cb_DOS_archive:=CreateTickBox('Archive',DOSAttrPanel); 
+ cb_DOS_hidden :=CreateTickBox('Hidden',DOSAttrPanel);
+ cb_DOS_read   :=CreateTickBox('Read',DOSAttrPanel);
+ cb_DOS_system :=CreateTickBox('System',DOSAttrPanel);
+ cb_DOS_archive:=CreateTickBox('Archive',DOSAttrPanel);
+ //Create the attribute panel tick boxes (Sinclair)
+ cb_Sinclair_readonly:=CreateTickBox('Read Only',SinclairAttrPanel);
+ cb_Sinclair_system  :=CreateTickBox('System',SinclairAttrPanel);
+ cb_Sinclair_archive :=CreateTickBox('Archive',SinclairAttrPanel);
  //Create the attribute panel tick boxes (Amiga)
  cb_Amiga_ownw:=CreateTickBox('Write',AmigaAttrPanel);
  cb_Amiga_ownr:=CreateTickBox('Read',AmigaAttrPanel);
@@ -4235,8 +4278,8 @@ begin
     ImageDetailForm.cbInterleave.Items.Add(Image.GetInterleaveString(t));
   ImageDetailForm.lbInterleave.Caption:=Image.InterleaveInUse;
   ImageDetailForm.cbInterleave.ItemIndex:=Image.InterleaveInUseNum-1;
-  ImageDetailForm.InterleavePanel.Visible:=ImageDetailForm.lbInterleave.Caption<>'';
-  if ImageDetailForm.InterleavePanel.Visible then //If this is visible
+  ImageDetailForm.InterleavePanel.Visible:=ImageDetailForm.lbInterleave.Caption<>'unknown';
+{  if ImageDetailForm.InterleavePanel.Visible then //If this is visible
   begin
    if HasChanged then //Make the appropriate control visible
     ImageDetailForm.lbInterleave.Visible:=True
@@ -4244,7 +4287,7 @@ begin
     ImageDetailForm.lbInterleave.Visible:=False;
    //Can't change the interleave if the image has been modified
    ImageDetailForm.cbInterleave.Visible:=not ImageDetailForm.lbInterleave.Visible;
-  end;
+  end;}
   //Arrange the panels
   with ImageDetailForm do
   begin
@@ -4342,25 +4385,26 @@ begin
     img:=TLazIntfImage.Create(0,0,[riqfRGB, riqfAlpha]);
     img.SetSize(FSM[side].Width,FSM[side].Height);
     //Colour in the free space
-    img.FillPixels(ConvertColour(ImageDetailForm.colFree.Brush.Color));
+    img.FillPixels(ConvertColour(ImageDetailForm.colUnformatted.Brush.Color));
     //Now draw all the sectors in tracks
     if Length(Image.FreeSpaceMap[side])>0 then
      for t:=0 to Length(Image.FreeSpaceMap[side])-1 do
       if(t mod skip=0)and(Length(Image.FreeSpaceMap[side,t])>0)then
        for s:=0 to Length(Image.FreeSpaceMap[side,t])-1 do
-        if Image.FreeSpaceMap[side,t,s]>$FC then
-        begin
-         col:=0;
-         //Other colours
-         if Image.FreeSpaceMap[side,t,s]=$FF then
-          col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
-         if Image.FreeSpaceMap[side,t,s]=$FE then
-          col:=ImageDetailForm.colSystem.Brush.Color;    //System
-         if Image.FreeSpaceMap[side,t,s]=$FD then
-          col:=ImageDetailForm.colDir.Brush.Color;       //Directories
-         //Set the colour
-         img.Colors[s,t div skip]:=ConvertColour(col);
-        end;
+       begin
+        col:=ImageDetailForm.colFree.Brush.Color;
+        //Other colours
+        if Image.FreeSpaceMap[side,t,s]=diFSMUnformat then
+         col:=ImageDetailForm.colUnformatted.Brush.Color;      //Unformatted
+        if Image.FreeSpaceMap[side,t,s]=diFSMUsed then
+         col:=ImageDetailForm.colFile.Brush.Color;      //Unknown/Files
+        if Image.FreeSpaceMap[side,t,s]=diFSMSystem then
+         col:=ImageDetailForm.colSystem.Brush.Color;    //System
+        if Image.FreeSpaceMap[side,t,s]=diFSMDir then
+         col:=ImageDetailForm.colDir.Brush.Color;       //Directories
+        //Set the colour
+        img.Colors[s,t div skip]:=ConvertColour(col);
+       end;
     //Copy the graphic to the display
     FSM[side].Picture.PNG.PixelFormat:=pf32bit;
     FSM[side].Picture.PNG.LoadFromIntfImage(img);
@@ -4387,7 +4431,7 @@ begin
     RemoveTopBit(title);
     //Set the edit box
     titles[side].Text:=title;
-    titles[0].Enabled:=not Image.AFSPresent;
+    titles[0].Enabled:=(not Image.AFSPresent)and(Image.MajorFormatNumber<>diSinclair);
     //Limit the length
     if Image.MajorFormatNumber=diAcornDFS  then titles[side].MaxLength:=12; //DFS
     if Image.MajorFormatNumber=diAcornADFS then
@@ -4400,7 +4444,7 @@ begin
     if Image.MajorFormatNumber=diAcornFS   then titles[side].MaxLength:=10; //AFS
     if Image.MajorFormatNumber=diDOSPlus   then titles[side].MaxLength:=11; //DOS
     //Boot Option
-    boots[side].Visible  :=True;
+    boots[side].Visible  :=Image.MajorFormatNumber<>diSinclair;
     if Length(Image.BootOpt)>side then
      boots[side].ItemIndex:=Image.BootOpt[side]
     else
@@ -6439,7 +6483,7 @@ begin
   while Node.Parent<>nil do
   begin
    Node:=Node.Parent;
-   Result:=Node.Text+Image.DirSep+Result;
+   Result:=Node.Text+Image.GetDirSep(TMyTreeNode(Node).Partition)+Result;
   end;
  end;
 end;
@@ -6917,24 +6961,53 @@ begin
  //Blank the Filetype bitmap
  img_FileType.Picture.Bitmap:=nil;
  //Disable the access tick boxes
- ADFSAttrPanel.Visible:=False;
- AFSAttrPanel.Visible :=False;
- DFSAttrPanel.Visible :=False;
- C64AttrPanel.Visible :=False;
- DOSAttrPanel.Visible :=False;
- AmigaAttrPanel.Visible:=False;
+ ADFSAttrPanel.Visible    :=False;
+ AFSAttrPanel.Visible     :=False;
+ DFSAttrPanel.Visible     :=False;
+ C64AttrPanel.Visible     :=False;
+ DOSAttrPanel.Visible     :=False;
+ SinclairAttrPanel.Visible:=False;
+ AmigaAttrPanel.Visible   :=False;
  //And untick them
- cb_ADFS_ownw.Ticked:=False;
- cb_ADFS_ownr.Ticked:=False;
- cb_ADFS_ownl.Ticked:=False;
- cb_ADFS_owne.Ticked:=False;
- cb_ADFS_pubw.Ticked:=False;
- cb_ADFS_pubr.Ticked:=False;
- cb_ADFS_pube.Ticked:=False;
- cb_ADFS_pubp.Ticked:=False;
- cb_DFS_l.Ticked    :=False;
- cb_C64_l.Ticked    :=False;
- cb_C64_c.Ticked    :=False;
+ cb_ADFS_ownw.Ticked        :=False;
+ cb_ADFS_ownr.Ticked        :=False;
+ cb_ADFS_ownl.Ticked        :=False;
+ cb_ADFS_owne.Ticked        :=False;
+ cb_ADFS_pubw.Ticked        :=False;
+ cb_ADFS_pubr.Ticked        :=False;
+ cb_ADFS_pube.Ticked        :=False;
+ cb_ADFS_pubp.Ticked        :=False;
+ cb_DFS_l.Ticked            :=False;
+ cb_C64_l.Ticked            :=False;
+ cb_C64_c.Ticked            :=False;
+ cb_AFS_ownl.Ticked         :=False;
+ cb_AFS_ownr.Ticked         :=False;
+ cb_AFS_ownw.Ticked         :=False;
+ cb_AFS_pubr.Ticked         :=False;
+ cb_AFS_pubw.Ticked         :=False;
+ cb_DOS_system.Ticked       :=False;
+ cb_DOS_read.Ticked         :=False;
+ cb_DOS_hidden.Ticked       :=False;
+ cb_DOS_archive.Ticked      :=False;
+ cb_Sinclair_system.Ticked  :=False;
+ cb_Sinclair_readonly.Ticked:=False;
+ cb_Sinclair_archive.Ticked :=False;
+ cb_Amiga_othd.Ticked       :=False;
+ cb_Amiga_arch.Ticked       :=False;
+ cb_Amiga_othe.Ticked       :=False;
+ cb_Amiga_pure.Ticked       :=False;
+ cb_Amiga_hold.Ticked       :=False;
+ cb_Amiga_scri.Ticked       :=False;
+ cb_Amiga_ownr.Ticked       :=False;
+ cb_Amiga_othr.Ticked       :=False;
+ cb_Amiga_ownw.Ticked       :=False;
+ cb_Amiga_owne.Ticked       :=False;
+ cb_Amiga_ownd.Ticked       :=False;
+ cb_Amiga_othw.Ticked       :=False;
+ cb_Amiga_pubw.Ticked       :=False;
+ cb_Amiga_pubr.Ticked       :=False;
+ cb_Amiga_pubd.Ticked       :=False;
+ cb_Amiga_pube.Ticked       :=False;
  //Allow the OnChange to fire again
  DoNotUpdate         :=False;
  //Hide all the labels
@@ -7019,6 +7092,7 @@ procedure TMainForm.ImageDetailsDrawPanel(StatusBar: TStatusBar;
 var
  png    : Byte=0;
  imgRect: TRect;
+ Ltext  : String='';
 // panwid : Integer;
 begin
  //Set up the rectangle for the image - giving it 2px border
@@ -7072,12 +7146,24 @@ begin
                             Panel.Text,
                             StatusBar.Canvas.TextStyle);
  end;
- if Panel.Index>1 then
+ //Panels 3 to 8
+ if(Panel.Index>1)and(Panel.Index<8)then
   StatusBar.Canvas.TextRect(Rect,
                             Rect.Left+2,
                             Rect.Top+1,
                             Panel.Text,
                             StatusBar.Canvas.TextStyle);
+ //Panel 9 - interleave type. If 'unknown', we want it blank
+ if Panel.Index=8 then
+ begin
+  Ltext:=Panel.Text;
+  if Ltext='unknown' then Ltext:='';
+  StatusBar.Canvas.TextRect(Rect,
+                            Rect.Left+2,
+                            Rect.Top+1,
+                            Ltext,
+                            StatusBar.Canvas.TextStyle);
+ end
 // Panel.Width:=panwid;
 end;
 
