@@ -26,7 +26,7 @@ at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
 
-DSK Image modules written by Damien Guard and covered under the Apache2 licence
+DSK Image modules written by Damien Guard
 }
 
 {$MODE objFPC}{$H+}
@@ -37,7 +37,7 @@ uses
   SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
   ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,Clipbrd,HexDumpUnit,
   FPImage,IntfGraphics,ActnList,GraphType,DateTimePicker,Types,RFSDetailUnit,
-  GJHCustomComponents;
+  GJHCustomComponents,fpjson;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -75,6 +75,8 @@ type
    DOSAttrPanel: TPanel;
    SinclairAttributeLabel: TLabel;
    SinclairAttrPanel: TPanel;
+   ISOAttrPanel: TPanel;
+   ISOAttributeLabel: TLabel;
    CancelDragDrop: TAction;
    Help: TMemo;
    menuFixADFS: TMenuItem;
@@ -260,6 +262,8 @@ type
    cb_Sinclair_system, //Sinclair
    cb_Sinclair_readonly,
    cb_Sinclair_archive,
+   cb_ISO_hidden,
+   cb_ISO_associated,
    cb_Amiga_othd, //Amiga
    cb_Amiga_arch,
    cb_Amiga_othe,
@@ -400,6 +404,7 @@ type
                                      const filetypes: array of String): Integer;
    function GetImageFilename(dir,entry: Integer): String;
    function GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage): Integer;
+   procedure GetJSONString(json: TJSONObject; search: String; var output: String);
    procedure SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
    function GetNodeAt(Y: Integer): TTreeNode;
    function GetTextureTile(Ltile:Integer=-1): TBitmap;
@@ -593,9 +598,9 @@ type
     DesignedDPI        = 96;
     //Application Title
     ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.48.3';
+    ApplicationVersion = '1.49';
     //Current platform and architecture (compile time directive)
-    TargetOS = {$I %FPCTARGETOS%};
+    TargetOS  = {$I %FPCTARGETOS%};
     TargetCPU = {$I %FPCTARGETCPU%};
   end;
 
@@ -636,6 +641,16 @@ begin
 end;
 
 {------------------------------------------------------------------------------}
+//Get a string from a JSON
+{------------------------------------------------------------------------------}
+procedure TMainForm.GetJSONString(json: TJSONObject; search: String;
+                                                            var output: String);
+begin
+ //If the search string is not found, the output variable goes unchanged
+ if json.FindPath(search)<>nil then output:=json.FindPath(search).AsString;
+end;
+
+{------------------------------------------------------------------------------}
 //Add a directory to an image
 {------------------------------------------------------------------------------}
 function TMainForm.AddDirectoryToImage(dirname: String): Boolean;
@@ -648,9 +663,10 @@ var
  dirtitle     : String='';
  disctitle    : String='';
  importname   : String='';
+ temp         : String='';
  F            : TFileStream=nil;
  chr          : Char=' ';
- fields       : array of String=nil;
+ fields       : TJSONObject=nil;//array of String=nil;
  Dir          : TSearchRec;
  Lcurrdir     : Integer=0;
  thisdir      : Integer=0;
@@ -692,39 +708,31 @@ begin
    try
     F:=TFileStream.Create(dirname+'.inf',fmOpenRead OR fmShareDenyNone);
     F.Position:=0;
-    while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
-     inffile:=inffile+chr;
+    ReadLine(F,inffile);
     F.Free;
-    fields:=BreakDownInf(inffile);
+    fields:=TJSONObject.Create;
+    ParseInf(fields,inffile);
     //Then extract the fields
-    if Length(fields)>0 then importname:=fields[0];//Filename
-    if Length(fields)>1 then
-     for Index:=0 to Length(fields)-1 do
-     begin
-      //Get the tagged fields
-      if LeftStr(fields[Index],4)='OPT=' then
-       Image.UpdateBootOption(StrToIntDef(RightStr(fields[Index],2),0)
-                       ,Image.Disc[thisdir].Partition);
-      if LeftStr(fields[Index],9)='DIRTITLE=' then
-       dirtitle:=Copy(fields[Index],10);
-      if LeftStr(fields[Index],6)='TITLE=' then //Can be disc or dir title
-       if importname='$' then //If root, it will be disc title
-        disctitle:=Copy(fields[Index],7)
-       else //Otherwise it will be dir title
-        dirtitle:=Copy(fields[Index],7);
-     end;
-    if Length(fields)>4 then attr:=fields[4];//Attributes
+    GetJSONString(fields,'Filename',importname);
+    temp:='';
+    GetJSONString(fields,'OPT',temp);
+    if not temp.IsEmpty then
+     Image.UpdateBootOption(StrToIntDef(temp,0)
+                           ,Image.Disc[thisdir].Partition);
+    GetJSONString(fields,'DIRTITLE',dirtitle);
+    if importname='$' then
+     GetJSONString(fields,'TITLE',disctitle)
+    else
+     GetJSONString(fields,'TITLE',dirtitle);
+    GetJSONString(fields,'Access',attr);
+    fields.Free;
     //Convert the attributes from hex to letters, if necessary
     attr:=GetAttributes(attr,Image.MajorFormatNumber);
     //Remove any quotes from the titles
-    if Length(dirtitle)>1 then
-     if(dirtitle[1]='"')and(dirtitle[Length(dirtitle)]='"')then
-      dirtitle:=Copy(dirtitle,2,Length(dirtitle)-2);
-    if Length(disctitle)>1 then
-     if(disctitle[1]='"')and(disctitle[Length(disctitle)]='"')then
-      disctitle:=Copy(disctitle,2,Length(disctitle)-2);
+    dirtitle :=dirtitle.DeQuotedString('"');
+    disctitle:=disctitle.DeQuotedString('"');
     //Update the disc title, only on the root
-    if(disctitle<>'')and(importname='$')then
+    if(not disctitle.IsEmpty)and(importname='$')then
      Image.UpdateDiscTitle(LeftStr(disctitle,10)
                        ,Image.Disc[thisdir].Partition);
    except
@@ -771,7 +779,7 @@ begin
     thisdir:=TMyTreeNode(NewNode).DirRef;
    end;
    //Update the directory title
-   if dirtitle<>'' then
+   if not dirtitle.IsEmpty then
     if(thisdir>=0)
     and(thisdir<Length(Image.Disc))then
     begin
@@ -875,7 +883,7 @@ begin
      while(index<Length(SparkFile.FileList))and(ok)do
      begin
       //Update the progress
-      if SparkFile.FileList[index].Parent<>'' then
+      if not SparkFile.FileList[index].Parent.IsEmpty then
        temp:=SparkFile.FileList[index].Parent+Image.DirSep
       else
        temp:='';
@@ -886,7 +894,7 @@ begin
                     +'%)');
       //Select the parent node (if not bypassing the GUI)
       if not bypassGUI then
-       if SparkFile.FileList[Index].Parent<>'' then
+       if not SparkFile.FileList[Index].Parent.IsEmpty then
         SelectNode(ParentDir+Image.DirSep+SparkFile.FileList[Index].Parent)
        else
         SelectNode(ParentDir);
@@ -897,7 +905,7 @@ begin
       //Assign the parent directory (if bypassing the GUI)
       if bypassGUI then
       begin
-       if SparkFile.FileList[index].Parent<>'' then
+       if not SparkFile.FileList[index].Parent.IsEmpty then
         temp:=Image.DirSep+SparkFile.FileList[index].Parent
        else
         temp:='';
@@ -924,7 +932,7 @@ begin
        //Get the data
        buffer:=SparkFile.ExtractFileData(Index);
        //Set up the Dir Entry
-       if SparkFile.FileList[Index].Filename<>'' then //We need a filename
+       if not SparkFile.FileList[Index].Filename.IsEmpty then //We need a filename
        begin
         filedetails.Filename  :=SparkFile.FileList[Index].Filename;
         filedetails.LoadAddr  :=SparkFile.FileList[Index].LoadAddr;
@@ -1011,8 +1019,9 @@ var
   attributes     : String='';
   filetype       : String='';
   p              : String='';
+  temp           : String='';
   timestamp      : TDateTime;
-  fields         : array of String=nil;
+  fields         : TJSONOBject=nil;//array of String=nil;
   chr            : Char=' ';
   F              : TFileStream=nil;
   ok             : Boolean=False;
@@ -1036,12 +1045,12 @@ var
   else
    side:=Image.Disc[Fcurrdir].Partition;
   //Extract the filename
-  if filedetails.Filename='' then
+  if filedetails.Filename.IsEmpty then
    importfilename:=ExtractFileName(filename)
   else
    importfilename:=ExtractFileName(filedetails.Filename);
   //If we still have no filename, make one up
-  if importfilename='' then importfilename:='NewFile';
+  if importfilename.IsEmpty then importfilename:='NewFile';
   //Reject any *.inf files, unless this is DOS
   if(LowerCase(RightStr(importfilename,4))<>'.inf')
   or(Image.MajorFormatNumber=diDOSPlus)then
@@ -1084,7 +1093,7 @@ var
     or(Image.MajorFormatNumber=diAcornRFS)
     or(Image.MajorFormatNumber=diSpark)
     or(Image.MajorFormatNumber=diAcornFS))
-   and(filename<>'')then
+   and(not filename.IsEmpty)then
    begin
     //Is there an inf file?
     if FileExists(filename+'.inf') then
@@ -1094,28 +1103,28 @@ var
      try
       F:=TFileStream.Create(filename+'.inf',fmOpenRead OR fmShareDenyNone);
       F.Position:=0;
-      while (F.Read(chr,1)=1) and (Ord(chr)>31) and (Ord(chr)<127) do
-       inffile:=inffile+chr;
+      ReadLine(F,inffile);
       F.Free;
-      fields:=BreakDownInf(inffile);
+      fields:=TJSONObject.Create;
+      ParseInf(fields,inffile);
       //Then extract the fields
-      if Length(fields)>0 then importfilename:=fields[0];
-      if Length(fields)>1 then loadaddr      :=fields[1];
-      if length(fields)>2 then execaddr      :=fields[2];
-      if Length(fields)>4 then attr1         :=fields[4];
-      //Parse the extra fields
-      if Length(fields)>0 then
-       for Index:=0 to Length(fields)-1 do
-        if LeftStr(fields[Index],9)='DATETIME=' then
-         timestamp:=EncodeDate(StrToIntDef(Copy(fields[Index],10,4),2023),
-                               StrToIntDef(Copy(fields[Index],14,2),4),
-                               StrToIntDef(Copy(fields[Index],16,2),9))
-                   +EncodeTime(StrToIntDef(Copy(fields[Index],18,2),0),
-                               StrToIntDef(Copy(fields[Index],20,2),0),
-                               StrToIntDef(Copy(fields[Index],22,2),0),0);
+      GetJSONString(fields,'Filename',importfilename);
+      GetJSONString(fields,'Load Address',loadaddr);
+      GetJSONString(fields,'Execution Address',execaddr);
+      GetJSONString(fields,'Access',attr1);
+      temp:='';
+      GetJSONString(fields,'DATETIME',temp);
+      timestamp:=EncodeDate(StrToIntDef(Copy(temp,10,4),2023),
+                            StrToIntDef(Copy(temp,14,2),4),
+                            StrToIntDef(Copy(temp,16,2),9))
+                +EncodeTime(StrToIntDef(Copy(temp,18,2),0),
+                            StrToIntDef(Copy(temp,20,2),0),
+                            StrToIntDef(Copy(temp,22,2),0),0);
       //Full time and date overrides the AFS word
-      if(Length(fields)>5)and(timestamp=0)then //If this is not a hex number
-       timestamp:=AFSToDateTime(StrToIntDef('$'+fields[5],0));//0 will be passed
+      temp:='';
+      GetJSONString(fields,'Modification Date',temp);
+      timestamp:=AFSToDateTime(StrToIntDef('$'+temp,0));//0 will be passed}
+      fields.Free;
      except
       //Could not load
      end;
@@ -1124,21 +1133,21 @@ var
    //Initialise the TDirArray
    ResetDirEntry(NewFile);
    //Supplied attributes override anything else
-   if filedetails.Filename<>''   then importfilename:=filedetails.Filename;
-   if filedetails.Attributes<>'' then attr1:=filedetails.Attributes;
+   if not filedetails.Filename.IsEmpty   then importfilename:=filedetails.Filename;
+   if not filedetails.Attributes.IsEmpty then attr1:=filedetails.Attributes;
    if filedetails.LoadAddr  <>0  then loadaddr:=IntToHex(filedetails.LoadAddr,8);
    if filedetails.ExecAddr  <>0  then execaddr:=IntToHex(filedetails.ExecAddr,8);
    if filedetails.TimeStamp <>0  then timestamp:=filedetails.TimeStamp;
    //Decode the attributes
    attributes:=''; //Default
-   if attr1='' then
+   if attr1.IsEmpty then
    begin
     if(Image.MajorFormatNumber=diAcornADFS)
     or(Image.MajorFormatNumber=diSpark)    then attributes:='WR';//Default for ADFS and Spark
     if Image.MajorFormatNumber=diCommodore then attributes:='C' ;//Default for Commodore
    end;
    attributes:=attributes+GetAttributes(attr1,Image.MajorFormatNumber);
-   if importfilename='' then importfilename:='NewFile';
+   if importfilename.IsEmpty then importfilename:='NewFile';
    //Validate the filename (ADFS, AFS, DFS, Spark & CFS only)
    if(Image.MajorFormatNumber=diAcornDFS)
    or(Image.MajorFormatNumber=diAcornADFS)
@@ -1301,7 +1310,7 @@ begin
      begin
       //Prepare the filename, including the parent
       p:=NewFile.Parent;
-      if p<>'' then p:=p+Image.DirSep;
+      if not p.IsEmpty then p:=p+Image.DirSep;
       //Report the error
       ReportError('Error when adding file "'+p+NewFile.Filename
                  +'": '+AddFileErrorToText(-Result));
@@ -1419,17 +1428,11 @@ begin
   //Save all the selected nodes that do not have parents
   for s:=0 to DirList.SelectionCount-1 do
    if DirList.Selections[s].Parent<>nil then
-   begin
-    SetLength(Nodes,Length(Nodes)+1);
-    Nodes[Length(Nodes)-1]:=DirList.Selections[s];
-   end;
+    Insert(DirList.Selections[s],Nodes,Length(Nodes));
   //Make a note of all the selected roots
   for s:=0 to DirList.SelectionCount-1 do
-   if DirList.Selections[s].Parent=nil then
-   begin
-    SetLength(Roots,Length(Roots)+1);
-    Roots[Length(Roots)-1]:=DirList.Selections[s];
-   end;
+   if DirList.Selections[s].Parent=nil then 
+    Insert(DirList.Selections[s],Nodes,Length(Nodes));
   //Now for any root that is selected, select all its children
   if Length(Roots)>0 then
   begin
@@ -1485,7 +1488,7 @@ begin
        if selectroot then //Root was selected
        begin
         //Set the default filename as either the disc title or '$'
-        if Image.Title(Image.Disc[dir].Partition)='' then
+        if Image.Title(Image.Disc[dir].Partition).IsEmpty then
          SaveImage.FileName:=DirList.Items[0].Text
         else
          SaveImage.FileName:=Image.Title(Image.Disc[dir].Partition);
@@ -1564,7 +1567,7 @@ begin
  begin
   //Get the full path and filename
   imagefilename  :=GetImageFilename(dir,entry);
-  if filename='' then //If a filename has not been supplied, generate one
+  if filename.IsEmpty then //If a filename has not been supplied, generate one
    windowsfilename:=Image.GetWindowsFilename(dir,entry)
   else                //Otherwise use the supplied filename
    windowsfilename:=filename;
@@ -1819,7 +1822,7 @@ begin
  SearchForm.ResetSearchFields;
  //Change the application title (what appears on SHIFT+TAB, etc.)
  Caption:=ApplicationTitle;
- if title<>'' then Caption:=Caption+' - '+ExtractFileName(title);
+ if not title.IsEmpty then Caption:=Caption+' - '+ExtractFileName(title);
  //Populate the directory view
  AddImageToTree(DirList,Image);
  //Populate the info box
@@ -1920,7 +1923,7 @@ begin
   ImageDetails.Panels[1].Text:=Image.FormatString;
   //Disc name
   title:=Image.Title(partition);
-  if title='' then title:=' ';
+  if title.IsEmpty then title:=' ';
   RemoveTopBit(title);//Ensure top bit not set
   ImageDetails.Panels[2].Text:=title;
   if(lb_title.Visible)and(DirTitleLabel.Caption='Disc Title')then
@@ -1969,6 +1972,10 @@ var
   if c.Visible then inc(cbpos);
   c.Height :=l.Top+l.Height;
   c.Top    :=p.Top+p.Height;
+ end;
+ function EquallySpace(num: Byte): Integer;
+ begin
+  Result:=FileInfoPanel.Width div num;
  end;
 begin
  WriteToDebug('MainForm.ArrangeFileDetails');
@@ -2023,13 +2030,14 @@ begin
    DFSAttributeLabel.Top:=0;
    DFSAttributeLabel.Left:=(DFSAttrPanel.Width-DFSAttributeLabel.Width)div 2;
    cb_DFS_l.Top:=DFSAttributeLabel.Top+DFSAttributeLabel.Height;
-   cb_DFS_l.Left:=(DFSAttrPanel.Width-cb_DFS_l.Width)div 2;
+   cb_DFS_l.Left:=(FileInfoPanel.Width-cb_DFS_l.Width)div 2;
    //And change the panel height to accomodate
    DFSAttrPanel.Height:=cb_DFS_l.Top+cb_DFS_l.Height;
   end;
   //ADFS and SparkFS
   if((Image.MajorFormatNumber=diAcornADFS)
-  or(Image.MajorFormatNumber=diSpark))
+  or (Image.MajorFormatNumber=diSpark)
+  or (Image.ISOFormatNumber=diAcornADFS))
   and(not afs)and(not dos)then
   begin
    //Make it visible
@@ -2043,7 +2051,7 @@ begin
    cb_ADFS_ownr.Top:=cb_ADFS_ownw.Top;
    cb_ADFS_ownl.Top:=cb_ADFS_ownw.Top;
    cb_ADFS_owne.Top:=cb_ADFS_ownw.Top;
-   cbpos:=ADFSAttrPanel.Width div 4; //Equally space them
+   cbpos:=EquallySpace(4); //Equally space them
    cb_ADFS_ownw.Left:=cbpos*0;
    cb_ADFS_ownr.Left:=cbpos*1;
    cb_ADFS_ownl.Left:=cbpos*2;
@@ -2062,9 +2070,12 @@ begin
    //And change the panel height to accomodate
    ADFSAttrPanel.Height:=cb_ADFS_pubw.Top+cb_ADFS_pubw.Height;
    //Show/hide those not applicable for new/old directories
-   cb_ADFS_owne.Visible:=Image.MinorFormatNumber<3;
-   cb_ADFS_pube.Visible:=cb_ADFS_owne.Visible;
-   cb_ADFS_pubp.Visible:=cb_ADFS_owne.Visible;
+   if Image.MajorFormatNumber<>diISO then
+   begin
+    cb_ADFS_owne.Visible:=Image.MinorFormatNumber<3;
+    cb_ADFS_pube.Visible:=cb_ADFS_owne.Visible;
+    cb_ADFS_pubp.Visible:=cb_ADFS_owne.Visible;
+   end;
   end;
   //Acorn FS
   if(Image.MajorFormatNumber=diAcornFS)
@@ -2080,7 +2091,7 @@ begin
    cb_AFS_ownw.Top:=AFSOAAttributeLabel.Top+AFSOAAttributeLabel.Height;
    cb_AFS_ownr.Top:=cb_AFS_ownw.Top;
    cb_AFS_ownl.Top:=cb_AFS_ownw.Top;
-   cbpos:=AFSAttrPanel.Width div 3; //Equally space them
+   cbpos:=EquallySpace(3); //Equally space them
    cb_AFS_ownw.Left:=cbpos*0;
    cb_AFS_ownr.Left:=cbpos*1;
    cb_AFS_ownl.Left:=cbpos*2;
@@ -2089,7 +2100,7 @@ begin
    AFSPubAttributeLabel.Left:=(AFSAttrPanel.Width-AFSPubAttributeLabel.Width)div 2;
    cb_AFS_pubw.Top:=AFSPubAttributeLabel.Top+AFSPubAttributeLabel.Height;
    cb_AFS_pubr.Top:=cb_AFS_pubw.Top;
-   cbpos:=AFSAttrPanel.Width div 2; //Equally space them
+   cbpos:=EquallySpace(2); //Equally space them
    cb_AFS_pubw.Left:=cbpos*0;
    cb_AFS_pubr.Left:=cbpos*1;
    //And change the panel height to accomodate
@@ -2110,7 +2121,7 @@ begin
    cb_DOS_read.Top   :=cb_DOS_hidden.Top;
    cb_DOS_system.Top :=cb_DOS_hidden.Top;
    cb_DOS_archive.Top:=cb_DOS_hidden.Top;
-   cbpos:=DOSAttrPanel.Width div 4; //Equally space them
+   cbpos:=EquallySpace(4); //Equally space them
    cb_DOS_hidden.Left :=cbpos*0;
    cb_DOS_read.Left   :=cbpos*1;
    cb_DOS_system.Left :=cbpos*2;
@@ -2131,7 +2142,7 @@ begin
    cb_Sinclair_readonly.Top :=SinclairAttributeLabel.Top+SinclairAttributeLabel.Height;
    cb_Sinclair_system.Top   :=cb_Sinclair_readonly.Top;
    cb_Sinclair_archive.Top  :=cb_Sinclair_readonly.Top;
-   cbpos:=SinclairAttrPanel.Width div 3; //Equally space them
+   cbpos:=EquallySpace(3); //Equally space them
    cb_Sinclair_readonly.Left :=cbpos*0;
    cb_Sinclair_system.Left   :=cbpos*1;
    cb_Sinclair_archive.Left  :=cbpos*2;
@@ -2151,14 +2162,15 @@ begin
    cb_C64_c.Top:=C64AttributeLabel.Top+C64AttributeLabel.Height;
    cb_C64_l.Top:=cb_C64_c.Top;
    //Equally space the boxes
-   cbpos:=C64AttrPanel.Width div 2;
+   cbpos:=EquallySpace(2);
    cb_C64_c.Left:=cbpos*0;
    cb_C64_l.Left:=cbpos*1;
    //And change the panel height to accomodate
    C64AttrPanel.Height:=cb_C64_l.Top+cb_C64_l.Height;
   end;
   //Commodore Amiga
-  if Image.MajorFormatNumber=diAmiga then
+  if(Image.MajorFormatNumber=diAmiga)
+  or(Image.ISOFormatNumber=diAmiga)then
   begin
    //Make it visible
    AmigaAttrPanel.Visible:=True;
@@ -2171,7 +2183,7 @@ begin
    cb_Amiga_owne.Top:=cb_Amiga_ownd.Top;
    cb_Amiga_ownw.Top:=cb_Amiga_ownd.Top;
    cb_Amiga_ownr.Top:=cb_Amiga_ownd.Top;
-   cbpos:=AmigaAttrPanel.Width div 4; //Equally space them
+   cbpos:=EquallySpace(4); //Equally space them
    cb_Amiga_ownd.Left:=cbpos*0;
    cb_Amiga_owne.Left:=cbpos*1;
    cb_Amiga_ownw.Left:=cbpos*2;
@@ -2183,7 +2195,7 @@ begin
    cb_Amiga_pube.Top:=cb_Amiga_pubd.Top;
    cb_Amiga_pubw.Top:=cb_Amiga_pubd.Top;
    cb_Amiga_pubr.Top:=cb_Amiga_pubd.Top;
-   cbpos:=AmigaAttrPanel.Width div 4; //Equally space them
+   cbpos:=EquallySpace(4); //Equally space them
    cb_Amiga_pubd.Left:=cbpos*0;
    cb_Amiga_pube.Left:=cbpos*1;
    cb_Amiga_pubw.Left:=cbpos*2;
@@ -2195,7 +2207,7 @@ begin
    cb_Amiga_othe.Top:=cb_Amiga_othd.Top;
    cb_Amiga_othw.Top:=cb_Amiga_othd.Top;
    cb_Amiga_othr.Top:=cb_Amiga_othd.Top;
-   cbpos:=AmigaAttrPanel.Width div 4; //Equally space them
+   cbpos:=EquallySpace(4); //Equally space them
    cb_Amiga_othd.Left:=cbpos*0;
    cb_Amiga_othe.Left:=cbpos*1;
    cb_Amiga_othw.Left:=cbpos*2;
@@ -2207,13 +2219,36 @@ begin
    cb_Amiga_scri.Top:=cb_Amiga_hold.Top;
    cb_Amiga_pure.Top:=cb_Amiga_hold.Top;
    cb_Amiga_arch.Top:=cb_Amiga_hold.Top;
-   cbpos:=AmigaAttrPanel.Width div 4; //Equally space them
+   cbpos:=EquallySpace(4); //Equally space them
    cb_Amiga_hold.Left:=cbpos*0;
    cb_Amiga_scri.Left:=cbpos*1;
    cb_Amiga_pure.Left:=cbpos*2;
    cb_Amiga_arch.Left:=cbpos*3;
    //And change the panel height to accomodate
    AmigaAttrPanel.Height:=cb_Amiga_hold.Top+cb_Amiga_hold.Height;
+  end;
+  //ISO
+  if Image.MajorFormatNumber=diISO then
+  begin
+   //Make it visible
+   ISOAttrPanel.Visible:=True;
+   //Position it below the CRC32 section, or one of the others already showing
+   if ADFSAttrPanel.Visible then
+    ISOAttrPanel.Top:=ADFSAttrPanel.Top+ADFSAttrPanel.Height;
+   if AmigaAttrPanel.Visible then
+    ISOAttrPanel.Top:=AmigaAttrPanel.Top+AmigaAttrPanel.Height;
+   if(not ADFSAttrPanel.Visible)and(not AmigaAttrPanel.Visible)then
+    ISOAttrPanel.Top:=CRC32Panel.Top+CRC32Panel.Height;
+   //Position the ticks box inside
+   ISOAttributeLabel.Top:=0;
+   ISOAttributeLabel.Left:=(ISOAttrPanel.Width-ISOAttributeLabel.Width)div 2;
+   cb_ISO_hidden.Top    :=ISOAttributeLabel.Top+ISOAttributeLabel.Height;
+   cb_ISO_associated.Top:=cb_ISO_hidden.Top;
+   cbpos:=EquallySpace(2); //Equally space them
+   cb_ISO_hidden.Left    :=cbpos*0;
+   cb_ISO_associated.Left:=cbpos*1;
+   //And change the panel height to accomodate
+   ISOAttrPanel.Height:=cb_ISO_hidden.Top+cb_ISO_hidden.Height;
   end;
  end;
  FileInfoPanel.Repaint;
@@ -2419,26 +2454,31 @@ begin
     filename:=Image.Disc[dir].Entries[entry].Filename;
     //Attributes
     DoNotUpdate   :=True; //Make sure the event doesn't fire
+    //Copy the attribute string to a temporary store
+    temp:=Image.Disc[dir].Entries[entry].Attributes;
+    //First three characters are ISO specific, on ISO format
+    if Image.MajorFormatNumber=diISO then temp:=Copy(temp,4);
     //DFS and UEF
     if(Image.MajorFormatNumber=diAcornDFS)
     or(Image.MajorFormatNumber=diAcornUEF)
     or(Image.MajorFormatNumber=diAcornRFS)then
      //Tick/untick it
-     cb_DFS_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-    //ADFS and SparkFS
+     cb_DFS_l.Ticked            :=Pos('L',temp)>0;
+    //ADFS, SparkFS and ISO
     if((Image.MajorFormatNumber=diAcornADFS)
-    or(Image.MajorFormatNumber=diSpark))
+    or (Image.MajorFormatNumber=diSpark)
+    or (Image.ISOFormatNumber=diAcornADFS))
     and(not afspart)and(not dospart)then
     begin
      //Tick/untick them
-     cb_ADFS_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_ADFS_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_ADFS_ownl.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_ADFS_owne.Ticked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_ADFS_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_ADFS_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_ADFS_pube.Ticked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_ADFS_pubp.Ticked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_ADFS_ownw.Ticked        :=Pos('W',temp)>0;
+     cb_ADFS_ownr.Ticked        :=Pos('R',temp)>0;
+     cb_ADFS_ownl.Ticked        :=Pos('L',temp)>0;
+     cb_ADFS_owne.Ticked        :=Pos('E',temp)>0;
+     cb_ADFS_pubw.Ticked        :=Pos('w',temp)>0;
+     cb_ADFS_pubr.Ticked        :=Pos('r',temp)>0;
+     cb_ADFS_pube.Ticked        :=Pos('e',temp)>0;
+     cb_ADFS_pubp.Ticked        :=Pos('P',temp)>0;
     end;
     //Acorn FS
     if(Image.MajorFormatNumber=diAcornFS)
@@ -2446,11 +2486,11 @@ begin
     and(afspart))then
     begin
      //Tick/untick them
-     cb_AFS_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_AFS_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_AFS_ownl.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_AFS_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_AFS_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_AFS_ownw.Ticked         :=Pos('W',temp)>0;
+     cb_AFS_ownr.Ticked         :=Pos('R',temp)>0;
+     cb_AFS_ownl.Ticked         :=Pos('L',temp)>0;
+     cb_AFS_pubw.Ticked         :=Pos('w',temp)>0;
+     cb_AFS_pubr.Ticked         :=Pos('r',temp)>0;
     end;
     //DOS Plus
     if(Image.MajorFormatNumber=diDOSPlus)
@@ -2458,46 +2498,55 @@ begin
     and(dospart))then
     begin
      //Tick/untick them
-     cb_DOS_hidden.Ticked :=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_DOS_read.Ticked   :=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_DOS_system.Ticked :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_DOS_archive.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_DOS_hidden.Ticked       :=Pos('H',temp)>0;
+     cb_DOS_read.Ticked         :=Pos('R',temp)>0;
+     cb_DOS_system.Ticked       :=Pos('S',temp)>0;
+     cb_DOS_archive.Ticked      :=Pos('A',temp)>0;
     end;
     //Sinclair
     if Image.MajorFormatNumber=diSinclair then
     begin
      //Tick/untick them
-     cb_Sinclair_readonly.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Sinclair_system.Ticked  :=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Sinclair_archive.Ticked :=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Sinclair_readonly.Ticked:=Pos('R',temp)>0;
+     cb_Sinclair_system.Ticked  :=Pos('S',temp)>0;
+     cb_Sinclair_archive.Ticked :=Pos('A',temp)>0;
     end;
     //Commodore 64
     if Image.MajorFormatNumber=diCommodore then
     begin
      //Tick/untick them
-     cb_C64_l.Ticked:=Pos('L',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_C64_c.Ticked:=Pos('C',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_C64_l.Ticked            :=Pos('L',temp)>0;
+     cb_C64_c.Ticked            :=Pos('C',temp)>0;
     end;
     //Amiga
-    if Image.MajorFormatNumber=diAmiga then
+    if(Image.MajorFormatNumber=diAmiga)
+    or(Image.ISOFormatNumber=diAmiga)then
     begin
      //Tick/untick them
-     cb_Amiga_ownw.Ticked:=Pos('W',Image.Disc[dir].Entries[entry].Attributes)=0;
-     cb_Amiga_ownr.Ticked:=Pos('R',Image.Disc[dir].Entries[entry].Attributes)=0;
-     cb_Amiga_ownd.Ticked:=Pos('D',Image.Disc[dir].Entries[entry].Attributes)=0;
-     cb_Amiga_owne.Ticked:=Pos('E',Image.Disc[dir].Entries[entry].Attributes)=0;
-     cb_Amiga_pubw.Ticked:=Pos('w',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_pubr.Ticked:=Pos('r',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_pubd.Ticked:=Pos('d',Image.Disc[dir].Entries[entry].Attributes)=0;
-     cb_Amiga_pube.Ticked:=Pos('e',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_othw.Ticked:=Pos('i',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_othr.Ticked:=Pos('a',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_othd.Ticked:=Pos('l',Image.Disc[dir].Entries[entry].Attributes)=0;
-     cb_Amiga_othe.Ticked:=Pos('x',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_arch.Ticked:=Pos('A',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_pure.Ticked:=Pos('P',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_scri.Ticked:=Pos('S',Image.Disc[dir].Entries[entry].Attributes)>0;
-     cb_Amiga_hold.Ticked:=Pos('H',Image.Disc[dir].Entries[entry].Attributes)>0;
+     cb_Amiga_ownw.Ticked       :=Pos('W',temp)=0;
+     cb_Amiga_ownr.Ticked       :=Pos('R',temp)=0;
+     cb_Amiga_ownd.Ticked       :=Pos('D',temp)=0;
+     cb_Amiga_owne.Ticked       :=Pos('E',temp)=0;
+     cb_Amiga_pubw.Ticked       :=Pos('w',temp)>0;
+     cb_Amiga_pubr.Ticked       :=Pos('r',temp)>0;
+     cb_Amiga_pubd.Ticked       :=Pos('d',temp)=0;
+     cb_Amiga_pube.Ticked       :=Pos('e',temp)>0;
+     cb_Amiga_othw.Ticked       :=Pos('i',temp)>0;
+     cb_Amiga_othr.Ticked       :=Pos('a',temp)>0;
+     cb_Amiga_othd.Ticked       :=Pos('l',temp)=0;
+     cb_Amiga_othe.Ticked       :=Pos('x',temp)>0;
+     cb_Amiga_arch.Ticked       :=Pos('A',temp)>0;
+     cb_Amiga_pure.Ticked       :=Pos('P',temp)>0;
+     cb_Amiga_scri.Ticked       :=Pos('S',temp)>0;
+     cb_Amiga_hold.Ticked       :=Pos('H',temp)>0;
+    end;
+    //ISO
+    if Image.MajorFormatNumber=diISO then
+    begin
+     temp:=LeftStr(Image.Disc[dir].Entries[entry].Attributes,3);
+     //Tick/untick them
+     cb_ISO_hidden.Ticked       :=Pos('H',temp)>0;
+     cb_ISO_associated.Ticked   :=Pos('A',temp)>0;
     end;
     DoNotUpdate   :=False;  //Re-enable the event firing
     //Filetype
@@ -2523,7 +2572,7 @@ begin
     //Determine if it is a Directory or an ADFS Application
     if dir>=0 then
     begin
-     if filename='' then
+     if filename.IsEmpty then
       filename:=Image.Disc[dir].Directory;
      //Pick up from the Node if it is an application or not
      if(Node.ImageIndex=appicon)
@@ -2554,7 +2603,7 @@ begin
       //Title of the subdirectory
       title:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Title;
       RemoveTopBit(title);
-      if title='' then title:=' ';
+      if Image.MajorFormatNumber<>diISO then if title.IsEmpty then title:=' ';
       DirTitleLabel.Caption:='Directory Title';
       lb_title.Caption:=title;
       ed_title.Enabled:=True; //Can be edited
@@ -2566,7 +2615,7 @@ begin
      filetype:='Root Directory';
      title:=Image.Disc[dr].Title;
      RemoveTopBit(title);
-     if title='' then title:=' ';
+     if Image.MajorFormatNumber<>diISO then if title.IsEmpty then title:=' ';
      if Image.MajorFormatNumber=diAcornADFS then
       DirTitleLabel.Caption:='Directory Title'
      else
@@ -2604,11 +2653,12 @@ begin
    end;
    //Filename
    RemoveTopBit(filename);
-   if filename='' then filename:='unnamed';
+   if filename.IsEmpty then filename:='unnamed';
    lb_FileName.Caption:=ReplaceStr(filename,'&','&&');
    //Filetype Image
    ft:=Node.ImageIndex;
-   if Image.MajorFormatNumber=diAcornADFS then
+   if(Image.MajorFormatNumber=diAcornADFS)
+   or(Image.ISOFormatNumber=diAcornADFS)then
     if(ft=directory)or(ft=directory_o)then
      if filename[1]='!' then ft:=appicon;// else ft:=directory;
    //Paint the picture onto it
@@ -2627,7 +2677,8 @@ begin
    or(Image.MajorFormatNumber=diAmiga)     //AmigaDOS
    or(Image.MajorFormatNumber=diSpark)     //Spark
    or(Image.MajorFormatNumber=diAcornFS)   //Acorn FS
-   or(Image.MajorFormatNumber=diDOSPlus)then//DOS Plus
+   or(Image.MajorFormatNumber=diDOSPlus)   //DOS Plya
+   or(Image.ISOFormatNumber=diAcornADFS)then//ISO (ADFS)
     lb_FileType.Caption:=filetype;
    location:=''; //Default location string
    if dir>=0 then
@@ -2649,7 +2700,8 @@ begin
     or  (Image.MajorFormatNumber=diSpark)
     or  (Image.MajorFormatNumber=diAcornFS)
     or  (Image.MajorFormatNumber=diAmiga)
-    or  (Image.MajorFormatNumber=diDOSPlus))then
+    or  (Image.MajorFormatNumber=diDOSPlus)
+    or  (Image.MajorFormatNumber=diISO))then
      lb_timestamp.Caption:=FormatDateTime(TimeDateFormat,
                                         Image.Disc[dir].Entries[entry].TimeStamp);
     if(Image.Disc[dir].Entries[entry].TimeStamp=0)
@@ -2691,7 +2743,7 @@ begin
     //Commodore formats - Sector and Track
     if Image.MajorFormatNumber=diCommodore then
      location:='Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)+' ';
-    //All other formats - Sector
+    //DFS and Amiga - Sector
     if(Image.MajorFormatNumber=diAcornDFS)
     or(Image.MajorFormatNumber=diAmiga) then
      location:=location+'Sector '
@@ -2709,6 +2761,9 @@ begin
      location:= 'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side)
               +' Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)
               +' Sector '+IntToStr(Image.Disc[dir].Entries[entry].Sector);
+    //ISO - Block number
+    if Image.MajorFormatNumber=diISO then
+     location:='Block 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
    end;
    if dir=-1 then //Root directory
    begin
@@ -2798,7 +2853,8 @@ begin
    //Are we ADFS, SparkFS, AFS or DOS?
    if((ImageToUse.MajorFormatNumber=diAcornADFS)
     or(ImageToUse.MajorFormatNumber=diSpark)
-    or(ImageToUse.MajorFormatNumber=diAcornFS))
+    or(ImageToUse.MajorFormatNumber=diAcornFS)
+    or(ImageToUse.ISOFormatNumber=diAcornADFS))
    and(Length(ImageToUse.Disc)>0)and(not dospart)then
    begin
     //Default
@@ -2851,9 +2907,11 @@ begin
    //If RISC OS, and an application
    if(not dospart)and(not afspart)then
     if(ImageToUse.MajorFormatNumber=diAcornADFS)
-    or(ImageToUse.MajorFormatNumber=diSpark)then //ADFS and Spark only
+    or(ImageToUse.MajorFormatNumber=diSpark)
+    or(ImageToUse.ISOFormatNumber=diAcornADFS)then //ADFS, Spark and ISO only
      if(ImageToUse.DirectoryType=diADFSNewDir)
-     OR(ImageToUse.DirectoryType=diADFSBigDir)then //New or Big
+     OR(ImageToUse.DirectoryType=diADFSBigDir)
+     or(ImageToUse.MajorFormatNumber=diISO)then //New or Big (or ISO)
       if Node.Text[1]='!' then
       begin
        ft:=appicon; //Default icon for application
@@ -2951,7 +3009,7 @@ begin
  NameBeforeEdit           :='';
  //Reset the delay timer
  progsleep                :=False;
- if Image.Filename<>'' then ShowNewImage(Image.Filename);
+ if not Image.Filename.IsEmpty then ShowNewImage(Image.Filename);
  //Create the dialogue boxes
  CreateFileTypeDialogue;
  //Create the copy and paste shortcuts
@@ -3089,51 +3147,54 @@ begin
  //Default Toolbar
  ToolBarContainer.ActivePage:=ImageToolBarPage;
  //Create the attribute panel tick boxes (ADFS)
- cb_ADFS_ownw:=CreateTickBox('Write',ADFSAttrPanel);
- cb_ADFS_ownr:=CreateTickBox('Read',ADFSAttrPanel);
- cb_ADFS_ownl:=CreateTickBox('Locked',ADFSAttrPanel);
- cb_ADFS_owne:=CreateTickBox('Execute',ADFSAttrPanel);
- cb_ADFS_pubw:=CreateTickBox('Write',ADFSAttrPanel);
- cb_ADFS_pubr:=CreateTickBox('Read',ADFSAttrPanel);
- cb_ADFS_pubp:=CreateTickBox('Private',ADFSAttrPanel);
- cb_ADFS_pube:=CreateTickBox('Execute',ADFSAttrPanel);
+ cb_ADFS_ownw        :=CreateTickBox('Write'     ,ADFSAttrPanel);
+ cb_ADFS_ownr        :=CreateTickBox('Read'      ,ADFSAttrPanel);
+ cb_ADFS_ownl        :=CreateTickBox('Locked'    ,ADFSAttrPanel);
+ cb_ADFS_owne        :=CreateTickBox('Execute'   ,ADFSAttrPanel);
+ cb_ADFS_pubw        :=CreateTickBox('Write'     ,ADFSAttrPanel);
+ cb_ADFS_pubr        :=CreateTickBox('Read'      ,ADFSAttrPanel);
+ cb_ADFS_pubp        :=CreateTickBox('Private'   ,ADFSAttrPanel);
+ cb_ADFS_pube        :=CreateTickBox('Execute'   ,ADFSAttrPanel);
  //Create the attribute panel tick boxes (DFS)
- cb_DFS_l:=CreateTickBox('Locked',DFSAttrPanel);
+ cb_DFS_l            :=CreateTickBox('Locked'    ,DFSAttrPanel);
  //Create the attribute panel tick boxes (C64)
- cb_C64_c:=CreateTickBox('Closed',C64AttrPanel);
- cb_C64_l:=CreateTickBox('Locked',C64AttrPanel);
+ cb_C64_c            :=CreateTickBox('Closed'    ,C64AttrPanel);
+ cb_C64_l            :=CreateTickBox('Locked'    ,C64AttrPanel);
  //Create the attribute panel tick boxes (AFS)
- cb_AFS_ownw:=CreateTickBox('Write',AFSAttrPanel);
- cb_AFS_ownr:=CreateTickBox('Read',AFSAttrPanel);
- cb_AFS_ownl:=CreateTickBox('Locked',AFSAttrPanel);
- cb_AFS_pubr:=CreateTickBox('Read',AFSAttrPanel);
- cb_AFS_pubw:=CreateTickBox('Write',AFSAttrPanel);
+ cb_AFS_ownw         :=CreateTickBox('Write'     ,AFSAttrPanel);
+ cb_AFS_ownr         :=CreateTickBox('Read'      ,AFSAttrPanel);
+ cb_AFS_ownl         :=CreateTickBox('Locked'    ,AFSAttrPanel);
+ cb_AFS_pubr         :=CreateTickBox('Read'      ,AFSAttrPanel);
+ cb_AFS_pubw         :=CreateTickBox('Write'     ,AFSAttrPanel);
  //Create the attribute panel tick boxes (DOS)
- cb_DOS_hidden :=CreateTickBox('Hidden',DOSAttrPanel);
- cb_DOS_read   :=CreateTickBox('Read',DOSAttrPanel);
- cb_DOS_system :=CreateTickBox('System',DOSAttrPanel);
- cb_DOS_archive:=CreateTickBox('Archive',DOSAttrPanel);
+ cb_DOS_hidden       :=CreateTickBox('Hidden'    ,DOSAttrPanel);
+ cb_DOS_read         :=CreateTickBox('Read'      ,DOSAttrPanel);
+ cb_DOS_system       :=CreateTickBox('System'    ,DOSAttrPanel);
+ cb_DOS_archive      :=CreateTickBox('Archive'   ,DOSAttrPanel);
  //Create the attribute panel tick boxes (Sinclair)
- cb_Sinclair_readonly:=CreateTickBox('Read Only',SinclairAttrPanel);
- cb_Sinclair_system  :=CreateTickBox('System',SinclairAttrPanel);
- cb_Sinclair_archive :=CreateTickBox('Archive',SinclairAttrPanel);
+ cb_Sinclair_readonly:=CreateTickBox('Read Only' ,SinclairAttrPanel);
+ cb_Sinclair_system  :=CreateTickBox('System'    ,SinclairAttrPanel);
+ cb_Sinclair_archive :=CreateTickBox('Archive'   ,SinclairAttrPanel);
  //Create the attribute panel tick boxes (Amiga)
- cb_Amiga_ownw:=CreateTickBox('Write',AmigaAttrPanel);
- cb_Amiga_ownr:=CreateTickBox('Read',AmigaAttrPanel);
- cb_Amiga_ownd:=CreateTickBox('Delete',AmigaAttrPanel);
- cb_Amiga_owne:=CreateTickBox('Execute',AmigaAttrPanel);
- cb_Amiga_pubw:=CreateTickBox('Write',AmigaAttrPanel);
- cb_Amiga_pubr:=CreateTickBox('Read',AmigaAttrPanel);
- cb_Amiga_pubd:=CreateTickBox('Delete',AmigaAttrPanel);
- cb_Amiga_pube:=CreateTickBox('Execute',AmigaAttrPanel);
- cb_Amiga_othw:=CreateTickBox('Write',AmigaAttrPanel);
- cb_Amiga_othr:=CreateTickBox('Read',AmigaAttrPanel);
- cb_Amiga_othd:=CreateTickBox('Delete',AmigaAttrPanel);
- cb_Amiga_othe:=CreateTickBox('Execute',AmigaAttrPanel);
- cb_Amiga_hold:=CreateTickBox('Hold',AmigaAttrPanel);
- cb_Amiga_scri:=CreateTickBox('Script',AmigaAttrPanel);
- cb_Amiga_pure:=CreateTickBox('Pure',AmigaAttrPanel);
- cb_Amiga_arch:=CreateTickBox('Archived',AmigaAttrPanel);
+ cb_Amiga_ownw       :=CreateTickBox('Write'     ,AmigaAttrPanel);
+ cb_Amiga_ownr       :=CreateTickBox('Read'      ,AmigaAttrPanel);
+ cb_Amiga_ownd       :=CreateTickBox('Delete'    ,AmigaAttrPanel);
+ cb_Amiga_owne       :=CreateTickBox('Execute'   ,AmigaAttrPanel);
+ cb_Amiga_pubw       :=CreateTickBox('Write'     ,AmigaAttrPanel);
+ cb_Amiga_pubr       :=CreateTickBox('Read'      ,AmigaAttrPanel);
+ cb_Amiga_pubd       :=CreateTickBox('Delete'    ,AmigaAttrPanel);
+ cb_Amiga_pube       :=CreateTickBox('Execute'   ,AmigaAttrPanel);
+ cb_Amiga_othw       :=CreateTickBox('Write'     ,AmigaAttrPanel);
+ cb_Amiga_othr       :=CreateTickBox('Read'      ,AmigaAttrPanel);
+ cb_Amiga_othd       :=CreateTickBox('Delete'    ,AmigaAttrPanel);
+ cb_Amiga_othe       :=CreateTickBox('Execute'   ,AmigaAttrPanel);
+ cb_Amiga_hold       :=CreateTickBox('Hold'      ,AmigaAttrPanel);
+ cb_Amiga_scri       :=CreateTickBox('Script'    ,AmigaAttrPanel);
+ cb_Amiga_pure       :=CreateTickBox('Pure'      ,AmigaAttrPanel);
+ cb_Amiga_arch       :=CreateTickBox('Archived'  ,AmigaAttrPanel);
+ //Create the attribute panel tick boxes (ISO)
+ cb_ISO_hidden       :=CreateTickBox('Hidden'    ,ISOAttrPanel);
+ cb_ISO_associated   :=CreateTickBox('Associated',ISOAttrPanel);
  //Platform Details
  platform:='OS?';
  arch:='CPU?';
@@ -3380,10 +3441,7 @@ begin
  for FileName in FileNames do
   if(LowerCase(RightStr(FileName,4))<>'.inf')
   or(Image.MajorFormatNumber=diDOSPlus)then
-  begin
-   SetLength(ListOfFile,Length(ListOfFile)+1);
-   ListOfFile[Length(ListOfFile)-1]:=FileName;
-  end;
+   Insert(FileName,ListOfFile,Length(ListOfFile));
  //And then iterate through them and add them
  for FileName in ListOfFile do
  begin
@@ -3404,7 +3462,7 @@ begin
      fmt:=NewImage.FormatString;
     end;
     //Is there something loaded?
-    if Image.Filename<>'' then open:=open OR $02; //Something is open
+    if not Image.Filename.IsEmpty then open:=open OR $02; //Something is open
     if((NewImage.FormatNumber=diAcornDFS<<4+0)
     or (NewImage.FormatNumber=diAcornDFS<<4+2))
     and((Image.FormatNumber=diAcornDFS<<4+0)
@@ -5008,7 +5066,7 @@ begin
  FileNames:=TStringList.Create;
  FileNames.Add(Image.Filename);
  //No filename specified, so get the current image's one
- if filename='' then
+ if filename.IsEmpty then
   filename:=LeftStr(Image.Filename,
                     Length(Image.Filename)-Length(ExtractFileExt(Image.Filename)))
            +'.csv';
@@ -5116,7 +5174,7 @@ begin
      F:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
      //Write the image details
      if CSVPrefForm.cb_IncFilename.Ticked then
-      WriteLine(F,'"'+LImage.Filename+'","0x'+LImage.CRC32+'"');
+      WriteLine(F,LImage.Filename.QuotedString('"')+',"0x'+LImage.CRC32+'"');
      //Write the report
      if CSVPrefForm.cb_IncReport.Ticked then
      begin
@@ -5148,9 +5206,9 @@ begin
        begin
         line:='';
         if CSVPrefForm.cb_Parent.Ticked     then
-         line:=line+'"'+LImage.GetParent(dir)+'",';
+         line:=line+LImage.GetParent(dir).QuotedString('"')+',';
         if CSVPrefForm.cb_Filename.Ticked   then
-         line:=line+'"'+LImage.Disc[dir].Entries[entry].Filename+'",';
+         line:=line+LImage.Disc[dir].Entries[entry].Filename.QuotedString('"')+',';
         if CSVPrefForm.cb_LoadAddr.Ticked   then
          line:=line+'"0x'
                   +IntToHex(LImage.Disc[dir].Entries[entry].LoadAddr,hexlen)+'",';
@@ -6769,6 +6827,7 @@ begin
  begin
   HexDump[Length(HexDump)-1].Free;
   SetLength(HexDump,Length(HexDump)-1);
+  //There is a Delete method which can be used
  end;
  //Remove all the menu items
  while HexDumpMenu.Count>0 do
@@ -6968,6 +7027,7 @@ begin
  DOSAttrPanel.Visible     :=False;
  SinclairAttrPanel.Visible:=False;
  AmigaAttrPanel.Visible   :=False;
+ ISOAttrPanel.Visible     :=False;
  //And untick them
  cb_ADFS_ownw.Ticked        :=False;
  cb_ADFS_ownr.Ticked        :=False;

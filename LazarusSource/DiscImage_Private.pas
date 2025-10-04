@@ -31,6 +31,7 @@ begin
  SetLength(free_space,1);
  free_space[0] :=$0000;
  FFormat       :=diInvalidImg;
+ FISOFormat    :=diInvalidImg;
  secspertrack  :=$10;
  heads         :=$00;
  density       :=$00;
@@ -128,11 +129,11 @@ begin
  if control then c:=32 else c:=0;
  //Start with the first byte (we pre-read it to save multiple reads)
  r:=ReadByte(ptr+x,buffer);
- while(r>=c)and //Test for control character
+ while{(r>=c)and} //Test for control character
     (((r<>term)and(term>=0))or //Test for terminator character
      ((x<abs(term))and(term<0)))do //Test for string length
  begin
-  Result:=Result+chr(r); //Add it to the string
+  if r>=c then Result:=Result+chr(r); //Add it to the string
   inc(x);                //Increase the counter
   r:=ReadByte(ptr+x,buffer);    //Read the next character
  end;
@@ -172,23 +173,11 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
-Convert a format byte to a string
+Convert a format word to a string
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToString: String;
 const
- FS  : array[0..$B] of String = ('DFS',
-                                'Acorn ADFS',
-                                'Commodore',
-                                'Spectrum +3',
-                                'Commodore Amiga',
-                                'Acorn CFS',
-                                'MMFS',
-                                'Acorn FS',
-                                'Spark Archive',
-                                'SJ Research MDFS',
-                                'DOS',
-                                'Acorn ROM FS');
- SUB : array[0..$B] of array[0..15] of String =
+ SUB : array[0..$C] of array[0..15] of String =
  (('Acorn SSD','Acorn DSD','Watford SSD','Watford DSD','','Acorn/Watford DSD','','Watford/Acorn DSD','','','','','','','',''),
   ('S','M','L','D','E','E+','F','F+','','','','','','','Hybrid','Hard Disc'),
   ('1541','1571','1581','1541 40 Track','1571 80 Track','','','','','','','','','','',''),
@@ -200,23 +189,36 @@ const
   ('','','','','','','','','','','','','','','',''),
   ('','','','','','','','','','','','','','','',''),
   ('Plus','FAT12','FAT16','FAT32','','','','','','','','','','','',''),
-  ('','','','','','','','','','','','','','','',''));
+  ('','','','','','','','','','','','','','','',''),
+  ('9660','Joilet','Joilet','Joilet','','','','','','','','','','','',''));
 begin
  Result:='';
- if GetMajorFormatNumber<=High(FS) then
+ if GetMajorFormatNumber<=High(FFormatString) then
   if GetMinorFormatNumber<=High(SUB[GetMajorFormatNumber]) then
   begin
-   Result:= FS[GetMajorFormatNumber];
+   Result:= FFormatString[GetMajorFormatNumber];
    if SUB[GetMajorFormatNumber,GetMinorFormatNumber]<>'' then
     Result:=Result+' '+SUB[GetMajorFormatNumber,GetMinorFormatNumber];
   end;
  //ADFS with AFS partition
  if(FFormat=diAcornADFS<<4+ 2)and(FAFSPresent)then
-  Result:=Result+'/'+FS[diAcornFS];
+  Result:=Result+'/'+FFormatString[diAcornFS];
  //ADFS with DOS Plus partition
  if((FFormat=diAcornADFS<<4+ 2)
  or (FFormat=diAcornADFS<<4+$F))and(FDOSPresent)then
-  Result:=Result+'/'+FS[diDOSPlus];
+  Result:=Result+'/'+FFormatString[diDOSPlus];
+ //ISO
+ if(FFormat>>4=diISO)and(FISOFormat<>diISO)then
+  Result:=Result+' ('+ISOFormatToString+')';
+end;
+
+{-------------------------------------------------------------------------------
+Convert an ISO format byte to a string
+-------------------------------------------------------------------------------}
+function TDiscImage.ISOFormatToString: String;
+begin
+ if FISOFormat<=High(FFormatString) then Result:=FFormatString[FISOFormat]
+ else Result:='';
 end;
 
 {-------------------------------------------------------------------------------
@@ -224,7 +226,7 @@ Convert a format byte to an extension
 -------------------------------------------------------------------------------}
 function TDiscImage.FormatToExt: String;
 const
- EXT : array[0..$B] of array[0..15] of String =
+ EXT : array[0..$C] of array[0..15] of String =
  (('ssd','dsd','ssd','dsd','','dsd','','dsd','','','','','','','',''),//DFS
   ('ads','adm','adl','adf','adf','adf','adf','adf','','','','','','','dat','hdf'),//ADFS
   ('d64','d71','d81','d64','d71','','','','','','','','','','',''),//Commodore 64
@@ -236,7 +238,8 @@ const
   ('zip','','','','','','','','','','','','','','',''),//!Spark
   ('dat','','','','','','','','','','','','','','',''),//SJ MDFS
   ('img','fat12','fat16','fat32','','','','','','','','','','','',''),//DOS and DOS Plus
-  ('rom','','','','','','','','','','','','','','','')//ROM FS
+  ('rom','','','','','','','','','','','','','','',''),//ROM FS
+  ('iso','iso','iso','iso','','','','','','','','','','','','')//ISO
   );
 begin
  Result:='img';
@@ -1123,6 +1126,15 @@ end;
 procedure TDiscImage.SetDefaultRFSCopyRight(ADiscTitle: String);
 begin
  if ADiscTitle<>'' then Frfscopyright:=ADiscTitle;
+end;
+
+{-------------------------------------------------------------------------------
+Encodes a string, then quotes it if necessary
+-------------------------------------------------------------------------------}
+function TDiscImage.EncodeString(input: String): String;
+begin
+ Result:=HTTPEncode(input);
+ if Result<>input then Result:='"'+Result+'"';
 end;
 
 //++++++++++++++++++ TSpark Private methods ++++++++++++++++++++++++++++++++++++

@@ -4286,6 +4286,7 @@ object MainForm: TMainForm
   Menu = Main_Menu
   Position = poScreenCenter
   ShowHint = True
+  LCLVersion = '4.0.0.4'
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
@@ -4802,7 +4803,7 @@ object MainForm: TMainForm
       end
       object ed_execaddr: TEdit
         Left = 0
-        Height = 15
+        Height = 19
         Top = 31
         Width = 353
         Align = alTop
@@ -4865,7 +4866,7 @@ object MainForm: TMainForm
       end
       object ed_loadaddr: TEdit
         Left = 0
-        Height = 15
+        Height = 19
         Top = 31
         Width = 353
         Align = alTop
@@ -5049,7 +5050,7 @@ object MainForm: TMainForm
       end
       object ed_title: TEdit
         Left = 0
-        Height = 15
+        Height = 19
         Top = 31
         Width = 353
         Align = alTop
@@ -5300,12 +5301,38 @@ object MainForm: TMainForm
       Visible = False
       OnPaint = FileInfoPanelPaint
       object SinclairAttributeLabel: TLabel
-        Left = 108
+        Left = 4
         Height = 16
         Top = 2
         Width = 66
         Alignment = taRightJustify
         Caption = 'Attributes'
+        Font.Color = clBlue
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentColor = False
+        ParentFont = False
+      end
+    end
+    object ISOAttrPanel: TPanel
+      Left = 1
+      Height = 50
+      Top = 512
+      Width = 353
+      Align = alTop
+      ClientHeight = 50
+      ClientWidth = 353
+      ParentBackground = False
+      TabOrder = 17
+      Visible = False
+      OnPaint = FileInfoPanelPaint
+      object ISOAttributeLabel: TLabel
+        Left = 4
+        Height = 16
+        Top = 2
+        Width = 148
+        Alignment = taRightJustify
+        Caption = 'ISO Specific Attributes'
         Font.Color = clBlue
         Font.Name = 'Tahoma'
         Font.Style = [fsBold]
@@ -9681,7 +9708,7 @@ object MainForm: TMainForm
     WordWrap = False
   end
   object OpenImageFile: TOpenDialog
-    Filter = 'All Files|*|All image files|*.adf;*.adl;*.adm;*.ads;*.afs;*.img;*.ssd;*.dsd;*.dsk;*.d64;*.d71;*.d81;*.hdf;*.dat;*.dsc;*.uef;*.mmb;*.zip;*.rom|All Acorn|*.adf;*.adl;*.ads;*.adm;*.afs;*.hdf;*.dat;*.dsc;*.ssd;*.dsd;*.dsk;*.uef;*.mmb;*.zip;*.img;*.rom|All Acorn DFS|*.ssd;*.dsd;*.dsk|Acorn DFS single side|*.ssd|Acorn DFS double side|*.dsd|All Acorn ADFS|*.adf;*.adl;*.ads;*.adm;*.hdf;*.dat;*.dsc|Acorn ADFS S|*.ads|Acorn ADFS M|*.adm|Acorn ADFS L|*.adl|Acorn ADFS D/E/E+/F/F+|*.adf|Acorn ADFS hard drive|*.hdf|Acorn CFS|*.uef|Acorn ROM FS|*.rom|Acorn File Server|*.afs|MMFS|*.mmb|!Spark Archive|*.zip|All DOS|*.img;*.fat12;*.fat16;*.fat32|Acorn DOS Plus/MS-DOS|*.img|MS-DOS FAT12|*.fat12|MS-DOS FAT16|*.fat16|MS-DOS FAT32|*.fat32|All Commodore 64|*.d64;*.d71;*.d81|Commodore 1541|*.d64|Commodore 1571|*.d71|Commodore 1581|*.d81|All Commodore Amiga|*.adf;*.hdf|Commodore Amiga floppy|*.adf|Commodore Amiga hard drive|*.hdf|All Sinclair Spectrum|*.dsk;*.hdf|Sinclair Spectrum +3 floppy|*.dsk|Sinclair Spectrum hard drive|*.hdf'
+    Filter = 'All Files|*|All image files|*.adf;*.adl;*.adm;*.ads;*.afs;*.img;*.ssd;*.dsd;*.dsk;*.d64;*.d71;*.d81;*.hdf;*.dat;*.dsc;*.uef;*.mmb;*.zip;*.rom;*.iso|All Acorn|*.adf;*.adl;*.ads;*.adm;*.afs;*.hdf;*.dat;*.dsc;*.ssd;*.dsd;*.dsk;*.uef;*.mmb;*.zip;*.img;*.rom|All Acorn DFS|*.ssd;*.dsd;*.dsk|Acorn DFS single side|*.ssd|Acorn DFS double side|*.dsd|All Acorn ADFS|*.adf;*.adl;*.ads;*.adm;*.hdf;*.dat;*.dsc|Acorn ADFS S|*.ads|Acorn ADFS M|*.adm|Acorn ADFS L|*.adl|Acorn ADFS D/E/E+/F/F+|*.adf|Acorn ADFS hard drive|*.hdf|Acorn CFS|*.uef|Acorn ROM FS|*.rom|Acorn File Server|*.afs|MMFS|*.mmb|!Spark Archive|*.zip|All DOS|*.img;*.fat12;*.fat16;*.fat32|Acorn DOS Plus/MS-DOS|*.img|MS-DOS FAT12|*.fat12|MS-DOS FAT16|*.fat16|MS-DOS FAT32|*.fat32|All Commodore 64|*.d64;*.d71;*.d81|Commodore 1541|*.d64|Commodore 1571|*.d71|Commodore 1581|*.d81|All Commodore Amiga|*.adf;*.hdf|Commodore Amiga floppy|*.adf|Commodore Amiga hard drive|*.hdf|All Sinclair Spectrum|*.dsk;*.hdf|Sinclair Spectrum +3 floppy|*.dsk|Sinclair Spectrum hard drive|*.hdf|ISO Image|*.iso'
     Left = 280
     Top = 96
   end

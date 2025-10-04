@@ -284,7 +284,6 @@ function TConsoleApp.ProcessInput(Input: String): TStringArray;
 var
  Index : Integer=0;
  j     : Integer=0;
- tmp   : PChar;
 begin
  //Split the string at each space, unless enclosed by quotes
  Result:=Input.Split(' ','"');
@@ -308,10 +307,7 @@ begin
  if Length(Result)>0 then
   //Remove the quotes
   for Index:=0 to Length(Result)-1 do
-  begin
-   tmp:=PChar(Result[Index]);
-   Result[Index]:=AnsiExtractQuotedStr(tmp,'"');
-  end
+   Result[Index]:=Result[Index].DeQuotedString('"')
  else //Input was empty, so create a blank entry
  begin
   SetLength(Result,1);

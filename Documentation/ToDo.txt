@@ -41,4 +41,5 @@ General - Ideas which are maybe possible
 * macOS: Dark mode - PARTIAL: Import image contents still needs to be looked at).
 * Console: add commands: split/join - to add or remove sides/partitions.
 * Move the code for compacting an image from the GUI code to the class code.
-* Add RiscOS ISO format (and general ISO format).
+* ISO: Make writeable.
+* ISO: Add in support for other System Use Area tags.

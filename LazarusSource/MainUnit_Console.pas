@@ -258,7 +258,7 @@ begin
       begin
        if ptr<Length(OSFiles)-2 then
         for Index:=ptr to Length(OSFiles)-2 do OSFiles[Index]:=OSFiles[Index+1];
-       SetLength(OSFiles,Length(OSFiles)-1);
+       SetLength(OSFiles,Length(OSFiles)-1);//Use Delete method
        dec(ptr);
       end;
       inc(ptr);

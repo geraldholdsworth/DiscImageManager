@@ -179,7 +179,6 @@ var
  FDSKFS : TDSKFileSystem=nil;
  dir    : Cardinal=0;
  entry  : Cardinal=0;
- ref    : Integer=0;
 begin
  Result:=False;
  if FileExists(filename,dir,entry)then

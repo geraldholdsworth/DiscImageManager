@@ -1043,8 +1043,8 @@ Bug fixes
 * When changing the load and execution addresses of a file, editing one then clicking on the other would make the one you were editing disappear.
 * Defragging (compacting) an image with no free space would fail and not revert back to the original image. Now, it fails and returns to the original image with no changes made.
 
-1.49
---------------------
+1.49 4th October 2025
+---------------------
 New or improved features
 * Remembers the last used format when creating a new image.
 * Can now specify the disc title when creating a new image.
@@ -1052,6 +1052,8 @@ New or improved features
 * Added a new console/command line parameter, '-g' or '--gui', to force the application to start in GUI mode.
 * Added functionality to read in Sinclair Spectrum +3/Amstrad DSK images.
 * Now shows the Interleave in use in the status bar.
+* Added functionality to read in ISO images, with support for RISC OS and Amiga System Use Area tags.
+* Tidied up the creation and parsing of *.inf files, to comply with the *.inf format spec written by Tom Seddon.
 
 Bug fixes
 * There were possibilities where a blank title, version or copyright string could be applied when updating an ROM FS Header.
@@ -1066,6 +1068,8 @@ Bug fixes
 * A bug crept in, since version 1.47, where creating a new hard drive was limited to 30MB for all types.
 * Selecting a file in a DOS partition of an ADFS/DOS hybrid image would fail to show the file's details.
 * Removed the ability to change the interleave type in the image details dialogue box.
+* Sometimes, the '.inf' was not appended to the end of extracted file's information files, which then overwrote the original file.
+* A bug had been introduced where the directory icon for the root of a DFS disc was not getting displayed correctly.
 
 Platform History
 ----------------

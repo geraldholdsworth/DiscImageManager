@@ -205,6 +205,7 @@ begin
   if not ID_RFS      then //Acorn RFS
   if not ID_MMB      then //MMFS
   if not ID_Spark    then //Spark archive
+  if not ID_ISO      then //ISO Image
   if not ID_DFS      then //Acorn DFS
    ResetVariables;        //Reset everything
   //Just by the ID process:
@@ -239,6 +240,7 @@ begin
   diMMFS     : ReadMMBDisc;            //MMFS
   diSpark    : ReadSparkArchive;       //Spark archive
   diDOSPlus  : ReadDOSPartition;       //DOS Plus
+  diISO      : ReadISOImage;           //ISO
  end;
  //Find the maximum directory entries
  if GetMajorFormatNumber<>diSpark then //Not Spark, as this already provides this info
@@ -496,6 +498,7 @@ begin
   diSpark    :Result:=ExtractSparkFile(filename,buffer);   //Extract Spark
   diAcornFS  :Result:=ExtractAFSFile(filename,buffer);     //Extract Acorn FileStore
   diDOSPlus  :Result:=ExtractDOSFile(filename,buffer);     //Extract DOS Plus
+  diISO      :Result:=ExtractISOFile(filename,buffer);     //Extract ISO
  end;
 end;
 function TDiscImage.ExtractFile(filename:String;Stream:TStream;
@@ -652,7 +655,8 @@ begin
  //Blank filename, so quit
  if Length(filename)=0 then exit;
  //For the root, we'll just return a default value
- if filename=root_name then
+ if(filename=root_name)
+ or((GetMajorFormatNumber=diAcornDFS)and(filename.EndsWith(root_name)))then
  begin
   dir:=$FFFF;
   entry:=$FFFF;
@@ -1936,7 +1940,7 @@ begin
  if(dir>=0)and(dir<Length(FDisc))then
   if(entry>=0)and(entry<=Length(FDisc[dir].Entries))then
   begin
-   extsep:=#0;
+   extsep:='.';
    //Get the filename
    Result:=FDisc[dir].Entries[entry].Filename;
    //Convert BBC chars to PC
@@ -1949,9 +1953,12 @@ begin
    begin
     if(GetMajorFormatNumber=diAcornDFS)
     or(GetMajorFormatNumber=diAcornADFS)
-    or(GetMajorFormatNumber=diAcornFS)then extsep:=','; //DFS, ADFS and AFS
+    or(GetMajorFormatNumber=diAcornFS)
+    or(GetMajorFormatNumber=diSpark)
+    or(FISOFormat=diAcornADFS)then extsep:=','; //DFS, ADFS and AFS
     if(GetMajorFormatNumber=diCommodore)                //Commodore
-    or(GetMajorFormatNumber=diAmiga)then extsep:='.';   //Amiga
+    or(GetMajorFormatNumber=diAmiga)
+    or(FISOFormat=diAmiga)then extsep:='.';   //Amiga
     Result:=Result+extsep+FDisc[dir].Entries[entry].ShortFileType;
    end;
   end;
@@ -1967,11 +1974,12 @@ var
  inffile        : String='';
  Limagefilename : String='';
  windowsfilename: String='';
+ temp           : String='';
  attributes     : Byte=0;
  hexlen         : Byte=0;
  t              : Integer=0;
 const
- adfsattr = 'RWELrwel';
+ adfsattr = 'RWELrwel'; //ADFS Attributes (OSFILE format)
 begin
  if(dir>=0)and(dir<Length(FDisc))then
   if(entry>=0)and(entry<Length(FDisc[dir].Entries))then
@@ -1988,10 +1996,10 @@ begin
    //Add the root, if DFS and no directory specifier
    if(GetMajorFormatNumber=diAcornDFS)and(Limagefilename[2]<>'.')then
     Limagefilename:=RightStr(GetParent(dir),1)+'.'+Limagefilename;
-   //Put quotes round the filename if it contains a space
-   if Pos(' ',Limagefilename)>0 then Limagefilename:='"'+Limagefilename+'"';
+   //HTTP Encode and put quotes round the filename if it contains an invalid character
+   Limagefilename:=EncodeString(Limagefilename);
    //Create the string
-   inffile:=PadRight(LeftStr(Limagefilename,12),12)+' '
+   inffile:=PadRight(Limagefilename,12)+' '
            +IntToHex(FDisc[dir].Entries[entry].LoadAddr,hexlen)+' '
            +IntToHex(FDisc[dir].Entries[entry].ExecAddr,hexlen)+' '
            +IntToHex(FDisc[dir].Entries[entry].Length,hexlen);
@@ -2006,7 +2014,9 @@ begin
      inc(attributes,$01+$02); //Add the 'RW' attributes as implied attributes
    end;
    if(GetMajorFormatNumber=diAcornADFS)
-   or(GetMajorFormatNumber=diAcornFS)then //ADFS and AFS
+   or(GetMajorFormatNumber=diAcornFS)
+   or(GetMajorFormatNumber=diSpark)
+   or(FISOFormat=diAcornADFS)then //ADFS, AFS, Spark and ISO (ADFS)
     for t:=0 to 7 do
      if Pos(adfsattr[t+1],FDisc[dir].Entries[entry].Attributes)>0 then
       inc(attributes,1<<t);
@@ -2027,10 +2037,11 @@ begin
    //Directory?
    if FDisc[dir].Entries[entry].DirRef<>-1 then
    begin
-    Ltitle:=FDisc[FDisc[dir].Entries[entry].DirRef].Title;
-    if Pos(' ',Ltitle)>0 then Ltitle:='"'+Ltitle+'"';
-    inffile:=inffile+' DIRTITLE='+PadRight(LeftStr(Ltitle,21),21);
+    Ltitle:=EncodeString(FDisc[FDisc[dir].Entries[entry].DirRef].Title);
+    inffile:=inffile+' DIRTITLE='+PadRight(Ltitle,21);
    end;
+   //Validate the filename
+   ValidateWinFilename(windowsfilename);
    //Create the inf file
    try
     F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
@@ -2039,6 +2050,7 @@ begin
     F.Free;
    except
     //Could not create
+    filename:='';
    end;
   end;
 end;
@@ -2049,18 +2061,18 @@ Create an inf file for a root
 procedure TDiscImage.CreateRootInf(filename: String; dir: Integer);
 var
  F        : TFileStream=nil;
+ dirname  : String='';
  Ltitle   : String='';
  dirtitle : String='';
  inffile  : String='';
 begin
- Ltitle:=Title(FDisc[dir].Partition);
- if Pos(' ',Ltitle)>0 then Ltitle:='"'+Ltitle+'"';
- dirtitle:=FDisc[dir].Title;
- if Pos(' ',dirtitle)>0 then dirtitle:='"'+dirtitle+'"';
- inffile:=PadRight(LeftStr(FDisc[dir].Directory,12),12)
+ Ltitle:=EncodeString(Title(FDisc[dir].Partition));
+ dirtitle:=EncodeString(FDisc[dir].Title);
+ dirname:=EncodeString(FDisc[dir].Directory);
+ inffile:=PadRight(dirname,12)
          +' OPT='+IntToHex(BootOpt[FDisc[dir].Partition],2)
-         +' TITLE='+PadRight(LeftStr(Ltitle,12),12)
-         +' DIRTITLE='+PadRight(LeftStr(dirtitle,21),21);
+         +' TITLE='+PadRight(Ltitle,12)
+         +' DIRTITLE='+PadRight(dirtitle,21);
  //Create the inf file
  try
   F:=TFileStream.Create(filename+'.inf',fmCreate OR fmShareDenyNone);

@@ -25,10 +25,11 @@ at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
 
-DSK Image modules written by Damien Guard and covered under the Apache2 licence
+DSK Image modules written by Damien Guard
 }
 
 {$MODE objFPC}{$H+}
+{$modeswitch TypeHelpers}
 
 interface
 
@@ -39,13 +40,14 @@ maintenance easier.
 }
 
 uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,ExtCtrls,DateUtils,md5,
-  DskImage,FileSystem;
+  DskImage,FileSystem,HTTPProtocol,fpjson,DOM,XMLWrite;
 
 {$M+}
 
 type
 //Define the TDIByteArray - saves using the System.Types unit for TByteDynArray
  TDIByteArray = array of Byte;
+
 //Define the records to hold the catalogue
  TDirEntry     = record     //Not all fields are used on all formats
   Parent,                   //Complete path for parent directory (ALL)
@@ -68,8 +70,10 @@ type
   isDOSPart   : Boolean;    //This file is the DOS partition
   Sequence    : Byte;       //Sequence number for the file (ADFS S/M/L)
  end;
+ TSearchResults =array of TDirEntry;
 
- type //Define the records for an Acorn File Server password file
+ //Define the records for an Acorn File Server password file
+ type
   TUserAccount = record
    Username,
    Password   : String;
@@ -79,10 +83,9 @@ type
    BootOption,
    AccessLevel: Byte;
  end;
-
  TUserAccounts  =array of TUserAccount;
- TSearchResults =array of TDirEntry;
 
+ //Define the record for a file entry in TSpark
  type
   TFileEntry = record
    LoadAddr,                 //Load Address
@@ -98,6 +101,14 @@ type
    Directory  : Boolean;     //Is it a directory?
  end;
 
+ //Class helper for XML documents
+ type
+  TXMLHelper = type helper for TXMLDocument
+    procedure Add(name, value: String);
+    function AsString: String;
+    procedure ValidateName(var name: String);
+  end;
+
  //General purpose procedures - globally accessible
  procedure ResetDirEntry(var Entry: TDirEntry);
  procedure RemoveTopBit(var title: String);
@@ -107,7 +118,7 @@ type
  procedure RemoveSpaces(var s: String);
  procedure RemoveControl(var s: String);
  function IsBitSet(v,b: Integer): Boolean;
- function BreakDownInf(s: String): TStringArray;
+ procedure ParseInf(output: TObject; line: String);
  function FilenameToASCII(s: String): String;
  function GetAttributes(attr: String;format: Byte): String;
  function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
@@ -117,6 +128,7 @@ type
  function DecToBCD(dec: Cardinal): Cardinal;
  function BCDToDec(BCD: Cardinal): Cardinal;
  procedure ResetFileEntry(var fileentry: TFileEntry);
+ function CreateXML(name: String): TXMLDocument;
  //Some constants
  const
   diAcornDFS   = $000;
@@ -131,6 +143,7 @@ type
   diSJMDFS     = $009;
   diDOSPlus    = $00A;
   diAcornRFS   = $00B;
+  diISO        = $00C;
   diInvalidImg = $00FF; //Needs to be changed to $FFFF
   diADFSOldMap = $00;
   diADFSNewMap = $01;
@@ -258,6 +271,34 @@ type
    Partition   : Cardinal;          //Which partition (side) is this on?
    Parent      : Integer;           //What is the TDir reference of the parent (-1 if none)
   end;
+  //For use with ISO images
+  TISOVolDes = record
+   VDType      : Byte;
+   Offset      : Cardinal;
+   SystemID    : String;
+   VolumeID    : String;
+   Size        : Cardinal;
+   Joilet      : Byte;
+   NumDiscs    : Cardinal;
+   DiscNum     : Cardinal;
+   BlckSize    : Cardinal;
+   PathSize    : Cardinal;
+   PathTbl     : array[0..1] of Cardinal;
+   oPathTbl    : array[0..1] of Cardinal;
+   RootOffset  : Cardinal;
+   RootLength  : Cardinal;
+   VolSetID    : String;
+   PublisID    : String;
+   DataPrID    : String;
+   AppID       : String;
+   CopyID      : String;
+   AbstID      : String;
+   BibliID     : String;
+   DateCre     : TDateTime;
+   DateMod     : TDateTime;
+   DateExp     : TDateTime;
+   DateUse     : TDateTime;
+  end;
   //Collection of directories
   TDisc         = array of TDir;
   //Partitions
@@ -352,6 +393,7 @@ type
   FMaxDirEnt    : Cardinal;     //Maximum number of directory entries in image
   DOSFATSize,                   //Size of DOS Plus FAT in blocks
   DOSResSecs,                   //Number of reserved blocks
+  FISOFormat,                   //Format of the ISO internal image
   FFormat       : Word;         //Format of the image
   FDirID,                       //ADFS Directory ID (1=Hugo, 2=Nick, 3=SBPr/oven)
   FForceInter,                  //What to do about ADFS L/AFS Interleaving
@@ -385,6 +427,7 @@ type
   FProgress     : TProgressProc;//Used for feedback
   SparkFile     : TSpark;       //For reading in Spark archives
   FDSKImage     : TDSKImage;    //For reading in Sinclair/Amstrad DSK files
+  ISOVolDes     : array of TISOVolDes;//ISO Volume Descriptors
   //Disc title for new images
   Fdisctitle,
   Fafsdisctitle,                //AFS has longer titles
@@ -401,6 +444,7 @@ type
   procedure WriteString(str: String;ptr,len: Cardinal;pad: Byte;
                                             var buffer: TDIByteArray); overload;
   function FormatToString: String;
+  function ISOFormatToString: String;
   function FormatToExt: String;
   function GetMajorFormatNumber: Word;
   function GetMinorFormatNumber: Byte;
@@ -461,6 +505,7 @@ type
   procedure SetDefaultAmigaDiscTitle(ADiscTitle: String);
   procedure SetDefaultRFSTitle(ADiscTitle: String);
   procedure SetDefaultRFSCopyRight(ADiscTitle: String);
+  function EncodeString(input: String): String;
   //ADFS Routines
   function ID_ADFS: Boolean;
   function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
@@ -778,8 +823,37 @@ type
   function DOSShortFilename(path,LFN: String;SFN :String=''): String;
   function BuildDOSFilename(f,e: String): String;
   function DOSReport(CSV: Boolean): TStringList;
+  //ISO Methods
+  function ID_ISO: Boolean;
+  procedure ISOFSM;
+  procedure ReadISOImage;
+  function ISOGetPVDDateTime(offset: Cardinal): TDateTime;
+  procedure ISOReadVolumeDescriptors;
+  procedure ISOGetVDAndPathToUse(var ISOVD2Use: Cardinal;var ISOpath2use: Cardinal);
+  function ISOGetDirDateTime(offset: Cardinal): TDateTime;
+  function ISOAttributes(attr: Cardinal; attributes: String;
+                                                    pad: Boolean=False): String;
+  function ISOGetFullPath(dir: Integer): String;
+  procedure ISOChangeDirName(dir,entry: Cardinal);
+  procedure ISOReadPathTable(VDNum: Cardinal; pth2use: Cardinal=0);
+  procedure ISOReadDirectories(VDNum: Cardinal);
+  function ExtractISOFile(filename: String; var buffer: TDIByteArray): Boolean;
   //Private constants
   const
+   //Formats
+   FFormatString: array[0..$C] of String = ('DFS',
+                                            'Acorn ADFS',
+                                            'Commodore',
+                                            'Spectrum +3',
+                                            'Commodore Amiga',
+                                            'Acorn CFS',
+                                            'MMFS',
+                                            'Acorn FS',
+                                            'Spark Archive',
+                                            'SJ Research MDFS',
+                                            'DOS',
+                                            'Acorn ROM FS',
+                                            'ISO');
    //When the change of number of sectors occurs on Commodore 1541/1571 discs
    CDRhightrack : array[0..8] of Integer = (71,66,60,53,36,31,25,18, 1);
    //Number of sectors per track (Commodore 1541/1571)
@@ -953,6 +1027,8 @@ type
   property InterleaveInUseNum:  Byte          read FInterleave;
   property InterleaveMethod:    Byte          read FForceInter
                                               write FForceInter;
+  property ISOFormatNumber:     Word          read FISOFormat;
+  property ISOFormatString:     String        read ISOFormatToString;
   property MajorFormatNumber:   Word          read GetMajorFormatNumber;
   property MapType:             Byte          read MapFlagToByte;
   property MapTypeString:       String        read MapTypeToString;
@@ -995,5 +1071,6 @@ sub units. This is so each filing system can have it's own methods.}
 {$INCLUDE 'DiscImage_MMB.pas'}      //Module for MMFS - to be removed
 {$INCLUDE 'DiscImage_Spark.pas'}    //Module for SparkFS
 {$INCLUDE 'DiscImage_DOSPlus.pas'}  //Module for Acorn DOS Plus
+{$INCLUDE 'DiscImage_ISO.pas'}      //Module for ISO
 
 end.

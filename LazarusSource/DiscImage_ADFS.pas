@@ -584,8 +584,9 @@ begin
      //Is this entry the DOS partition?
      if doshead=Entry.Sector*secsize then Entry.IsDOSPart:=True;
      //Add to the result
-     SetLength(Result.Entries,Length(Result.Entries)+1);
-     Result.Entries[Length(Result.Entries)-1]:=Entry;
+     Insert(Entry,Result.Entries,Length(Result.Entries));
+{     SetLength(Result.Entries,Length(Result.Entries)+1);
+     Result.Entries[Length(Result.Entries)-1]:=Entry;}
      //Move on to next
      inc(ptr);
     end;
@@ -625,7 +626,8 @@ var
 begin
  //Only valid for New and Big directories in ADFS or SparkFS
  if((GetMajorFormatNumber=diAcornADFS)and((FDirType=diADFSNewDir)or(FDirType=diADFSBigDir)))
- or(GetMajorFormatNumber=diSpark)then
+ or(GetMajorFormatNumber=diSpark)
+ or(FISOFormat=diAcornADFS)then
   if Entry.LoadAddr>>20=$FFF then //Only if the top 12 bits are set
   begin
    //Get the 12 bit filetype
