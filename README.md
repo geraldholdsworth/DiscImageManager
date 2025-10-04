@@ -14,7 +14,7 @@ Disc Image Manager is an application used to load a retro disc image, read the c
 • Commodore 1581 - Read and Write<br>
 • Commodore AmigaDOS floppy and hard discs - OFS and FFS: Read and Write (not fully tested with FFS). No Directory cache or international character support as yet, and no support for rigid disk stuctures.<br>
 • Sinclair Spectrum +3 and Amstrad images - Read only<br>
-• ISO 9660 and Joilet<br>
+• ISO 9660 and Joilet - Read only<br>
 Currently working on:<br>
 • SJ Research MDFS<br>
 • Multiple images open simultaenously<br>
