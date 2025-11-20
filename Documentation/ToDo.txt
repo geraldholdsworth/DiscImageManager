@@ -43,3 +43,5 @@ General - Ideas which are maybe possible
 * Move the code for compacting an image from the GUI code to the class code.
 * ISO: Make writeable.
 * ISO: Add in support for other System Use Area tags.
+* DFS: Add in support for HDFS and HADFS.
+* Error handling - wrap opening files in a try...except...finally block.

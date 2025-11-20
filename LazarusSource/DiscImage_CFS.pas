@@ -378,9 +378,10 @@ begin
    try
     Func:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
     Func.Write(Fdata[0],Length(Fdata)-1);
-    Func.Free;
-   finally
+   except
+    on Exception do {nothing};
    end;
+   Func.Free;
   end;
  end;
 end;

@@ -45,6 +45,7 @@ type
   procedure FormCreate(Sender: TObject);
   procedure FormKeyDown(Sender:TObject;var Key:Word;Shift:TShiftState);
   procedure FormPaint(Sender: TObject);
+  procedure FormShow(Sender: TObject);
   procedure ShowError(msg,BtnTxt: String);
   procedure ShowConfirm(msg: String; Buttons: array of String);
   procedure ShowInfo(msg,BtnTxt: String);
@@ -72,6 +73,22 @@ Tile the window
 procedure TCustomDialogue.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
+end;
+
+{------------------------------------------------------------------------------}
+//Show the form - set it up
+{------------------------------------------------------------------------------}
+procedure TCustomDialogue.FormShow(Sender: TObject);
+begin
+ //Style the buttons
+ IgnoreButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ AbortButton.NativeOS :=MainForm.Fstyling=MainForm.NativeStyle;
+ OKButton.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top     :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
+ AbortButton.Top      :=CancelButton.Top;
+ IgnoreButton.Top     :=CancelButton.Top;
 end;
 
 {-------------------------------------------------------------------------------

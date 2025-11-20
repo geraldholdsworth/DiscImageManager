@@ -10,11 +10,11 @@ object CustomDialogue: TCustomDialogue
   ClientWidth = 360
   Color = 15527148
   Font.Color = clBlack
+  Position = poMainFormCenter
   OnCreate = FormCreate
   OnKeyDown = FormKeyDown
   OnPaint = FormPaint
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
+  OnShow = FormShow
   object ErrorImg: TImage
     Left = 8
     Height = 42

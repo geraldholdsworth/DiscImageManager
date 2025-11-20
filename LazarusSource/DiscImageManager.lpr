@@ -40,7 +40,7 @@ uses
   AFSPartitionUnit in 'AFSParitionUnit.pas',
   ChangeInterleaveUnit in 'ChangeInterleaveUnit.pas',
   CSVPrefUnit in 'CSVPrefUnit.pas',
-  ImageReportUnit in 'ImageReportUnit.pas', RFSDetailUnit;
+  ImageReportUnit in 'ImageReportUnit.pas', RFSDetailUnit, DiscImageHelper;
 
 {$R *.res}
 

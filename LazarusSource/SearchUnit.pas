@@ -42,6 +42,7 @@ type
   sb_SearchButton: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
+  procedure FormShow(Sender: TObject);
   procedure sb_searchClick(Sender: TObject);
   procedure ed_filenamesearchKeyPress(Sender: TObject; var Key: char);
   procedure lb_searchresultsClick(Sender: TObject);
@@ -107,6 +108,11 @@ end;
 procedure TSearchForm.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
+end;
+
+procedure TSearchForm.FormShow(Sender: TObject);
+begin
+ sb_SearchButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
 end;
 
 {------------------------------------------------------------------------------}

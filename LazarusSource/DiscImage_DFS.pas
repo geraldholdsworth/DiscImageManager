@@ -1065,6 +1065,11 @@ begin
      SetLength(buffer,F.Size);
      F.Read(buffer[0],F.Size);
     except
+     on Exception do
+     begin
+      F.Free;
+      exit;
+     end;
     end;
     F.Free;
     //Continue if there is any data

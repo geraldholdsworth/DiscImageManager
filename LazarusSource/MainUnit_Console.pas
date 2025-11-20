@@ -40,7 +40,7 @@ const
  Options : array[0..3] of String = ('none','load','run','exec'); //Boot options
  Inter   : array[0..3] of String = ('auto','seq', 'int','mux' ); //Interleave
  //Configuration settings (registry)
- Configs : array[0..41] of array[0..2] of String = (
+ Configs : array[0..42] of array[0..2] of String = (
  ('AddImpliedAttributes' ,'B','Add Implied Attributes for DFS/CFS/RFS'),
  ('ADFS_L_Interleave'    ,'I','0=Automatic; 1=Sequential; 2=Interleave; 3=Multiplex'),
  ('Create_DSC'           ,'B','Create *.dsc file with hard drives'),
@@ -82,7 +82,8 @@ const
  ('Spark_Is_FS'          ,'B','Treat Spark archives as file system'),
  ('Texture'              ,'I','Which texture background to use'),
  ('UEF_Compress'         ,'B','Compress UEF images when saving'),
- ('View_Options'         ,'I','Displays which menus are visible'));
+ ('View_Options'         ,'I','Displays which menus are visible'),
+ ('WindowStyle'          ,'I','Native or RISC OS styling'));
  //Validate a filename, building a complete path if required
  function ValidFile(thisfile: String): Boolean;
  begin

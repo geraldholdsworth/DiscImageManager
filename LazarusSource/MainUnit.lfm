@@ -4286,7 +4286,7 @@ object MainForm: TMainForm
   Menu = Main_Menu
   Position = poScreenCenter
   ShowHint = True
-  LCLVersion = '4.0.0.4'
+  LCLVersion = '4.2.0.0'
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
@@ -4803,7 +4803,7 @@ object MainForm: TMainForm
       end
       object ed_execaddr: TEdit
         Left = 0
-        Height = 19
+        Height = 15
         Top = 31
         Width = 353
         Align = alTop
@@ -4866,7 +4866,7 @@ object MainForm: TMainForm
       end
       object ed_loadaddr: TEdit
         Left = 0
-        Height = 19
+        Height = 15
         Top = 31
         Width = 353
         Align = alTop
@@ -5050,7 +5050,7 @@ object MainForm: TMainForm
       end
       object ed_title: TEdit
         Left = 0
-        Height = 19
+        Height = 15
         Top = 31
         Width = 353
         Align = alTop

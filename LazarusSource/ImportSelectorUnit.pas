@@ -193,6 +193,11 @@ end;
 {------------------------------------------------------------------------------}
 procedure TImportSelectorForm.FormShow(Sender: TObject);
 begin
+ //Style the buttons
+ OKButton.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top     :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
  //Change the form size to its default
  Height:=Constraints.MinHeight;
  Width :=Constraints.MinWidth;

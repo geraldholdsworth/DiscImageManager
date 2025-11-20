@@ -1,28 +1,28 @@
 object SettingsForm: TSettingsForm
   Left = 485
-  Height = 429
+  Height = 460
   Top = 137
   Width = 448
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'Preferences'
-  ClientHeight = 429
+  ClientHeight = 460
   ClientWidth = 448
   Color = 15527148
+  Position = poMainFormCenter
+  LCLVersion = '4.0.0.4'
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
   object TexturePanel: TPanel
     Left = 0
-    Height = 166
+    Height = 176
     Top = 0
     Width = 448
     BevelColor = clTeal
     BevelOuter = bvNone
     BevelWidth = 4
-    ClientHeight = 166
+    ClientHeight = 176
     ClientWidth = 448
     ParentBackground = False
     TabOrder = 0
@@ -32,40 +32,40 @@ object SettingsForm: TSettingsForm
       Height = 84
       Top = 48
       Width = 84
-      OnClick = TilePictureRO5Click
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object TilePictureRO4: TImage
       Left = 92
       Height = 84
       Top = 48
       Width = 84
-      OnClick = TilePictureRO5Click
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object TilePictureRO3: TImage
       Left = 4
       Height = 84
       Top = 48
       Width = 84
-      OnClick = TilePictureRO5Click
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object TilePictureIyonix: TImage
       Left = 268
       Height = 84
       Top = 48
       Width = 84
-      OnClick = TilePictureRO5Click
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object TilePictureROPi: TImage
       Left = 356
       Height = 84
       Top = 48
       Width = 84
-      OnClick = TilePictureRO5Click
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object TexturePanelLabel: TLabel
       Left = 0
@@ -73,7 +73,7 @@ object SettingsForm: TSettingsForm
       Top = 0
       Width = 448
       Align = alTop
-      Caption = '  Window Texture'
+      Caption = '  Application Styling'
       Color = 7829367
       Font.Color = clWhite
       Font.Style = [fsBold]
@@ -86,7 +86,6 @@ object SettingsForm: TSettingsForm
       Height = 152
       Top = 25
       Width = 152
-      OnClick = TilePictureRO5Click
       Picture.Data = {
         1754506F727461626C654E6574776F726B47726170686963961F000089504E47
         0D0A1A0A0000000D494844520000009800000098080600000018C22021000018
@@ -345,13 +344,13 @@ object SettingsForm: TSettingsForm
       }
       Proportional = True
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object Border2: TImage
       Left = 48
       Height = 152
       Top = 25
       Width = 152
-      OnClick = TilePictureRO5Click
       Picture.Data = {
         1754506F727461626C654E6574776F726B47726170686963961F000089504E47
         0D0A1A0A0000000D494844520000009800000098080600000018C22021000018
@@ -610,13 +609,13 @@ object SettingsForm: TSettingsForm
       }
       Proportional = True
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object Border3: TImage
       Left = 76
       Height = 152
       Top = 14
       Width = 152
-      OnClick = TilePictureRO5Click
       Picture.Data = {
         1754506F727461626C654E6574776F726B47726170686963961F000089504E47
         0D0A1A0A0000000D494844520000009800000098080600000018C22021000018
@@ -875,13 +874,13 @@ object SettingsForm: TSettingsForm
       }
       Proportional = True
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object Border4: TImage
       Left = 76
       Height = 152
       Top = 14
       Width = 152
-      OnClick = TilePictureRO5Click
       Picture.Data = {
         1754506F727461626C654E6574776F726B47726170686963961F000089504E47
         0D0A1A0A0000000D494844520000009800000098080600000018C22021000018
@@ -1140,13 +1139,13 @@ object SettingsForm: TSettingsForm
       }
       Proportional = True
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
     object Border5: TImage
       Left = 76
       Height = 152
       Top = 14
       Width = 152
-      OnClick = TilePictureRO5Click
       Picture.Data = {
         1754506F727461626C654E6574776F726B47726170686963961F000089504E47
         0D0A1A0A0000000D494844520000009800000098080600000018C22021000018
@@ -1405,12 +1404,13 @@ object SettingsForm: TSettingsForm
       }
       Proportional = True
       Stretch = True
+      OnClick = TilePictureRO5Click
     end
   end
   object DFSPanel: TPanel
     Left = 224
     Height = 104
-    Top = 176
+    Top = 206
     Width = 224
     BevelOuter = bvNone
     ClientHeight = 104
@@ -1436,7 +1436,7 @@ object SettingsForm: TSettingsForm
   object InterleavePanel: TPanel
     Left = 0
     Height = 104
-    Top = 176
+    Top = 206
     Width = 226
     BevelOuter = bvNone
     ClientHeight = 104
@@ -1462,7 +1462,7 @@ object SettingsForm: TSettingsForm
   object MiscPanel: TPanel
     Left = 0
     Height = 104
-    Top = 280
+    Top = 310
     Width = 452
     BevelOuter = bvNone
     ClientHeight = 104
@@ -1484,5 +1484,15 @@ object SettingsForm: TSettingsForm
       ParentFont = False
       Transparent = False
     end
+  end
+  object styleType: TPanel
+    Left = 0
+    Height = 30
+    Top = 176
+    Width = 448
+    BevelOuter = bvNone
+    ParentBackground = False
+    TabOrder = 4
+    OnPaint = FormPaint
   end
 end

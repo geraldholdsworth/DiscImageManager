@@ -40,6 +40,7 @@ type
   CancelButton: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
+  procedure FormShow(Sender: TObject);
  private
 
  public
@@ -63,6 +64,18 @@ uses MainUnit;
 procedure TChangeInterleaveForm.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
+end;
+
+{------------------------------------------------------------------------------}
+//Show the form - set it up
+{------------------------------------------------------------------------------}
+procedure TChangeInterleaveForm.FormShow(Sender: TObject);
+begin
+ //Style the buttons
+ OKButton.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top     :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
 end;
 
 {------------------------------------------------------------------------------}

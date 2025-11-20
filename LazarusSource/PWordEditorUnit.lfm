@@ -13,12 +13,11 @@ object PwordEditorForm: TPwordEditorForm
   ClientHeight = 267
   ClientWidth = 500
   Color = 15527148
+  Position = poMainFormCenter
   OnCreate = FormCreate
   OnHide = FormHide
   OnPaint = FormPaint
   OnShow = FormShow
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
   object AccountsPanel: TPanel
     Left = 0
     Height = 217

@@ -50,6 +50,7 @@ type
   CancelButton   : TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
+  procedure FormShow(Sender: TObject);
  private
 
  public
@@ -73,6 +74,30 @@ uses MainUnit;
 procedure TCSVPrefForm.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
+end;
+
+{------------------------------------------------------------------------------}
+//Show the form - set it up
+{------------------------------------------------------------------------------}
+procedure TCSVPrefForm.FormShow(Sender: TObject);
+begin
+ //Style the buttons
+ OKButton.NativeOS      :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS  :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_IncDir.NativeOS     :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_Parent.NativeOS     :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_Filename.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_LoadAddr.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_ExecAddr.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_Length.NativeOS     :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_Attributes.NativeOS :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_Address.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_CRC32.NativeOS      :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_MD5.NativeOS        :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_IncFilename.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_IncReport.NativeOS  :=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top     :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
 end;
 
 {------------------------------------------------------------------------------}

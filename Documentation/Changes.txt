@@ -1071,6 +1071,16 @@ Bug fixes
 * Sometimes, the '.inf' was not appended to the end of extracted file's information files, which then overwrote the original file.
 * A bug had been introduced where the directory icon for the root of a DFS disc was not getting displayed correctly.
 
+1.49.1
+---------------------
+New or improved features
+* Tightened up the hex number detection when parsing *.inf files.
+* Added a preferences option not to use RISC OS styling of the windows and controls, and to use the native OS styling instead.
+* Tightened up the error handling routines when opening data files.
+
+Bug fixes
+* In 1.49 the reading of a string from a data file was changed which caused spurious characters to be suffixed to filenames in some images. This was reverted, but may now have broken something else.
+
 Platform History
 ----------------
 

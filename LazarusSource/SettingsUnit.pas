@@ -50,6 +50,7 @@ type
   TilePictureRO5: TImage;
   TilePictureRO4: TImage;
   TilePictureRO3: TImage;
+  styleType: TPanel;
   NoTile,
   TileRO3,
   TileRO4,
@@ -59,7 +60,9 @@ type
   ilAuto,
   ilSeq,
   ilInter,
-  ilMPX: TRISCOSRadioBox;
+  ilMPX,
+  styleNative,
+  styleRISCOS: TRISCOSRadioBox;
   DFSBeyondEdge,
   AllowDFSZeroSecs,
   AllowDFSBlankFilenames,
@@ -98,6 +101,33 @@ uses MainUnit;
 {------------------------------------------------------------------------------}
 procedure TSettingsForm.FormShow(Sender: TObject);
 begin
+ //Style the buttons
+ OKButton.NativeOS              :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS          :=MainForm.Fstyling=MainForm.NativeStyle;
+ NoTile.NativeOS                :=MainForm.Fstyling=MainForm.NativeStyle;
+ TileRO3.NativeOS               :=MainForm.Fstyling=MainForm.NativeStyle;
+ TileRO4.NativeOS               :=MainForm.Fstyling=MainForm.NativeStyle;
+ TileRO5.NativeOS               :=MainForm.Fstyling=MainForm.NativeStyle;
+ TileIyonix.NativeOS            :=MainForm.Fstyling=MainForm.NativeStyle;
+ TileROPi.NativeOS              :=MainForm.Fstyling=MainForm.NativeStyle;
+ ilAuto.NativeOS                :=MainForm.Fstyling=MainForm.NativeStyle;
+ ilSeq.NativeOS                 :=MainForm.Fstyling=MainForm.NativeStyle;
+ ilInter.NativeOS               :=MainForm.Fstyling=MainForm.NativeStyle;
+ ilMPX.NativeOS                 :=MainForm.Fstyling=MainForm.NativeStyle;
+ styleNative.NativeOS           :=MainForm.Fstyling=MainForm.NativeStyle;
+ styleRISCOS.NativeOS           :=MainForm.Fstyling=MainForm.NativeStyle;
+ DFSBeyondEdge.NativeOS         :=MainForm.Fstyling=MainForm.NativeStyle;
+ AllowDFSZeroSecs.NativeOS      :=MainForm.Fstyling=MainForm.NativeStyle;
+ AllowDFSBlankFilenames.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ CreateINF.NativeOS             :=MainForm.Fstyling=MainForm.NativeStyle;
+ ImpliedAttr.NativeOS           :=MainForm.Fstyling=MainForm.NativeStyle;
+ WriteDebug.NativeOS            :=MainForm.Fstyling=MainForm.NativeStyle;
+ CompressUEF.NativeOS           :=MainForm.Fstyling=MainForm.NativeStyle;
+ ScanSubDirs.NativeOS           :=MainForm.Fstyling=MainForm.NativeStyle;
+ OpenDOS.NativeOS               :=MainForm.Fstyling=MainForm.NativeStyle;
+ CreateDSC.NativeOS             :=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top     :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
  TilePictureRO5.Picture.Bitmap   :=MainForm.GetTextureTile(1);
  TilePictureRO4.Picture.Bitmap   :=MainForm.GetTextureTile(2);
  TilePictureRO3.Picture.Bitmap   :=MainForm.GetTextureTile(3);
@@ -204,11 +234,20 @@ begin
  //Resize the form and panels to accomodate the above
  TexturePanel.ClientWidth:=LRefWid+TileROPi.Left+Round(4*ratio);
  SettingsForm.Width:=TexturePanel.Width;
+ styleType.Width:=TexturePanel.Width;
  DFSPanel.Width:=SettingsForm.Width div 2;
  DFSPanel.Left:=SettingsForm.Width div 2;
  InterleavePanel.Left:=0;
  InterleavePanel.Width:=SettingsForm.Width div 2;
  MiscPanel.Width:=TexturePanel.Width;
+ //Style selection
+ styleNative:=CreateRadioBox('Native OS',styleType);
+ styleRISCOS:=CreateRadioBox('RISC OS',styleType);
+ styleNative.Top:=0;
+ styleNative.Left:=Round(4*ratio);
+ styleRISCOS.Top:=0;
+ styleRISCOS.Left:=(styleType.Width div 2)+Round(4*ratio);
+ styleType.Height:=styleNative.Height+Round(8*ratio);
  //Create the DFS panel tick boxes
  DFSBeyondEdge:=CreateTickBox('Allow files goes over disc edge',DFSPanel);
  DFSBeyondEdge.Top:=DFSPanelLabel.Top+DFSPanelLabel.Height+Round(4*ratio);
@@ -258,7 +297,8 @@ begin
  CreateDSC.Left:=OpenDOS.Left;
  MiscPanel.Height:=CompressUEF.Top+CompressUEF.Height+Round(8*ratio);
  //Move the panels up/down
- DFSPanel.Top:=TexturePanel.Top+TexturePanel.Height;
+ styleType.Top:=TexturePanel.Top+TexturePanel.Height;
+ DFSPanel.Top:=styleType.Top+styleType.Height;
  InterleavePanel.Top:=DFSPanel.Top;
  MiscPanel.Top:=InterleavePanel.Top+InterleavePanel.Height;
  //Create the buttons

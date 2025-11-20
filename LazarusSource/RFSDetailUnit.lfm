@@ -8,10 +8,10 @@ object RFSDetailForm: TRFSDetailForm
   Caption = 'ROM FS Header'
   ClientHeight = 230
   ClientWidth = 268
+  Position = poMainFormCenter
   OnCreate = FormCreate
   OnPaint = FormPaint
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
+  OnShow = FormShow
   object ROMFS: TPanel
     Left = 0
     Height = 160
@@ -38,10 +38,10 @@ object RFSDetailForm: TRFSDetailForm
     end
     object ROMFSTitle: TLabeledEdit
       Left = 72
-      Height = 22
+      Height = 21
       Top = 24
       Width = 184
-      EditLabel.Height = 16
+      EditLabel.Height = 21
       EditLabel.Width = 30
       EditLabel.Caption = 'Title:'
       LabelPosition = lpLeft
@@ -50,10 +50,10 @@ object RFSDetailForm: TRFSDetailForm
     end
     object ROMFSVersion: TLabeledEdit
       Left = 72
-      Height = 22
+      Height = 21
       Top = 56
       Width = 184
-      EditLabel.Height = 16
+      EditLabel.Height = 21
       EditLabel.Width = 49
       EditLabel.Caption = 'Version:'
       LabelPosition = lpLeft
@@ -67,9 +67,9 @@ object RFSDetailForm: TRFSDetailForm
       Width = 17
       Max = 255
       Min = 0
-      OnClick = ROMFSBinVersAdjClick
       Position = 1
       TabOrder = 2
+      OnClick = ROMFSBinVersAdjClick
     end
     object ROMFSBinVersLabel: TLabel
       Left = 8
@@ -90,10 +90,10 @@ object RFSDetailForm: TRFSDetailForm
     end
     object ROMFSCopy: TLabeledEdit
       Left = 72
-      Height = 22
+      Height = 21
       Top = 112
       Width = 184
-      EditLabel.Height = 16
+      EditLabel.Height = 21
       EditLabel.Width = 63
       EditLabel.Caption = 'Copyright:'
       LabelPosition = lpLeft

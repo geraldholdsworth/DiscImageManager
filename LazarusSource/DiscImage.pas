@@ -6,7 +6,7 @@ Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
 1541, Commodore 1571, Commodore 1581, Commodore AmigaDOS, Acorn File Server,
-SparkFS, PackDir, MS-DOS, and Acorn DOS Plus.
+SparkFS, PackDir, MS-DOS, Acorn DOS Plus, Spectrum DSK, and ISO 9660/Joilet.
 
 Copyright ©2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 

@@ -12,9 +12,9 @@ object SearchForm: TSearchForm
   Font.Color = clBlack
   Position = poMainFormCenter
   ShowHint = True
-  LCLVersion = '4.0.0.4'
   OnCreate = FormCreate
   OnPaint = FormPaint
+  OnShow = FormShow
   object SearchEntryPanel: TPanel
     Left = 0
     Height = 88

@@ -11,6 +11,7 @@ object NewImageForm: TNewImageForm
   Color = 15527148
   Font.Color = clBlack
   Position = poMainFormCenter
+  LCLVersion = '4.0.0.4'
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow

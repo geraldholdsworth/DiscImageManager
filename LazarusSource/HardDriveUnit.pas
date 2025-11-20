@@ -212,6 +212,20 @@ Form is showing
 -------------------------------------------------------------------------------}
 procedure THardDriveForm.FormShow(Sender: TObject);
 begin
+ //Style the buttons
+ OKButton.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle; 
+ cb_NewMap.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_AddHeader.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_IDE.NativeOS      :=MainForm.Fstyling=MainForm.NativeStyle;
+ rb_FAT12.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ rb_FAT16.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ rb_FAT32.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ rb_BigDir.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ rb_NewDir.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ rb_OldDir.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top     :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
  if ADFSHDD then
  begin
   //Set capacity to 40MB

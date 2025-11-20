@@ -78,9 +78,10 @@ type
   colDir: TShape;
   colFile: TShape;
   colUnformatted: TShape;
-  btn_OK,
-  btn_Cancel: TRISCOSButton;
+  OKButton,
+  CancelButton: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
+  procedure FormShow(Sender: TObject);
   procedure LegendPaint(Sender: TObject);
  private
 
@@ -99,24 +100,51 @@ uses MainUnit;
 
 { TImageDetailForm }
 
+{-------------------------------------------------------------------------------
+Paint the form
+-------------------------------------------------------------------------------}
 procedure TImageDetailForm.LegendPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
 end;
 
+{-------------------------------------------------------------------------------
+Create the form
+-------------------------------------------------------------------------------}
 procedure TImageDetailForm.FormCreate(Sender: TObject);
 var
  ratio: Real=0;
 begin
- ratio:=PixelsPerInch/DesignTimePPI;
- btn_OK:=MainForm.CreateButton(Legend as TControl,'Update',True,0,0,mrOK);
- btn_Cancel:=MainForm.CreateButton(Legend as TControl,'Cancel',False,0,0,mrCancel);
- btn_OK.Width:=(Legend.ClientWidth div 2)-Round(16*ratio);
- btn_Cancel.Width:=btn_OK.Width-Round(8*ratio);
- btn_OK.Top:=LegendLabel.Top-Round(8*ratio)-btn_OK.Height;
- btn_OK.Left:=Legend.ClientWidth-Round(8*ratio)-btn_OK.Width;
- btn_Cancel.Top:=btn_OK.Top+Round(4*ratio);
- btn_Cancel.Left:=Round(8*ratio);
+ ratio             :=PixelsPerInch/DesignTimePPI;
+ OKButton          :=MainForm.CreateButton(Legend as TControl,
+                                           'Update',
+                                           True,
+                                           0,
+                                           0,
+                                           mrOK);
+ CancelButton      :=MainForm.CreateButton(Legend as TControl,
+                                           'Cancel',
+                                           False,
+                                           0,
+                                           0,
+                                           mrCancel);
+ OKButton.Width    :=(Legend.ClientWidth div 2)-Round(16*ratio);
+ CancelButton.Width:=OKButton.Width-Round(8*ratio);
+ OKButton.Top      :=LegendLabel.Top-Round(8*ratio)-OKButton.Height;
+ OKButton.Left     :=Legend.ClientWidth-Round(8*ratio)-OKButton.Width;
+ CancelButton.Top  :=OKButton.Top+Round(4*ratio);
+ CancelButton.Left :=Round(8*ratio);
+end;
+
+{-------------------------------------------------------------------------------
+Show the form
+-------------------------------------------------------------------------------}
+procedure TImageDetailForm.FormShow(Sender: TObject);
+begin
+ OKButton.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top     :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
 end;
 
 end.

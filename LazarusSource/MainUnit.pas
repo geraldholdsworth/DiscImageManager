@@ -4,10 +4,10 @@ unit MainUnit;
 Disc Image Manager written by Gerald Holdsworth
 Started out as a demo for the TDiscImage class but blossomed into a full-blown
 application, ported across from Delphi to Lazarus and hence then compiled on
-macOS and Linux in addition to the original Windows version. The underlying class
-has also grown from being just a reader to also a writer.
-Extra 'gimmicks' have been added over time, to utilise the code in the underlying
-class.
+macOS and Linux in addition to the original Windows version. The underlying
+class has also grown from being just a reader to also a writer.
+Extra 'gimmicks' have been added over time, to utilise the code in the
+underlying class.
 
 Copyright ©2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
 
@@ -37,7 +37,7 @@ uses
   SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
   ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,Clipbrd,HexDumpUnit,
   FPImage,IntfGraphics,ActnList,GraphType,DateTimePicker,Types,RFSDetailUnit,
-  GJHCustomComponents,fpjson;
+  GJHCustomComponents,fpjson,DiscImageHelper;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -45,6 +45,7 @@ type
  TMyTreeNode = class(TTreeNode)
   private
    FPart      : Cardinal;
+   FImage,
    FDirRef,
    FParentDir : Integer;
    FIsDir,
@@ -53,556 +54,560 @@ type
    FIsDOSPart : Boolean;
    FParentName: String;
   public
-   property ParentDir : Integer  read FParentDir  write FParentDir;//Parent directory reference
-   property IsDir     : Boolean  read FIsDir      write FIsDir;    //Is it a directory
-   property DirRef    : Integer  read FDirRef     write FDirRef;   //Reference into TDiscImage.Disc
-   property BeenRead  : Boolean  read FBeenRead   write FBeenRead; //Has the directory been read in
-   property Broken    : Boolean  read FBroken     write FBroken;   //Is the ADFS directory broken?
-   property IsDOSPart : Boolean  read FIsDOSPart  write FIsDOSPart;//This is the DOS Partition file
-   property ParentName: String   read FParentName write FParentName;
-   property Partition : Cardinal read FPart       write FPart;
+   property ParentDir : Integer  read FParentDir  write FParentDir; //Parent directory reference
+   property IsDir     : Boolean  read FIsDir      write FIsDir;     //Is it a directory
+   property DirRef    : Integer  read FDirRef     write FDirRef;    //Reference into TDiscImage.Disc
+   property BeenRead  : Boolean  read FBeenRead   write FBeenRead;  //Has the directory been read in
+   property Broken    : Boolean  read FBroken     write FBroken;    //Is the ADFS directory broken?
+   property Image     : Integer  read FImage      write FImage;     //Index into the TDiscImages array
+   property IsDOSPart : Boolean  read FIsDOSPart  write FIsDOSPart; //This is the DOS Partition file
+   property ParentName: String   read FParentName write FParentName;//Fully qualified name of the parent
+   property Partition : Cardinal read FPart       write FPart;      //Which partition?
  end;
-
- //Form definition
-
-  { TMainForm }
-type
-  TMainForm = class(TForm)
-   DeleteAFile: TAction;
-   AmigaAttrPanel: TPanel;
-   AFSAttrPanel: TPanel;
-   DOSAttributeLabel: TLabel;
-   DOSAttrPanel: TPanel;
-   SinclairAttributeLabel: TLabel;
-   SinclairAttrPanel: TPanel;
-   ISOAttrPanel: TPanel;
-   ISOAttributeLabel: TLabel;
-   CancelDragDrop: TAction;
-   Help: TMemo;
-   menuFixADFS: TMenuItem;
-   menuDefrag: TMenuItem;
-   menuChangeInterleave: TMenuItem;
-   menuMultiCSV: TMenuItem;
-   menuShowReport: TMenuItem;
-   OAAttrLabelAmiga: TLabel;
-   OthAttrLabelAmiga: TLabel;
-   MiscAttrLabelAmiga: TLabel;
-   PubAttrLabelAmiga: TLabel;
-   HoverTimer: TTimer;
-   ImageToolBarPage: TTabSheet;
-   FIlesToolBarPage: TTabSheet;
-   PartitionToolBarPage: TTabSheet;
-   btn_FixADFS: TToolButton;
-   btn_ChangeInterleave: TToolButton;
-   btn_Defrag: TToolButton;
-   btn_Settings: TToolButton;
-   btn_About: TToolButton;
-   btn_MultiCSV: TToolButton;
-   ToolsToolBar: TToolBar;
-   ToolsToolBarPage: TTabSheet;
-   ImageToolBar: TToolBar;
-   FilesToolBar: TToolBar;
-   PartitionToolBar: TToolBar;
-   menuImage: TMenuItem;
-   menuFiles: TMenuItem;
-   menuTools: TMenuItem;
-   menuPartition: TMenuItem;
-   ToolBarContainer: TPageControl;
-   btn_NewImage: TToolButton;
-   btn_OpenImage: TToolButton;
-   btn_CloseImage: TToolButton;
-   btn_SaveImage: TToolButton;
-   btn_SaveAsCSV: TToolButton;
-   btn_ImageDetails: TToolButton;
-   btn_FileSearch: TToolButton;
-   btn_ShowReport: TToolButton;
-   btn_download: TToolButton;
-   btn_AddFiles: TToolButton;
-   btn_Rename: TToolButton;
-   btn_HexDump: TToolButton;
-   btn_NewDirectory: TToolButton;
-   btn_Delete: TToolButton;
-   btn_DuplicateFile: TToolButton;
-   btn_AddPassword: TToolButton;
-   btn_EditPassword: TToolButton;
-   btn_SavePartition: TToolButton;
-   btn_DeletePartition: TToolButton;
-   btn_AddPartition: TToolButton;
-   DuplicateFile1: TMenuItem;
-   IyonixTextureTile: TImage;
-   menuAddPasswordFile: TMenuItem;
-   menuEditPasswordFile: TMenuItem;
-   menuAddPartition: TMenuItem;
-   menuViewFileDetails: TMenuItem;
-   menuViewStatus: TMenuItem;
-   menuViewToolBar: TMenuItem;
-   TextureTiles: TPanel;
-   ViewMenu: TMenuItem;
-   menuSavePartition: TMenuItem;
-   menuDeletePartition: TMenuItem;
-   AFSOAAttributeLabel: TLabel;
-   PartitionMenu: TMenuItem;
-   AFSPubAttributeLabel: TLabel;
-   ROPiTextureTile: TImage;
-   RO3TextureTile: TImage;
-   menuDuplicateFile: TMenuItem;
-   menuOptions: TMenuItem;
-   PasteFromClipboard: TAction;
-   CopyToClipboard: TAction;
-   KeyboardShortcuts: TActionList;
-   C64AttributeLabel: TLabel;
-   ed_timestamp: TDateTimePicker;
-   ed_loadaddr: TEdit;
-   ed_execaddr: TEdit;
-   ed_title: TEdit;
-   FilenameLabel: TLabel;
-   icons: TImageList;
-   FileImages: TImageList;
-   NoTile: TImage;
-   RO4TextureTile: TImage;
-   StateIcons: TImageList;
-   lb_FileName: TLabel;
-   menuFileSearch: TMenuItem;
-   ADFSAttrPanel: TPanel;
-   DFSAttrPanel: TPanel;
-   C64AttrPanel: TPanel;
-   DFSAttributeLabel: TLabel;
-   FilenamePanel: TPanel;
-   FiletypePanel: TPanel;
-   ExecAddrPanel: TPanel;
-   LoadAddrPanel: TPanel;
-   LengthPanel: TPanel;
-   DirTitlePanel: TPanel;
-   LocationPanel: TPanel;
-   CRC32Panel: TPanel;
-   ToolSplitter: TSplitter;
-   TimeStampPanel: TPanel;
-   ParentPanel: TPanel;
-   RO5TextureTile: TImage;
-   MiscButtons: TImageList;
-   imgCopy: TImage;
-   PubAttributeLabel: TLabel;
-   CRC32Label: TLabel;
-   OAAttributeLabel: TLabel;
-   lb_CRC32: TLabel;
-   Main_Menu: TMainMenu;
-   ImageMenu: TMenuItem;
-   menuCloseImage: TMenuItem;
-   HexDumpMenu: TMenuItem;
-   HexDump1: TMenuItem;
-   menuHexDump: TMenuItem;
-   menuSaveAsCSV: TMenuItem;
-   menuRenameFile: TMenuItem;
-   menuNewDir: TMenuItem;
-   menuDeleteFile: TMenuItem;
-   menuAbout: TMenuItem;
-   FilesMenu: TMenuItem;
-   ToolsMenu: TMenuItem;
-   menuNewImage: TMenuItem;
-   menuOpenImage: TMenuItem;
-   menuSaveImage: TMenuItem;
-   menuImageDetails: TMenuItem;
-   menuExtractFile: TMenuItem;
-   menuAddFile: TMenuItem;
-   DelayTimer: TTimer;
-   ToolBarImages: TImageList;
-   AddNewFile: TOpenDialog;
-   SaveImage: TSaveDialog;
-   OpenImageFile: TOpenDialog;
-   DirList: TTreeView;
-   FileInfoPanel: TPanel;
-   img_FileType: TImage;
-   lb_FileType: TLabel;
-   FileTypeLabel: TLabel;
-   ExecAddrLabel: TLabel;
-   lb_execaddr: TLabel;
-   lb_loadaddr: TLabel;
-   LoadAddrLabel: TLabel;
-   lb_timestamp: TLabel;
-   LengthLabel: TLabel;
-   TimestampLabel: TLabel;
-   lb_length: TLabel;
-   lb_Parent: TLabel;
-   ParentLabel: TLabel;
-   lb_title: TLabel;
-   DirTitleLabel: TLabel;
-   LocationLabel: TLabel;
-   lb_location: TLabel;
-   FileDetailsLabel: TLabel;
-   ImageContentsPanel: TPanel;
-   lb_contents: TLabel;
-   File_Menu: TPopupMenu;
-   ExtractFile1: TMenuItem;
-   RenameFile1: TMenuItem;
-   DeleteFile1: TMenuItem;
-   ImageDetails: TStatusBar;
-   AddFile1: TMenuItem;
-   NewDirectory1: TMenuItem;
-   //Dynamically created tickboxes
-   cb_C64_c, //Commodore 64
-   cb_C64_l,
-   cb_DFS_l, //Acorn DFS
-   cb_ADFS_pubp, //Acorn ADFS
-   cb_ADFS_ownw,
-   cb_ADFS_ownr,
-   cb_ADFS_ownl,
-   cb_ADFS_owne,
-   cb_ADFS_pubr,
-   cb_ADFS_pubw,
-   cb_ADFS_pube,
-   cb_AFS_ownl, //Acorn FS  
-   cb_AFS_ownr,
-   cb_AFS_ownw,
-   cb_AFS_pubr,
-   cb_AFS_pubw,
-   cb_DOS_system, //DOS
-   cb_DOS_read,
-   cb_DOS_hidden,
-   cb_DOS_archive,
-   cb_Sinclair_system, //Sinclair
-   cb_Sinclair_readonly,
-   cb_Sinclair_archive,
-   cb_ISO_hidden,
-   cb_ISO_associated,
-   cb_Amiga_othd, //Amiga
-   cb_Amiga_arch,
-   cb_Amiga_othe,
-   cb_Amiga_pure,
-   cb_Amiga_hold,
-   cb_Amiga_scri,
-   cb_Amiga_ownr,
-   cb_Amiga_othr,
-   cb_Amiga_ownw,
-   cb_Amiga_owne,
-   cb_Amiga_ownd,
-   cb_Amiga_othw,
-   cb_Amiga_pubw,
-   cb_Amiga_pubr,
-   cb_Amiga_pubd,
-   cb_Amiga_pube: TRISCOSTickBox;
-   //Events - mouse clicks
-   procedure btn_AddPartitionClick(Sender: TObject);
-   procedure btn_AddPasswordClick(Sender: TObject);
-   procedure btn_ChangeInterleaveClick(Sender: TObject);
-   procedure btn_CloseImageClick(Sender: TObject);
-   procedure btn_DefragClick(Sender: TObject);
-   procedure btn_DeletePartitionClick(Sender: TObject);
-   procedure btn_EditPasswordClick(Sender: TObject);
-   procedure btn_FileSearchClick(Sender: TObject);
-   procedure btn_FixADFSClick(Sender: TObject);
-   procedure btn_ImageDetailsClick(Sender: TObject);
-   procedure btn_MultiCSVClick(Sender: TObject);
-   procedure btn_NewDirectoryClick(Sender: TObject);
-   procedure btn_SaveAsCSVClick(Sender: TObject);
-   procedure btn_SavePartitionClick(Sender: TObject);
-   procedure btn_SettingsClick(Sender: TObject);
-   procedure btn_ShowReportClick(Sender: TObject);
-   procedure DuplicateFile1Click(Sender: TObject);
-   procedure ed_timestampEditingDone(Sender: TObject);
-   procedure HexDumpSubItemClick(Sender: TObject);
-   procedure lb_execaddrClick(Sender: TObject);
-   procedure lb_loadaddrClick(Sender: TObject);
-   procedure lb_timestampClick(Sender: TObject);
-   procedure lb_titleClick(Sender: TObject);
-   procedure ShowHideToolbar(Sender: TObject);
-   procedure sb_FileTypeClick(Sender: TObject);
-   procedure FileTypeClick(Sender: TObject);
-   procedure btn_NewImageClick(Sender: TObject);
-   procedure btn_SaveImageClick(Sender: TObject);
-   procedure AttributeChangeClick(Sender: TObject);
-   procedure RenameFile1Click(Sender: TObject);
-   procedure DeleteFile1Click(Sender: TObject);
-   procedure btn_downloadClick(Sender: TObject);
-   procedure btn_OpenImageClick(Sender: TObject);
-   procedure sb_ClipboardClick(Sender: TObject);
-   procedure btn_AboutClick(Sender: TObject);
-   procedure DirListDblClick(Sender: TObject);
-   procedure AddFile1Click(Sender: TObject);
-   //Events - TTreeView Drag & Drop
-   procedure DirListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-   procedure DirListKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
-   procedure DirListMouseDown(Sender: TObject; Button: TMouseButton;
-    Shift: TShiftState; X, Y: Integer);
-   procedure DraggedItemMouseMove(Sender: TObject; Shift: TShiftState; X,Y: Integer);
-   procedure DraggedItemMouseUp(Sender: TObject; Button: TMouseButton;
-    Shift: TShiftState; X, Y: Integer);
-   procedure DirListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
-   procedure DirListMouseUp(Sender: TObject; Button: TMouseButton;
-    Shift: TShiftState; X, Y: Integer);
-   procedure DelayTimerTimer(Sender: TObject);
-   procedure CancelDragDropExecute(Sender: TObject);
-   //Events - Form
-   procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
-   procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
-   procedure FormShow(Sender: TObject);
-   procedure FormCreate(Sender: TObject);
-   procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-   procedure FormKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
-   procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
-   //Events - Other
-   procedure ed_execaddrEditingDone(Sender: TObject);
-   procedure ed_titleEditingDone(Sender: TObject);
-   procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
-   procedure DirListEditingEnd(Sender: TObject; Node: TTreeNode;
-    Cancel: Boolean);
-   procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
-   procedure DirListChange(Sender: TObject; Node: TTreeNode);
-   procedure DirListEditing(Sender: TObject; Node: TTreeNode;
-     var AllowEdit: Boolean);
-   procedure DirListExit(Sender: TObject);
-   procedure DirListCustomDraw(Sender: TCustomTreeView; const ARect: TRect;
-    var DefaultDraw: Boolean);
-   procedure DirListCustomDrawArrow(Sender: TCustomTreeView;
-    const ARect: TRect; ACollapsed: Boolean);
-   procedure DirListCustomDrawItem(Sender: TCustomTreeView; Node: TTreeNode;
-    State: TCustomDrawState; var DefaultDraw: Boolean);
-   procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
-    const Rect: TRect);
-   procedure FileInfoPanelPaint(Sender: TObject);
-   procedure FileInfoPanelResize(Sender: TObject);
-   procedure ed_execaddrKeyPress(Sender: TObject; var Key: char);
-   procedure FileTypeKeyPress(Sender: TObject; var Key: char);
-   procedure DirListContextPopup(Sender: TObject; MousePos: TPoint;
-    var Handled: Boolean);
-   procedure CopyToClipboardExecute(Sender: TObject);
-   procedure PasteFromClipboardExecute(Sender: TObject);
-   procedure ToolBarContainerChange(Sender: TObject);
-   procedure HoverTimerTimer(Sender: TObject);
-   //Misc
-   function AddDirectoryToImage(dirname: String): Boolean;
-   procedure AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer;
-                                    ImageToUse:TDiscImage;var highdir: Integer);
-   function AddFileErrorToText(error: Integer):String;
-   function AddFileToImage(filename: String):Integer;
-   function AddFileToImage(filename: String;filedetails: TDirEntry;
-           buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer; overload;
-   function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
-      index:Integer;dir:Boolean;Tree:TTreeView;IsDOSPart:Boolean):TTreeNode;
-   procedure AddImageToTree(Tree: TTreeView;ImageToUse: TDiscImage);
-   procedure AddSparkToImage(filename: String);
-   procedure ArrangeFileDetails;
-   function AskConfirm(confim: String; Buttons: array of String): TModalResult;
-   procedure CloseAllHexDumps;                                                   
-   function ConvertToKMG(size: Int64): String;
-   function CreateButton(Lparent: TControl; Lcaption: String;LDef: Boolean;
-                         LLeft,LTop: Integer; LModal: TModalResult): TRISCOSButton;
-   function CreateDirectory(dirname,attr: String): TTreeNode;
-   procedure CreateFileTypeDialogue;
-   procedure CreateNewImage;
-   procedure Defrag(side: Byte=0);
-   function DeleteFile(confirm: Boolean): Boolean;
-   procedure DisableControls;
-   procedure DoCopyMove(copymode: Boolean);
-   procedure DownLoadDirectory(dir,entry: Integer; path: String);
-   procedure DownLoadFile(dir,entry: Integer; path: String;filename: String='');
-   procedure ExtractFiles(ShowDialogue: Boolean);
-   function FindNode(filename: String;casesens:Boolean=True): TTreeNode;
-   function FindPartitionRoot(filepath: String): Integer;
-   function GetCopyMode(Shift: TShiftState): Boolean;
-   function GetFilePath(Node: TTreeNode): String;
-   function GetFileTypeGraphic(filetype: String;offset: Integer;
-                                     const filetypes: array of String): Integer;
-   function GetImageFilename(dir,entry: Integer): String;
-   function GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage): Integer;
-   procedure GetJSONString(json: TJSONObject; search: String; var output: String);
-   procedure SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
-   function GetNodeAt(Y: Integer): TTreeNode;
-   function GetTextureTile(Ltile:Integer=-1): TBitmap;
-   function ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
-                                                 Errors: Boolean=True): Integer;
-   function IntToStrComma(size: Int64): String;
-   procedure OpenImage(filename: String);
-   procedure ParseCommand(var Command: TStringArray);
-   function QueryUnsaved: Boolean;
-   procedure ReadInDirectory(Node: TTreeNode);
-   procedure ReportError(error: String);
-   procedure ResetFileFields;
-   procedure SaveAsCSV(filename: String='');
-   procedure SaveAsCSV(FileNames: TStrings; filename: String=''); overload;
-   procedure SaveConfigSettings;
-   procedure Scaling;
-   procedure SelectNode(filename: String;casesens:Boolean=True);
-   procedure ShowErrorLog;
-   procedure ShowInfo(info: String);
-   procedure ShowNewImage(title: String);
-   procedure SwapLabelEdit(editcont: TEdit;labelcont: TLabel;dir,hex: Boolean);
-   procedure TileCanvas(c: TCanvas);
-   procedure TileCanvas(c: TCanvas;rc: TRect); overload;
-   procedure UpdateImageInfo(partition: Cardinal=0);
-   procedure UpdateProgress(Fupdate: String);
-   procedure WriteToDebug(line: String);
-  private
-   var
-    //To keep track of renames
-    PathBeforeEdit,
-    NameBeforeEdit      :String;
-    //Stop the checkbox OnClick from firing when just changing the values
-    DoNotUpdate         :Boolean;
-    //Item being dragged on Directory List, and the destination
-    Dst,
-    DraggedItem         :TTreeNode;
-    //To keep track of if we are dragging and if the mouse button is down
-    IsDragging,
-    MouseIsDown         :Boolean;
-    //To remember where we started with the drag operation
-    CursorPos           :TPoint;
-    //The mouse 'cursor' while we are dragging
-    ObjectDrag          :TImage;
-    //Keep track of which hex dump windows are open
-    HexDump             :array of THexDumpForm;
-    //Reporting of errors
-    ErrorReporting      :Boolean;
-    //Delay flag
-    progsleep           :Boolean;
-    //Texture type
-    TextureType         :Byte;
-    //ADFS L Interleaved
-    ADFSInterleave      :Byte;
-    //Treat Spark as Filing System
-    SparkIsFS           :Boolean;
-    //Importing bypass GUI threshold
-    bypassGUIThres      :Cardinal;
-    //Create INF File?
-    DoCreateINF         :Boolean;
-    //Add implied attributes for DFS/CFS/RFS
-    AddImpliedAttributes:Boolean;
-    //Hide Commodore DEL files?
-    DoHideDEL           :Boolean;
-    //Filetype Dialogue Form
-    FTDialogue          :TForm;
-    //Filetype buttons on dialogue form
-    FTButtons           :array of TSpeedButton;
-    //Dummy button for dialogue form
-    FTDummyBtn          :TSpeedButton;
-    //Custom filetype on dialogue form
-    FTEdit              :TEdit;
-    //Keep a track of which buttons are pressed on the form
-    FormShiftState      :TShiftState;
-    //Produce a log file for debugging
-    Fdebug              :Boolean;
-    //Allow DFS images with zero number of sectors
-    FDFSZeroSecs        :Boolean;
-    //Check for files going beyond the disc edge on DFS
-    FDFSBeyondEdge      :Boolean;
-    //Check for blank filenames
-    FDFSAllowBlank      :Boolean;
-    //Compress UEF files
-    FUEFCompress        :Boolean;
-    //View options (what is visible)
-    ViewOptions         :Cardinal;
-    //Scan sub-directories on opening
-    FScanSubDirs        :Boolean;
-    //Open DOS Partitions on ADFS
-    FOpenDOS            :Boolean;
-    //Create *.dsc files with ADFS hard drives
-    FCreateDSC          :Boolean;
-    AppIsClosing        :Boolean;
-    //Currently selected directory, when in console mode
-    Fcurrdir            :Integer;
-   const
-    //These point to certain icons used when no filetype is found, or non-ADFS
-    //The numbers are indexes into the TImageList component 'FileImages'.
-    appicon     =   0; //RISC OS Application
-    directory   =   1; //Generic directory
-    directory_o =   2; //Generic open directory
-    loadexec    =   3; //RISC OS Load/Exec
+ //Form definition - TMainForm
+ TMainForm = class(TForm)
+  DeleteAFile: TAction;
+  AmigaAttrPanel: TPanel;
+  AFSAttrPanel: TPanel;
+  DOSAttributeLabel: TLabel;
+  DOSAttrPanel: TPanel;
+  SinclairAttributeLabel: TLabel;
+  SinclairAttrPanel: TPanel;
+  ISOAttrPanel: TPanel;
+  ISOAttributeLabel: TLabel;
+  CancelDragDrop: TAction;
+  Help: TMemo;
+  menuFixADFS: TMenuItem;
+  menuDefrag: TMenuItem;
+  menuChangeInterleave: TMenuItem;
+  menuMultiCSV: TMenuItem;
+  menuShowReport: TMenuItem;
+  OAAttrLabelAmiga: TLabel;
+  OthAttrLabelAmiga: TLabel;
+  MiscAttrLabelAmiga: TLabel;
+  PubAttrLabelAmiga: TLabel;
+  HoverTimer: TTimer;
+  ImageToolBarPage: TTabSheet;
+  FIlesToolBarPage: TTabSheet;
+  PartitionToolBarPage: TTabSheet;
+  btn_FixADFS: TToolButton;
+  btn_ChangeInterleave: TToolButton;
+  btn_Defrag: TToolButton;
+  btn_Settings: TToolButton;
+  btn_About: TToolButton;
+  btn_MultiCSV: TToolButton;
+  ToolsToolBar: TToolBar;
+  ToolsToolBarPage: TTabSheet;
+  ImageToolBar: TToolBar;
+  FilesToolBar: TToolBar;
+  PartitionToolBar: TToolBar;
+  menuImage: TMenuItem;
+  menuFiles: TMenuItem;
+  menuTools: TMenuItem;
+  menuPartition: TMenuItem;
+  ToolBarContainer: TPageControl;
+  btn_NewImage: TToolButton;
+  btn_OpenImage: TToolButton;
+  btn_CloseImage: TToolButton;
+  btn_SaveImage: TToolButton;
+  btn_SaveAsCSV: TToolButton;
+  btn_ImageDetails: TToolButton;
+  btn_FileSearch: TToolButton;
+  btn_ShowReport: TToolButton;
+  btn_download: TToolButton;
+  btn_AddFiles: TToolButton;
+  btn_Rename: TToolButton;
+  btn_HexDump: TToolButton;
+  btn_NewDirectory: TToolButton;
+  btn_Delete: TToolButton;
+  btn_DuplicateFile: TToolButton;
+  btn_AddPassword: TToolButton;
+  btn_EditPassword: TToolButton;
+  btn_SavePartition: TToolButton;
+  btn_DeletePartition: TToolButton;
+  btn_AddPartition: TToolButton;
+  DuplicateFile1: TMenuItem;
+  IyonixTextureTile: TImage;
+  menuAddPasswordFile: TMenuItem;
+  menuEditPasswordFile: TMenuItem;
+  menuAddPartition: TMenuItem;
+  menuViewFileDetails: TMenuItem;
+  menuViewStatus: TMenuItem;
+  menuViewToolBar: TMenuItem;
+  TextureTiles: TPanel;
+  ViewMenu: TMenuItem;
+  menuSavePartition: TMenuItem;
+  menuDeletePartition: TMenuItem;
+  AFSOAAttributeLabel: TLabel;
+  PartitionMenu: TMenuItem;
+  AFSPubAttributeLabel: TLabel;
+  ROPiTextureTile: TImage;
+  RO3TextureTile: TImage;
+  menuDuplicateFile: TMenuItem;
+  menuOptions: TMenuItem;
+  PasteFromClipboard: TAction;
+  CopyToClipboard: TAction;
+  KeyboardShortcuts: TActionList;
+  C64AttributeLabel: TLabel;
+  ed_timestamp: TDateTimePicker;
+  ed_loadaddr: TEdit;
+  ed_execaddr: TEdit;
+  ed_title: TEdit;
+  FilenameLabel: TLabel;
+  icons: TImageList;
+  FileImages: TImageList;
+  NoTile: TImage;
+  RO4TextureTile: TImage;
+  StateIcons: TImageList;
+  lb_FileName: TLabel;
+  menuFileSearch: TMenuItem;
+  ADFSAttrPanel: TPanel;
+  DFSAttrPanel: TPanel;
+  C64AttrPanel: TPanel;
+  DFSAttributeLabel: TLabel;
+  FilenamePanel: TPanel;
+  FiletypePanel: TPanel;
+  ExecAddrPanel: TPanel;
+  LoadAddrPanel: TPanel;
+  LengthPanel: TPanel;
+  DirTitlePanel: TPanel;
+  LocationPanel: TPanel;
+  CRC32Panel: TPanel;
+  ToolSplitter: TSplitter;
+  TimeStampPanel: TPanel;
+  ParentPanel: TPanel;
+  RO5TextureTile: TImage;
+  MiscButtons: TImageList;
+  imgCopy: TImage;
+  PubAttributeLabel: TLabel;
+  CRC32Label: TLabel;
+  OAAttributeLabel: TLabel;
+  lb_CRC32: TLabel;
+  Main_Menu: TMainMenu;
+  ImageMenu: TMenuItem;
+  menuCloseImage: TMenuItem;
+  HexDumpMenu: TMenuItem;
+  HexDump1: TMenuItem;
+  menuHexDump: TMenuItem;
+  menuSaveAsCSV: TMenuItem;
+  menuRenameFile: TMenuItem;
+  menuNewDir: TMenuItem;
+  menuDeleteFile: TMenuItem;
+  menuAbout: TMenuItem;
+  FilesMenu: TMenuItem;
+  ToolsMenu: TMenuItem;
+  menuNewImage: TMenuItem;
+  menuOpenImage: TMenuItem;
+  menuSaveImage: TMenuItem;
+  menuImageDetails: TMenuItem;
+  menuExtractFile: TMenuItem;
+  menuAddFile: TMenuItem;
+  DelayTimer: TTimer;
+  ToolBarImages: TImageList;
+  AddNewFile: TOpenDialog;
+  SaveImage: TSaveDialog;
+  OpenImageFile: TOpenDialog;
+  DirList: TTreeView;
+  FileInfoPanel: TPanel;
+  img_FileType: TImage;
+  lb_FileType: TLabel;
+  FileTypeLabel: TLabel;
+  ExecAddrLabel: TLabel;
+  lb_execaddr: TLabel;
+  lb_loadaddr: TLabel;
+  LoadAddrLabel: TLabel;
+  lb_timestamp: TLabel;
+  LengthLabel: TLabel;
+  TimestampLabel: TLabel;
+  lb_length: TLabel;
+  lb_Parent: TLabel;
+  ParentLabel: TLabel;
+  lb_title: TLabel;
+  DirTitleLabel: TLabel;
+  LocationLabel: TLabel;
+  lb_location: TLabel;
+  FileDetailsLabel: TLabel;
+  ImageContentsPanel: TPanel;
+  lb_contents: TLabel;
+  File_Menu: TPopupMenu;
+  ExtractFile1: TMenuItem;
+  RenameFile1: TMenuItem;
+  DeleteFile1: TMenuItem;
+  ImageDetails: TStatusBar;
+  AddFile1: TMenuItem;
+  NewDirectory1: TMenuItem;
+  //Dynamically created tickboxes
+  cb_C64_c, //Commodore 64
+  cb_C64_l,
+  cb_DFS_l, //Acorn DFS
+  cb_ADFS_pubp, //Acorn ADFS
+  cb_ADFS_ownw,
+  cb_ADFS_ownr,
+  cb_ADFS_ownl,
+  cb_ADFS_owne,
+  cb_ADFS_pubr,
+  cb_ADFS_pubw,
+  cb_ADFS_pube,
+  cb_AFS_ownl, //Acorn FS
+  cb_AFS_ownr,
+  cb_AFS_ownw,
+  cb_AFS_pubr,
+  cb_AFS_pubw,
+  cb_DOS_system, //DOS
+  cb_DOS_read,
+  cb_DOS_hidden,
+  cb_DOS_archive,
+  cb_Sinclair_system, //Sinclair
+  cb_Sinclair_readonly,
+  cb_Sinclair_archive,
+  cb_ISO_hidden,
+  cb_ISO_associated,
+  cb_Amiga_othd, //Amiga
+  cb_Amiga_arch,
+  cb_Amiga_othe,
+  cb_Amiga_pure,
+  cb_Amiga_hold,
+  cb_Amiga_scri,
+  cb_Amiga_ownr,
+  cb_Amiga_othr,
+  cb_Amiga_ownw,
+  cb_Amiga_owne,
+  cb_Amiga_ownd,
+  cb_Amiga_othw,
+  cb_Amiga_pubw,
+  cb_Amiga_pubr,
+  cb_Amiga_pubd,
+  cb_Amiga_pube: TRISCOSTickBox;
+  //Events - mouse clicks
+  procedure btn_AddPartitionClick(Sender: TObject);
+  procedure btn_AddPasswordClick(Sender: TObject);
+  procedure btn_ChangeInterleaveClick(Sender: TObject);
+  procedure btn_CloseImageClick(Sender: TObject);
+  procedure btn_DefragClick(Sender: TObject);
+  procedure btn_DeletePartitionClick(Sender: TObject);
+  procedure btn_EditPasswordClick(Sender: TObject);
+  procedure btn_FileSearchClick(Sender: TObject);
+  procedure btn_FixADFSClick(Sender: TObject);
+  procedure btn_ImageDetailsClick(Sender: TObject);
+  procedure btn_MultiCSVClick(Sender: TObject);
+  procedure btn_NewDirectoryClick(Sender: TObject);
+  procedure btn_SaveAsCSVClick(Sender: TObject);
+  procedure btn_SavePartitionClick(Sender: TObject);
+  procedure btn_SettingsClick(Sender: TObject);
+  procedure btn_ShowReportClick(Sender: TObject);
+  procedure DuplicateFile1Click(Sender: TObject);
+  procedure ed_timestampEditingDone(Sender: TObject);
+  procedure HexDumpSubItemClick(Sender: TObject);
+  procedure lb_execaddrClick(Sender: TObject);
+  procedure lb_loadaddrClick(Sender: TObject);
+  procedure lb_timestampClick(Sender: TObject);
+  procedure lb_titleClick(Sender: TObject);
+  procedure ShowHideToolbar(Sender: TObject);
+  procedure sb_FileTypeClick(Sender: TObject);
+  procedure FileTypeClick(Sender: TObject);
+  procedure btn_NewImageClick(Sender: TObject);
+  procedure btn_SaveImageClick(Sender: TObject);
+  procedure AttributeChangeClick(Sender: TObject);
+  procedure RenameFile1Click(Sender: TObject);
+  procedure DeleteFile1Click(Sender: TObject);
+  procedure btn_downloadClick(Sender: TObject);
+  procedure btn_OpenImageClick(Sender: TObject);
+  procedure sb_ClipboardClick(Sender: TObject);
+  procedure btn_AboutClick(Sender: TObject);
+  procedure DirListDblClick(Sender: TObject);
+  procedure AddFile1Click(Sender: TObject);
+  //Events - TTreeView Drag & Drop
+  procedure DirListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  procedure DirListKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+  procedure DirListMouseDown(Sender: TObject; Button: TMouseButton;
+   Shift: TShiftState; X, Y: Integer);
+  procedure DraggedItemMouseMove(Sender: TObject; Shift: TShiftState; X,Y: Integer);
+  procedure DraggedItemMouseUp(Sender: TObject; Button: TMouseButton;
+   Shift: TShiftState; X, Y: Integer);
+  procedure DirListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+  procedure DirListMouseUp(Sender: TObject; Button: TMouseButton;
+   Shift: TShiftState; X, Y: Integer);
+  procedure DelayTimerTimer(Sender: TObject);
+  procedure CancelDragDropExecute(Sender: TObject);
+  //Events - Form
+  procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
+  procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
+  procedure FormShow(Sender: TObject);
+  procedure FormCreate(Sender: TObject);
+  procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  procedure FormKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+  procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
+  //Events - Other
+  procedure ed_execaddrEditingDone(Sender: TObject);
+  procedure ed_titleEditingDone(Sender: TObject);
+  procedure DirListCreateNodeClass(Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
+  procedure DirListEditingEnd(Sender: TObject; Node: TTreeNode;
+   Cancel: Boolean);
+  procedure DirListGetImageIndex(Sender: TObject; Node: TTreeNode);
+  procedure DirListChange(Sender: TObject; Node: TTreeNode);
+  procedure DirListEditing(Sender: TObject; Node: TTreeNode;
+    var AllowEdit: Boolean);
+  procedure DirListExit(Sender: TObject);
+  procedure DirListCustomDraw(Sender: TCustomTreeView; const ARect: TRect;
+   var DefaultDraw: Boolean);
+  procedure DirListCustomDrawArrow(Sender: TCustomTreeView;
+   const ARect: TRect; ACollapsed: Boolean);
+  procedure DirListCustomDrawItem(Sender: TCustomTreeView; Node: TTreeNode;
+   State: TCustomDrawState; var DefaultDraw: Boolean);
+  procedure ImageDetailsDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
+   const Rect: TRect);
+  procedure FileInfoPanelPaint(Sender: TObject);
+  procedure FileInfoPanelResize(Sender: TObject);
+  procedure ed_execaddrKeyPress(Sender: TObject; var Key: char);
+  procedure FileTypeKeyPress(Sender: TObject; var Key: char);
+  procedure DirListContextPopup(Sender: TObject; MousePos: TPoint;
+   var Handled: Boolean);
+  procedure CopyToClipboardExecute(Sender: TObject);
+  procedure PasteFromClipboardExecute(Sender: TObject);
+  procedure ToolBarContainerChange(Sender: TObject);
+  procedure HoverTimerTimer(Sender: TObject);
+  //Misc
+  function AddDirectoryToImage(dirname: String): Boolean;
+  procedure AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer;
+                                   ImageToUse:TDiscImage;var highdir: Integer);
+  function AddFileErrorToText(error: Integer):String;
+  function AddFileToImage(filename: String):Integer;
+  function AddFileToImage(filename: String;filedetails: TDirEntry;
+          buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer; overload;
+  function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
+     index:Integer;dir:Boolean;Tree:TTreeView;IsDOSPart:Boolean):TTreeNode;
+  procedure AddImageToTree(Tree: TTreeView;ImageToUse: TDiscImage);
+  procedure AddSparkToImage(filename: String);
+  procedure ArrangeFileDetails;
+  function AskConfirm(confim: String; Buttons: array of String): TModalResult;
+  procedure CloseAllHexDumps;
+  function ConvertToKMG(size: Int64): String;
+  function CreateButton(Lparent: TControl; Lcaption: String;LDef: Boolean;
+                        LLeft,LTop: Integer; LModal: TModalResult): TRISCOSButton;
+  function CreateDirectory(dirname,attr: String): TTreeNode;
+  procedure CreateFileTypeDialogue;
+  procedure CreateNewImage;
+  procedure Defrag(side: Byte=0);
+  function DeleteFile(confirm: Boolean): Boolean;
+  procedure DisableControls;
+  procedure DoCopyMove(copymode: Boolean);
+  procedure DownLoadDirectory(dir,entry: Integer; path: String);
+  procedure DownLoadFile(dir,entry: Integer; path: String;filename: String='');
+  procedure ExtractFiles(ShowDialogue: Boolean);
+  function FindNode(filename: String;casesens:Boolean=True): TTreeNode;
+  function FindPartitionRoot(filepath: String): Integer;
+  function GetCopyMode(Shift: TShiftState): Boolean;
+  function GetFilePath(Node: TTreeNode): String;
+  function GetFileTypeGraphic(filetype: String;offset: Integer;
+                                    const filetypes: array of String): Integer;
+  function GetImageFilename(dir,entry: Integer): String;
+  function GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage): Integer;
+  procedure GetJSONString(json: TJSONObject; search: String; var output: String);
+  procedure SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
+  function GetNodeAt(Y: Integer): TTreeNode;
+  function GetTextureTile(Ltile:Integer=-1): TBitmap;
+  function ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
+                                                Errors: Boolean=True): Integer;
+  function IntToStrComma(size: Int64): String;
+  procedure OpenImage(filename: String);
+  procedure ParseCommand(var Command: TStringArray);
+  function QueryUnsaved: Boolean;
+  procedure ReadInDirectory(Node: TTreeNode);
+  procedure ReportError(error: String);
+  procedure ResetFileFields;
+  procedure SaveAsCSV(filename: String='');
+  procedure SaveAsCSV(FileNames: TStrings; filename: String=''); overload;
+  procedure SaveConfigSettings;
+  procedure SetNativeControls;
+  procedure Scaling;
+  procedure SelectNode(filename: String;casesens:Boolean=True);
+  procedure ShowErrorLog;
+  procedure ShowInfo(info: String);
+  procedure ShowNewImage(title: String);
+  procedure SwapLabelEdit(editcont: TEdit;labelcont: TLabel;dir,hex: Boolean);
+  procedure TileCanvas(c: TCanvas);
+  procedure TileCanvas(c: TCanvas;rc: TRect); overload;
+  procedure UpdateImageInfo(partition: Cardinal=0);
+  procedure UpdateProgress(Fupdate: String);
+  procedure WriteToDebug(line: String);
+ private
+  var
+   //To keep track of renames
+   PathBeforeEdit,
+   NameBeforeEdit      :String;
+   //Stop the checkbox OnClick from firing when just changing the values
+   DoNotUpdate         :Boolean;
+   //Item being dragged on Directory List, and the destination
+   Dst,
+   DraggedItem         :TTreeNode;
+   //To keep track of if we are dragging and if the mouse button is down
+   IsDragging,
+   MouseIsDown         :Boolean;
+   //To remember where we started with the drag operation
+   CursorPos           :TPoint;
+   //The mouse 'cursor' while we are dragging
+   ObjectDrag          :TImage;
+   //Keep track of which hex dump windows are open
+   HexDump             :array of THexDumpForm;
+   //Reporting of errors
+   ErrorReporting      :Boolean;
+   //Delay flag
+   progsleep           :Boolean;
+   //Texture type
+   TextureType         :Byte;
+   //ADFS L Interleaved
+   ADFSInterleave      :Byte;
+   //Treat Spark as Filing System
+   SparkIsFS           :Boolean;
+   //Importing bypass GUI threshold
+   bypassGUIThres      :Cardinal;
+   //Create INF File?
+   DoCreateINF         :Boolean;
+   //Add implied attributes for DFS/CFS/RFS
+   AddImpliedAttributes:Boolean;
+   //Hide Commodore DEL files?
+   DoHideDEL           :Boolean;
+   //Filetype Dialogue Form
+   FTDialogue          :TForm;
+   //Filetype buttons on dialogue form
+   FTButtons           :array of TSpeedButton;
+   //Dummy button for dialogue form
+   FTDummyBtn          :TSpeedButton;
+   //Custom filetype on dialogue form
+   FTEdit              :TEdit;
+   //Keep a track of which buttons are pressed on the form
+   FormShiftState      :TShiftState;
+   //Produce a log file for debugging
+   Fdebug              :Boolean;
+   //Allow DFS images with zero number of sectors
+   FDFSZeroSecs        :Boolean;
+   //Check for files going beyond the disc edge on DFS
+   FDFSBeyondEdge      :Boolean;
+   //Check for blank filenames
+   FDFSAllowBlank      :Boolean;
+   //Compress UEF files
+   FUEFCompress        :Boolean;
+   //View options (what is visible)
+   ViewOptions         :Cardinal;
+   //Scan sub-directories on opening
+   FScanSubDirs        :Boolean;
+   //Open DOS Partitions on ADFS
+   FOpenDOS            :Boolean;
+   //Create *.dsc files with ADFS hard drives
+   FCreateDSC          :Boolean;
+   AppIsClosing        :Boolean;
+   //Currently selected directory, when in console mode
+   Fcurrdir            :Integer;
+  const
+   //These point to certain icons used when no filetype is found, or non-ADFS
+   //The numbers are indexes into the TImageList component 'FileImages'.
+   appicon     =   0; //RISC OS Application
+   directory   =   1; //Generic directory
+   directory_o =   2; //Generic open directory
+   loadexec    =   3; //RISC OS Load/Exec
 //    RObrokenfile=   4; //RISC OS broken file
-    ROunknown   =   5; //Unknown RISC OS file
-    //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
-    RISCOSFileTypes: array[6..143] of String =
-                              ('0E1','1A6','1AD','3FB','004','6A2','11D','18A',
-                               '19B','68E','69A','69B','69C','69D','69E','102',
-                               '108','132','190','191','194','195','196','690',
-                               '691','692','693','694','695','696','697','698',
-                               '699','A91','AAD','ABA','ABF','ACA','AD0','ADF',
-                               'AE4','AE6','AE7','AE9','AF1','AFF','B2F','B9F',
-                               'B22','B24','B25','B26','B27','B28','B60','B61',
-                               'B62','BA6','BBC','BD6','BD9','BDA','BDF','BE8',
-                               'BF8','C1D','C1E','C7D','C27','C32','C46','C85',
-                               'CAE','CE5','D00','D01','D3C','D94','DB0','DDC',
-                               'DEA','DFE','F7A','F7B','F7E','F7F','F9D','F9E',
-                               'F9F','F78','F79','F80','F83','F89','F91','FAE',
-                               'FAF','FB0','FB1','FB2','FB4','FB5','FC2','FC3',
-                               'FC6','FC8','FCA','FCC','FCD','FCE','FD3','FD4',
-                               'FD6','FD7','FDC','FE1','FE4','FE5','FE6','FEA',
-                               'FEB','FEC','FED','FF0','FF1','FF2','FF4','FF5',
-                               'FF6','FF7','FF8','FF9','FFA','FFB','FFC','FFD',
-                               'FFE','FFF');
-    //To add more filetypes, increase the array, then ensure that the numbers
-    //matche. Finally, make sure they are in the correct order in the
-    //ImageList components: FileImages
-    RISCOSApplications: array[144..176] of String =
-                              ('!alarm','!boot','!chars','!closeup','!configure',
-                               '!dpingscan','!draw','!edit','!flasher','!fontprint',
-                               '!fonts','!help','!hform','!hopper','!maestro',
-                               '!netsurf','!omni','!paint','!printedit',
-                               '!printers','!puzzle','!resetboot','!routines',
-                               '!scicalc','!serialdev','!showscrap','!sparkfs',
-                               '!sparkfs1','!sparkfs2','!sparkfs3','!squash',
-                               '!system','!t1tofont');
-    //Commodore 64 filetypes
-    C64unknown  = 177; //Commodore 64 unknown
-    C64FileTypes: array[178..181] of String =
-                              ('DEL','PRG','SEQ','USR');//Need REL and CBM
-    //DOS filetypes
-    unknown     = 182; //DOS unknown and generic for everything else
-    DOSFileTypes: array[183..199] of String =
-                              ('APP','BAT','BIN','CFG','CMD','COM','DOC','EXE',
-                               'FNT','HLP','ICN','IMG','INF','INI','PAT','SYS',
-                               'TXT');
-    //Windows extension - used to translate from RISC OS to Windows
-    Extensions: array[1..42] of String =
-                         ('004aim','132ico' ,'190dsk' ,'198z80'   ,'1A6CPM',
-                          '692img','693iff' ,'695gif' ,'697pcx'   ,'698qrt',
-                          '699mtv','69Cbmp' ,'69Dtga' ,'69Epbm'   ,'A91zip',
-                          'AADsvg','ABFcab' ,'ADFpdf' ,'B60png'   ,'BBCrom',
-                          'C46tar','C85jpg' ,'C85jpeg','DDCarc'   ,'DDCarchive',
-                          'DEAdxf','F76edid','F78jng' ,'F79css'   ,'F81js',
-                          'F83mng','F91uri' ,'FAFhtm' ,'FAFhtml'  ,'FE4dos',
-                          'FF0tif','FF0tiff','FF6ttf' ,'FF9sprite','FFBbas',
-                          'FFDdat','FFFtxt');
-    //Others
-    mmbdisc     = 202; //MMFS Disc with image
-    mmbdisclock = 201; //MMFS Locked disc
-    mmbdiscempt = 200; //MMFS Empty slot
-    //Icons for status bar - index into TImageList 'icons'
-    changedicon   =  0;
-    acornlogo     =  1;
-    amigalogo     =  2;
-    bbclogo       =  3;
-    commodorelogo =  4;
-    riscoslogo    =  5;
-    sinclairlogo  =  6;
-    sparklogo     =  7;
-    bbcmasterlogo =  8;
-    msdoslogo     =  9;
-    romfslogo     = 10;
-    //Time and Date format
-    TimeDateFormat = 'hh:nn:ss dd mmm yyyy';
-  public
-   //The image
-   Image         :TDiscImage;
-   //Has the image changed since last saved?
-   HasChanged    :Boolean;
-   //Debug log filename
-   debuglogfile,
-   //What are we running on?
-   platform,
-   arch          :String;
-   //Is the GUI open?
-   Fguiopen      :Boolean;
-   //Registry
-   DIMReg        :TGJHRegistry;
-   const
-    //DPI that the application was designed in
-    DesignedDPI        = 96;
-    //Application Title
-    ApplicationTitle   = 'Disc Image Manager';
-    ApplicationVersion = '1.49';
-    //Current platform and architecture (compile time directive)
-    TargetOS  = {$I %FPCTARGETOS%};
-    TargetCPU = {$I %FPCTARGETCPU%};
-  end;
+   ROunknown   =   5; //Unknown RISC OS file
+   //RISC OS Filetypes - used to locate the appropriate icon in the ImageList
+   RISCOSFileTypes: array[6..143] of String =
+                             ('0E1','1A6','1AD','3FB','004','6A2','11D','18A',
+                              '19B','68E','69A','69B','69C','69D','69E','102',
+                              '108','132','190','191','194','195','196','690',
+                              '691','692','693','694','695','696','697','698',
+                              '699','A91','AAD','ABA','ABF','ACA','AD0','ADF',
+                              'AE4','AE6','AE7','AE9','AF1','AFF','B2F','B9F',
+                              'B22','B24','B25','B26','B27','B28','B60','B61',
+                              'B62','BA6','BBC','BD6','BD9','BDA','BDF','BE8',
+                              'BF8','C1D','C1E','C7D','C27','C32','C46','C85',
+                              'CAE','CE5','D00','D01','D3C','D94','DB0','DDC',
+                              'DEA','DFE','F7A','F7B','F7E','F7F','F9D','F9E',
+                              'F9F','F78','F79','F80','F83','F89','F91','FAE',
+                              'FAF','FB0','FB1','FB2','FB4','FB5','FC2','FC3',
+                              'FC6','FC8','FCA','FCC','FCD','FCE','FD3','FD4',
+                              'FD6','FD7','FDC','FE1','FE4','FE5','FE6','FEA',
+                              'FEB','FEC','FED','FF0','FF1','FF2','FF4','FF5',
+                              'FF6','FF7','FF8','FF9','FFA','FFB','FFC','FFD',
+                              'FFE','FFF');
+   //To add more filetypes, increase the array, then ensure that the numbers
+   //matche. Finally, make sure they are in the correct order in the
+   //ImageList components: FileImages
+   RISCOSApplications: array[144..176] of String =
+                             ('!alarm','!boot','!chars','!closeup','!configure',
+                              '!dpingscan','!draw','!edit','!flasher','!fontprint',
+                              '!fonts','!help','!hform','!hopper','!maestro',
+                              '!netsurf','!omni','!paint','!printedit',
+                              '!printers','!puzzle','!resetboot','!routines',
+                              '!scicalc','!serialdev','!showscrap','!sparkfs',
+                              '!sparkfs1','!sparkfs2','!sparkfs3','!squash',
+                              '!system','!t1tofont');
+   //Commodore 64 filetypes
+   C64unknown  = 177; //Commodore 64 unknown
+   C64FileTypes: array[178..181] of String =
+                             ('DEL','PRG','SEQ','USR');//Need REL and CBM
+   //DOS filetypes
+   unknown     = 182; //DOS unknown and generic for everything else
+   DOSFileTypes: array[183..199] of String =
+                             ('APP','BAT','BIN','CFG','CMD','COM','DOC','EXE',
+                              'FNT','HLP','ICN','IMG','INF','INI','PAT','SYS',
+                              'TXT');
+   //Windows extension - used to translate from RISC OS to Windows
+   Extensions: array[1..42] of String =
+                        ('004aim','132ico' ,'190dsk' ,'198z80'   ,'1A6CPM',
+                         '692img','693iff' ,'695gif' ,'697pcx'   ,'698qrt',
+                         '699mtv','69Cbmp' ,'69Dtga' ,'69Epbm'   ,'A91zip',
+                         'AADsvg','ABFcab' ,'ADFpdf' ,'B60png'   ,'BBCrom',
+                         'C46tar','C85jpg' ,'C85jpeg','DDCarc'   ,'DDCarchive',
+                         'DEAdxf','F76edid','F78jng' ,'F79css'   ,'F81js',
+                         'F83mng','F91uri' ,'FAFhtm' ,'FAFhtml'  ,'FE4dos',
+                         'FF0tif','FF0tiff','FF6ttf' ,'FF9sprite','FFBbas',
+                         'FFDdat','FFFtxt');
+   //Others
+   mmbdisc     = 202; //MMFS Disc with image
+   mmbdisclock = 201; //MMFS Locked disc
+   mmbdiscempt = 200; //MMFS Empty slot
+   //Icons for status bar - index into TImageList 'icons'
+   changedicon   =  0;
+   acornlogo     =  1;
+   amigalogo     =  2;
+   bbclogo       =  3;
+   commodorelogo =  4;
+   riscoslogo    =  5;
+   sinclairlogo  =  6;
+   sparklogo     =  7;
+   bbcmasterlogo =  8;
+   msdoslogo     =  9;
+   romfslogo     = 10;
+   //Time and Date format
+   TimeDateFormat = 'hh:nn:ss dd mmm yyyy';
+ public
+  //The image
+  Image         :TDiscImage;
+//  Images        :TDiscImages;
+  //Has the image changed since last saved?
+  HasChanged    :Boolean;
+  //Debug log filename
+  debuglogfile,
+  //What are we running on?
+  platform,
+  arch          :String;
+  //Is the GUI open?
+  Fguiopen      :Boolean;
+  //Window styling
+  Fstyling      :Byte;
+  //Registry
+  DIMReg        :TGJHRegistry;
+  const
+   //DPI that the application was designed in
+   DesignedDPI        = 96;
+   //Application Title
+   ApplicationTitle   = 'Disc Image Manager';
+   ApplicationVersion = '1.49.1';
+   //Current platform and architecture (compile time directive)
+   TargetOS  = {$I %FPCTARGETOS%};
+   TargetCPU = {$I %FPCTARGETCPU%};
+   //Styling
+   NativeStyle = 0;
+   RISCOSStyle = 1;
+ end;
 
 var
   MainForm: TMainForm;
@@ -665,12 +670,10 @@ var
  importname   : String='';
  temp         : String='';
  F            : TFileStream=nil;
- chr          : Char=' ';
  fields       : TJSONObject=nil;//array of String=nil;
  Dir          : TSearchRec;
  Lcurrdir     : Integer=0;
  thisdir      : Integer=0;
- Index        : Integer=0;
 begin
  Result:=False;
  WriteToDebug('MainForm.AddDirectoryToImage('+dirname+')');
@@ -709,7 +712,6 @@ begin
     F:=TFileStream.Create(dirname+'.inf',fmOpenRead OR fmShareDenyNone);
     F.Position:=0;
     ReadLine(F,inffile);
-    F.Free;
     fields:=TJSONObject.Create;
     ParseInf(fields,inffile);
     //Then extract the fields
@@ -736,8 +738,10 @@ begin
      Image.UpdateDiscTitle(LeftStr(disctitle,10)
                        ,Image.Disc[thisdir].Partition);
    except
-    //Could not load
+    on E: Exception do
+     ReportError('Failed to read inf file "'+dirname+'": '+E.Message);
    end;
+   F.Free;
   end;
   //Convert a Windows filename to a BBC filename
   if Fguiopen then
@@ -1022,7 +1026,6 @@ var
   temp           : String='';
   timestamp      : TDateTime;
   fields         : TJSONOBject=nil;//array of String=nil;
-  chr            : Char=' ';
   F              : TFileStream=nil;
   ok             : Boolean=False;
   Node           : TTreeNode=nil;
@@ -1104,7 +1107,6 @@ var
       F:=TFileStream.Create(filename+'.inf',fmOpenRead OR fmShareDenyNone);
       F.Position:=0;
       ReadLine(F,inffile);
-      F.Free;
       fields:=TJSONObject.Create;
       ParseInf(fields,inffile);
       //Then extract the fields
@@ -1126,8 +1128,10 @@ var
       timestamp:=AFSToDateTime(StrToIntDef('$'+temp,0));//0 will be passed}
       fields.Free;
      except
-      //Could not load
+      on E: Exception do
+       ReportError('Failed to read inf file "'+filename+'.inf" : '+E.Message);
      end;
+     F.Free;
     end;
    end;
    //Initialise the TDirArray
@@ -1246,9 +1250,11 @@ begin
    SetLength(buffer,F.Size);
    //Read the file in
    F.Read(buffer[0],F.Size);
-   F.Free;
   except
+   on E: Exception do
+    ReportError('Failed to read file "'+filename+'": '+E.Message);
   end;
+  F.Free;
  end;
  if Length(buffer)>0 then //Only try and add if there is some data
  begin
@@ -1578,13 +1584,15 @@ begin
     F:=TFileStream.Create(path+windowsfilename,fmCreate OR fmShareDenyNone);
     F.Position:=0;
     F.Write(buffer[0],Length(buffer));
-    F.Free;
     if DoCreateInf then Image.CreateINFFile(dir,entry,path,filename);
     if not Fguiopen then WriteLn('Success.');
    except
     //Could not create file
-    if not Fguiopen then WriteLn('Failed to open file stream.');
+    on E: Exception do
+     ReportError('Failed to open file stream "'+path+windowsfilename
+                +'": '+E.Message);
    end;
+   F.Free;
   end
   //Happens if the file could not be located
   else
@@ -3222,6 +3230,9 @@ begin
  DIMReg:=TGJHRegistry.Create('\Software\GJH Software\Disc Image Manager');
  //Texture style - get from the registry
  TextureType               :=DIMReg.GetRegValI('Texture',1);
+ //Window style - get from the registry
+ Fstyling                  :=DIMReg.GetRegValI('WindowStyle',RISCOSStyle);
+ SetNativeControls; //And set the controls on this form
  //ADFS L Interleaved type - get from the registry
  ADFSInterleave            :=DIMReg.GetRegValI('ADFS_L_Interleave',0);
  Image.InterleaveMethod    :=ADFSInterleave;
@@ -3275,6 +3286,54 @@ begin
               'gerald@hollypops.co.uk with a description of your issue.');
  //Reset the changed variable
  HasChanged:=False;
+end;
+
+{------------------------------------------------------------------------------}
+//Set the custom controls to either Native OS or RISC OS style
+{------------------------------------------------------------------------------}
+procedure TMainForm.SetNativeControls;
+begin
+ cb_C64_c.NativeOS            :=Fstyling=NativeStyle;
+ cb_C64_l.NativeOS            :=Fstyling=NativeStyle;
+ cb_DFS_l.NativeOS            :=Fstyling=NativeStyle;
+ cb_ADFS_pubp.NativeOS        :=Fstyling=NativeStyle;
+ cb_ADFS_ownw.NativeOS        :=Fstyling=NativeStyle;
+ cb_ADFS_ownr.NativeOS        :=Fstyling=NativeStyle;
+ cb_ADFS_ownl.NativeOS        :=Fstyling=NativeStyle;
+ cb_ADFS_owne.NativeOS        :=Fstyling=NativeStyle;
+ cb_ADFS_pubr.NativeOS        :=Fstyling=NativeStyle;
+ cb_ADFS_pubw.NativeOS        :=Fstyling=NativeStyle;
+ cb_ADFS_pube.NativeOS        :=Fstyling=NativeStyle;
+ cb_AFS_ownl.NativeOS         :=Fstyling=NativeStyle;
+ cb_AFS_ownr.NativeOS         :=Fstyling=NativeStyle;
+ cb_AFS_ownw.NativeOS         :=Fstyling=NativeStyle;
+ cb_AFS_pubr.NativeOS         :=Fstyling=NativeStyle;
+ cb_AFS_pubw.NativeOS         :=Fstyling=NativeStyle;
+ cb_DOS_system.NativeOS       :=Fstyling=NativeStyle;
+ cb_DOS_read.NativeOS         :=Fstyling=NativeStyle;
+ cb_DOS_hidden.NativeOS       :=Fstyling=NativeStyle;
+ cb_DOS_archive.NativeOS      :=Fstyling=NativeStyle;
+ cb_Sinclair_system.NativeOS  :=Fstyling=NativeStyle;
+ cb_Sinclair_readonly.NativeOS:=Fstyling=NativeStyle;
+ cb_Sinclair_archive.NativeOS :=Fstyling=NativeStyle;
+ cb_ISO_hidden.NativeOS       :=Fstyling=NativeStyle;
+ cb_ISO_associated.NativeOS   :=Fstyling=NativeStyle;
+ cb_Amiga_othd.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_arch.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_othe.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_pure.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_hold.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_scri.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_ownr.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_othr.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_ownw.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_owne.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_ownd.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_othw.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_pubw.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_pubr.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_pubd.NativeOS       :=Fstyling=NativeStyle;
+ cb_Amiga_pube.NativeOS       :=Fstyling=NativeStyle;
 end;
 
 {------------------------------------------------------------------------------}
@@ -3635,12 +3694,14 @@ begin
     begin
      if sidecount=side then //Only tick the root on the first side/partition
      begin
-      ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],True);
+      ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],
+                                  True);
       ImportSelectorForm.ImportDirList.Items[index].Expand(False);
      end
      else                   //And untick the other side/partition
      begin
-      ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],False);
+      ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],
+                                  False);
       ImportSelectorForm.ImportDirList.Items[index].Collapse(True);
      end;
      inc(sidecount);
@@ -3844,9 +3905,9 @@ begin
          begin
           //Read the file in
           if NewImage.ExtractFile(NewImage.GetParent(dir)
-                                 +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
-                                 +NewImage.Disc[dir].Entries[entry].Filename,
-                                  buffer,entry) then
+                               +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                               +NewImage.Disc[dir].Entries[entry].Filename,
+                                buffer,entry) then
           begin
            //Write it out to the current image
            index:=Image.WriteFile(newentry,buffer);
@@ -3868,8 +3929,8 @@ begin
           begin
            if Errors then
             ReportError('Failed to read '+NewImage.GetParent(dir)
-                                         +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
-                                         +NewImage.Disc[dir].Entries[entry].Filename);
+                               +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                               +NewImage.Disc[dir].Entries[entry].Filename);
            inc(Result);
           end;
          end;
@@ -4239,8 +4300,10 @@ begin
      if ok then
      begin
       //If success, then change the text
-      lb_execaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
-      lb_loadaddr.Caption:='0x'+IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
+      lb_execaddr.Caption:='0x'
+                          +IntToHex(Image.Disc[dir].Entries[entry].ExecAddr,8);
+      lb_loadaddr.Caption:='0x'
+                          +IntToHex(Image.Disc[dir].Entries[entry].LoadAddr,8);
       if Image.MajorFormatNumber<>diSpark then HasChanged:=True;
      end;
     end;
@@ -4336,7 +4399,8 @@ begin
     ImageDetailForm.cbInterleave.Items.Add(Image.GetInterleaveString(t));
   ImageDetailForm.lbInterleave.Caption:=Image.InterleaveInUse;
   ImageDetailForm.cbInterleave.ItemIndex:=Image.InterleaveInUseNum-1;
-  ImageDetailForm.InterleavePanel.Visible:=ImageDetailForm.lbInterleave.Caption<>'unknown';
+  ImageDetailForm.InterleavePanel.Visible:=
+                                ImageDetailForm.lbInterleave.Caption<>'unknown';
 {  if ImageDetailForm.InterleavePanel.Visible then //If this is visible
   begin
    if HasChanged then //Make the appropriate control visible
@@ -4359,7 +4423,7 @@ begin
   end;
   //Logo
   t:=ImageDetailForm.DirPanel.Top+ImageDetailForm.DirPanel.Height;
-  s:=ImageDetailForm.btn_OK.Top-t;
+  s:=ImageDetailForm.OKButton.Top-t;
   //Centralise vertical
   ImageDetailForm.AcornLogo.Top    :=t+((s-ImageDetailForm.AcornLogo.Height)div 2);
   ImageDetailForm.CommodoreLogo.Top:=ImageDetailForm.AcornLogo.Top;
@@ -4489,7 +4553,8 @@ begin
     RemoveTopBit(title);
     //Set the edit box
     titles[side].Text:=title;
-    titles[0].Enabled:=(not Image.AFSPresent)and(Image.MajorFormatNumber<>diSinclair);
+    titles[0].Enabled:=(not Image.AFSPresent)
+                    and(Image.MajorFormatNumber<>diSinclair);
     //Limit the length
     if Image.MajorFormatNumber=diAcornDFS  then titles[side].MaxLength:=12; //DFS
     if Image.MajorFormatNumber=diAcornADFS then
@@ -4553,9 +4618,11 @@ begin
      for side:=0 to numsides-1 do
      begin
       //Update Disc Title
-      if Image.UpdateDiscTitle(titles[side].Text,side)      then HasChanged:=True;
+      if Image.UpdateDiscTitle(titles[side].Text,side)      then
+       HasChanged:=True;
       //Update Boot Option
-      if Image.UpdateBootOption(boots[side].ItemIndex,side) then HasChanged:=True;
+      if Image.UpdateBootOption(boots[side].ItemIndex,side) then
+       HasChanged:=True;
      end;
     UpdateImageInfo;
    end;
@@ -4715,8 +4782,8 @@ begin
  ChangeInterleaveForm.ShowModal;
  //Change the Interleave
  if ChangeInterleaveForm.ModalResult=mrOK then
-  if Image.ChangeInterleaveMethod(ChangeInterleaveForm.cb_NewMethod.ItemIndex+1) then
-   HasChanged:=True;
+  if Image.ChangeInterleaveMethod(ChangeInterleaveForm.cb_NewMethod.ItemIndex+1)
+   then HasChanged:=True;
 end;
 
 {------------------------------------------------------------------------------}
@@ -5171,74 +5238,80 @@ begin
       Application.ProcessMessages;
      end;
      //Open a new file
-     F:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
-     //Write the image details
-     if CSVPrefForm.cb_IncFilename.Ticked then
-      WriteLine(F,LImage.Filename.QuotedString('"')+',"0x'+LImage.CRC32+'"');
-     //Write the report
-     if CSVPrefForm.cb_IncReport.Ticked then
-     begin
-      report:=LImage.ImageReport(True);
-      if report.Count>0 then
-       for dir:=0 to report.Count-1 do
-        WriteLine(F,report[dir]);
+     try
+      F:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
+      //Write the image details
+      if CSVPrefForm.cb_IncFilename.Ticked then
+       WriteLine(F,LImage.Filename.QuotedString('"')+',"0x'+LImage.CRC32+'"');
+      //Write the report
+      if CSVPrefForm.cb_IncReport.Ticked then
+      begin
+       report:=LImage.ImageReport(True);
+       if report.Count>0 then
+        for dir:=0 to report.Count-1 do
+         WriteLine(F,report[dir]);
+      end;
+      //Write the headers
+      line:='';
+      if CSVPrefForm.cb_Parent.Ticked     then line:=line+'"Parent",';
+      if CSVPrefForm.cb_Filename.Ticked   then line:=line+'"Filename",';
+      if CSVPrefForm.cb_LoadAddr.Ticked   then line:=line+'"Load Address",';
+      if CSVPrefForm.cb_ExecAddr.Ticked   then line:=line+'"Execution Address",';
+      if CSVPrefForm.cb_Length.Ticked     then line:=line+'"Length",';
+      if CSVPrefForm.cb_Attributes.Ticked then line:=line+'"Attributes",';
+      if CSVPrefForm.cb_Address.Ticked    then line:=line+'"Address",';
+      if CSVPrefForm.cb_CRC32.Ticked      then line:=line+'"CRC32",';
+      if CSVPrefForm.cb_MD5.Ticked        then line:=line+'"MD-5",';
+      line:=LeftStr(line,Length(line)-1);
+      WriteLine(F,line);
+      //Go through each directory
+      for dir:=0 to Length(LImage.Disc)-1 do
+       //And each entry in that directory
+       for entry:=0 to Length(LImage.Disc[dir].Entries)-1 do
+        //write out each entry
+        if(LImage.Disc[dir].Entries[entry].DirRef=-1) //Exclude directories?
+        or(CSVPrefForm.cb_IncDir.Ticked)then        //Or include them?
+        begin
+         line:='';
+         if CSVPrefForm.cb_Parent.Ticked     then
+          line:=line+LImage.GetParent(dir).QuotedString('"')+',';
+         if CSVPrefForm.cb_Filename.Ticked   then
+          line:=line+
+                LImage.Disc[dir].Entries[entry].Filename.QuotedString('"')+',';
+         if CSVPrefForm.cb_LoadAddr.Ticked   then
+          line:=line+'"0x'
+               +IntToHex(LImage.Disc[dir].Entries[entry].LoadAddr,hexlen)+'",';
+         if CSVPrefForm.cb_ExecAddr.Ticked   then
+          line:=line+'"0x'
+               +IntToHex(LImage.Disc[dir].Entries[entry].ExecAddr,hexlen)+'",';
+         if CSVPrefForm.cb_Length.Ticked     then
+          line:=line+'"0x'
+               +IntToHex(LImage.Disc[dir].Entries[entry].Length,hexlen)+'",';
+         if CSVPrefForm.cb_Attributes.Ticked then
+          line:=line+'"'+LImage.Disc[dir].Entries[entry].Attributes+'",';
+         if CSVPrefForm.cb_Address.Ticked    then
+          line:=line+'"0x'
+               +IntToHex(LImage.Disc[dir].Entries[entry].Sector,hexlen)+'",';
+         if CSVPrefForm.cb_CRC32.Ticked      then
+          line:=line+'"0x'+LImage.GetFileCRC(LImage.GetParent(dir)
+                                +LImage.GetDirSep(LImage.Disc[dir].Partition)
+                                +LImage.Disc[dir].Entries[entry].Filename)+'",';
+         if CSVPrefForm.cb_MD5.Ticked        then
+          line:=line+'"0x'+LImage.GetFileMD5(LImage.GetParent(dir)
+                                +LImage.GetDirSep(LImage.Disc[dir].Partition)
+                                +LImage.Disc[dir].Entries[entry].Filename)+'",';
+         line:=LeftStr(line,Length(line)-1);
+         WriteLine(F,line);
+        end;
+      //Write a footer
+      WriteLine(F,'""');
+      WriteLine(F,'"'+ApplicationTitle+' v'+ApplicationVersion+'",'
+                 +'"by Gerald J Holdsworth",'
+                 +'"gerald@geraldholdsworth.co.uk"');
+     except
+      on E: Exception do ReportError('Failed to write file stream "'+filename
+                                     +'": '+E.Message);
      end;
-     //Write the headers
-     line:='';
-     if CSVPrefForm.cb_Parent.Ticked     then line:=line+'"Parent",';
-     if CSVPrefForm.cb_Filename.Ticked   then line:=line+'"Filename",';
-     if CSVPrefForm.cb_LoadAddr.Ticked   then line:=line+'"Load Address",';
-     if CSVPrefForm.cb_ExecAddr.Ticked   then line:=line+'"Execution Address",';
-     if CSVPrefForm.cb_Length.Ticked     then line:=line+'"Length",';
-     if CSVPrefForm.cb_Attributes.Ticked then line:=line+'"Attributes",';
-     if CSVPrefForm.cb_Address.Ticked    then line:=line+'"Address",';
-     if CSVPrefForm.cb_CRC32.Ticked      then line:=line+'"CRC32",';
-     if CSVPrefForm.cb_MD5.Ticked        then line:=line+'"MD-5",';
-     line:=LeftStr(line,Length(line)-1);
-     WriteLine(F,line);
-     //Go through each directory
-     for dir:=0 to Length(LImage.Disc)-1 do
-      //And each entry in that directory
-      for entry:=0 to Length(LImage.Disc[dir].Entries)-1 do
-       //write out each entry
-       if(LImage.Disc[dir].Entries[entry].DirRef=-1) //Exclude directories?
-       or(CSVPrefForm.cb_IncDir.Ticked)then        //Or include them?
-       begin
-        line:='';
-        if CSVPrefForm.cb_Parent.Ticked     then
-         line:=line+LImage.GetParent(dir).QuotedString('"')+',';
-        if CSVPrefForm.cb_Filename.Ticked   then
-         line:=line+LImage.Disc[dir].Entries[entry].Filename.QuotedString('"')+',';
-        if CSVPrefForm.cb_LoadAddr.Ticked   then
-         line:=line+'"0x'
-                  +IntToHex(LImage.Disc[dir].Entries[entry].LoadAddr,hexlen)+'",';
-        if CSVPrefForm.cb_ExecAddr.Ticked   then
-         line:=line+'"0x'
-                  +IntToHex(LImage.Disc[dir].Entries[entry].ExecAddr,hexlen)+'",';
-        if CSVPrefForm.cb_Length.Ticked     then
-         line:=line+'"0x'
-                    +IntToHex(LImage.Disc[dir].Entries[entry].Length,hexlen)+'",';
-        if CSVPrefForm.cb_Attributes.Ticked then
-         line:=line+'"'+LImage.Disc[dir].Entries[entry].Attributes+'",';
-        if CSVPrefForm.cb_Address.Ticked    then
-         line:=line+'"0x'
-                    +IntToHex(LImage.Disc[dir].Entries[entry].Sector,hexlen)+'",';
-        if CSVPrefForm.cb_CRC32.Ticked      then
-         line:=line+'"0x'+LImage.GetFileCRC(LImage.GetParent(dir)
-                                  +LImage.GetDirSep(LImage.Disc[dir].Partition)
-                                  +LImage.Disc[dir].Entries[entry].Filename)+'",';
-        if CSVPrefForm.cb_MD5.Ticked        then
-         line:=line+'"0x'+LImage.GetFileMD5(LImage.GetParent(dir)
-                                  +LImage.GetDirSep(LImage.Disc[dir].Partition)
-                                  +LImage.Disc[dir].Entries[entry].Filename)+'",';
-        line:=LeftStr(line,Length(line)-1);
-        WriteLine(F,line);
-       end;
-     //Write a footer
-     WriteLine(F,'""');
-     WriteLine(F,'"'+ApplicationTitle+' v'+ApplicationVersion+'",'
-                +'"by Gerald J Holdsworth",'
-                +'"gerald@geraldholdsworth.co.uk"');
      //Finally free up the file stream
      F.Free;
      //Close the progress window
@@ -5272,6 +5345,13 @@ begin
   4: SettingsForm.TileIyonix.Ticked:=True;
   5: SettingsForm.TileROPi.Ticked  :=True;
  end;
+ //Window styling
+ SettingsForm.styleNative.Ticked:=False;
+ SettingsForm.styleRISCOS.Ticked:=False;
+ case Fstyling of
+  NativeStyle: SettingsForm.styleNative.Ticked:=True;
+  RISCOSStyle: SettingsForm.styleRISCOS.Ticked:=True;
+ end;
  //ADFS Interleaving
  case ADFSInterleave of
   0: SettingsForm.ilAuto.Ticked    :=True;
@@ -5295,16 +5375,18 @@ begin
  if SettingsForm.ModalResult=mrOK then
  begin
   //Get the preferences
-  if SettingsForm.NoTile.Ticked     then TextureType:=0;
-  if SettingsForm.TileRO5.Ticked    then TextureType:=1;
-  if SettingsForm.TileRO4.Ticked    then TextureType:=2;
-  if SettingsForm.TileRO3.Ticked    then TextureType:=3;
-  if SettingsForm.TileIyonix.Ticked then TextureType:=4;
-  if SettingsForm.TileROPi.Ticked   then TextureType:=5;
-  if SettingsForm.ilAuto.Ticked     then ADFSInterleave:=0;
-  if SettingsForm.ilSeq.Ticked      then ADFSInterleave:=1;
-  if SettingsForm.ilInter.Ticked    then ADFSInterleave:=2;
-  if SettingsForm.ilMPX.Ticked      then ADFSInterleave:=3;
+  if SettingsForm.NoTile.Ticked      then TextureType   :=0;
+  if SettingsForm.TileRO5.Ticked     then TextureType   :=1;
+  if SettingsForm.TileRO4.Ticked     then TextureType   :=2;
+  if SettingsForm.TileRO3.Ticked     then TextureType   :=3;
+  if SettingsForm.TileIyonix.Ticked  then TextureType   :=4;
+  if SettingsForm.TileROPi.Ticked    then TextureType   :=5;
+  if SettingsForm.styleNative.Ticked then Fstyling      :=NativeStyle;
+  if SettingsForm.styleRISCOS.Ticked then Fstyling      :=RISCOSStyle;
+  if SettingsForm.ilAuto.Ticked      then ADFSInterleave:=0;
+  if SettingsForm.ilSeq.Ticked       then ADFSInterleave:=1;
+  if SettingsForm.ilInter.Ticked     then ADFSInterleave:=2;
+  if SettingsForm.ilMPX.Ticked       then ADFSInterleave:=3;
   DoCreateInf         :=SettingsForm.CreateINF.Ticked;
   AddImpliedAttributes:=SettingsForm.ImpliedAttr.Ticked;
   Fdebug              :=SettingsForm.WriteDebug.Ticked;
@@ -5317,6 +5399,8 @@ begin
   FCreateDSC          :=SettingsForm.CreateDSC.Ticked;
   //Save the settings
   SaveConfigSettings;
+  //Change the control style, if necessary
+  SetNativeControls;
   //Change the tile under the filetype
   if DirList.SelectionCount=1 then DirListChange(Sender,DirList.Selected);
   //Repaint the main form
@@ -5387,11 +5471,12 @@ begin
     for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
      if Image.GetFileCRC(Image.GetParent(dir)
                         +Image.GetDirSep(Image.Disc[dir].Partition)
-                        +Image.Disc[dir].Entries[entry].Filename,entry)='error' then
+                        +Image.Disc[dir].Entries[entry].Filename,entry)='error'
+                        then
      begin
       AddLine(Image.GetParent(dir)
-                        +Image.GetDirSep(Image.Disc[dir].Partition)
-                        +Image.Disc[dir].Entries[entry].Filename+' could not be read');
+                 +Image.GetDirSep(Image.Disc[dir].Partition)
+                 +Image.Disc[dir].Entries[entry].Filename+' could not be read');
       inc(errorcount);
      end;
   end;
@@ -5418,6 +5503,7 @@ procedure TMainForm.SaveConfigSettings;
 begin
  WriteToDebug('MainForm.SaveConfigSettings');
  DIMReg.SetRegValI('Texture',             TextureType);
+ DIMReg.SetRegValI('WindowStyle',         Fstyling);
  DIMReg.SetRegValI('ADFS_L_Interleave',   ADFSInterleave);
  DIMReg.SetRegValB('CreateINF',           DoCreateINF);
  DIMReg.GetRegValB('AddImpliedAttributes',AddImpliedAttributes);
@@ -5531,7 +5617,7 @@ begin
  //Set the height of the icons to match the font
 { if DirList.Items.Count>0 then
   DirList.ImagesWidth:=DirList.Items[0].Height-3;}
- DefaultDraw:=True;
+  DefaultDraw:=True;
 end;
 
 {------------------------------------------------------------------------------}
@@ -5724,16 +5810,26 @@ begin
   end
    else
    begin//For some reason the operation failed to write the data
-    if index=-1 then ReportError('Cannot create a directory on this platform');
-    if index=-2 then ReportError('Could not add directory - image full');
-    if index=-3 then ReportError('Directory "'+dirname+'" already exists in image');
-    if index=-4 then ReportError('Catalogue full when adding "'+dirname+'"');
-    if index=-5 then ReportError('Could not write directory "'+dirname+'" - error unknown');
-    if index=-6 then ReportError('Destination directory does not exist');
-    If index=-7 then ReportError('Could not write directory "'+dirname+'" - map full');
-    if index=-8 then ReportError('Could not write directory "'+dirname+'" - nothing to write');
-    if index=-9 then ReportError('Could not extend parent directory when adding "'+dirname+'"');
-    if index<-9 then ReportError('Could not create directory "'+dirname+'" - unknown error');
+    if index=-1 then
+     ReportError('Cannot create a directory on this platform');
+    if index=-2 then
+     ReportError('Could not add directory - image full');
+    if index=-3 then
+     ReportError('Directory "'+dirname+'" already exists in image');
+    if index=-4 then
+     ReportError('Catalogue full when adding "'+dirname+'"');
+    if index=-5 then
+     ReportError('Could not write directory "'+dirname+'" - error unknown');
+    if index=-6 then
+     ReportError('Destination directory does not exist');
+    If index=-7 then
+     ReportError('Could not write directory "'+dirname+'" - map full');
+    if index=-8 then
+     ReportError('Could not write directory "'+dirname+'" - nothing to write');
+    if index=-9 then
+     ReportError('Could not extend parent directory when adding "'+dirname+'"');
+    if index<-9 then
+     ReportError('Could not create directory "'+dirname+'" - unknown error');
    end;
  end;
 end;
@@ -6189,18 +6285,33 @@ begin
    begin
     //For some reason the operation failed to write the data these are the error
     //codes returned when writing a file, as it uses the same function)
-    if index=-1  then ReportError('Could not load "'+DraggedItem.Text+'"');
-    if index=-2  then ReportError('Could not add file "'+DraggedItem.Text+'" - image full');
-    if index=-3  then ReportError('File "'+DraggedItem.Text+'" already exists in directory');
-    if index=-4  then ReportError('Catalogue full when writing "'+DraggedItem.Text+'"');
-    if index=-5  then ReportError('Could not write file "'+DraggedItem.Text+'" - error unknown');
-    if index=-6  then ReportError('Destination directory does not exist when writing "'+DraggedItem.Text+'"');
-    If index=-7  then ReportError('Could not write file "'+DraggedItem.Text+'" - map full');
-    if index=-8  then ReportError('Could not write file "'+DraggedItem.Text+'" - nothing to write');
-    if index=-9  then ReportError('Could not extend parent directory when writing "'+DraggedItem.Text+'"');
-    if index=-10 then ReportError('Cannot move "'+DraggedItem.Text+'" to the same directory');
-    if index=-11 then ReportError('Could not find source file "'+DraggedItem.Text+'"');
-    if index=-12 then ReportError('Not possible on this system');
+    if index=-1  then
+     ReportError('Could not load "'+DraggedItem.Text+'"');
+    if index=-2  then
+     ReportError('Could not add file "'+DraggedItem.Text+'" - image full');
+    if index=-3  then
+     ReportError('File "'+DraggedItem.Text+'" already exists in directory');
+    if index=-4  then
+     ReportError('Catalogue full when writing "'+DraggedItem.Text+'"');
+    if index=-5  then
+     ReportError('Could not write file "'+DraggedItem.Text+'" - error unknown');
+    if index=-6  then
+     ReportError('Destination directory does not exist when writing "'
+                 +DraggedItem.Text+'"');
+    If index=-7  then
+     ReportError('Could not write file "'+DraggedItem.Text+'" - map full');
+    if index=-8  then
+     ReportError('Could not write file "'+DraggedItem.Text
+                 +'" - nothing to write');
+    if index=-9  then
+     ReportError('Could not extend parent directory when writing "'
+                 +DraggedItem.Text+'"');
+    if index=-10 then
+     ReportError('Cannot move "'+DraggedItem.Text+'" to the same directory');
+    if index=-11 then
+     ReportError('Could not find source file "'+DraggedItem.Text+'"');
+    if index=-12 then
+     ReportError('Not possible on this system');
    end;
   end;
  end;
@@ -6237,13 +6348,13 @@ end;
 //Create a new blank image or set default image format
 {------------------------------------------------------------------------------}
 procedure TMainForm.CreateNewImage;
-function SelectMinor(LOptions: array of TRISCOSRadioBox): Byte;
-var Index: Byte=0;
-begin
- Result:=0;
- for Index:=0 to Length(LOptions)-1 do
-  if LOptions[index].Ticked then Result:=Index;
-end;
+ function SelectMinor(LOptions: array of TRISCOSRadioBox): Byte;
+ var Index: Byte=0;
+ begin
+  Result:=0;
+  for Index:=0 to Length(LOptions)-1 do
+   if LOptions[index].Ticked then Result:=Index;
+ end;
 var
  major    : Word=$FFF;
  binvers  : Byte=0;
@@ -6262,8 +6373,8 @@ begin
  begin
   //Show the form, modally
   NewImageForm.ShowModal;
-  //If OK was clicked, then create a new image
-  if NewImageForm.ModalResult=mrOK then
+  //If OK was clicked (and it is valid), then create a new image
+  if(NewImageForm.ModalResult=mrOK)and(NewImageForm.ok)then
   begin
    CloseAllHexDumps; //From this point, all loaded data will be dumped
    //DFS
@@ -6796,7 +6907,8 @@ begin
      AddDirectoryToTree(Node,index,Image,index);
      //Mark this directory as having been read
      TMyTreeNode(Node).BeenRead:=True;
-     TMyTreeNode(Node).Broken:=Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken;
+     TMyTreeNode(Node).Broken:=
+                       Image.Disc[Image.Disc[dir].Entries[entry].DirRef].Broken;
     end;
    end;
   end;
@@ -6930,12 +7042,18 @@ begin
    //Revert if it cannot be renamed
    Node.Text:=NameBeforeEdit;
    //And report error
-   if newindex=-1 then ReportError('Failed to rename file/directory');
-   if newindex=-2 then ReportError('File/directory does not exist');
-   if newindex=-3 then ReportError('Cannot rename file/directory - "'+newfilename+'" already exists');
-   if newindex=-4 then ReportError('Could not extend parent directory - image full');
-   if newindex=-5 then ReportError('Could not extend parent directory - no free fragments');
-   if newindex=-6 then ReportError('Renaming unsupported in this format');
+   if newindex=-1 then
+    ReportError('Failed to rename file/directory');
+   if newindex=-2 then
+    ReportError('File/directory does not exist');
+   if newindex=-3 then
+    ReportError('Cannot rename file/directory - "'+newfilename+'" already exists');
+   if newindex=-4 then
+    ReportError('Could not extend parent directory - image full');
+   if newindex=-5 then
+    ReportError('Could not extend parent directory - no free fragments');
+   if newindex=-6 then
+    ReportError('Renaming unsupported in this format');
   end
   else
   begin
@@ -6967,7 +7085,8 @@ begin
    if Length(HexDump)>0 then
    begin
     //Get the parent details
-    fileparent:=LeftStr(PathBeforeEdit,Length(PathBeforeEdit)-Length(NameBeforeEdit));
+    fileparent:=LeftStr(PathBeforeEdit,
+                        Length(PathBeforeEdit)-Length(NameBeforeEdit));
     for i:=0 to Length(HexDump)-1 do
     begin
      //Just change the title
@@ -7238,7 +7357,10 @@ begin
  begin
   WriteToDebug('MainForm.ReportError('+error+')');
   if ErrorReporting then
-   CustomDialogue.ShowError(error,'')
+   if Fstyling=RISCOSStyle then
+    CustomDialogue.ShowError(error,'')
+   else
+    MessageDlg(error,mtError,[mbOK],0)
   else
    ErrorLogForm.ErrorLog.Lines.Add(error);
  end
@@ -7253,10 +7375,44 @@ begin
  Result:=mrOK; //Default
  WriteToDebug('MainForm.AskConfirm('+confim+',array of String)');
  if ErrorReporting then
- begin
-  CustomDialogue.ShowConfirm(confim,Buttons);
-  Result:=CustomDialogue.ModalResult;
- end;
+  if Fstyling=RISCOSStyle then
+  begin
+   CustomDialogue.ShowConfirm(confim,Buttons);
+   Result:=CustomDialogue.ModalResult;
+  end
+  else
+  begin
+   if Length(Buttons)=1 then
+    Result:=QuestionDlg('Confirmation',
+                        confim,
+                        mtConfirmation,
+                        [mrOK,Buttons[0]],
+                        0);
+   if Length(Buttons)=2 then
+    Result:=QuestionDlg('Confirmation',
+                        confim,
+                        mtConfirmation,
+                        [mrOK,Buttons[0],
+                         mrCancel,Buttons[1]],
+                        0);
+   if Length(Buttons)=3 then
+    Result:=QuestionDlg('Confirmation',
+                        confim,
+                        mtConfirmation,
+                        [mrOK,Buttons[0],
+                         mrCancel,Buttons[1],
+                         mrIgnore,Buttons[2]],
+                        0);
+   if Length(Buttons)=4 then
+    Result:=QuestionDlg('Confirmation',
+                        confim,
+                        mtConfirmation,
+                        [mrOK,Buttons[0],
+                         mrCancel,Buttons[1],
+                         mrIgnore,Buttons[2],
+                         mrAbort,Buttons[3]],
+                        0);
+  end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -7268,7 +7424,10 @@ begin
   if ParamCount>0 then //If we are in command line mode, then do not use the GUI
    WriteLn(info)
   else //Otherwise, display a nice window on the screen
-   CustomDialogue.ShowInfo(info,'');
+   if Fstyling=RISCOSStyle then
+    CustomDialogue.ShowInfo(info,'')
+   else
+    MessageDlg(info,mtInformation,[mbOK],0);
 end;
 
 {------------------------------------------------------------------------------}
@@ -7299,11 +7458,14 @@ procedure TMainForm.TileCanvas(c: TCanvas;rc: TRect);
 var
  b: TBrush;
 begin
- b:=TBrush.Create;
- b.Bitmap:=GetTextureTile;
- c.Brush :=b;
- c.FillRect(rc);
- b.Free;
+ if Fstyling=RISCOSStyle then
+ begin
+  b:=TBrush.Create;
+  b.Bitmap:=GetTextureTile;
+  c.Brush :=b;
+  c.FillRect(rc);
+  b.Free;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -7398,12 +7560,17 @@ var
 begin
  if Fdebug then
  begin
-  if FileExists(debuglogfile) then
-   F:=TFileStream.Create(debuglogfile,fmOpenWrite)
-  else
-   F:=TFileStream.Create(debuglogfile,fmCreate);
-  F.Position:=F.Size;
-  WriteLine(F,FormatDateTime(TimeDateFormat,Now)+': '+line);
+  try
+   if FileExists(debuglogfile) then
+    F:=TFileStream.Create(debuglogfile,fmOpenWrite or fmShareDenyNone)
+   else
+    F:=TFileStream.Create(debuglogfile,fmCreate or fmShareDenyNone);
+   F.Position:=F.Size;
+   WriteLine(F,FormatDateTime(TimeDateFormat,Now)+': '+line);
+  except
+   on E: Exception do ShowMessage('Failed to write logfile "'+debuglogfile
+                                  +'": '+E.Message);
+  end;
   F.Free;
  end;
 end;

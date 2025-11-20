@@ -129,7 +129,7 @@ begin
  if control then c:=32 else c:=0;
  //Start with the first byte (we pre-read it to save multiple reads)
  r:=ReadByte(ptr+x,buffer);
- while{(r>=c)and} //Test for control character
+ while(r>=c)and //Test for control character
     (((r<>term)and(term>=0))or //Test for terminator character
      ((x<abs(term))and(term<0)))do //Test for string length
  begin
@@ -966,6 +966,11 @@ begin
   SetLength(buffer,F.Size);
   F.Read(buffer[0],F.Size);
  except
+  on Exception do
+  begin
+   F.Free;
+   exit;
+  end;
  end;
  F.Free;
  if Length(buffer)<10 then exit;
@@ -999,6 +1004,11 @@ begin
     F:=TFileStream.Create(fn,fmCreate);
     F.Write(buffer[blockptrs[i]],blockptrs[i+1]-blockptrs[i]);
    except
+    on Exception do
+    begin
+     F.Free;
+     exit;
+    end;
    end;
    F.Free;
    //Inflate the block
@@ -1746,10 +1756,14 @@ var
 begin
  if ZipFilename<>'' then
  begin
-  tempfile:=TFileStream.Create(ZipFilename,fmOpenWrite or fmShareDenyNone);
-  tempfile.Position:=0;
-  tempfile.Write(Fbuffer[0],Length(Fbuffer));
-  tempfile.Size:=Length(Fbuffer);//Ensures the file is the correct length
+  try
+   tempfile:=TFileStream.Create(ZipFilename,fmOpenWrite or fmShareDenyNone);
+   tempfile.Position:=0;
+   tempfile.Write(Fbuffer[0],Length(Fbuffer));
+   tempfile.Size:=Length(Fbuffer);//Ensures the file is the correct length
+  except
+   on Exception do {nothing};
+  end;
   tempfile.Free;
  end;
 end;
@@ -2163,10 +2177,18 @@ begin
   //Read in the files
   for ptr:=0 to 1 do
   begin
-   input:=TFileStream.Create(files[ptr],fmOpenRead OR fmShareDenyNone);
-   input.Position:=0;
-   SetLength(inbuffer[ptr],input.Size);
-   input.Read(inbuffer[ptr][0],input.Size);
+   try
+    input:=TFileStream.Create(files[ptr],fmOpenRead OR fmShareDenyNone);
+    input.Position:=0;
+    SetLength(inbuffer[ptr],input.Size);
+    input.Read(inbuffer[ptr][0],input.Size);
+   except
+    on Exception do
+    begin
+     input.Free;
+     exit;
+    end;
+   end;
    input.Free;
    //Get the position of the central library for each
    CL[ptr]:=FindCL(EoCL[ptr],inbuffer[ptr]);
@@ -2244,9 +2266,13 @@ begin
    outbuffer[fileptr+$12]:=((CL[0]+CL[1]) AND $00FF0000)>>16;
    outbuffer[fileptr+$13]:=((CL[0]+CL[1]) AND $FF000000)>>24;
    //Save the data to a file
-   output:=TFileStream.Create(outputfile,fmCreate OR fmShareDenyNone);
-   output.Position:=0;
-   output.Write(outbuffer[0],Length(outbuffer));
+   try
+    output:=TFileStream.Create(outputfile,fmCreate OR fmShareDenyNone);
+    output.Position:=0;
+    output.Write(outbuffer[0],Length(outbuffer));
+   except
+    on Exception do {nothing};
+   end;
    output.Free;
   end;
  end;

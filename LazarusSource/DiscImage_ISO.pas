@@ -62,13 +62,15 @@ begin
  //Number of tracks (32 blocks)
  SetLength(free_space_map[0],GetDataLength div(32*$800));
  if Length(free_space_map[0])>0 then
+ begin
   for c:=0 to Length(free_space_map[0])-1 do
   begin
    SetLength(free_space_map[0,c],32);
    for d:=0 to Length(free_space_map[0,c])-1 do free_space_map[0,c,d]:=diFSMBlank;
   end;
- //Mark out the system area
- for c:=0 to 31 do free_space_map[0,0,c]:=diFSMSystem;
+  //Mark out the system area
+  for c:=0 to 31 do free_space_map[0,0,c]:=diFSMSystem;
+ end;
 end;
 
 {-------------------------------------------------------------------------------

@@ -89,6 +89,11 @@ var
  index : Integer=0;
  ctrl  : Integer=0;
 begin
+ //Style the buttons
+ OKButton.NativeOS    :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top     :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
  //Is there anything to show?
  if Length(UserAccounts)>0 then
   for index:=0 to Length(UserAccounts)-1 do

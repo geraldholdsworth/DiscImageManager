@@ -10,11 +10,10 @@ object ImportSelectorForm: TImportSelectorForm
   Color = 15527148
   Constraints.MinHeight = 456
   Constraints.MinWidth = 400
+  Position = poMainFormCenter
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
   object ImportDirList: TTreeView
     Left = 0
     Height = 416
@@ -35,12 +34,12 @@ object ImportSelectorForm: TImportSelectorForm
     StateImages = TickIcons
     StateImagesWidth = 16
     TabOrder = 0
+    Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoShowButtons, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+    TreeLineColor = clNone
     OnClick = TreeView1Click
     OnCreateNodeClass = ImportDirListCreateNodeClass
     OnCustomDraw = ImportDirListCustomDraw
     OnGetImageIndex = ImportDirListGetImageIndex
-    Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoShowButtons, tvoShowRoot, tvoToolTips, tvoThemedDraw]
-    TreeLineColor = clNone
   end
   object ButtonPanel: TPanel
     Left = 0

@@ -44,6 +44,7 @@ type
   CancelButton: TRISCOSButton;
   procedure FormCreate(Sender: TObject);
   procedure FormPaint(Sender: TObject);
+  procedure FormShow(Sender: TObject);
   procedure PartitionSizeChange(Sender: TObject);
   procedure rad_typeClick(Sender: TObject);
   procedure FromFileClick(Sender: TObject);
@@ -89,6 +90,24 @@ end;
 procedure TAFSPartitionForm.FormPaint(Sender: TObject);
 begin
  MainForm.FileInfoPanelPaint(Sender);
+end;
+
+{------------------------------------------------------------------------------}
+//Show the form - set it up
+{------------------------------------------------------------------------------}
+procedure TAFSPartitionForm.FormShow(Sender: TObject);
+begin
+ //Style the buttons
+ FromFileButton.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ OKButton.NativeOS      :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS  :=MainForm.Fstyling=MainForm.NativeStyle;
+ rad_type40T.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ rad_type80T.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ rad_typeAFS.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ rad_typeDOS.NativeOS   :=MainForm.Fstyling=MainForm.NativeStyle;
+ //Re-align the buttons
+ CancelButton.Top       :=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
+ FromFileButton.Top     :=CancelButton.Top;
 end;
 
 {------------------------------------------------------------------------------}

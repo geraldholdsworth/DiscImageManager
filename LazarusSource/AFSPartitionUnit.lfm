@@ -9,10 +9,11 @@ object AFSPartitionForm: TAFSPartitionForm
   ClientHeight = 156
   ClientWidth = 355
   Color = 15527148
+  Position = poMainFormCenter
+  LCLVersion = '4.0.0.4'
   OnCreate = FormCreate
   OnPaint = FormPaint
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
+  OnShow = FormShow
   object PartitionSizeLabel: TLabel
     Left = 0
     Height = 16

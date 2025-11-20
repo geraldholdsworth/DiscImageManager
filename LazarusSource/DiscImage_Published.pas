@@ -351,14 +351,14 @@ begin
       LWriteByte($00);
       //Offset 15, length 1 - Seek time code
       LWriteByte($01);
-     finally
-      FDiscDrive.Free;
+     except
+      on Exception do {nothing};
      end;
+     FDiscDrive.Free;
     end;
    end;
   except
-   //Could not create
-   Result:=False;
+   on Exception do Result:=False;
   end;
  end;
  if GetMajorFormatNumber=diAcornUEF then
@@ -1693,11 +1693,11 @@ begin
     FDiscDrive.Position:=0;
     //Read the image into the data buffer
     FDiscDrive.Write(buffer[0],Length(buffer));
-    //Close the stream
-    FDiscDrive.Free;
    except
-    //Could not create
+    on Exception do {nothing};
    end;
+   //Close the stream
+   FDiscDrive.Free;
   end;
   //Filename is blank, so replace the data
   if filename='' then
@@ -1974,85 +1974,93 @@ var
  inffile        : String='';
  Limagefilename : String='';
  windowsfilename: String='';
- temp           : String='';
  attributes     : Byte=0;
  hexlen         : Byte=0;
  t              : Integer=0;
 const
  adfsattr = 'RWELrwel'; //ADFS Attributes (OSFILE format)
 begin
- if(dir>=0)and(dir<Length(FDisc))then
-  if(entry>=0)and(entry<Length(FDisc[dir].Entries))then
-  begin
-   //Length of the hex numbers
-   hexlen:=8;
-   //6 for DFS (after discussion on Stardot forum)
-   if GetMajorFormatNumber=diAcornDFS then hexlen:=6;
-   Limagefilename:=FDisc[dir].Entries[entry].Filename;
-   if filename='' then //If no filename has been supplied, generate one
-    windowsfilename:=GetWindowsFilename(dir,entry)
-   else                //Otherwise just use the supplied name
-    windowsfilename:=filename;
-   //Add the root, if DFS and no directory specifier
-   if(GetMajorFormatNumber=diAcornDFS)and(Limagefilename[2]<>'.')then
-    Limagefilename:=RightStr(GetParent(dir),1)+'.'+Limagefilename;
-   //HTTP Encode and put quotes round the filename if it contains an invalid character
-   Limagefilename:=EncodeString(Limagefilename);
-   //Create the string
-   inffile:=PadRight(Limagefilename,12)+' '
-           +IntToHex(FDisc[dir].Entries[entry].LoadAddr,hexlen)+' '
-           +IntToHex(FDisc[dir].Entries[entry].ExecAddr,hexlen)+' '
-           +IntToHex(FDisc[dir].Entries[entry].Length,hexlen);
-   //Create the attributes
-   attributes:=$00;
-   if(GetMajorFormatNumber=diAcornDFS)
-   or(GetMajorFormatNumber=diAcornUEF)
-   or(GetMajorFormatNumber=diAcornRFS)then //DFS, CFS and RFS
+ //We'll only produce an inf file for these file systems
+ if(GetMajorFormatNumber=diAcornDFS)
+ or(GetMajorFormatNumber=diAcornUEF)
+ or(GetMajorFormatNumber=diAcornRFS)
+ or(GetMajorFormatNumber=diAcornADFS)
+ or(GetMajorFormatNumber=diAcornFS)
+ or(GetMajorFormatNumber=diSpark)
+ or(FISOFormat=diAcornADFS)then
+  //Need to make sure that we have had valid paramters passed
+  if(dir>=0)and(dir<Length(FDisc))then
+   if(entry>=0)and(entry<Length(FDisc[dir].Entries))then
    begin
-    if FDisc[dir].Entries[entry].Attributes='L' then attributes:=$08;
-    if FAddImpliedAttributes then
-     inc(attributes,$01+$02); //Add the 'RW' attributes as implied attributes
-   end;
-   if(GetMajorFormatNumber=diAcornADFS)
-   or(GetMajorFormatNumber=diAcornFS)
-   or(GetMajorFormatNumber=diSpark)
-   or(FISOFormat=diAcornADFS)then //ADFS, AFS, Spark and ISO (ADFS)
-    for t:=0 to 7 do
-     if Pos(adfsattr[t+1],FDisc[dir].Entries[entry].Attributes)>0 then
-      inc(attributes,1<<t);
-   inffile:=inffile+' '+IntToHex(attributes,2);
-   //Timestamp word (for AFS compatibility)
-   if FDisc[dir].Entries[entry].TimeStamp<>0 then
-    inffile:=inffile+' '
-            +IntToHex(DateTimeToAFS(FDisc[dir].Entries[entry].TimeStamp),4);
-   //CRC
-   inffile:=inffile+' CRC32='+GetFileCRC(GetParent(dir)+
-                              GetDirSep(FDisc[dir].Partition)+
-                              FDisc[dir].Entries[entry].Filename,
-                              entry);
-   //Timestamp (for RISC OS and DOS compatibility)
-   if FDisc[dir].Entries[entry].TimeStamp<>0 then
-    inffile:=inffile+' DATETIME='+FormatDateTime('yyyymmddhhnnss',
-                                     FDisc[dir].Entries[entry].TimeStamp);
-   //Directory?
-   if FDisc[dir].Entries[entry].DirRef<>-1 then
-   begin
-    Ltitle:=EncodeString(FDisc[FDisc[dir].Entries[entry].DirRef].Title);
-    inffile:=inffile+' DIRTITLE='+PadRight(Ltitle,21);
-   end;
-   //Validate the filename
-   ValidateWinFilename(windowsfilename);
-   //Create the inf file
-   try
-    F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
-    F.Position:=0;
-    F.Write(inffile[1],Length(inffile));
+    //Length of the hex numbers
+    hexlen:=8;
+    //6 for DFS (after discussion on Stardot forum)
+    if GetMajorFormatNumber=diAcornDFS then hexlen:=6;
+    Limagefilename:=FDisc[dir].Entries[entry].Filename;
+    if filename='' then //If no filename has been supplied, generate one
+     windowsfilename:=GetWindowsFilename(dir,entry)
+    else                //Otherwise just use the supplied name
+     windowsfilename:=filename;
+    //Add the root, if DFS and no directory specifier
+    if(GetMajorFormatNumber=diAcornDFS)and(Limagefilename[2]<>'.')then
+     Limagefilename:=RightStr(GetParent(dir),1)+'.'+Limagefilename;
+    //HTTP Encode and put quotes round the filename if it contains an invalid character
+    Limagefilename:=EncodeString(Limagefilename);
+    //Create the string
+    inffile:=PadRight(Limagefilename,12)+' '
+            +IntToHex(FDisc[dir].Entries[entry].LoadAddr,hexlen)+' '
+            +IntToHex(FDisc[dir].Entries[entry].ExecAddr,hexlen)+' '
+            +IntToHex(FDisc[dir].Entries[entry].Length,hexlen);
+    //Create the attributes
+    attributes:=$00;
+    if(GetMajorFormatNumber=diAcornDFS)
+    or(GetMajorFormatNumber=diAcornUEF)
+    or(GetMajorFormatNumber=diAcornRFS)then //DFS, CFS and RFS
+    begin
+     if FDisc[dir].Entries[entry].Attributes='L' then attributes:=$08;
+     if FAddImpliedAttributes then
+      inc(attributes,$01+$02); //Add the 'RW' attributes as implied attributes
+    end;
+    if(GetMajorFormatNumber=diAcornADFS)
+    or(GetMajorFormatNumber=diAcornFS)
+    or(GetMajorFormatNumber=diSpark)
+    or(FISOFormat=diAcornADFS)then //ADFS, AFS, Spark and ISO (ADFS)
+     for t:=0 to 7 do
+      if Pos(adfsattr[t+1],FDisc[dir].Entries[entry].Attributes)>0 then
+       inc(attributes,1<<t);
+    inffile:=inffile+' '+IntToHex(attributes,2);
+    //Timestamp word (for AFS compatibility)
+    if FDisc[dir].Entries[entry].TimeStamp<>0 then
+     inffile:=inffile+' '
+             +IntToHex(DateTimeToAFS(FDisc[dir].Entries[entry].TimeStamp),4);
+    //CRC
+    inffile:=inffile+' CRC32='+GetFileCRC(GetParent(dir)+
+                               GetDirSep(FDisc[dir].Partition)+
+                               FDisc[dir].Entries[entry].Filename,
+                               entry);
+    //Timestamp (for RISC OS and DOS compatibility)
+    if FDisc[dir].Entries[entry].TimeStamp<>0 then
+     inffile:=inffile+' DATETIME='+FormatDateTime('yyyymmddhhnnss',
+                                      FDisc[dir].Entries[entry].TimeStamp);
+    //Directory?
+    if FDisc[dir].Entries[entry].DirRef<>-1 then
+    begin
+     Ltitle:=EncodeString(FDisc[FDisc[dir].Entries[entry].DirRef].Title);
+     inffile:=inffile+' DIRTITLE='+PadRight(Ltitle,21);
+    end;
+    //Validate the filename
+    ValidateWinFilename(windowsfilename);
+    //Create the inf file
+    try
+     F:=TFileStream.Create(path+windowsfilename+'.inf',fmCreate OR fmShareDenyNone);
+     F.Position:=0;
+     F.Write(inffile[1],Length(inffile));
+    except
+     //Could not create
+     on Exception do filename:='';
+    end;
     F.Free;
-   except
-    //Could not create
-    filename:='';
    end;
-  end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -2066,21 +2074,31 @@ var
  dirtitle : String='';
  inffile  : String='';
 begin
- Ltitle:=EncodeString(Title(FDisc[dir].Partition));
- dirtitle:=EncodeString(FDisc[dir].Title);
- dirname:=EncodeString(FDisc[dir].Directory);
- inffile:=PadRight(dirname,12)
-         +' OPT='+IntToHex(BootOpt[FDisc[dir].Partition],2)
-         +' TITLE='+PadRight(Ltitle,12)
-         +' DIRTITLE='+PadRight(dirtitle,21);
- //Create the inf file
- try
-  F:=TFileStream.Create(filename+'.inf',fmCreate OR fmShareDenyNone);
-  F.Position:=0;
-  F.Write(inffile[1],Length(inffile));
+ //We'll only produce an inf file for these file systems
+ if(GetMajorFormatNumber=diAcornDFS)
+ or(GetMajorFormatNumber=diAcornUEF)
+ or(GetMajorFormatNumber=diAcornRFS)
+ or(GetMajorFormatNumber=diAcornADFS)
+ or(GetMajorFormatNumber=diAcornFS)
+ or(GetMajorFormatNumber=diSpark)
+ or(FISOFormat=diAcornADFS)then
+ begin
+  Ltitle:=EncodeString(Title(FDisc[dir].Partition));
+  dirtitle:=EncodeString(FDisc[dir].Title);
+  dirname:=EncodeString(FDisc[dir].Directory);
+  inffile:=PadRight(dirname,12)
+          +' OPT='+IntToHex(BootOpt[FDisc[dir].Partition],2)
+          +' TITLE='+PadRight(Ltitle,12)
+          +' DIRTITLE='+PadRight(dirtitle,21);
+  //Create the inf file
+  try
+   F:=TFileStream.Create(filename+'.inf',fmCreate OR fmShareDenyNone);
+   F.Position:=0;
+   F.Write(inffile[1],Length(inffile));
+  except
+   on Exception do {nothing};
+  end;
   F.Free;
- except
-  //Could not create
  end;
 end;
 
@@ -2101,15 +2119,23 @@ begin
  begin
   SetLength(outbuffer,22);
   WriteSignature(ZIPEoCL,outbuffer);
-  F:=TFileStream.Create(ZipFilename,fmCreate or fmShareDenyNone);
-  F.Position:=0;
-  F.Write(outbuffer[0],Length(outbuffer));
+  try
+   F:=TFileStream.Create(ZipFilename,fmCreate or fmShareDenyNone);
+   F.Position:=0;
+   F.Write(outbuffer[0],Length(outbuffer));
+  except
+   on Exception do {nothing};
+  end;
   F.Free;
  end;
  //Create a stream
- F:=TFileStream.Create(ZipFilename,fmOpenRead or fmShareDenyNone);
- //Read it using the overloaded constructor
- Create(F);
+ try
+  F:=TFileStream.Create(ZipFilename,fmOpenRead or fmShareDenyNone);
+  //Read it using the overloaded constructor
+  Create(F);
+ except
+  on Exception do {nothing};
+ end;
  //And free it up
  F.Free;
 end;
@@ -2176,9 +2202,17 @@ procedure TSpark.WriteFile(var filetozip: TFileEntry;var buffer: TDIByteArray);
   //Zipper will only zip up existing files, so we'll need to save the data to a
   //temporary file first, then zip that.
   tempname:=ExtractFilePath(ZIPFileName)+'__DIM__TempFile.dat';//Get a temporary name
-  tempfile:=TFileStream.Create(tempname,fmCreate);//Create the file
-  tempfile.Position:=0;
-  tempfile.Write(buffer[0],Length(buffer)); //Write the file data to it
+  try
+   tempfile:=TFileStream.Create(tempname,fmCreate);//Create the file
+   tempfile.Position:=0;
+   tempfile.Write(buffer[0],Length(buffer)); //Write the file data to it
+  except
+   on Exception do
+   begin
+    tempfile.Free;
+    exit;
+   end;
+  end;
   tempfile.Free; //Close the file
   //Now we can open the zipfile
   zipfile:=TZipper.Create;
@@ -2186,17 +2220,22 @@ procedure TSpark.WriteFile(var filetozip: TFileEntry;var buffer: TDIByteArray);
    zipfile.Filename:=Result; //Set the zipfile name
    zipfile.Entries.AddFileEntry(tempname,filetozip.ArchiveName); //Add the file
    zipfile.ZipAllFiles; //Then zip all the files
-  finally
-   zipfile.Free; //And close it
+  except
+   on Exception do {nothing};
   end;
+  zipfile.Free; //And close it
   //Finally, delete the temporary file
   SysUtils.DeleteFile(tempname);
   //Then we will need to load the zip file in and change the values and add to
   //the library at the end.
-  tempfile:=TFileStream.Create(Result,fmOpenRead or fmShareDenyNone);
-  SetLength(Lbuffer,tempfile.Size);
-  tempfile.Position:=0;
-  tempfile.Read(Lbuffer[0],tempfile.Size);
+  try
+   tempfile:=TFileStream.Create(Result,fmOpenRead or fmShareDenyNone);
+   SetLength(Lbuffer,tempfile.Size);
+   tempfile.Position:=0;
+   tempfile.Read(Lbuffer[0],tempfile.Size);
+  except
+   on Exception do {nothing};
+  end;
   tempfile.Free;
   CL:=FindCL(EoCL,Lbuffer); //Get the end of central library marker
   if(EoCL<>-1)and(CL<>-1)then
@@ -2276,9 +2315,13 @@ procedure TSpark.WriteFile(var filetozip: TFileEntry;var buffer: TDIByteArray);
       inc(CL,adjust);
       UpdateCL(CL,EoCL,Lbuffer); //Write both fields
       //Save it back again
-      tempfile:=TFileStream.Create(Result,fmCreate or fmShareDenyNone);
-      tempfile.Position:=0;
-      tempfile.Write(Lbuffer[0],Length(Lbuffer));
+      try
+       tempfile:=TFileStream.Create(Result,fmCreate or fmShareDenyNone);
+       tempfile.Position:=0;
+       tempfile.Write(Lbuffer[0],Length(Lbuffer));
+      except
+       on Exception do {nothing};
+      end;
       tempfile.Free;
      end;
     end;
@@ -2299,10 +2342,18 @@ begin
   //Now delete the temporary ZIP file
   SysUtils.DeleteFile(tempzipfile);
   //Read the file into the buffer
-  Lfile:=TFileStream.Create(ZIPFilename,fmOpenRead OR fmShareDenyNone);
-  Lfile.Position:=0;
-  SetLength(Fbuffer,Lfile.Size);
-  Lfile.Read(Fbuffer[0],Lfile.Size);
+  try
+   Lfile:=TFileStream.Create(ZIPFilename,fmOpenRead OR fmShareDenyNone);
+   Lfile.Position:=0;
+   SetLength(Fbuffer,Lfile.Size);
+   Lfile.Read(Fbuffer[0],Lfile.Size);
+  except
+   on Exception do
+   begin
+    LFile.Free;
+    exit;
+   end;
+  end;
   Lfile.Free;
   //And now add it to the overall list
   SetLength(FFileList,Length(FFileList)+1);

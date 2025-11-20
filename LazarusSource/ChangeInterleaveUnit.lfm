@@ -9,10 +9,10 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   ClientHeight = 124
   ClientWidth = 234
   Color = 15527148
+  Position = poMainFormCenter
   OnCreate = FormCreate
   OnPaint = FormPaint
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
+  OnShow = FormShow
   object CurrentLabel: TLabel
     Left = 0
     Height = 16

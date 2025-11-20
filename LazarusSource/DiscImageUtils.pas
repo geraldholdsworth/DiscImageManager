@@ -178,8 +178,29 @@ const
  end;
  //Validate the input string as a valid hex number. Return 0 if not ------------
  function ValidateHex(input: String): String;
+ var
+  TestHex: String='';
  begin
-  Result:=IntToHex(StrToIntDef('$'+input,0),8);
+  //Default result
+  Result:='0';
+  //Only continue if there is something
+  if(not input.IsEmpty)and(Length(input)<9)then
+  begin
+   //Remove any '$' at the start
+   while input[1]='$' do
+   begin
+    input:=Copy(input,2);
+    if input.IsEmpty then input:='0';
+   end;
+   //Now remove any '0x' at the start
+   if Length(line)>1 then while LeftStr(line,2)='0x' do line:=Copy(line,3);
+   //Create a test hex
+   TestHex:=StringOfChar('F',Length(input)+1);
+   //Finally, see if it is a valid hex and convert, if it is
+   if IntToHex(StrToIntDef('$'+input,StrToInt('$'+TestHex))
+              ,Length(input)+1)<>TestHex then
+    Result:=input;
+  end;
  end;
  //Check for a Key=Value -------------------------------------------------------
  function CheckForKeyValue(input: String): Boolean;
@@ -228,7 +249,8 @@ const
  //Check a field to see if it contains an attribute (access) field
  function CheckForAccess(entry: String): Boolean;
  begin
-  Result:=(entry='Locked')or(UpperCase(entry)='L')//DFS Locked flag
+  entry:=UpperCase(entry);
+  Result:=(entry='LOCKED')or(entry='L')//DFS Locked flag
         or((Length(entry)=2)and(StrToIntDef('$'+entry,$FFF)<>$FFF))//2 digit hex
         or((not CheckForKeyValue(entry)) //Is not a key/value pair
            and(StrToIntDef('$'+entry,$FFF)=$FFF)and(UpperCase(entry)<>'FFF'));

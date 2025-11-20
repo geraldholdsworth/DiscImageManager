@@ -8,10 +8,11 @@ object CSVPrefForm: TCSVPrefForm
   Caption = 'CSV Preferences'
   ClientHeight = 309
   ClientWidth = 225
+  Position = poMainFormCenter
+  LCLVersion = '4.0.0.4'
   OnCreate = FormCreate
   OnPaint = FormPaint
-  Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
+  OnShow = FormShow
   object ColumnsLabel: TLabel
     Left = 32
     Height = 16

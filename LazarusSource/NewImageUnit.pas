@@ -61,8 +61,8 @@ type
   DFSLabel: TLabel;
   AFSImageSize: TRISCOSSlider;
   cb_AFScreatepword: TRISCOSTickBox;
-  btn_OK,
-  btn_Cancel: TRISCOSButton;
+  OKButton,
+  CancelButton: TRISCOSButton;
   ROMFSBinVersAdj: TUpDown;
   ImageTitle: TLabeledEdit;
   procedure AFSClick(Sender: TObject);
@@ -116,6 +116,7 @@ type
                                            'Level 3 (>1988)');
  public
   harddrivesize : Cardinal;
+  ok,
   newmap,
   addheader,
   ide           : Boolean;
@@ -181,7 +182,7 @@ begin
   if ImageTitle.MaxLength=18 then ImageTitle.Text:=MainForm.Image.DefaultAmigaDiscTitle;
  end;
  //Currently, only certain types of format can be created
- btn_OK.Enabled:=(SystemOptions[0].Ticked) //DFS
+ OKButton.Enabled:=(SystemOptions[0].Ticked) //DFS
                OR(SystemOptions[1].Ticked) //ADFS
                OR(SystemOptions[2].Ticked) //C64
                OR(SystemOptions[4].Ticked) //Amiga
@@ -206,7 +207,26 @@ end;
 Form is being displayed
 -------------------------------------------------------------------------------}
 procedure TNewImageForm.FormShow(Sender: TObject);
+ procedure SetNativeOS(options: array of TRISCOSRadioBox);
+ var
+  Index: Integer=0;
+ begin
+  for Index:=0 to Length(options)-1 do
+   options[Index].NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ end;
 begin
+ OKButton.NativeOS         :=MainForm.Fstyling=MainForm.NativeStyle;
+ CancelButton.NativeOS     :=MainForm.Fstyling=MainForm.NativeStyle;
+ cb_AFScreatepword.NativeOS:=MainForm.Fstyling=MainForm.NativeStyle;
+ SetNativeOS(SystemOptions);
+ SetNativeOS(DFSOptions);
+ SetNativeOS(DFSTOptions);
+ SetNativeOS(ADFSOptions);
+ SetNativeOS(C64Options);
+ SetNativeOS(SpecOptions);
+ SetNativeOS(AmigaOptions);
+ SetNativeOS(DOSOptions);
+ SetNativeOS(AFSOptions);
  //Reset to the default options
  SystemOptions[MainForm.DIMReg.GetRegValI('DefaultSystemOptions',0)].Ticked:=True;
  DFSOptions[MainForm.DIMReg.GetRegValI(   'DefaultDFSOptions',0)].Ticked   :=True;
@@ -228,6 +248,8 @@ begin
  ROMFSBinVers.Caption    :=IntToHex(ROMFSBinVersAdj.Position,2);
  //Show/Hide appropriate panels and enable/disable OK button
  MainFormatClick(Sender);
+ //Re-align the buttons
+ CancelButton.Top:=OKButton.Top+(OKButton.Height-CancelButton.Height)div 2;
 end;
 
 {-------------------------------------------------------------------------------
@@ -242,9 +264,8 @@ procedure TNewImageForm.btn_OKClick(Sender: TObject);
   if not control[sel].Ticked then sel:=0;
   MainForm.DIMReg.SetRegValI('Default'+regentry,sel);
  end;
-var
- ok: Boolean=True;
 begin
+ ok:=True;
  //Are we creating a hard drive?
  if((SystemOptions[1].Ticked)AND(ADFSOptions[8].Ticked))     //ADFS
  or((SystemOptions[8].Ticked)AND(DOSOptions[6].Ticked))      //DOS
@@ -310,9 +331,9 @@ begin
   if ImageTitle.MaxLength=16 then MainForm.Image.DefaultAFSDiscTitle  :=ImageTitle.Text;
   if ImageTitle.MaxLength=18 then MainForm.Image.DefaultAmigaDiscTitle:=ImageTitle.Text;
   //Return
-  btn_OK.ModalResult:=mrOK;
+//  btn_OK.ModalResult:=mrOK;
  end
- else btn_OK.ModalResult:=mrNone;
+;// else btn_OK.ModalResult:=mrNone;
 end;
 
 {-------------------------------------------------------------------------------
@@ -463,16 +484,18 @@ begin
  //Align the buttons -----------------------------------------------------------
  ImageTitle.Top:=MainFormatPanel.Top+MainFormatPanel.Height+Round(8*ratio);
  ImageTitle.Left:=(LWid*2)-ImageTitle.Width-Round(8*ratio);
- btn_Cancel:=MainForm.CreateButton(NewImageForm as TControl,'Cancel',False,0,
-                      ImageTitle.Top+ImageTitle.Height+Round(8*ratio),
-                      mrCancel);
- btn_OK:=MainForm.CreateButton(NewImageForm as TControl,'Create',True,0,
-                               btn_Cancel.Top-Round(4*ratio),mrNone);
- btn_OK.Left:=(LWid*2)-btn_OK.Width-Round(8*ratio);
- btn_OK.OnClick:=@btn_OKClick;
- btn_Cancel.Left:=btn_OK.Left-Round(4*ratio)-btn_Cancel.Width;
+ CancelButton:=MainForm.CreateButton(NewImageForm as TControl,'Cancel',False,0,
+                                ImageTitle.Top+ImageTitle.Height+Round(8*ratio),
+                                mrCancel);
+ OKButton:=MainForm.CreateButton(NewImageForm as TControl,'Create',True,0,
+                                 CancelButton.Top-Round(4*ratio),mrNone);
+ OKButton.Left:=(LWid*2)-OKButton.Width-Round(8*ratio);
+ OKButton.OnClick:=@btn_OKClick;
+ OKButton.ModalResult:=mrOK;
+ CancelButton.Left:=OKButton.Left-Round(4*ratio)-CancelButton.Width;
+ CancelButton.ModalResult:=mrCancel;
  //Adjust the form size
- Height:=btn_OK.Top+btn_OK.Height+Round(8*ratio);
+ Height:=OKButton.Top+OKButton.Height+Round(8*ratio);
  Width:=LWid*2;
 end;
 
