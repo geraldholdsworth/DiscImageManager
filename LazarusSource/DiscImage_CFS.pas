@@ -156,13 +156,16 @@ begin
      //Increase the file's data length to match the total length, so far
      SetLength(FilesData[filenum],FDisc[0].Entries[filenum].Length);
      //And copy in the data in this block
-     for j:=0 to blocklen-1 do FilesData[filenum][ptr+j]:=ReadByte(pos+i+j);
-     //Move to after the data
-     inc(i,blocklen);
-     //So we can read in the data's CRC
-     datacrc:=Read16b(pos+i);
-     //Check it is valid
-     if datacrc<>GetCRC16(ptr,blocklen,FilesData[filenum]) then crcok:=False;
+     if blocklen>0 then
+     begin
+      for j:=0 to blocklen-1 do FilesData[filenum][ptr+j]:=ReadByte(pos+i+j);
+      //Move to after the data
+      inc(i,blocklen);
+      //So we can read in the data's CRC
+      datacrc:=Read16b(pos+i);
+      //Check it is valid
+      if datacrc<>GetCRC16(ptr,blocklen,FilesData[filenum]) then crcok:=False;
+     end;
     end;
 {   $0110 : //High Tone ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //Work out the length of the tone
