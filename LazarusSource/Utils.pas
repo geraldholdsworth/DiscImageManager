@@ -3,7 +3,7 @@ unit Utils;
 {$MODE Delphi}
 
 {
-Copyright (c) 2002-2025 Damien Guard.  
+Copyright (c) 2002-2025 Damien Guard.
 
 Originally from Disk Image Manager https://github.com/damieng/diskimagemanager
 Relicensed for this project under GNU GPL with permission.
@@ -27,14 +27,20 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  Classes, Graphics, LCLIntf, SysUtils;
+  Classes, SysUtils
+  {$IFNDEF NO_GUI}
+  , Graphics, LCLIntf
+  {$ENDIF}
+  ;
 
 const
   BytesPerKB: integer = 1024;
   Power2: array[1..17] of integer = (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536);
 
+{$IFNDEF NO_GUI}
 type
   TSpinBorderStyle = (bsRaised, bsLowered, bsNone);
+{$ENDIF}
 
 function StrInt(I: integer): string;
 function StrHex(I: integer): string;
@@ -48,14 +54,18 @@ function CompareBlock(A: array of char; B: string): boolean;
 function CompareBlockStart(A: array of char; B: string; Start: integer): boolean;
 function CompareBlockInsensitive(A: array of char; B: string): boolean;
 
+{$IFNDEF NO_GUI}
 function FontToDescription(ThisFont: TFont): string;
 function FontFromDescription(Description: string): TFont;
 function FontHumanReadable(ThisFont: TFont): string;
 function FontCopy(ThisFont: TFont): TFont;
+{$ENDIF}
 
 function StrFileSize(Size: integer): string;
 
+{$IFNDEF NO_GUI}
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
+{$ENDIF}
 
 implementation
 
@@ -139,6 +149,7 @@ begin
   end;
 end;
 
+{$IFNDEF NO_GUI}
 // Draw a windows style 3D border
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
 var
@@ -239,6 +250,7 @@ function FontHumanReadable(ThisFont: TFont): string;
 begin
   Result := Trim(StringReplace(FontToDescription(ThisFont), ',', ' ', [rfReplaceAll]));
 end;
+{$ENDIF}
 
 function StrYesNo(IsEmpty: boolean): string;
 begin
