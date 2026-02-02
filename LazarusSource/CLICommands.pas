@@ -1088,42 +1088,11 @@ begin
 end;
 
 procedure TCLICommandProcessor.CmdDefrag(const Params: TStringArray);
-var
-  Partition, DirCount, I: Integer;
 begin
-  if FContext.Image.FormatNumber = diInvalidImg then
-  begin
-    WriteLnColored('No image loaded.', clRed);
-    Exit;
-  end;
-
-  // Get the drive/partition specification, default to current if none specified
-  if Length(Params) > 1 then
-    Partition := StrToIntDef(Params[1], -1)
-  else
-    Partition := FContext.Image.Disc[FContext.CurrentDir].Partition;
-
-  // Count number of sides/partitions
-  DirCount := 0;
-  for I := 0 to Length(FContext.Image.Disc) - 1 do
-    if FContext.Image.Disc[I].Parent = -1 then
-      Inc(DirCount);
-
-  // Is it valid?
-  if (Partition >= 0) and (Partition < DirCount) then
-  begin
-    WriteColored('Defragging drive/partition ' + IntToStr(Partition), clBlue + clBold);
-    WriteLn;
-    if FContext.Image.Defrag(Partition) then
-    begin
-      FContext.HasChanged := True;
-      WriteLnColored('Defrag complete.', clGreen);
-    end
-    else
-      WriteLnColored('Defrag failed.', clRed);
-  end
-  else
-    WriteLnColored('Invalid drive or partition specification.', clRed);
+  // Defrag requires GUI infrastructure (progress display, node selection, etc.)
+  // and is not available in CLI mode
+  WriteLnColored('Defrag/compact is not available in CLI mode.', clRed);
+  WriteLn('Please use the GUI application for this operation.');
 end;
 
 procedure TCLICommandProcessor.CmdDirTitle(const Params: TStringArray);
@@ -1511,7 +1480,8 @@ begin
     begin
       // Display as text
       Temp := '';
-      for I := 0 to Length(Buffer) - 1 do
+      I := 0;
+      while I < Length(Buffer) do
       begin
         if (Buffer[I] >= 32) and (Buffer[I] < 127) then
           Temp := Temp + Chr(Buffer[I])
@@ -1527,6 +1497,7 @@ begin
         end
         else if Buffer[I] = 9 then
           Temp := Temp + '        ';
+        Inc(I);
       end;
       if Temp <> '' then
         WriteLn(Temp);
