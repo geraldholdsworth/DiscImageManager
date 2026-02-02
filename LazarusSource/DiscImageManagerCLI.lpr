@@ -131,7 +131,7 @@ end;
 procedure TDiscImageManagerCLI.DoRun;
 var
   Input: String;
-  Params: TStringArray;
+  CmdParams: TStringArray;
   Running: Boolean;
 begin
   // Check for help flag
@@ -146,8 +146,8 @@ begin
   if HasOption('e', 'execute') then
   begin
     Input := GetOptionValue('e', 'execute');
-    Params := FProcessor.ParseInput(Input);
-    FProcessor.ProcessCommand(Params);
+    CmdParams := FProcessor.ParseInput(Input);
+    FProcessor.ProcessCommand(CmdParams);
     Terminate;
     Exit;
   end;
@@ -207,8 +207,8 @@ begin
     ReadInput(Input);
 
     // Parse and process
-    Params := FProcessor.ParseInput(Input);
-    Running := FProcessor.ProcessCommand(Params);
+    CmdParams := FProcessor.ParseInput(Input);
+    Running := FProcessor.ProcessCommand(CmdParams);
 
     // Check for end of script
     if FScriptOpen then
