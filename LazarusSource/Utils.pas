@@ -63,6 +63,9 @@ function FontCopy(ThisFont: TFont): TFont;
 
 function StrFileSize(Size: integer): string;
 
+function HTTPEncode(const AStr: String): String;
+function HTTPDecode(const AStr: String): String;
+
 {$IFNDEF NO_GUI}
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
 {$ENDIF}
@@ -309,6 +312,52 @@ begin
          Result := Format('%d KB', [Size div 1024])
       else
           Result := Format('%d MB', [Size div Megabyte]);
+end;
+
+// HTTP/URL Encode a string (percent encoding)
+function HTTPEncode(const AStr: String): String;
+const
+  SafeChars: set of Char = ['A'..'Z', 'a'..'z', '0'..'9', '-', '_', '.', '~'];
+var
+  I: Integer;
+  Ch: Char;
+begin
+  Result := '';
+  for I := 1 to Length(AStr) do
+  begin
+    Ch := AStr[I];
+    if Ch in SafeChars then
+      Result := Result + Ch
+    else
+      Result := Result + '%' + IntToHex(Ord(Ch), 2);
+  end;
+end;
+
+// HTTP/URL Decode a string (percent decoding)
+function HTTPDecode(const AStr: String): String;
+var
+  I: Integer;
+  Ch: Char;
+  HexVal: Integer;
+begin
+  Result := '';
+  I := 1;
+  while I <= Length(AStr) do
+  begin
+    Ch := AStr[I];
+    if (Ch = '%') and (I + 2 <= Length(AStr)) then
+    begin
+      HexVal := StrToIntDef('$' + Copy(AStr, I + 1, 2), -1);
+      if HexVal >= 0 then
+      begin
+        Result := Result + Chr(HexVal);
+        Inc(I, 3);
+        Continue;
+      end;
+    end;
+    Result := Result + Ch;
+    Inc(I);
+  end;
 end;
 
 end.
