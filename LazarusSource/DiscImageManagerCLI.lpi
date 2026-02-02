@@ -45,6 +45,9 @@
             </Debugging>
             <LinkSmart Value="True"/>
           </Linking>
+          <Other>
+            <CustomOptions Value="-dNO_GUI"/>
+          </Other>
         </CompilerOptions>
       </Item2>
       <Item3 Name="Release Linux ARM">
@@ -69,6 +72,9 @@
             </Debugging>
             <LinkSmart Value="True"/>
           </Linking>
+          <Other>
+            <CustomOptions Value="-dNO_GUI"/>
+          </Other>
         </CompilerOptions>
       </Item3>
       <Item4 Name="Release Windows 64-bit">
@@ -93,6 +99,9 @@
             </Debugging>
             <LinkSmart Value="True"/>
           </Linking>
+          <Other>
+            <CustomOptions Value="-dNO_GUI"/>
+          </Other>
         </CompilerOptions>
       </Item4>
       <Item5 Name="Release macOS 64-bit">
@@ -117,6 +126,9 @@
             </Debugging>
             <LinkSmart Value="True"/>
           </Linking>
+          <Other>
+            <CustomOptions Value="-dNO_GUI"/>
+          </Other>
         </CompilerOptions>
       </Item5>
       <Item6 Name="Release macOS ARM">
@@ -141,6 +153,9 @@
             </Debugging>
             <LinkSmart Value="True"/>
           </Linking>
+          <Other>
+            <CustomOptions Value="-dNO_GUI"/>
+          </Other>
         </CompilerOptions>
       </Item6>
     </BuildModes>
