@@ -50,9 +50,6 @@ type
     FDFSAllowBlank: Boolean;
     FSparkIsFS: Boolean;
     FADFSInterleave: Byte;
-    // Progress callback
-    FOnProgress: TProgressProc;
-    procedure SetOnProgress(AValue: TProgressProc);
     procedure ApplySettings;
   public
     constructor Create;
@@ -84,7 +81,6 @@ type
     property DFSAllowBlank: Boolean read FDFSAllowBlank write FDFSAllowBlank;
     property SparkIsFS: Boolean read FSparkIsFS write FSparkIsFS;
     property ADFSInterleave: Byte read FADFSInterleave write FADFSInterleave;
-    property OnProgress: TProgressProc read FOnProgress write SetOnProgress;
   end;
 
   { TRegistrySettings - Cross-platform settings storage }
@@ -155,7 +151,6 @@ begin
   FDFSAllowBlank := False;
   FSparkIsFS := True;
   FADFSInterleave := 0;
-  FOnProgress := nil;
   ApplySettings;
 end;
 
@@ -163,13 +158,6 @@ destructor TDiscImageContext.Destroy;
 begin
   FImage.Free;
   inherited Destroy;
-end;
-
-procedure TDiscImageContext.SetOnProgress(AValue: TProgressProc);
-begin
-  FOnProgress := AValue;
-  if Assigned(FImage) then
-    FImage.ProgressIndicator := AValue;
 end;
 
 procedure TDiscImageContext.ApplySettings;
@@ -185,8 +173,6 @@ begin
     FImage.DFSAllowBlanks := FDFSAllowBlank;
     FImage.SparkAsFS := FSparkIsFS;
     FImage.InterleaveMethod := FADFSInterleave;
-    if Assigned(FOnProgress) then
-      FImage.ProgressIndicator := FOnProgress;
   end;
 end;
 
