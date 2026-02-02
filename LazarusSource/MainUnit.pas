@@ -7350,18 +7350,14 @@ procedure TMainForm.ReportError(error: String);
 begin
  //Remove the top bit, if present
  RemoveTopBit(error);
- if Fguiopen then
- begin
-  WriteToDebug('MainForm.ReportError('+error+')');
-  if ErrorReporting then
-   if Fstyling=RISCOSStyle then
-    CustomDialogue.ShowError(error,'')
-   else
-    MessageDlg(error,mtError,[mbOK],0)
+ WriteToDebug('MainForm.ReportError('+error+')');
+ if ErrorReporting then
+  if Fstyling=RISCOSStyle then
+   CustomDialogue.ShowError(error,'')
   else
-   ErrorLogForm.ErrorLog.Lines.Add(error);
- end
- else if ErrorReporting then WriteLn(cmdRed+error+cmdNormal);
+   MessageDlg(error,mtError,[mbOK],0)
+ else
+  ErrorLogForm.ErrorLog.Lines.Add(error);
 end;
 
 {------------------------------------------------------------------------------}
