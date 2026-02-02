@@ -28,7 +28,7 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib-cli/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
@@ -55,7 +55,7 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib-cli/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
@@ -82,7 +82,7 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib-cli/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
@@ -109,7 +109,7 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib-cli/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
@@ -136,7 +136,7 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib-cli/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
@@ -202,7 +202,7 @@
     <Version Value="11"/>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <UnitOutputDirectory Value="lib/Debug/$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib-cli/Debug/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
