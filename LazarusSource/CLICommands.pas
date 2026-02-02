@@ -50,7 +50,6 @@ type
     function Confirm: Boolean;
     function GetDriveSize(const GivenSize: String): Cardinal;
     procedure ShowHelp;
-    procedure ShowImageInfo;
     procedure ListCatalogueEx(const Mode: String);
     // Command handlers
     procedure CmdAccess(const Params: TStringArray);
@@ -61,7 +60,6 @@ type
     procedure CmdDir(const Params: TStringArray);
     procedure CmdExtract(const Params: TStringArray);
     procedure CmdFree(const Params: TStringArray);
-    procedure CmdInfo(const Params: TStringArray);
     procedure CmdInsert(const Params: TStringArray);
     procedure CmdNew(const Params: TStringArray);
     procedure CmdOpt(const Params: TStringArray);
@@ -263,13 +261,11 @@ begin
   WriteLn('  save [file] [compress] - Save the current image');
   WriteLn('  savecsv [file]         - Save image catalogue as CSV');
   WriteLn('  filetocsv <images>     - Export multiple images to CSV');
-  WriteLn('  info                   - Show image information');
   WriteLn('  report                 - Show detailed image report');
   WriteLn;
   WriteLnColored('Navigation:', clBold);
   WriteLn('  dir <path>             - Change current directory');
   WriteLn('  cat [all|dir|root]     - Show catalogue listing');
-  WriteLn('  ls                     - Alias for cat');
   WriteLn('  free                   - Show free space');
   WriteLn('  chdir <path>           - Change host directory');
   WriteLn;
@@ -281,6 +277,7 @@ begin
   WriteLn('  access <file> [attr]   - Change file attributes');
   WriteLn('  search <pattern>       - Search for files in image');
   WriteLn('  find <pattern>         - Find files on host filesystem');
+  WriteLn('  ls                     - List host files (same as find *)');
   WriteLn('  list <file>            - Display file contents (text/BASIC)');
   WriteLn('  exec <file> <addr>     - Change execution address');
   WriteLn('  load <file> <addr>     - Change load address');
@@ -324,38 +321,6 @@ begin
   WriteLn('  DOS+640, DOS+800                 - DOS Plus');
   WriteLn('  DOS360, DOS720, DOS1440, DOS2880 - MS-DOS Floppy');
   WriteLn('  DOSHDD [size]                    - MS-DOS Hard Drive');
-end;
-
-procedure TCLICommandProcessor.ShowImageInfo;
-begin
-  if FContext.Image.FormatNumber = diInvalidImg then
-  begin
-    WriteLnColored('No image loaded.', clRed);
-    Exit;
-  end;
-
-  WriteLnColored('Image Information', clBlue + clBold);
-  WriteLn(StringOfChar('-', 40));
-  Write('Format: ');
-  WriteLnColored(FContext.Image.FormatString, clBold);
-  Write('Filename: ');
-  WriteLnColored(FContext.Filename, clBold);
-  if FContext.Image.MapTypeString <> '' then
-  begin
-    Write('Map Type: ');
-    WriteLnColored(FContext.Image.MapTypeString, clBold);
-  end;
-  if FContext.Image.DirectoryTypeString <> '' then
-  begin
-    Write('Directory Type: ');
-    WriteLnColored(FContext.Image.DirectoryTypeString, clBold);
-  end;
-  if FContext.Image.DoubleSided then
-    WriteLn('Sides: Double-sided');
-  Write('CRC32: ');
-  WriteLnColored(FContext.Image.CRC32, clBold);
-  WriteLn;
-  ReportFreeSpace;
 end;
 
 procedure TCLICommandProcessor.ListCatalogueEx(const Mode: String);
@@ -804,11 +769,6 @@ begin
     WriteLnColored('No image loaded.', clRed)
   else
     ReportFreeSpace;
-end;
-
-procedure TCLICommandProcessor.CmdInfo(const Params: TStringArray);
-begin
-  ShowImageInfo;
 end;
 
 procedure TCLICommandProcessor.CmdInsert(const Params: TStringArray);
@@ -1757,52 +1717,64 @@ begin
 end;
 
 function TCLICommandProcessor.ProcessCommand(const Command: TStringArray): Boolean;
+var
+  Cmd: TStringArray;
 begin
   Result := True; // Continue running
 
   if Length(Command) = 0 then
     Exit;
 
-  case LowerCase(Command[0]) of
-    'access':            CmdAccess(Command);
-    'add':               CmdAdd(Command);
-    'cat', 'ls':         CmdCat(Command);
-    'chdir':             if Length(Command) > 1 then SetCurrentDir(Command[1]);
-    'compact', 'defrag': CmdDefrag(Command);
-    'config':            CmdConfig(Command);
-    'create':            CmdCreate(Command);
-    'delete':            CmdDelete(Command);
-    'dir':               CmdDir(Command);
-    'dirtitle':          CmdDirTitle(Command);
-    'exec', 'load', 'type': CmdExecLoadType(Command);
+  // Copy command array so we can modify it
+  Cmd := Copy(Command);
+
+  // 'ls' command is the same as 'find *'
+  if LowerCase(Cmd[0]) = 'ls' then
+  begin
+    SetLength(Cmd, 2);
+    Cmd[0] := 'find';
+    Cmd[1] := '*';
+  end;
+
+  case LowerCase(Cmd[0]) of
+    'access':            CmdAccess(Cmd);
+    'add':               CmdAdd(Cmd);
+    'cat':               CmdCat(Cmd);
+    'chdir':             if Length(Cmd) > 1 then SetCurrentDir(Cmd[1]);
+    'compact', 'defrag': CmdDefrag(Cmd);
+    'config':            CmdConfig(Cmd);
+    'create':            CmdCreate(Cmd);
+    'delete':            CmdDelete(Cmd);
+    'dir':               CmdDir(Cmd);
+    'dirtitle':          CmdDirTitle(Cmd);
+    'exec', 'load', 'type': CmdExecLoadType(Cmd);
     'exit':              if Confirm then Result := False;
     'exittogui':         Result := False;
-    'extract':           CmdExtract(Command);
-    'filetocsv':         CmdFileToCSV(Command);
-    'filetype':          CmdFileType(Command);
-    'find':              CmdFind(Command);
-    'free':              CmdFree(Command);
+    'extract':           CmdExtract(Cmd);
+    'filetocsv':         CmdFileToCSV(Cmd);
+    'filetype':          CmdFileType(Cmd);
+    'find':              CmdFind(Cmd);
+    'free':              CmdFree(Cmd);
     'help':              ShowHelp;
-    'info':              CmdInfo(Command);
-    'insert':            CmdInsert(Command);
-    'interleave':        CmdInterleave(Command);
+    'insert':            CmdInsert(Cmd);
+    'interleave':        CmdInterleave(Cmd);
     'join':              WriteLnColored('This command has not been implemented yet.', clRed);
-    'list':              CmdList(Command);
-    'new':               CmdNew(Command);
-    'opt':               CmdOpt(Command);
-    'rename':            CmdRename(Command);
-    'report':            CmdReport(Command);
-    'runscript':         CmdRunScript(Command);
-    'save':              CmdSave(Command);
-    'savecsv':           CmdSaveCSV(Command);
-    'search':            CmdSearch(Command);
+    'list':              CmdList(Cmd);
+    'new':               CmdNew(Cmd);
+    'opt':               CmdOpt(Cmd);
+    'rename':            CmdRename(Cmd);
+    'report':            CmdReport(Cmd);
+    'runscript':         CmdRunScript(Cmd);
+    'save':              CmdSave(Cmd);
+    'savecsv':           CmdSaveCSV(Cmd);
+    'search':            CmdSearch(Cmd);
     'split':             WriteLnColored('This command has not been implemented yet.', clRed);
-    'stamp':             CmdStamp(Command);
-    'status':            CmdStatus(Command);
-    'title':             CmdTitle(Command);
+    'stamp':             CmdStamp(Cmd);
+    'status':            CmdStatus(Cmd);
+    'title':             CmdTitle(Cmd);
     '':                  ; // Ignore empty commands
   else
-    WriteLnColored('Unknown command: ' + Command[0], clRed);
+    WriteLnColored('Unknown command: ' + Cmd[0], clRed);
   end;
 end;
 
