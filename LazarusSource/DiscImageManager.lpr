@@ -22,7 +22,7 @@ Boston, MA 02110-1335, USA.
 {$MODE objFPC}{$H+}
 
 uses
-  Forms,Interfaces,ConsoleAppUnit,
+  Forms,Interfaces,
   MainUnit in 'MainUnit.pas',
   DiscImage in 'DiscImage.pas',
   AboutUnit in 'AboutUnit.pas',
@@ -69,13 +69,6 @@ begin
  Application.CreateForm(TChangeInterleaveForm, ChangeInterleaveForm);
  Application.CreateForm(TCSVPrefForm, CSVPrefForm);
  Application.CreateForm(TImageReportForm, ImageReportForm);
- //Check if console needs to be run
- if not CheckConsole then
- begin
-  {$IFDEF Windows}
-  IsConsole:=False;
-  {$ENDIF}
-  Application.CreateForm(TRFSDetailForm, RFSDetailForm);
-  Application.Run; //Open as normal
- end;
+ Application.CreateForm(TRFSDetailForm, RFSDetailForm);
+ Application.Run;
 end.
