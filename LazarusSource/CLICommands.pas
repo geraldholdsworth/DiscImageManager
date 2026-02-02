@@ -205,16 +205,16 @@ end;
 
 procedure TCLICommandProcessor.ReportFreeSpace;
 var
-  Free, Used, Total: QWord;
+  FreeBytes, UsedBytes, TotalBytes: QWord;
 begin
-  Free := FContext.Image.FreeSpace(FContext.Image.Disc[FContext.CurrentDir].Partition);
-  Total := FContext.Image.DiscSize(FContext.Image.Disc[FContext.CurrentDir].Partition);
-  Used := Total - Free;
-  WriteColored(IntToStr(Free), clBold);
+  FreeBytes := FContext.Image.FreeSpace(FContext.Image.Disc[FContext.CurrentDir].Partition);
+  TotalBytes := FContext.Image.DiscSize(FContext.Image.Disc[FContext.CurrentDir].Partition);
+  UsedBytes := TotalBytes - FreeBytes;
+  WriteColored(IntToStr(FreeBytes), clBold);
   Write(' bytes free. ');
-  WriteColored(IntToStr(Used), clBold);
+  WriteColored(IntToStr(UsedBytes), clBold);
   Write(' bytes used. ');
-  WriteColored(IntToStr(Total), clBold);
+  WriteColored(IntToStr(TotalBytes), clBold);
   WriteLn(' bytes total.');
 end;
 
