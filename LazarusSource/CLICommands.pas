@@ -27,7 +27,7 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  Classes, SysUtils, DiscImage, DiscImageContext;
+  Classes, SysUtils, DiscImage, DiscImageContext, Global;
 
 type
   { TCLICommandProcessor - Processes CLI commands }
@@ -45,7 +45,10 @@ type
     function GetCurrentPath: String;
     function ValidFile(const Filename: String; out Dir, Entry: Cardinal): Boolean;
     function BuildFilename(const AFile: TDirEntry): String;
-    function GetListOfFiles(const FileSearch: String): TSearchResults;
+    function GetListOfFiles(const FileSearch: String; AddTo: TSearchResults = nil): TSearchResults;
+    function GetImageFilename(Dir, Entry: Integer): String;
+    procedure DownloadFile(Dir, Entry: Integer; const Path: String);
+    procedure DownloadDirectory(Dir, Entry: Integer; const Path: String);
     procedure ReportFreeSpace;
     function Confirm: Boolean;
     function GetDriveSize(const GivenSize: String): Cardinal;
@@ -203,14 +206,108 @@ begin
   Result := Result + AFile.Filename;
 end;
 
-function TCLICommandProcessor.GetListOfFiles(const FileSearch: String): TSearchResults;
+function TCLICommandProcessor.GetListOfFiles(const FileSearch: String; AddTo: TSearchResults): TSearchResults;
 var
   FileDetails: TDirEntry;
 begin
   ResetDirEntry(FileDetails);
   FileDetails.Filename := FileSearch;
   FileDetails.Parent := FContext.Image.GetParent(FContext.CurrentDir);
-  Result := FContext.Image.FileSearch(FileDetails);
+  Result := FContext.Image.FileSearch(FileDetails, AddTo);
+end;
+
+function TCLICommandProcessor.GetImageFilename(Dir, Entry: Integer): String;
+begin
+  Result := '';
+  if (Dir >= 0) and (Dir < Length(FContext.Image.Disc)) then
+    if (Length(FContext.Image.Disc[Dir].Entries) = 0) or (Entry = -1) then
+      Result := FContext.Image.Disc[Dir].Directory
+    else
+      Result := FContext.Image.GetParent(Dir)
+              + FContext.Image.GetDirSep(FContext.Image.Disc[Dir].Partition)
+              + FContext.Image.Disc[Dir].Entries[Entry].Filename;
+end;
+
+procedure TCLICommandProcessor.DownloadFile(Dir, Entry: Integer; const Path: String);
+var
+  F: TFileStream;
+  Buffer: TDIByteArray;
+  ImageFilename, WindowsFilename, FullPath: String;
+begin
+  FullPath := Path;
+  if (Length(FullPath) > 0) and (FullPath[Length(FullPath)] <> PathDelim) then
+    FullPath := FullPath + PathDelim;
+
+  // Object is a file, so download it
+  if FContext.Image.Disc[Dir].Entries[Entry].DirRef = -1 then
+  begin
+    ImageFilename := GetImageFilename(Dir, Entry);
+    WindowsFilename := FContext.Image.GetWindowsFilename(Dir, Entry);
+    if FContext.Image.ExtractFile(ImageFilename, Buffer, Entry) then
+    begin
+      try
+        F := TFileStream.Create(FullPath + WindowsFilename, fmCreate or fmShareDenyNone);
+        try
+          F.Position := 0;
+          if Length(Buffer) > 0 then
+            F.Write(Buffer[0], Length(Buffer));
+          if FContext.CreateINF then
+            FContext.Image.CreateINFFile(Dir, Entry, FullPath);
+          WriteLnColored('Success.', clGreen);
+        finally
+          F.Free;
+        end;
+      except
+        on E: Exception do
+          WriteLnColored('failed to write.', clRed);
+      end;
+    end
+    else
+      WriteLnColored('failed to extract.', clRed);
+  end
+  else
+    DownloadDirectory(Dir, Entry, FullPath + FContext.Image.GetWindowsFilename(Dir, Entry));
+end;
+
+procedure TCLICommandProcessor.DownloadDirectory(Dir, Entry: Integer; const Path: String);
+var
+  ImageFilename, FullPath: String;
+  Ref: Cardinal;
+  S, C: Integer;
+begin
+  FullPath := Path;
+  if (Length(FullPath) > 0) and (FullPath[Length(FullPath)] <> PathDelim) then
+    FullPath := FullPath + PathDelim;
+
+  ImageFilename := GetImageFilename(Dir, Entry);
+
+  if FContext.Image.FileExists(ImageFilename, Ref) then
+  begin
+    // Create the directory on the host filesystem
+    if not DirectoryExists(FullPath) then
+    begin
+      CreateDir(FullPath);
+      if FContext.CreateINF then
+        FContext.Image.CreateINFFile(Dir, Entry, ExtractFilePath(ExcludeTrailingPathDelimiter(FullPath)));
+    end;
+
+    WriteLn;
+
+    // Navigate into the directory
+    S := FContext.Image.Disc[Dir].Entries[Entry].DirRef;
+
+    // Iterate through the entries
+    for C := 0 to Length(FContext.Image.Disc[S].Entries) - 1 do
+    begin
+      Write('Extracting '
+            + FContext.Image.Disc[S].Entries[C].Parent
+            + FContext.Image.GetDirSep(FContext.Image.Disc[S].Partition)
+            + FContext.Image.Disc[S].Entries[C].Filename + ' ');
+      DownloadFile(S, C, FullPath);
+    end;
+  end
+  else
+    WriteLnColored('Could not locate directory "' + ImageFilename + '".', clRed);
 end;
 
 procedure TCLICommandProcessor.ReportFreeSpace;
@@ -252,75 +349,208 @@ begin
 end;
 
 procedure TCLICommandProcessor.ShowHelp;
+const
+  HelpLines: array[0..166] of String = (
+    ' Command parameters are separated by spaces and are separated from the command by a space. Use quotes (") to enclose parameters containing a space. For example:',
+    ' add "This File.txt" ThatFile.txt',
+    ' will add a file called ''This File.txt'' and another called ''ThatFile.txt'' to the image.',
+    '',
+    ' Square brackets [] indicate optional parameters.',
+    ' Ellipses ... indicate multiples of the same parameter.',
+    ' Bar | indicate to use only one of the parameters.',
+    '',
+    ' Valid wildcards are:',
+    ' * : matches 0 or more characters',
+    ' # : matches any character',
+    ' | : when used before a search, it excludes these results from results already found',
+    '',
+    'access <file> [<attributes>]',
+    ' Changes the file''s access rights, or attributes, to those given. Anything invalid is ignored. Filename can contain wildcards.',
+    '',
+    'add <file> [[<file>] ...]',
+    ' Adds the files/directories listed in the local OS folder. Can contain wildcards.',
+    '',
+    'cat [<option>]',
+    ' Displays a catalogue listing. If <option> is not given, then the current directory is shown. <option> can be one of the following:',
+    ' all  : Displays a catalogue listing for the entire image.',
+    ' dir  : Lists all the directories in the image.',
+    ' root : Lists all the roots in the image.',
+    '',
+    'chdir <dirname>',
+    ' Changes the host OS directory.',
+    '',
+    'compact [<partition>]',
+    ' Performs a compaction/defrag on the selected partition. If none specified, it acts on the current partition. Same as defrag.',
+    '',
+    'config [<setting> <option>]',
+    ' Sets a configuration setting. Note that not all configuration settings are used by the console and could result in unpredictable behaviour.',
+    ' <option> can be:',
+    ' Boolean : True or False.',
+    ' Integer : Decimal number, unless preceded by 0x, $ or & for Hex number.',
+    ' String  : Anything.',
+    ' Passing config with no parameters will list the valid options.',
+    '',
+    'create [<dirname>]',
+    ' Creates a new directory. If no name given, ''NewDir'' is used instead.',
+    '',
+    'defrag [<partition>]',
+    ' Performs a compaction/defrag on the selected partition. If none specified, it acts on the current partition. Same as compact.',
+    '',
+    'delete <file> [[<file>] ...]',
+    ' Deletes the files/directories listed. Wildcards not allowed.',
+    '',
+    'dir <dirname>',
+    ' Changes to directory <dirname>. Use ''^'' to specify the parent directory.',
+    '',
+    'dirtitle <title>',
+    ' Changes the currect directory title.',
+    '',
+    'exit',
+    ' Quits console and application.',
+    '',
+    'exittogui',
+    ' Quits the console and opens the GUI application.',
+    '',
+    'exec <filename> <address>',
+    ' Updates the execution address for <filename> to be <address>, which must be a valid hex number. Filename can contain wildcards.',
+    '',
+    'extract <file> [[<file>] ...]',
+    ' Extracts all files/directories listed to the local OS folder. Filenames can contain wildcards.',
+    '',
+    'filetocsv <file> [[<file>] ...]',
+    ' Outputs a CSV format of the specified files. Can contain wildcards.',
+    '',
+    'filetype <hex>|<name>',
+    ' Translates the hex number to known ADFS filetype, or vice-versa.',
+    '',
+    'find <file> [[<file>] ...]',
+    ' Finds the files/directories listed in the local OS folder. Can contain wildcards.',
+    '',
+    'free',
+    ' Displays the free space on the partition/side.',
+    '',
+    'insert <filename>',
+    ' Loads image specified by <filename>.',
+    '',
+    'interleave <option>',
+    ' Changes the current interleave method and re-organises the data.',
+    ' <option> can be 0, 1, 2, or 3 or auto, seq, int, or mux.',
+    ' Only valid for Acorn ADFS L or FS.',
+    '',
+    'load <filename> <address>',
+    ' Updates the load address for <filename> to be <address>, which must be a valid hex number. Filename can contain wildcards.',
+    '',
+    'list <filename>',
+    ' Displays the file specified (BBC BASIC listing/text output/hex dump).',
+    '',
+    'new <format> [<option> [<option2>]]',
+    ' Creates a new image:',
+    ' <format> <option> <option2>  Result',
+    ' DFS      S80                 Acorn DFS single sided 80 track',
+    ' DFS      S40                 Acorn DFS single sided 40 track',
+    ' DFS      D80                 Acorn DFS double sided 80 track',
+    ' DFS      D40                 Acorn DFS double sided 40 track',
+    ' WDFS     S80                 Watford DFS single sided 80 track',
+    ' WDFS     S40                 Watford DFS single sided 40 track',
+    ' WDFS     D80                 Watford DFS double sided 80 track',
+    ' WDFS     D40                 Watford DFS double sided 40 track',
+    ' ADFS     S                   Acorn ADFS S',
+    ' ADFS     M                   Acorn ADFS M',
+    ' ADFS     L                   Acorn ADFS L',
+    ' ADFS     D                   Acorn ADFS D',
+    ' ADFS     E                   Acorn ADFS E',
+    ' ADFS     E+                  Acorn ADFS E+',
+    ' ADFS     F                   Acorn ADFS F',
+    ' ADFS     F+                  Acorn ADFS F+',
+    ' ADFS     HDD                 Old map, Old directory 20MB',
+    ' ADFS     HDD      OO<cap>[M] Old map, Old directory <cap> size',
+    ' ADFS     HDD      ON<cap>[M] Old map, New directory <cap> size',
+    ' ADFS     HDD      NN<cap>[M] New map, New directory <cap> size',
+    ' ADFS     HDD      NB<cap>[M] New map, Big directory <cap> size',
+    ' AFS      <level>  <cap>[M]   Acorn FS Level <level> of <cap> size',
+    ' CFS                          Acorn Cassette Filing System',
+    ' C1541                        Commodore 1541',
+    ' C1571                        Commodore 1571',
+    ' C1581                        Commodore 1581',
+    ' AMIGA    DD                  Commodore Amiga DD',
+    ' AMIGA    HD                  Commodore Amiga HD',
+    ' AMIGA    HDD      <cap>[M]   Commodore Amiga hard drive of <cap> size',
+    ' DOS+     640                 DOS+ 640K',
+    ' DOS+     800                 DOS+ 800K',
+    ' DOS      360                 DOS 360K',
+    ' DOS      720                 DOS 720K',
+    ' DOS      1440                DOS 1.44MB',
+    ' DOS      2880                DOS 2.88MB',
+    ' DOS      HDD      <cap>[M]   DOS hard drive of <cap> size',
+    ' <cap> is specified in KB, or MB if M is included.',
+    '',
+    'opt <option> [<side>]',
+    ' Sets the boot option for the current side, or <side> if specified.',
+    ' <option> can be 0, 1, 2, or 3, or can be none, load, run, or exec.',
+    '',
+    'rename <oldfilename> <newfilename>',
+    ' Renames <oldfilename> to <newfilename>.',
+    '',
+    'report',
+    ' Displays the image report.',
+    '',
+    'runscript <filename>',
+    ' Runs a script. Cannot be used if one is already running.',
+    '',
+    'save [<filename>] [<compressed>]',
+    ' Saves the current loaded image to the host OS.',
+    ' If a UEF is required to be compressed, pass ''TRUE'' as the second parameter.',
+    '',
+    'savecsv [<filename>]',
+    ' Outputs the contents of the currently loaded image in CSV format.',
+    '',
+    'search <file> [[<file>] ...]',
+    ' Finds all files/directories listed. Filenames can contain wildcards.',
+    '',
+    'status',
+    ' Displays the current configuration settings.',
+    '',
+    'stamp <file>',
+    ' Timestamps the specified file with the current time and date.',
+    '',
+    'title <title> [<side>]',
+    ' Sets the disc title for the current side, or <side> if specified.',
+    '',
+    'type <file> <filetype>',
+    ' Updates the filetype for <filename> to be <filetype>, which must be a valid hex number. Filename can contain wildcards.'
+  );
+var
+  I: Integer;
+  Line, SBold, SRed, SNormal, SBlue: String;
 begin
-  WriteLnColored('Disc Image Manager CLI Help', clBlue + clBold);
-  WriteLn;
-  WriteLnColored('Image Commands:', clBold);
-  WriteLn('  insert <file>          - Open a disc image');
-  WriteLn('  new <format> [size]    - Create a new disc image');
-  WriteLn('  save [file] [compress] - Save the current image');
-  WriteLn('  savecsv [file]         - Save image catalogue as CSV');
-  WriteLn('  filetocsv <images>     - Export multiple images to CSV');
-  WriteLn('  report                 - Show detailed image report');
-  WriteLn;
-  WriteLnColored('Navigation:', clBold);
-  WriteLn('  dir <path>             - Change current directory');
-  WriteLn('  cat [all|dir|root]     - Show catalogue listing');
-  WriteLn('  free                   - Show free space');
-  WriteLn('  chdir <path>           - Change host directory');
-  WriteLn;
-  WriteLnColored('File Operations:', clBold);
-  WriteLn('  add <file> [files...]  - Add file(s) to image');
-  WriteLn('  extract <file>         - Extract file(s) from image');
-  WriteLn('  delete <file>          - Delete file(s) from image');
-  WriteLn('  rename <old> <new>     - Rename a file');
-  WriteLn('  access <file> [attr]   - Change file attributes');
-  WriteLn('  search <pattern>       - Search for files in image');
-  WriteLn('  find <pattern>         - Find files on host filesystem');
-  WriteLn('  ls                     - List host files (same as find *)');
-  WriteLn('  list <file>            - Display file contents (text/BASIC)');
-  WriteLn('  exec <file> <addr>     - Change execution address');
-  WriteLn('  load <file> <addr>     - Change load address');
-  WriteLn('  type <file> <type>     - Change filetype');
-  WriteLn('  stamp <file>           - Set current timestamp on file');
-  WriteLn;
-  WriteLnColored('Directory Operations:', clBold);
-  WriteLn('  create <name>          - Create a new directory');
-  WriteLn('  dirtitle <title>       - Change current directory title');
-  WriteLn;
-  WriteLnColored('Disc Properties:', clBold);
-  WriteLn('  title <name> [part]    - Change disc title');
-  WriteLn('  opt <option> [part]    - Set boot option (none/load/run/exec)');
-  WriteLn('  interleave <method>    - Set interleave (auto/seq/int/mux)');
-  WriteLn('  compact [partition]    - Compact/defrag the image');
-  WriteLn('  defrag [partition]     - Alias for compact');
-  WriteLn;
-  WriteLnColored('Utilities:', clBold);
-  WriteLn('  filetype <name|num>    - Translate filetype name/number');
-  WriteLn('  runscript <file>       - Run commands from a script file');
-  WriteLn;
-  WriteLnColored('Configuration:', clBold);
-  WriteLn('  config [key] [value]   - Show/set configuration options');
-  WriteLn('  status                 - Show current settings');
-  WriteLn;
-  WriteLnColored('General:', clBold);
-  WriteLn('  help                   - Show this help');
-  WriteLn('  exit                   - Exit the CLI');
-  WriteLn('  exittogui              - Exit to GUI mode');
-  WriteLn;
-  WriteLnColored('Available Formats for new command:', clBold);
-  WriteLn('  DFSS80, DFSS40, DFSD80, DFSD40   - Acorn DFS');
-  WriteLn('  WDFSS80, WDFSS40, WDFSD80, WDFSD40 - Watford DFS');
-  WriteLn('  ADFSS, ADFSM, ADFSL, ADFSD       - Acorn ADFS Floppy');
-  WriteLn('  ADFSE, ADFSE+, ADFSF, ADFSF+     - Acorn ADFS Enhanced');
-  WriteLn('  ADFSHDD [size]                   - Acorn ADFS Hard Drive');
-  WriteLn('  AFS <level> <size>               - Acorn FileStore');
-  WriteLn('  C1541, C1571, C1581              - Commodore');
-  WriteLn('  AMIGADD, AMIGAHDD [size]         - Commodore Amiga');
-  WriteLn('  CFS                              - Acorn CFS/UEF');
-  WriteLn('  DOS+640, DOS+800                 - DOS Plus');
-  WriteLn('  DOS360, DOS720, DOS1440, DOS2880 - MS-DOS Floppy');
-  WriteLn('  DOSHDD [size]                    - MS-DOS Hard Drive');
+  if FUseColors then
+  begin
+    SBold := clBold;
+    SRed := clRed;
+    SNormal := clNormal;
+    SBlue := clBlue;
+  end
+  else
+  begin
+    SBold := '';
+    SRed := '';
+    SNormal := '';
+    SBlue := '';
+  end;
+
+  WriteLn(SBlue + SBold + 'Console Help' + SNormal);
+  for I := Low(HelpLines) to High(HelpLines) do
+  begin
+    Line := HelpLines[I];
+    if Length(Line) > 1 then
+    begin
+      if Line[1] <> ' ' then
+        Line := SRed + SBold + Line
+      else
+        Line := Copy(Line, 2);
+    end;
+    WriteLn(WrapText(Line, FConsoleWidth) + SNormal);
+  end;
 end;
 
 procedure TCLICommandProcessor.ListCatalogueEx(const Mode: String);
@@ -705,8 +935,6 @@ var
   I: Integer;
   Temp: String;
   Dir, Entry: Cardinal;
-  Buffer: TDIByteArray;
-  F: TFileStream;
 begin
   if FContext.Image.FormatNumber = diInvalidImg then
   begin
@@ -722,7 +950,7 @@ begin
 
   Files := nil;
   for I := 1 to Length(Params) - 1 do
-    Files := GetListOfFiles(Params[I]);
+    Files := GetListOfFiles(Params[I], Files);
 
   if Length(Files) = 0 then
   begin
@@ -738,26 +966,11 @@ begin
       Write('Extracting ' + Temp + ' ');
       if (Dir < Cardinal(Length(FContext.Image.Disc))) and
          (Entry < Cardinal(Length(FContext.Image.Disc[Dir].Entries))) then
+        DownloadFile(Dir, Entry, '');
+      if Dir > Cardinal(Length(FContext.Image.Disc)) then
       begin
-        if FContext.Image.ExtractFile(Temp, Buffer, Entry) then
-        begin
-          try
-            // Get safe filename
-            F := TFileStream.Create(FContext.Image.GetWindowsFilename(Dir, Entry),
-                                    fmCreate);
-            try
-              if Length(Buffer) > 0 then
-                F.WriteBuffer(Buffer[0], Length(Buffer));
-              WriteLnColored('success.', clGreen);
-            finally
-              F.Free;
-            end;
-          except
-            WriteLnColored('failed to write.', clRed);
-          end;
-        end
-        else
-          WriteLnColored('failed to extract.', clRed);
+        WriteColored('Cannot extract the root in this way. ', clRed);
+        WriteLnColored('Try selecting the root and entering ''extract *''.', clRed);
       end;
     end;
   end;
@@ -1079,12 +1292,12 @@ begin
 
   Files := nil;
   for I := 1 to Length(Params) - 1 do
-    Files := GetListOfFiles(Params[I]);
+    Files := GetListOfFiles(Params[I], Files);
 
   WriteLn(IntToStr(Length(Files)) + ' file(s) found.');
 
   for I := 0 to Length(Files) - 1 do
-    WriteLn('  ' + BuildFilename(Files[I]));
+    WriteLn(BuildFilename(Files[I]));
 end;
 
 procedure TCLICommandProcessor.CmdDefrag(const Params: TStringArray);
