@@ -41,6 +41,7 @@ type
     procedure OpenScript(const ScriptName: String);
     procedure ReadInput(var Input: String);
     function DetectColorSupport: Boolean;
+    function FindPositionalArg: String;
   protected
     procedure DoRun; override;
   public
@@ -128,6 +129,42 @@ begin
   {$ENDIF}
 end;
 
+function TDiscImageManagerCLI.FindPositionalArg: String;
+const
+  // Options that take a value argument
+  OptionsWithValue = 'es';
+var
+  I: Integer;
+  Param: String;
+begin
+  Result := '';
+  I := 1;
+  while I <= ParamCount do
+  begin
+    Param := ParamStr(I);
+    if (Length(Param) > 1) and (Param[1] = '-') then
+    begin
+      if (Length(Param) > 2) and (Param[2] = '-') then
+        // Long option (--script, --execute, etc.): skip it and its value
+        Inc(I, 2)
+      else
+      begin
+        // Short option (-s, -n, etc.)
+        if Pos(Param[2], OptionsWithValue) > 0 then
+          Inc(I, 2) // Option takes a value, skip both
+        else
+          Inc(I);   // Flag-only option (-n, -h), skip just it
+      end;
+    end
+    else
+    begin
+      // Not an option — this is a positional argument
+      Result := Param;
+      Exit;
+    end;
+  end;
+end;
+
 procedure TDiscImageManagerCLI.DoRun;
 var
   Input: String;
@@ -174,18 +211,15 @@ begin
   if HasOption('s', 'script') then
     OpenScript(GetOptionValue('s', 'script'));
 
-  // Check for initial image file
-  if ParamCount > 0 then
+  // Check for initial image file (positional argument, not an option value)
+  Input := FindPositionalArg;
+  if (Input <> '') and FileExists(Input) then
   begin
-    Input := ParamStr(ParamCount);
-    if FileExists(Input) and (Input[1] <> '-') then
-    begin
-      WriteLn('Loading: ' + Input);
-      if FProcessor.Context.LoadImage(Input) then
-        WriteLn('Image loaded: ' + FProcessor.Context.Image.FormatString)
-      else
-        WriteLn('Failed to load image.');
-    end;
+    WriteLn('Loading: ' + Input);
+    if FProcessor.Context.LoadImage(Input) then
+      WriteLn('Image loaded: ' + FProcessor.Context.Image.FormatString)
+    else
+      WriteLn('Failed to load image.');
   end;
 
   WriteLn('Ready');

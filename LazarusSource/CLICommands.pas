@@ -50,8 +50,7 @@ type
     function Confirm: Boolean;
     function GetDriveSize(const GivenSize: String): Cardinal;
     procedure ShowHelp;
-    procedure ShowImageInfo;
-    procedure ListCatalogue(ShowAll: Boolean);
+    procedure ListCatalogueEx(const Mode: String);
     // Command handlers
     procedure CmdAccess(const Params: TStringArray);
     procedure CmdAdd(const Params: TStringArray);
@@ -61,7 +60,6 @@ type
     procedure CmdDir(const Params: TStringArray);
     procedure CmdExtract(const Params: TStringArray);
     procedure CmdFree(const Params: TStringArray);
-    procedure CmdInfo(const Params: TStringArray);
     procedure CmdInsert(const Params: TStringArray);
     procedure CmdNew(const Params: TStringArray);
     procedure CmdOpt(const Params: TStringArray);
@@ -71,6 +69,18 @@ type
     procedure CmdConfig(const Params: TStringArray);
     procedure CmdStatus(const Params: TStringArray);
     procedure CmdSearch(const Params: TStringArray);
+    procedure CmdDefrag(const Params: TStringArray);
+    procedure CmdDirTitle(const Params: TStringArray);
+    procedure CmdExecLoadType(const Params: TStringArray);
+    procedure CmdFind(const Params: TStringArray);
+    procedure CmdFileToCSV(const Params: TStringArray);
+    procedure CmdFileType(const Params: TStringArray);
+    procedure CmdInterleave(const Params: TStringArray);
+    procedure CmdList(const Params: TStringArray);
+    procedure CmdReport(const Params: TStringArray);
+    procedure CmdRunScript(const Params: TStringArray);
+    procedure CmdSaveCSV(const Params: TStringArray);
+    procedure CmdStamp(const Params: TStringArray);
   public
     constructor Create; overload;
     constructor Create(AContext: TDiscImageContext; ASettings: TRegistrySettings); overload;
@@ -245,87 +255,81 @@ procedure TCLICommandProcessor.ShowHelp;
 begin
   WriteLnColored('Disc Image Manager CLI Help', clBlue + clBold);
   WriteLn;
-  WriteLn('Image Commands:');
-  WriteLn('  insert <file>      - Open a disc image');
-  WriteLn('  new <format>       - Create a new disc image');
-  WriteLn('  save [file]        - Save the current image');
-  WriteLn('  info               - Show image information');
+  WriteLnColored('Image Commands:', clBold);
+  WriteLn('  insert <file>          - Open a disc image');
+  WriteLn('  new <format> [size]    - Create a new disc image');
+  WriteLn('  save [file] [compress] - Save the current image');
+  WriteLn('  savecsv [file]         - Save image catalogue as CSV');
+  WriteLn('  filetocsv <images>     - Export multiple images to CSV');
+  WriteLn('  report                 - Show detailed image report');
   WriteLn;
-  WriteLn('Navigation:');
-  WriteLn('  dir <path>         - Change current directory');
-  WriteLn('  cat [all|root]     - Show catalogue listing');
-  WriteLn('  free               - Show free space');
+  WriteLnColored('Navigation:', clBold);
+  WriteLn('  dir <path>             - Change current directory');
+  WriteLn('  cat [all|dir|root]     - Show catalogue listing');
+  WriteLn('  free                   - Show free space');
+  WriteLn('  chdir <path>           - Change host directory');
   WriteLn;
-  WriteLn('File Operations:');
-  WriteLn('  add <file>         - Add file(s) to image');
-  WriteLn('  extract <file>     - Extract file(s) from image');
-  WriteLn('  delete <file>      - Delete file(s) from image');
-  WriteLn('  rename <old> <new> - Rename a file');
-  WriteLn('  access <file> <a>  - Change file attributes');
-  WriteLn('  search <pattern>   - Search for files');
+  WriteLnColored('File Operations:', clBold);
+  WriteLn('  add <file> [files...]  - Add file(s) to image');
+  WriteLn('  extract <file>         - Extract file(s) from image');
+  WriteLn('  delete <file>          - Delete file(s) from image');
+  WriteLn('  rename <old> <new>     - Rename a file');
+  WriteLn('  access <file> [attr]   - Change file attributes');
+  WriteLn('  search <pattern>       - Search for files in image');
+  WriteLn('  find <pattern>         - Find files on host filesystem');
+  WriteLn('  ls                     - List host files (same as find *)');
+  WriteLn('  list <file>            - Display file contents (text/BASIC)');
+  WriteLn('  exec <file> <addr>     - Change execution address');
+  WriteLn('  load <file> <addr>     - Change load address');
+  WriteLn('  type <file> <type>     - Change filetype');
+  WriteLn('  stamp <file>           - Set current timestamp on file');
   WriteLn;
-  WriteLn('Directory Operations:');
-  WriteLn('  create <name>      - Create a new directory');
+  WriteLnColored('Directory Operations:', clBold);
+  WriteLn('  create <name>          - Create a new directory');
+  WriteLn('  dirtitle <title>       - Change current directory title');
   WriteLn;
-  WriteLn('Disc Properties:');
-  WriteLn('  title <name>       - Change disc title');
-  WriteLn('  opt <option>       - Set boot option (none/load/run/exec)');
+  WriteLnColored('Disc Properties:', clBold);
+  WriteLn('  title <name> [part]    - Change disc title');
+  WriteLn('  opt <option> [part]    - Set boot option (none/load/run/exec)');
+  WriteLn('  interleave <method>    - Set interleave (auto/seq/int/mux)');
+  WriteLn('  compact [partition]    - Compact/defrag the image');
+  WriteLn('  defrag [partition]     - Alias for compact');
   WriteLn;
-  WriteLn('Configuration:');
-  WriteLn('  config             - Show configuration options');
-  WriteLn('  status             - Show current settings');
+  WriteLnColored('Utilities:', clBold);
+  WriteLn('  filetype <name|num>    - Translate filetype name/number');
+  WriteLn('  runscript <file>       - Run commands from a script file');
   WriteLn;
-  WriteLn('General:');
-  WriteLn('  help               - Show this help');
-  WriteLn('  exit               - Exit the CLI');
-  WriteLn('  exittogui          - Exit to GUI mode');
+  WriteLnColored('Configuration:', clBold);
+  WriteLn('  config [key] [value]   - Show/set configuration options');
+  WriteLn('  status                 - Show current settings');
   WriteLn;
-  WriteLn('Available Formats for new command:');
-  WriteLn('  DFSS80, DFSS40, DFSD80, DFSD40 - Acorn DFS');
-  WriteLn('  ADFSS, ADFSM, ADFSL, ADFSD     - Acorn ADFS Floppy');
-  WriteLn('  ADFSE, ADFSE+, ADFSF, ADFSF+   - Acorn ADFS Enhanced');
-  WriteLn('  ADFSHDD                        - Acorn ADFS Hard Drive');
-  WriteLn('  C1541, C1571, C1581            - Commodore');
-  WriteLn('  AMIGADD, AMIGAHDD              - Commodore Amiga');
-  WriteLn('  CFS                            - Acorn CFS/UEF');
-  WriteLn('  DOS360, DOS720, DOS1440        - MS-DOS Floppy');
+  WriteLnColored('General:', clBold);
+  WriteLn('  help                   - Show this help');
+  WriteLn('  exit                   - Exit the CLI');
+  WriteLn('  exittogui              - Exit to GUI mode');
+  WriteLn;
+  WriteLnColored('Available Formats for new command:', clBold);
+  WriteLn('  DFSS80, DFSS40, DFSD80, DFSD40   - Acorn DFS');
+  WriteLn('  WDFSS80, WDFSS40, WDFSD80, WDFSD40 - Watford DFS');
+  WriteLn('  ADFSS, ADFSM, ADFSL, ADFSD       - Acorn ADFS Floppy');
+  WriteLn('  ADFSE, ADFSE+, ADFSF, ADFSF+     - Acorn ADFS Enhanced');
+  WriteLn('  ADFSHDD [size]                   - Acorn ADFS Hard Drive');
+  WriteLn('  AFS <level> <size>               - Acorn FileStore');
+  WriteLn('  C1541, C1571, C1581              - Commodore');
+  WriteLn('  AMIGADD, AMIGAHDD [size]         - Commodore Amiga');
+  WriteLn('  CFS                              - Acorn CFS/UEF');
+  WriteLn('  DOS+640, DOS+800                 - DOS Plus');
+  WriteLn('  DOS360, DOS720, DOS1440, DOS2880 - MS-DOS Floppy');
+  WriteLn('  DOSHDD [size]                    - MS-DOS Hard Drive');
 end;
 
-procedure TCLICommandProcessor.ShowImageInfo;
-begin
-  if FContext.Image.FormatNumber = diInvalidImg then
-  begin
-    WriteLnColored('No image loaded.', clRed);
-    Exit;
-  end;
-
-  WriteLnColored('Image Information', clBlue + clBold);
-  WriteLn(StringOfChar('-', 40));
-  Write('Format: ');
-  WriteLnColored(FContext.Image.FormatString, clBold);
-  Write('Filename: ');
-  WriteLnColored(FContext.Filename, clBold);
-  if FContext.Image.MapTypeString <> '' then
-  begin
-    Write('Map Type: ');
-    WriteLnColored(FContext.Image.MapTypeString, clBold);
-  end;
-  if FContext.Image.DirectoryTypeString <> '' then
-  begin
-    Write('Directory Type: ');
-    WriteLnColored(FContext.Image.DirectoryTypeString, clBold);
-  end;
-  if FContext.Image.DoubleSided then
-    WriteLn('Sides: Double-sided');
-  Write('CRC32: ');
-  WriteLnColored(FContext.Image.CRC32, clBold);
-  WriteLn;
-  ReportFreeSpace;
-end;
-
-procedure TCLICommandProcessor.ListCatalogue(ShowAll: Boolean);
+procedure TCLICommandProcessor.ListCatalogueEx(const Mode: String);
 var
   StartDir, EndDir, Dir, Entry: Integer;
+  ShowDirOnly, ShowRootOnly, ShowFull: Boolean;
+  Partition: Integer;
+const
+  TimeDateFormat = 'dd/mm/yyyy hh:nn:ss';
 begin
   if FContext.Image.FormatNumber = diInvalidImg then
   begin
@@ -333,7 +337,11 @@ begin
     Exit;
   end;
 
-  if ShowAll then
+  ShowDirOnly := (Mode = 'dir');
+  ShowRootOnly := (Mode = 'root');
+  ShowFull := (Mode = '') or (Mode = 'all');
+
+  if (Mode = 'all') or (Mode = 'dir') or (Mode = 'root') then
   begin
     StartDir := 0;
     EndDir := Length(FContext.Image.Disc) - 1;
@@ -346,32 +354,77 @@ begin
 
   for Dir := StartDir to EndDir do
   begin
-    WriteLnColored(StringOfChar('-', FConsoleWidth), clBlue);
-    WriteColored('Directory: ', clBold);
-    WriteLn(FContext.Image.GetParent(Dir));
-    WriteLn('Title: ' + FContext.Image.Disc[Dir].Title);
-    WriteLn('Entries: ' + IntToStr(Length(FContext.Image.Disc[Dir].Entries)));
-    WriteLn;
+    Partition := FContext.Image.Disc[Dir].Partition;
 
-    if Length(FContext.Image.Disc[Dir].Entries) > 0 then
+    // Show directory/root listing only
+    if ShowDirOnly or ShowRootOnly then
     begin
-      for Entry := 0 to Length(FContext.Image.Disc[Dir].Entries) - 1 do
+      if FContext.Image.Disc[Dir].Parent = -1 then
       begin
-        with FContext.Image.Disc[Dir].Entries[Entry] do
+        WriteColored('Root: ', clBold);
+        WriteLn(FContext.Image.GetParent(Dir));
+      end
+      else if ShowDirOnly then
+      begin
+        WriteColored('Directory: ', clBold);
+        WriteLn(FContext.Image.GetParent(Dir));
+      end;
+    end
+    else if ShowFull then
+    begin
+      // Full catalogue listing
+      WriteLnColored(StringOfChar('-', FConsoleWidth), clBlue);
+      WriteColored('Catalogue listing for directory ', clBold);
+      WriteLn(FContext.Image.GetParent(Dir));
+      Write(Format('%-40s', [FContext.Image.Disc[Dir].Title]));
+      WriteLn('Option: ' + IntToStr(FContext.Image.BootOpt[Partition]) +
+              ' (' + UpperCase(BootOptions[FContext.Image.BootOpt[Partition]]) + ')');
+      WriteLn('Number of entries: ' + IntToStr(Length(FContext.Image.Disc[Dir].Entries)));
+      WriteLn;
+
+      if Length(FContext.Image.Disc[Dir].Entries) > 0 then
+      begin
+        for Entry := 0 to Length(FContext.Image.Disc[Dir].Entries) - 1 do
         begin
-          // Filename
-          Write(Format('%-20s', [Filename]));
-          // Attributes
-          Write(' (' + Attributes + ')');
-          // Directory indicator
-          if DirRef >= 0 then
-            Write(' <DIR>')
-          else
+          with FContext.Image.Disc[Dir].Entries[Entry] do
           begin
-            // Size
-            Write(' ' + Format('%10s', [ConvertToKMG(Length)]));
+            // Filename - padded to 10 chars
+            Write(Format('%-10s', [Filename]));
+            // Attributes
+            Write(' (' + Attributes + ')');
+
+            // Files (not directories)
+            if DirRef = -1 then
+            begin
+              // Filetype - ADFS, Spark only
+              if (FileType <> '') and
+                 ((FContext.Image.MajorFormatNumber = diAcornADFS) or
+                  (FContext.Image.MajorFormatNumber = diSpark)) then
+                Write(' ' + FileType);
+
+              // Timestamp - ADFS, Spark, FileStore, Amiga, DOS only
+              if (TimeStamp > 0) and
+                 ((FContext.Image.MajorFormatNumber = diAcornADFS) or
+                  (FContext.Image.MajorFormatNumber = diSpark) or
+                  (FContext.Image.MajorFormatNumber = diAcornFS) or
+                  (FContext.Image.MajorFormatNumber = diAmiga) or
+                  (FContext.Image.MajorFormatNumber = diDOSPlus)) then
+                Write(' ' + FormatDateTime(TimeDateFormat, TimeStamp));
+
+              // Load/Exec addresses (if no timestamp or for AFS)
+              if (TimeStamp = 0) or (FContext.Image.MajorFormatNumber = diAcornFS) then
+              begin
+                Write(' ' + IntToHex(LoadAddr, 8));
+                Write(' ' + IntToHex(ExecAddr, 8));
+              end;
+
+              // Length
+              Write(' ' + ConvertToKMG(Length) +
+                    ' (' + IntToHex(Length, 8) + ')');
+            end;
+
+            WriteLn;
           end;
-          WriteLn;
         end;
       end;
     end;
@@ -494,13 +547,13 @@ end;
 
 procedure TCLICommandProcessor.CmdCat(const Params: TStringArray);
 var
-  ShowAll: Boolean;
+  Mode: String;
 begin
-  ShowAll := False;
+  Mode := '';
   if Length(Params) > 1 then
-    ShowAll := (LowerCase(Params[1]) = 'all') or (LowerCase(Params[1]) = 'root');
+    Mode := LowerCase(Params[1]);
 
-  ListCatalogue(ShowAll);
+  ListCatalogueEx(Mode);
 end;
 
 procedure TCLICommandProcessor.CmdCreate(const Params: TStringArray);
@@ -716,11 +769,6 @@ begin
     WriteLnColored('No image loaded.', clRed)
   else
     ReportFreeSpace;
-end;
-
-procedure TCLICommandProcessor.CmdInfo(const Params: TStringArray);
-begin
-  ShowImageInfo;
 end;
 
 procedure TCLICommandProcessor.CmdInsert(const Params: TStringArray);
@@ -1039,39 +1087,665 @@ begin
     WriteLn('  ' + BuildFilename(Files[I]));
 end;
 
+procedure TCLICommandProcessor.CmdDefrag(const Params: TStringArray);
+begin
+  // Defrag requires GUI infrastructure (progress display, node selection, etc.)
+  // and is not available in CLI mode
+  WriteLnColored('Defrag/compact is not available in CLI mode.', clRed);
+  WriteLn('Please use the GUI application for this operation.');
+end;
+
+procedure TCLICommandProcessor.CmdDirTitle(const Params: TStringArray);
+var
+  DirPath: String;
+begin
+  if FContext.Image.FormatNumber = diInvalidImg then
+  begin
+    WriteLnColored('No image loaded.', clRed);
+    Exit;
+  end;
+
+  if Length(Params) < 2 then
+  begin
+    WriteLnColored('Usage: dirtitle <newtitle>', clRed);
+    Exit;
+  end;
+
+  DirPath := FContext.Image.GetParent(FContext.CurrentDir);
+  Write('Retitle directory ' + DirPath + ' ');
+  if FContext.Image.RetitleDirectory(DirPath, Params[1]) then
+  begin
+    WriteLnColored('success.', clGreen);
+    FContext.HasChanged := True;
+  end
+  else
+    WriteLnColored('failed.', clRed);
+end;
+
+procedure TCLICommandProcessor.CmdExecLoadType(const Params: TStringArray);
+var
+  Files: TSearchResults;
+  I: Integer;
+  Temp, CmdType: String;
+  Ok: Boolean;
+  Value: Cardinal;
+begin
+  if FContext.Image.FormatNumber = diInvalidImg then
+  begin
+    WriteLnColored('No image loaded.', clRed);
+    Exit;
+  end;
+
+  if Length(Params) < 3 then
+  begin
+    WriteLnColored('Usage: ' + Params[0] + ' <filename> <value>', clRed);
+    Exit;
+  end;
+
+  CmdType := LowerCase(Params[0]);
+
+  // Validate hex number for exec/load
+  if (CmdType = 'exec') or (CmdType = 'load') then
+  begin
+    if IntToHex(StrToIntDef('$' + Params[2], 0), 8) <>
+       UpperCase(RightStr('00000000' + Params[2], 8)) then
+    begin
+      WriteLnColored('Invalid hex number.', clRed);
+      Exit;
+    end;
+  end;
+
+  Files := GetListOfFiles(Params[1]);
+  if Length(Files) > 0 then
+  begin
+    for I := 0 to Length(Files) - 1 do
+    begin
+      Temp := BuildFilename(Files[I]);
+      Ok := False;
+
+      // Print the text
+      if CmdType = 'exec' then
+      begin
+        Write('Change execution address for ' + Temp + ' to 0x' +
+              IntToHex(StrToIntDef('$' + Params[2], 0), 8) + ' ');
+        Ok := FContext.Image.UpdateExecAddr(Temp, StrToIntDef('$' + Params[2], 0));
+      end
+      else if CmdType = 'load' then
+      begin
+        Write('Change load address for ' + Temp + ' to 0x' +
+              IntToHex(StrToIntDef('$' + Params[2], 0), 8) + ' ');
+        Ok := FContext.Image.UpdateLoadAddr(Temp, StrToIntDef('$' + Params[2], 0));
+      end
+      else if CmdType = 'type' then
+      begin
+        Write('Change filetype for ' + Temp + ' to 0x' +
+              IntToHex(StrToIntDef('$' + RightStr('000' + Params[2], 3), 0), 3) + ' ');
+        Ok := FContext.Image.ChangeFileType(Temp, Params[2]);
+      end;
+
+      if Ok then
+      begin
+        FContext.HasChanged := True;
+        WriteLnColored('success.', clGreen);
+      end
+      else
+        WriteLnColored('failed.', clRed);
+    end;
+  end
+  else
+    WriteLnColored('No files found.', clRed);
+end;
+
+procedure TCLICommandProcessor.CmdFind(const Params: TStringArray);
+type
+  THostFile = record
+    Filename: String;
+    IsDirectory: Boolean;
+  end;
+var
+  SearchList: TSearchRec;
+  I, J: Integer;
+  HostFiles: array of THostFile;
+  Ok: Boolean;
+  Temp: String;
+begin
+  if Length(Params) < 2 then
+  begin
+    WriteLnColored('Usage: find <pattern> [pattern2] ...', clRed);
+    Exit;
+  end;
+
+  SetLength(HostFiles, 0);
+
+  for I := 1 to Length(Params) - 1 do
+  begin
+    Ok := True;
+    Temp := Params[I];
+
+    // Check for exclusion prefix
+    if (Length(Temp) > 0) and (Temp[1] = '|') then
+    begin
+      Ok := False;
+      Temp := Copy(Temp, 2);
+    end;
+
+    if FindFirst(Temp, faAnyFile, SearchList) = 0 then
+    begin
+      repeat
+        if (SearchList.Name <> '.') and (SearchList.Name <> '..') and
+           (SearchList.Name <> '') then
+        begin
+          if Ok then
+          begin
+            // Add to list
+            J := Length(HostFiles);
+            SetLength(HostFiles, J + 1);
+            HostFiles[J].Filename := ExtractFilePath(Temp) + SearchList.Name;
+            HostFiles[J].IsDirectory := (SearchList.Attr and faDirectory) = faDirectory;
+          end
+          else
+          begin
+            // Remove from list
+            Temp := ExtractFilePath(Temp) + SearchList.Name;
+            for J := 0 to Length(HostFiles) - 1 do
+              if (HostFiles[J].Filename = Temp) and
+                 (HostFiles[J].IsDirectory = ((SearchList.Attr and faDirectory) = faDirectory)) then
+                HostFiles[J].Filename := '';
+          end;
+        end;
+      until FindNext(SearchList) <> 0;
+      FindClose(SearchList);
+    end;
+  end;
+
+  // Remove blank entries
+  J := 0;
+  while J < Length(HostFiles) do
+  begin
+    if HostFiles[J].Filename = '' then
+    begin
+      if J < Length(HostFiles) - 1 then
+        for I := J to Length(HostFiles) - 2 do
+          HostFiles[I] := HostFiles[I + 1];
+      SetLength(HostFiles, Length(HostFiles) - 1);
+      Dec(J);
+    end;
+    Inc(J);
+  end;
+
+  WriteLn(IntToStr(Length(HostFiles)) + ' entries found.');
+
+  for J := 0 to Length(HostFiles) - 1 do
+  begin
+    if HostFiles[J].IsDirectory then
+    begin
+      WriteColored('Directory', clBlue);
+      WriteLn(': ''' + HostFiles[J].Filename + '''.');
+    end
+    else
+    begin
+      WriteColored('File', clBlue);
+      WriteLn(': ''' + HostFiles[J].Filename + '''.');
+    end;
+  end;
+end;
+
+procedure TCLICommandProcessor.CmdFileToCSV(const Params: TStringArray);
+var
+  SearchList: TSearchRec;
+  I: Integer;
+  FileList: TStringList;
+begin
+  if Length(Params) < 2 then
+  begin
+    WriteLnColored('Usage: filetocsv <imagepattern> [pattern2] ...', clRed);
+    Exit;
+  end;
+
+  FileList := TStringList.Create;
+  try
+    for I := 1 to Length(Params) - 1 do
+    begin
+      if FindFirst(Params[I], faAnyFile and not faDirectory, SearchList) = 0 then
+      begin
+        repeat
+          if (SearchList.Name <> '.') and (SearchList.Name <> '..') then
+            if FileExists(ExtractFilePath(Params[I]) + SearchList.Name) then
+              FileList.Add(ExtractFilePath(Params[I]) + SearchList.Name);
+        until FindNext(SearchList) <> 0;
+        FindClose(SearchList);
+      end;
+    end;
+
+    WriteLn('Processing ' + IntToStr(FileList.Count) + ' image(s).');
+    if FileList.Count > 0 then
+      WriteLnColored('filetocsv: CSV batch output not fully implemented in CLI.', clYellow)
+    else
+      WriteLn('No images found.');
+  finally
+    FileList.Free;
+  end;
+end;
+
+procedure TCLICommandProcessor.CmdFileType(const Params: TStringArray);
+var
+  TypeNum: Integer;
+begin
+  if Length(Params) < 2 then
+  begin
+    WriteLnColored('Usage: filetype <name|number>', clRed);
+    Exit;
+  end;
+
+  // Check if name was passed (not a hex number)
+  if IntToHex(StrToIntDef('$' + Params[1], 0), 3) <> UpperCase(Params[1]) then
+  begin
+    // Name passed - look up number
+    TypeNum := FContext.Image.GetFileType(Params[1]);
+    if TypeNum <> -1 then
+      WriteLn('0x' + IntToHex(TypeNum, 3))
+    else
+      WriteLn('Unknown filetype');
+  end
+  else
+  begin
+    // Number passed - look up name
+    WriteLn(FContext.Image.GetFileType(StrToInt('$' + Params[1])));
+  end;
+end;
+
+procedure TCLICommandProcessor.CmdInterleave(const Params: TStringArray);
+var
+  Opt: Integer;
+begin
+  if FContext.Image.FormatNumber = diInvalidImg then
+  begin
+    WriteLnColored('No image loaded.', clRed);
+    Exit;
+  end;
+
+  if Length(Params) < 2 then
+  begin
+    WriteLnColored('Usage: interleave <auto|seq|int|mux|0-3>', clRed);
+    Exit;
+  end;
+
+  // Check if format supports interleave changes
+  if not ((FContext.Image.FormatNumber = diAcornADFS shl 4 + 2) or
+          (FContext.Image.FormatNumber = diAcornADFS shl 4 + $E) or
+          (FContext.Image.MajorFormatNumber = diAcornFS)) then
+  begin
+    WriteLnColored('Not possible in this format.', clRed);
+    Exit;
+  end;
+
+  // Find option by name
+  Opt := 0;
+  while (LowerCase(Params[1]) <> Interleaves[Opt]) and (Opt < High(Interleaves)) do
+    Inc(Opt);
+  if LowerCase(Params[1]) <> Interleaves[Opt] then
+    Opt := StrToIntDef(Params[1], -1);
+
+  if (Opt >= 0) and (Opt <= High(Interleaves)) then
+  begin
+    if FContext.Image.ChangeInterleaveMethod(Opt) then
+    begin
+      FContext.HasChanged := True;
+      WriteLn('Interleave changed to ' + UpperCase(Interleaves[Opt]) + '.');
+    end
+    else
+      WriteLnColored('Failed to change interleave.', clRed);
+  end
+  else
+    WriteLnColored('Invalid interleave option.', clRed);
+end;
+
+procedure TCLICommandProcessor.CmdList(const Params: TStringArray);
+var
+  Dir, Entry: Cardinal;
+  Temp: String;
+  Buffer: TDIByteArray;
+  I: Integer;
+  BasicLength: Cardinal;
+  Ptr: Integer;
+  IsBasic, IsText: Boolean;
+begin
+  if FContext.Image.FormatNumber = diInvalidImg then
+  begin
+    WriteLnColored('No image loaded.', clRed);
+    Exit;
+  end;
+
+  if Length(Params) < 2 then
+  begin
+    WriteLnColored('Usage: list <filename>', clRed);
+    Exit;
+  end;
+
+  if not ValidFile(Params[1], Dir, Entry) then
+  begin
+    WriteLnColored('Cannot find file ''' + Params[1] + '''.', clRed);
+    Exit;
+  end;
+
+  // Build full path
+  Temp := FContext.Image.GetParent(FContext.CurrentDir) +
+          FContext.Image.GetDirSep(FContext.Image.Disc[FContext.CurrentDir].Partition) +
+          Params[1];
+  if not FContext.Image.FileExists(Temp, Dir, Entry) then
+    Temp := Params[1];
+
+  if FContext.Image.ExtractFile(Temp, Buffer, Entry) then
+  begin
+    if Length(Buffer) = 0 then
+    begin
+      WriteLn('(empty file)');
+      Exit;
+    end;
+
+    // Check if it's a text file (simple check)
+    IsText := True;
+    for I := 0 to Length(Buffer) - 1 do
+      if ((Buffer[I] < 32) and (Buffer[I] <> 10) and (Buffer[I] <> 13) and (Buffer[I] <> 9)) or
+         (Buffer[I] > 126) then
+      begin
+        IsText := False;
+        Break;
+      end;
+
+    // Check if it's a BASIC file
+    IsBasic := False;
+    if (Length(Buffer) > 0) and (Buffer[0] = $0D) then
+    begin
+      IsBasic := True;
+      BasicLength := Length(Buffer);
+      Ptr := 0;
+      while (Ptr + 3 < BasicLength) and IsBasic do
+      begin
+        if (Buffer[Ptr + 1] = $FF) and (Buffer[Ptr + 3] < 5) then
+          BasicLength := Ptr + 1
+        else
+        begin
+          Inc(Ptr, Buffer[Ptr + 3]);
+          if Ptr < Length(Buffer) then
+            if Buffer[Ptr] <> $0D then
+              IsBasic := False;
+        end;
+      end;
+    end;
+
+    if IsBasic then
+      WriteLnColored('BASIC file detected - use GUI for full decoding.', clYellow)
+    else if IsText then
+    begin
+      // Display as text
+      Temp := '';
+      I := 0;
+      while I < Length(Buffer) do
+      begin
+        if (Buffer[I] >= 32) and (Buffer[I] < 127) then
+          Temp := Temp + Chr(Buffer[I])
+        else if (Buffer[I] = 10) or (Buffer[I] = 13) then
+        begin
+          WriteLn(Temp);
+          Temp := '';
+          // Skip CR+LF or LF+CR pairs
+          if (I + 1 < Length(Buffer)) and
+             (((Buffer[I] = 10) and (Buffer[I + 1] = 13)) or
+              ((Buffer[I] = 13) and (Buffer[I + 1] = 10))) then
+            Inc(I);
+        end
+        else if Buffer[I] = 9 then
+          Temp := Temp + '        ';
+        Inc(I);
+      end;
+      if Temp <> '' then
+        WriteLn(Temp);
+    end
+    else
+      WriteLnColored('Binary file - cannot display as text.', clYellow);
+  end
+  else
+    WriteLnColored('Failed to extract file.', clRed);
+end;
+
+procedure TCLICommandProcessor.CmdReport(const Params: TStringArray);
+var
+  I, J: Integer;
+begin
+  if FContext.Image.FormatNumber = diInvalidImg then
+  begin
+    WriteLnColored('No image loaded.', clRed);
+    Exit;
+  end;
+
+  WriteLnColored('Image Report', clBlue + clBold);
+  WriteLn(StringOfChar('=', 60));
+  WriteLn;
+
+  WriteLn('Format        : ' + FContext.Image.FormatString);
+  WriteLn('Filename      : ' + FContext.Filename);
+  if FContext.Image.MapTypeString <> '' then
+    WriteLn('Map Type      : ' + FContext.Image.MapTypeString);
+  if FContext.Image.DirectoryTypeString <> '' then
+    WriteLn('Directory Type: ' + FContext.Image.DirectoryTypeString);
+  WriteLn('CRC32         : ' + FContext.Image.CRC32);
+  WriteLn;
+
+  // Show disc structure
+  for I := 0 to Length(FContext.Image.Disc) - 1 do
+  begin
+    if FContext.Image.Disc[I].Parent = -1 then
+    begin
+      WriteLnColored('Partition/Side ' + IntToStr(I), clBold);
+      WriteLn('  Title  : ' + FContext.Image.Disc[I].Title);
+      WriteLn('  Entries: ' + IntToStr(Length(FContext.Image.Disc[I].Entries)));
+    end;
+  end;
+
+  WriteLn;
+  ReportFreeSpace;
+end;
+
+procedure TCLICommandProcessor.CmdRunScript(const Params: TStringArray);
+var
+  ScriptFile: TextFile;
+  Line: String;
+  CmdArray: TStringArray;
+begin
+  if Length(Params) < 2 then
+  begin
+    WriteLnColored('Usage: runscript <filename>', clRed);
+    Exit;
+  end;
+
+  if not FileExists(Params[1]) then
+  begin
+    WriteLnColored('Script file not found.', clRed);
+    Exit;
+  end;
+
+  AssignFile(ScriptFile, Params[1]);
+  try
+    Reset(ScriptFile);
+    while not EOF(ScriptFile) do
+    begin
+      ReadLn(ScriptFile, Line);
+      Line := Trim(Line);
+      // Skip empty lines and comments
+      if (Line <> '') and (Line[1] <> '#') and (Line[1] <> ';') then
+      begin
+        WriteLn('> ' + Line);
+        CmdArray := ParseInput(Line);
+        if not ProcessCommand(CmdArray) then
+          Break; // Exit command was issued
+      end;
+    end;
+    CloseFile(ScriptFile);
+  except
+    on E: Exception do
+      WriteLnColored('Error reading script: ' + E.Message, clRed);
+  end;
+end;
+
+procedure TCLICommandProcessor.CmdSaveCSV(const Params: TStringArray);
+var
+  Filename: String;
+  CSVFile: TextFile;
+  I, J: Integer;
+begin
+  if FContext.Image.FormatNumber = diInvalidImg then
+  begin
+    WriteLnColored('No image loaded.', clRed);
+    Exit;
+  end;
+
+  // Get the filename
+  if Length(Params) > 1 then
+    Filename := Params[1]
+  else
+    Filename := FContext.Filename;
+
+  if Filename = '' then
+  begin
+    WriteLnColored('No filename specified.', clRed);
+    Exit;
+  end;
+
+  // Ensure .csv extension
+  Filename := ChangeFileExt(Filename, '.csv');
+
+  AssignFile(CSVFile, Filename);
+  try
+    Rewrite(CSVFile);
+
+    // Write header
+    WriteLn(CSVFile, 'Parent,Filename,Attributes,LoadAddr,ExecAddr,Length,FileType');
+
+    // Write entries for all directories
+    for I := 0 to Length(FContext.Image.Disc) - 1 do
+    begin
+      for J := 0 to Length(FContext.Image.Disc[I].Entries) - 1 do
+      begin
+        with FContext.Image.Disc[I].Entries[J] do
+        begin
+          WriteLn(CSVFile,
+            '"' + Parent + '",' +
+            '"' + Filename + '",' +
+            '"' + Attributes + '",' +
+            IntToHex(LoadAddr, 8) + ',' +
+            IntToHex(ExecAddr, 8) + ',' +
+            IntToStr(Length) + ',' +
+            '"' + FileType + '"');
+        end;
+      end;
+    end;
+
+    CloseFile(CSVFile);
+    WriteLn('CSV output saved to ' + Filename);
+  except
+    on E: Exception do
+      WriteLnColored('Error writing CSV: ' + E.Message, clRed);
+  end;
+end;
+
+procedure TCLICommandProcessor.CmdStamp(const Params: TStringArray);
+var
+  Files: TSearchResults;
+  I: Integer;
+  Temp: String;
+begin
+  if FContext.Image.FormatNumber = diInvalidImg then
+  begin
+    WriteLnColored('No image loaded.', clRed);
+    Exit;
+  end;
+
+  if Length(Params) < 2 then
+  begin
+    WriteLnColored('Usage: stamp <filename> [filename2] ...', clRed);
+    Exit;
+  end;
+
+  Files := GetListOfFiles(Params[1]);
+  if Length(Files) > 0 then
+  begin
+    for I := 0 to Length(Files) - 1 do
+    begin
+      Temp := BuildFilename(Files[I]);
+      Write('Setting date/time stamp for ' + Temp);
+      if FContext.Image.TimeStampFile(Temp, Now) then
+      begin
+        FContext.HasChanged := True;
+        WriteLnColored(' success.', clGreen);
+      end
+      else
+        WriteLnColored(' failed.', clRed);
+    end;
+  end
+  else
+    WriteLnColored('No files found.', clRed);
+end;
+
 function TCLICommandProcessor.ProcessCommand(const Command: TStringArray): Boolean;
+var
+  Cmd: TStringArray;
 begin
   Result := True; // Continue running
 
   if Length(Command) = 0 then
     Exit;
 
-  case LowerCase(Command[0]) of
-    'access':     CmdAccess(Command);
-    'add':        CmdAdd(Command);
-    'cat', 'ls':  CmdCat(Command);
-    'chdir':      if Length(Command) > 1 then SetCurrentDir(Command[1]);
-    'config':     CmdConfig(Command);
-    'create':     CmdCreate(Command);
-    'delete':     CmdDelete(Command);
-    'dir':        CmdDir(Command);
-    'exit':       if Confirm then Result := False;
-    'exittogui':  Result := False;
-    'extract':    CmdExtract(Command);
-    'free':       CmdFree(Command);
-    'help':       ShowHelp;
-    'info':       CmdInfo(Command);
-    'insert':     CmdInsert(Command);
-    'new':        CmdNew(Command);
-    'opt':        CmdOpt(Command);
-    'rename':     CmdRename(Command);
-    'save':       CmdSave(Command);
-    'search':     CmdSearch(Command);
-    'status':     CmdStatus(Command);
-    'title':      CmdTitle(Command);
-    '':           ; // Ignore empty commands
+  // Copy command array so we can modify it
+  Cmd := Copy(Command);
+
+  // 'ls' command is the same as 'find *'
+  if LowerCase(Cmd[0]) = 'ls' then
+  begin
+    SetLength(Cmd, 2);
+    Cmd[0] := 'find';
+    Cmd[1] := '*';
+  end;
+
+  case LowerCase(Cmd[0]) of
+    'access':            CmdAccess(Cmd);
+    'add':               CmdAdd(Cmd);
+    'cat':               CmdCat(Cmd);
+    'chdir':             if Length(Cmd) > 1 then SetCurrentDir(Cmd[1]);
+    'compact', 'defrag': CmdDefrag(Cmd);
+    'config':            CmdConfig(Cmd);
+    'create':            CmdCreate(Cmd);
+    'delete':            CmdDelete(Cmd);
+    'dir':               CmdDir(Cmd);
+    'dirtitle':          CmdDirTitle(Cmd);
+    'exec', 'load', 'type': CmdExecLoadType(Cmd);
+    'exit':              if Confirm then Result := False;
+    'exittogui':         Result := False;
+    'extract':           CmdExtract(Cmd);
+    'filetocsv':         CmdFileToCSV(Cmd);
+    'filetype':          CmdFileType(Cmd);
+    'find':              CmdFind(Cmd);
+    'free':              CmdFree(Cmd);
+    'help':              ShowHelp;
+    'insert':            CmdInsert(Cmd);
+    'interleave':        CmdInterleave(Cmd);
+    'join':              WriteLnColored('This command has not been implemented yet.', clRed);
+    'list':              CmdList(Cmd);
+    'new':               CmdNew(Cmd);
+    'opt':               CmdOpt(Cmd);
+    'rename':            CmdRename(Cmd);
+    'report':            CmdReport(Cmd);
+    'runscript':         CmdRunScript(Cmd);
+    'save':              CmdSave(Cmd);
+    'savecsv':           CmdSaveCSV(Cmd);
+    'search':            CmdSearch(Cmd);
+    'split':             WriteLnColored('This command has not been implemented yet.', clRed);
+    'stamp':             CmdStamp(Cmd);
+    'status':            CmdStatus(Cmd);
+    'title':             CmdTitle(Cmd);
+    '':                  ; // Ignore empty commands
   else
-    WriteLnColored('Unknown command: ' + Command[0], clRed);
+    WriteLnColored('Unknown command: ' + Cmd[0], clRed);
   end;
 end;
 
