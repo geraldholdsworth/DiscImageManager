@@ -863,9 +863,10 @@ end;
 
 procedure TCLICommandProcessor.CmdDir(const Params: TStringArray);
 var
-  Temp: String;
+  Temp, LParent: String;
   Dir, Entry: Cardinal;
-  I: Integer;
+  Opt, Ptr: Integer;
+  Ok: Boolean;
 begin
   if FContext.Image.FormatNumber = diInvalidImg then
   begin
@@ -880,8 +881,9 @@ begin
   end;
 
   Temp := Params[1];
+  Ok := False;
 
-  // Handle parent directory specifier
+  // Handle parent directory specifier at start
   if (Length(Temp) > 0) and (Temp[1] = '^') then
   begin
     if FContext.Image.Disc[FContext.CurrentDir].Parent >= 0 then
@@ -891,14 +893,38 @@ begin
       Temp := FContext.Image.GetParent(0) + Copy(Temp, 2);
   end;
 
-  if FContext.Image.FileExists(Temp, Dir, Entry) then
+  // Handle in-path parent specifiers (e.g. $.dir1.^.dir2)
+  LParent := FContext.Image.GetDirSep(FContext.Image.Disc[FContext.CurrentDir].Partition) + '^';
+  while Pos(LParent, Temp) > 1 do
   begin
-    if Dir < Cardinal(Length(FContext.Image.Disc)) then
+    Ptr := Pos(LParent, Temp) - 1;
+    while (Ptr > 1)
+      and (Temp[Ptr] <> FContext.Image.GetDirSep(FContext.Image.Disc[FContext.CurrentDir].Partition)) do
+      Dec(Ptr);
+    if Ptr > 1 then
+      Temp := LeftStr(Temp, Ptr - 1) + Copy(Temp, Pos(LParent, Temp) + Length(LParent));
+    if Ptr = 1 then
+      Temp := LeftStr(Temp, Ptr) + Copy(Temp, Pos(LParent, Temp) + Length(LParent));
+  end;
+
+  // Try to find the directory - use ValidFile which tries both raw path
+  // and current-directory-relative path (matching GUI's ValidFile behavior)
+  if ValidFile(Temp, Dir, Entry) then
+  begin
+    if Dir >= Cardinal(Length(FContext.Image.Disc)) then
+    begin
+      FContext.CurrentDir := 0; // Root
+      Ok := True;
+    end
+    else if Dir < Cardinal(Length(FContext.Image.Disc)) then
     begin
       if Entry < Cardinal(Length(FContext.Image.Disc[Dir].Entries)) then
       begin
         if FContext.Image.Disc[Dir].Entries[Entry].DirRef >= 0 then
-          FContext.CurrentDir := FContext.Image.Disc[Dir].Entries[Entry].DirRef
+        begin
+          FContext.CurrentDir := FContext.Image.Disc[Dir].Entries[Entry].DirRef;
+          Ok := True;
+        end
         else
         begin
           WriteLnColored('''' + Temp + ''' is a file.', clRed);
@@ -906,27 +932,31 @@ begin
         end;
       end
       else
-        FContext.CurrentDir := Dir;
-    end;
-    WriteLn('Directory ''' + FContext.Image.GetParent(FContext.CurrentDir) + ''' selected.');
-  end
-  else
-  begin
-    // Check for root directories on DFS
-    if FContext.Image.MajorFormatNumber = diAcornDFS then
-    begin
-      if (Length(Temp) > 1) and (Temp[1] = ':') then
       begin
-        I := StrToIntDef(Temp[2], 0);
-        if FContext.Image.DoubleSided and (I = 2) then
-          I := Length(FContext.Image.Disc) - 1;
-        FContext.CurrentDir := I;
-        WriteLn('Directory ''' + FContext.Image.GetParent(FContext.CurrentDir) + ''' selected.');
-        Exit;
+        FContext.CurrentDir := Dir;
+        Ok := True;
       end;
     end;
-    WriteLnColored('''' + Temp + ''' does not exist.', clRed);
   end;
+
+  // Are we on DFS and we have a drive specifier?
+  if FContext.Image.MajorFormatNumber = diAcornDFS then
+  begin
+    Opt := 0; // Default drive 0
+    if Length(Temp) > 1 then
+      if Temp[1] = ':' then Opt := StrToIntDef(Temp[2], 0);
+    if FContext.Image.DoubleSided and (Opt = 2) then
+      Opt := Length(FContext.Image.Disc) - 1;
+    // We'll ignore anything after the drive specifier
+    FContext.CurrentDir := Opt;
+    Ok := True;
+  end;
+
+  // Report back to the user
+  if Ok then
+    WriteLn('Directory ''' + FContext.Image.GetParent(FContext.CurrentDir) + ''' selected.')
+  else
+    WriteLnColored('''' + Temp + ''' does not exist.', clRed);
 end;
 
 procedure TCLICommandProcessor.CmdExtract(const Params: TStringArray);
@@ -1724,7 +1754,9 @@ end;
 
 procedure TCLICommandProcessor.CmdReport(const Params: TStringArray);
 var
-  I, J: Integer;
+  LReport: TStringList;
+  I, Dir, Entry, ErrorCount: Integer;
+  Filename: String;
 begin
   if FContext.Image.FormatNumber = diInvalidImg then
   begin
@@ -1732,32 +1764,54 @@ begin
     Exit;
   end;
 
-  WriteLnColored('Image Report', clBlue + clBold);
-  WriteLn(StringOfChar('=', 60));
-  WriteLn;
-
-  WriteLn('Format        : ' + FContext.Image.FormatString);
-  WriteLn('Filename      : ' + FContext.Filename);
-  if FContext.Image.MapTypeString <> '' then
-    WriteLn('Map Type      : ' + FContext.Image.MapTypeString);
-  if FContext.Image.DirectoryTypeString <> '' then
-    WriteLn('Directory Type: ' + FContext.Image.DirectoryTypeString);
-  WriteLn('CRC32         : ' + FContext.Image.CRC32);
-  WriteLn;
-
-  // Show disc structure
-  for I := 0 to Length(FContext.Image.Disc) - 1 do
-  begin
-    if FContext.Image.Disc[I].Parent = -1 then
-    begin
-      WriteLnColored('Partition/Side ' + IntToStr(I), clBold);
-      WriteLn('  Title  : ' + FContext.Image.Disc[I].Title);
-      WriteLn('  Entries: ' + IntToStr(Length(FContext.Image.Disc[I].Entries)));
-    end;
+  // Get the image report (same method used by GUI)
+  LReport := FContext.Image.ImageReport(False);
+  try
+    // Print the report lines
+    if LReport.Count > 0 then
+      for I := 0 to LReport.Count - 1 do
+        WriteLn(LReport[I]);
+  finally
+    LReport.Free;
   end;
 
+  // Add file report section (matching GUI's btn_ShowReportClick)
   WriteLn;
-  ReportFreeSpace;
+  WriteLn('File report');
+  WriteLn('===========');
+  if not FContext.Image.ScanSubDirs then
+    WriteLn('Please note that not all directories may have been read in');
+  ErrorCount := 0;
+  if Length(FContext.Image.Disc) > 0 then
+    for Dir := 0 to Length(FContext.Image.Disc) - 1 do
+    begin
+      // Check for broken directories
+      if FContext.Image.Disc[Dir].Broken then
+      begin
+        WriteLn(FContext.Image.GetParent(Dir) + ' is broken');
+        Inc(ErrorCount);
+      end;
+      // Check files for errors
+      if Length(FContext.Image.Disc[Dir].Entries) > 0 then
+        for Entry := 0 to Length(FContext.Image.Disc[Dir].Entries) - 1 do
+        begin
+          Filename := FContext.Image.GetParent(Dir)
+                    + FContext.Image.GetDirSep(FContext.Image.Disc[Dir].Partition)
+                    + FContext.Image.Disc[Dir].Entries[Entry].Filename;
+          if FContext.Image.GetFileCRC(Filename, Entry) = 'error' then
+          begin
+            WriteLn(Filename + ' could not be read');
+            Inc(ErrorCount);
+          end;
+        end;
+    end;
+  WriteLn(IntToStr(ErrorCount) + ' error(s) found');
+
+  // Add footer
+  WriteLn(StringOfChar('_', 80));
+  WriteLn(ApplicationTitle + ' v' + ApplicationVersion);
+  WriteLn('by Gerald J Holdsworth');
+  WriteLn('gerald@geraldholdsworth.co.uk');
 end;
 
 procedure TCLICommandProcessor.CmdRunScript(const Params: TStringArray);
