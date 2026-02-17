@@ -762,7 +762,7 @@ type
   procedure AddDirectoryRecursive(const DirPath: String);
   var
     SR: TSearchRec;
-    DirName, Attr: String;
+    DirName, Attr, Parent: String;
     FileDetails: TDirEntry;
     Buffer: TDIByteArray;
     F: TFileStream;
@@ -771,10 +771,10 @@ type
   begin
     // Create directory on the image
     DirName := ExtractFileName(ExcludeTrailingPathDelimiter(DirPath));
+    Parent := FContext.Image.GetParent(FContext.CurrentDir);
     Attr := 'DLR';
     Write('Adding directory: ''' + DirPath + '''.');
-    if FContext.Image.CreateDirectory(DirName,
-       FContext.Image.GetParent(FContext.CurrentDir), Attr) >= 0 then
+    if FContext.Image.CreateDirectory(DirName, Parent, Attr) >= 0 then
     begin
       WriteLnColored(' Success.', clGreen);
       FContext.HasChanged := True;
