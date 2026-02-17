@@ -27,7 +27,7 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  Classes, SysUtils, DiscImage, DiscImageContext, Global;
+  Classes, SysUtils, StrUtils, DiscImage, DiscImageContext, Global;
 
 type
   { TCLICommandProcessor - Processes CLI commands }
@@ -84,6 +84,7 @@ type
     procedure CmdRunScript(const Params: TStringArray);
     procedure CmdSaveCSV(const Params: TStringArray);
     procedure CmdStamp(const Params: TStringArray);
+    procedure WriteCSVForImage(LImage: TDiscImage; const CSVFilename: String);
   public
     constructor Create; overload;
     constructor Create(AContext: TDiscImageContext; ASettings: TRegistrySettings); overload;
@@ -122,6 +123,52 @@ const
 
   BootOptions: array[0..3] of String = ('none', 'load', 'run', 'exec');
   Interleaves: array[0..3] of String = ('auto', 'seq', 'int', 'mux');
+
+  // Configuration settings (registry) - matches GUI's Configs array
+  Configs: array[0..42] of array[0..2] of String = (
+    ('AddImpliedAttributes' ,'B','Add Implied Attributes for DFS/CFS/RFS'),
+    ('ADFS_L_Interleave'    ,'I','0=Automatic; 1=Sequential; 2=Interleave; 3=Multiplex'),
+    ('Create_DSC'           ,'B','Create *.dsc file with hard drives'),
+    ('CreateINF'            ,'B','Create a *.inf file when extracting'),
+    ('CSVAddress'           ,'B','Include the disc address in CSV file'),
+    ('CSVAttributes'        ,'B','Include the file attributes in CSV file'),
+    ('CSVCRC32'             ,'B','Include the CRC-32 in CSV file'),
+    ('CSVExecAddr'          ,'B','Include the execution address in CSV file'),
+    ('CSVFilename'          ,'B','Include the filename in CSV file'),
+    ('CSVIncDir'            ,'B','Include directories in CSV file'),
+    ('CSVIncFilename'       ,'B','Include image filename in CSV file'),
+    ('CSVIncReport'         ,'B','Include image report in CSV file'),
+    ('CSVLength'            ,'B','Include the file length in CSV file'),
+    ('CSVLoadAddr'          ,'B','include the load address in CSV file'),
+    ('CSVMD5'               ,'B','Include the MD5 in CSV file'),
+    ('CSVParent'            ,'B','Include the parent in CSV file'),
+    ('Debug_Mode'           ,'B','Is debug mode on?'),
+    ('DefaultADFSOptions'   ,'I','Which ADFS format for new image dialogue'),
+    ('DefaultAFSCreatePWord','B','Whether to create password file for new AFS'),
+    ('DefaultAFSImageSize'  ,'I','Default AFS image size'),
+    ('DefaultAFSOptions'    ,'I','Which Acorn FS format for new image dialogue'),
+    ('DefaultAmigaOptions'  ,'I','Which Amiga format for new image dialogue'),
+    ('DefaultC64Options'    ,'I','Which Commodore 64 format for new image dialogue'),
+    ('DefaultDFSOptions'    ,'I','Which DFS format for new image dialogue'),
+    ('DefaultDFSTOptions'   ,'I','Which DFS track setting for new image dialogue'),
+    ('DefaultDOSOptions'    ,'I','Which DOS format for new image dialogue'),
+    ('DefaultROMFSBinVers'  ,'I','Default binary version number for new ROM FS'),
+    ('DefaultROMFSCopy'     ,'S','Default copyright string to use for new ROM FS'),
+    ('DefaultROMFSTitle'    ,'S','Default title to use for new ROM FS'),
+    ('DefaultROMFSVersion'  ,'S','Default version to use for new ROM FS'),
+    ('DefaultSpecOptions'   ,'I','Which Spectrum format for new image dialogue'),
+    ('DefaultSystemOptions' ,'I','Which system for new image dialogue'),
+    ('DFS_Allow_Blanks'     ,'B','Allow blank filenames in DFS'),
+    ('DFS_Beyond_Edge'      ,'B','Check for files going over the DFS disc edge'),
+    ('DFS_Zero_Sectors'     ,'B','Allow DFS images with zero sectors'),
+    ('Hide_CDR_DEL'         ,'B','Hide DEL files in Commodore images'),
+    ('Open_DOS'             ,'B','Automatically open DOS partitions in ADFS'),
+    ('Scan_SubDirs'         ,'B','Automatically scan sub-directories'),
+    ('Spark_Is_FS'          ,'B','Treat Spark archives as file system'),
+    ('Texture'              ,'I','Which texture background to use'),
+    ('UEF_Compress'         ,'B','Compress UEF images when saving'),
+    ('View_Options'         ,'I','Displays which menus are visible'),
+    ('WindowStyle'          ,'I','Native or RISC OS styling'));
 
 implementation
 
@@ -706,14 +753,109 @@ begin
 end;
 
 procedure TCLICommandProcessor.CmdAdd(const Params: TStringArray);
+type
+  TOSFile = record
+    Filename: String;
+    IsDirectory: Boolean;
+  end;
+
+  procedure AddDirectoryRecursive(const DirPath: String);
+  var
+    SR: TSearchRec;
+    DirName, Attr: String;
+    FileDetails: TDirEntry;
+    Buffer: TDIByteArray;
+    F: TFileStream;
+    Ok: Boolean;
+    OldDir: Integer;
+  begin
+    // Create directory on the image
+    DirName := ExtractFileName(ExcludeTrailingPathDelimiter(DirPath));
+    Attr := 'DLR';
+    Write('Adding directory: ''' + DirPath + '''.');
+    if FContext.Image.CreateDirectory(DirName,
+       FContext.Image.GetParent(FContext.CurrentDir), Attr) >= 0 then
+    begin
+      WriteLnColored(' Success.', clGreen);
+      FContext.HasChanged := True;
+    end
+    else
+    begin
+      WriteLnColored(' Failed.', clRed);
+      Exit;
+    end;
+
+    // Navigate into the newly created directory
+    OldDir := FContext.CurrentDir;
+    // Find the new directory entry to get its DirRef
+    if Length(FContext.Image.Disc[OldDir].Entries) > 0 then
+    begin
+      if FContext.Image.Disc[OldDir].Entries[
+         Length(FContext.Image.Disc[OldDir].Entries) - 1].DirRef >= 0 then
+        FContext.CurrentDir := FContext.Image.Disc[OldDir].Entries[
+           Length(FContext.Image.Disc[OldDir].Entries) - 1].DirRef;
+    end;
+
+    // Add all files and subdirectories
+    if FindFirst(IncludeTrailingPathDelimiter(DirPath) + '*', faAnyFile, SR) = 0 then
+    begin
+      repeat
+        if (SR.Name <> '.') and (SR.Name <> '..') and (SR.Name <> '') then
+        begin
+          if (SR.Attr and faDirectory) = faDirectory then
+          begin
+            // Recurse into subdirectory
+            AddDirectoryRecursive(IncludeTrailingPathDelimiter(DirPath) + SR.Name);
+          end
+          else
+          begin
+            // Add file
+            Write('Adding file: ''' +
+                  IncludeTrailingPathDelimiter(DirPath) + SR.Name + '''.');
+            try
+              F := TFileStream.Create(
+                   IncludeTrailingPathDelimiter(DirPath) + SR.Name,
+                   fmOpenRead or fmShareDenyNone);
+              try
+                SetLength(Buffer, F.Size);
+                if F.Size > 0 then F.ReadBuffer(Buffer[0], F.Size);
+                ResetDirEntry(FileDetails);
+                FileDetails.Filename := SR.Name;
+                FileDetails.Parent := FContext.Image.GetParent(FContext.CurrentDir);
+                FileDetails.Length := F.Size;
+                Ok := FContext.Image.WriteFile(FileDetails, Buffer) >= 0;
+              finally
+                F.Free;
+              end;
+              if Ok then
+              begin
+                WriteLnColored(' Success.', clGreen);
+                FContext.HasChanged := True;
+              end
+              else
+                WriteLnColored(' Failed.', clRed);
+            except
+              WriteLnColored(' Error reading file.', clRed);
+            end;
+          end;
+        end;
+      until FindNext(SR) <> 0;
+      FindClose(SR);
+    end;
+
+    // Navigate back to original directory
+    FContext.CurrentDir := OldDir;
+  end;
+
 var
-  SearchList: TSearchRec;
-  I: Integer;
+  I, J, Ptr: Integer;
+  OSFiles: array of TOSFile;
+  FS: TSearchRec;
+  Ok: Boolean;
+  Temp: String;
   FileDetails: TDirEntry;
   Buffer: TDIByteArray;
   F: TFileStream;
-  FS: TSearchRec;
-  Ok: Boolean;
 begin
   if FContext.Image.FormatNumber = diInvalidImg then
   begin
@@ -723,55 +865,107 @@ begin
 
   if Length(Params) < 2 then
   begin
-    WriteLnColored('Usage: add <filename> [filename2] ...', clRed);
+    WriteLnColored('Not enough parameters.', clRed);
     Exit;
   end;
 
+  SetLength(OSFiles, 0);
+
+  // Collate list of files/directories (matching GUI behavior)
   for I := 1 to Length(Params) - 1 do
   begin
-    if FindFirst(Params[I], faAnyFile and not faDirectory, FS) = 0 then
+    Ok := True;
+    Temp := Params[I];
+
+    // Check for exclusion prefix
+    if (Length(Temp) > 0) and (Temp[1] = '|') then
+    begin
+      Ok := False;
+      Temp := Copy(Temp, 2);
+    end;
+
+    if FindFirst(Temp, faAnyFile, FS) = 0 then
     begin
       repeat
-        if (FS.Name <> '.') and (FS.Name <> '..') then
+        if (FS.Name <> '.') and (FS.Name <> '..') and (FS.Name <> '') then
         begin
-          Write('Adding file: ''' + ExtractFilePath(Params[I]) + FS.Name + '''');
-
-          // Read file contents
-          try
-            F := TFileStream.Create(ExtractFilePath(Params[I]) + FS.Name, fmOpenRead or fmShareDenyNone);
-            try
-              SetLength(Buffer, F.Size);
-              if F.Size > 0 then
-                F.ReadBuffer(Buffer[0], F.Size);
-
-              // Set up file details
-              ResetDirEntry(FileDetails);
-              FileDetails.Filename := FS.Name;
-              FileDetails.Parent := FContext.Image.GetParent(FContext.CurrentDir);
-              FileDetails.Length := F.Size;
-
-              // Try to add the file
-              Ok := FContext.Image.WriteFile(FileDetails, Buffer) >= 0;
-            finally
-              F.Free;
-            end;
-
-            if Ok then
-            begin
-              WriteLnColored(' Success.', clGreen);
-              FContext.HasChanged := True;
-            end
-            else
-              WriteLnColored(' Failed.', clRed);
-          except
-            WriteLnColored(' Error reading file.', clRed);
+          if Ok then
+          begin
+            // Add to list
+            Ptr := Length(OSFiles);
+            SetLength(OSFiles, Ptr + 1);
+            OSFiles[Ptr].Filename := ExtractFilePath(Temp) + FS.Name;
+            OSFiles[Ptr].IsDirectory := (FS.Attr and faDirectory) = faDirectory;
+          end
+          else
+          begin
+            // Remove from list
+            Temp := ExtractFilePath(Temp) + FS.Name;
+            for J := 0 to Length(OSFiles) - 1 do
+              if (OSFiles[J].Filename = Temp) and
+                 (OSFiles[J].IsDirectory = ((FS.Attr and faDirectory) = faDirectory)) then
+                OSFiles[J].Filename := '';
           end;
         end;
       until FindNext(FS) <> 0;
       FindClose(FS);
+    end;
+  end;
+
+  // Remove blank entries
+  Ptr := 0;
+  while Ptr < Length(OSFiles) do
+  begin
+    if OSFiles[Ptr].Filename = '' then
+    begin
+      if Ptr < Length(OSFiles) - 1 then
+        for I := Ptr to Length(OSFiles) - 2 do
+          OSFiles[I] := OSFiles[I + 1];
+      SetLength(OSFiles, Length(OSFiles) - 1);
+      Dec(Ptr);
+    end;
+    Inc(Ptr);
+  end;
+
+  WriteLn(IntToStr(Length(OSFiles)) + ' entries found.');
+
+  // Now add them
+  for Ptr := 0 to Length(OSFiles) - 1 do
+  begin
+    if OSFiles[Ptr].IsDirectory then
+    begin
+      // Add directory recursively
+      AddDirectoryRecursive(OSFiles[Ptr].Filename);
     end
     else
-      WriteLnColored('File not found: ' + Params[I], clRed);
+    begin
+      // Add a single file
+      Write('Adding file: ''' + OSFiles[Ptr].Filename + '''.');
+      try
+        F := TFileStream.Create(OSFiles[Ptr].Filename,
+             fmOpenRead or fmShareDenyNone);
+        try
+          SetLength(Buffer, F.Size);
+          if F.Size > 0 then F.ReadBuffer(Buffer[0], F.Size);
+          ResetDirEntry(FileDetails);
+          FileDetails.Filename := ExtractFileName(OSFiles[Ptr].Filename);
+          FileDetails.Parent := FContext.Image.GetParent(FContext.CurrentDir);
+          FileDetails.Length := F.Size;
+          Ok := FContext.Image.WriteFile(FileDetails, Buffer) >= 0;
+        finally
+          F.Free;
+        end;
+        if Ok then
+        begin
+          WriteLnColored(' Success.', clGreen);
+          FContext.HasChanged := True;
+        end
+        else
+          WriteLnColored(' Failed.', clRed);
+      except
+        WriteLnColored(' Error reading file.', clRed);
+      end;
+    end;
   end;
 end;
 
@@ -803,7 +997,7 @@ begin
   Parent := FContext.Image.GetParent(FContext.CurrentDir);
   Attr := 'DLR';
 
-  Write('Creating directory ''' + DirName + ''' ');
+  Write('Create new directory ''' + DirName + ''' ');
   if FContext.Image.CreateDirectory(DirName, Parent, Attr) >= 0 then
   begin
     WriteLnColored('success.', clGreen);
@@ -847,14 +1041,19 @@ begin
 
     if Ok then
     begin
-      Write('Deleting ''' + Params[I] + ''' ');
-      if FContext.Image.DeleteFile(Temp) then
+      // UEF and RFS use entry-based deletion
+      if (FContext.Image.MajorFormatNumber <> diAcornUEF)
+      and (FContext.Image.MajorFormatNumber <> diAcornRFS) then
+        Ok := FContext.Image.DeleteFile(Temp)
+      else
+        Ok := FContext.Image.DeleteFile(Entry);
+      if Ok then
       begin
-        WriteLnColored('success.', clGreen);
+        WriteLn('''' + Params[I] + ''' deleted.');
         FContext.HasChanged := True;
       end
       else
-        WriteLnColored('failed.', clRed);
+        WriteLnColored('Could not delete ''' + Params[I] + '''.', clRed);
     end
     else
       WriteLnColored('''' + Params[I] + ''' not found.', clRed);
@@ -1094,6 +1293,63 @@ begin
     Known := True;
   end;
 
+  // AFS HDD
+  if (not Known) and (UpperCase(Params[1]) = 'AFS') then
+  begin
+    if Length(Params) > 3 then
+    begin
+      HardDriveSize := GetDriveSize(Params[3]);
+      DirType := StrToIntDef(RightStr(Params[2], 1), 2);
+      if (DirType = 2) and (HardDriveSize < 400) then HardDriveSize := 400;
+      if (DirType = 3) and (HardDriveSize < 640) then HardDriveSize := 640;
+      if HardDriveSize > 512 * 1024 then HardDriveSize := 512 * 1024;
+      Ok := FContext.CreateHDDImage(diAcornFS, HardDriveSize * 1024, DirType, False, True);
+      Known := True;
+    end
+    else
+    begin
+      WriteLnColored('Not enough parameters.', clRed);
+      Exit;
+    end;
+  end;
+
+  // DOS HDD
+  if (not Known) and (UpperCase(Format) = 'DOSHDD') then
+  begin
+    if Length(Params) > 3 then
+    begin
+      HardDriveSize := GetDriveSize(Params[3]);
+      if HardDriveSize < 33300 then DirType := diFAT16 else DirType := diFAT32;
+      if HardDriveSize < 20 * 1024 then HardDriveSize := 20 * 1024;
+      if HardDriveSize > 1024 * 1024 then HardDriveSize := 512 * 1024;
+      Ok := FContext.CreateHDDImage(diDOSPlus, HardDriveSize * 1024, DirType, False, True);
+      Known := True;
+    end
+    else
+    begin
+      WriteLnColored('Not enough parameters.', clRed);
+      Exit;
+    end;
+  end;
+
+  // Amiga HDD
+  if (not Known) and (UpperCase(Format) = 'AMIGAHDD') then
+  begin
+    if Length(Params) > 3 then
+    begin
+      HardDriveSize := GetDriveSize(Params[3]);
+      if HardDriveSize < 20 * 1024 then HardDriveSize := 20 * 1024;
+      if HardDriveSize > 1024 * 1024 then HardDriveSize := 512 * 1024;
+      Ok := FContext.CreateHDDImage(diAmiga, HardDriveSize * 1024, 0, False, True);
+      Known := True;
+    end
+    else
+    begin
+      WriteLnColored('Not enough parameters.', clRed);
+      Exit;
+    end;
+  end;
+
   // Standard floppy formats
   if not Known then
   begin
@@ -1273,34 +1529,91 @@ begin
 end;
 
 procedure TCLICommandProcessor.CmdConfig(const Params: TStringArray);
+var
+  Index, Ptr: Integer;
+  Ok: Boolean;
+  Dir: Cardinal;
 begin
-  WriteLnColored('Configuration Options', clBlue + clBold);
-  WriteLn('  AddImpliedAttributes : Boolean - Add RW to inf for DFS/CFS/RFS');
-  WriteLn('  Create_DSC           : Boolean - Create *.dsc file with hard drives');
-  WriteLn('  CreateINF            : Boolean - Create *.inf file when extracting');
-  WriteLn('  DFS_Allow_Blanks     : Boolean - Allow blank filenames in DFS');
-  WriteLn('  DFS_Beyond_Edge      : Boolean - Check for files going over disc edge');
-  WriteLn('  DFS_Zero_Sectors     : Boolean - Allow DFS images with zero sectors');
-  WriteLn('  Open_DOS             : Boolean - Automatically open DOS partitions');
-  WriteLn('  Scan_SubDirs         : Boolean - Automatically scan sub-directories');
-  WriteLn('  Spark_Is_FS          : Boolean - Treat Spark archives as file system');
-  WriteLn;
-  WriteLn('Use: config <key> <value> to set a configuration option');
+  // If enough parameters, attempt to set a config value
+  if Length(Params) > 2 then
+  begin
+    Ok := False;
+    for Index := 0 to Length(Configs) - 1 do
+      if UpperCase(Params[1]) = UpperCase(Configs[Index, 0]) then
+      begin
+        Ok := True;
+        case Configs[Index, 1] of
+          'B': if LowerCase(Params[2]) = 'true' then
+                 FSettings.SetBool(Configs[Index, 0], True)
+               else
+                 FSettings.SetBool(Configs[Index, 0], False);
+          'I':
+            begin
+              Dir := 0;
+              if LowerCase(LeftStr(Params[2], 2)) = '0x' then
+                Dir := StrToIntDef('$' + Copy(Params[2], 3), 0);
+              if (Params[2][1] = '$') or (Params[2][1] = '&') then
+                Dir := StrToIntDef('$' + Copy(Params[2], 2), 0);
+              if Dir = 0 then Dir := StrToIntDef(Params[2], 0);
+              FSettings.SetInt(Configs[Index, 0], Dir);
+            end;
+          'S': FSettings.SetString(Configs[Index, 0], Params[2]);
+        end;
+      end;
+    if Ok then
+      WriteLn('Configuration option set.')
+    else
+      WriteLnColored('Invalid configuration option.', clRed);
+  end
+  else
+  begin
+    // List available config options
+    WriteLnColored('Valid configuration options', clBlue + clBold);
+    WriteLn('Not all configurations are used by the console.');
+    // Find the longest key name for alignment
+    Ptr := 1;
+    for Index := 0 to Length(Configs) - 1 do
+      if Length(Configs[Index, 0]) > Ptr then Ptr := Length(Configs[Index, 0]);
+    // Display the config options
+    for Index := 0 to Length(Configs) - 1 do
+    begin
+      WriteColored(PadRight(Configs[Index, 0], Ptr), clRed + clBold);
+      Write(': ');
+      case Configs[Index, 1] of
+        'B': WriteLnColored('True|False', clRed);
+        'I': WriteLnColored('<Integer>', clRed);
+        'S': WriteLnColored('<String>', clRed);
+      end;
+      if Configs[Index, 2] <> '' then
+        WriteLn(StringOfChar(' ', Ptr + 2) + Configs[Index, 2]);
+    end;
+  end;
 end;
 
 procedure TCLICommandProcessor.CmdStatus(const Params: TStringArray);
+var
+  Index, Ptr: Integer;
 begin
-  WriteLnColored('Current Settings', clBlue + clBold);
-  WriteLn('  CreateINF            : ' + BoolToStr(FContext.CreateINF, 'true', 'false'));
-  WriteLn('  AddImpliedAttributes : ' + BoolToStr(FContext.AddImpliedAttributes, 'true', 'false'));
-  WriteLn('  ScanSubDirs          : ' + BoolToStr(FContext.ScanSubDirs, 'true', 'false'));
-  WriteLn('  OpenDOS              : ' + BoolToStr(FContext.OpenDOS, 'true', 'false'));
-  WriteLn('  CreateDSC            : ' + BoolToStr(FContext.CreateDSC, 'true', 'false'));
-  WriteLn('  DFSZeroSecs          : ' + BoolToStr(FContext.DFSZeroSecs, 'true', 'false'));
-  WriteLn('  DFSBeyondEdge        : ' + BoolToStr(FContext.DFSBeyondEdge, 'true', 'false'));
-  WriteLn('  DFSAllowBlank        : ' + BoolToStr(FContext.DFSAllowBlank, 'true', 'false'));
-  WriteLn('  SparkIsFS            : ' + BoolToStr(FContext.SparkIsFS, 'true', 'false'));
-  WriteLn('  ADFSInterleave       : ' + IntToStr(FContext.ADFSInterleave));
+  WriteLnColored('Current configuration settings', clBlue + clBold);
+  WriteLn('Not all configurations are used by the console.');
+  // Find the longest key name for alignment
+  Ptr := 1;
+  for Index := 0 to Length(Configs) - 1 do
+    if Length(Configs[Index, 0]) > Ptr then Ptr := Length(Configs[Index, 0]);
+  // Display current settings
+  for Index := 0 to Length(Configs) - 1 do
+  begin
+    WriteColored(PadRight(Configs[Index, 0], Ptr), clRed + clBold);
+    Write(': ');
+    if FSettings.KeyExists(Configs[Index, 0]) then
+      case Configs[Index, 1] of
+        'B': WriteLn(BoolToStr(FSettings.GetBool(Configs[Index, 0], False), 'True', 'False'));
+        'I': WriteLn('0x' + IntToHex(FSettings.GetInt(Configs[Index, 0], 0), 4));
+        'S': WriteLn(FSettings.GetString(Configs[Index, 0], ''));
+      end
+    else
+      WriteLnColored('Not set', clRed);
+  end;
 end;
 
 procedure TCLICommandProcessor.CmdSearch(const Params: TStringArray);
@@ -1332,8 +1645,11 @@ end;
 
 procedure TCLICommandProcessor.CmdDefrag(const Params: TStringArray);
 begin
-  // Defrag requires GUI infrastructure (progress display, node selection, etc.)
-  // and is not available in CLI mode
+  // TODO: Implement defrag in CLI mode. The GUI's Defrag method relies on
+  // TMainForm.ImportFiles which handles complex cross-format file re-importing
+  // with directory creation, attribute mapping, and format conversion.
+  // A CLI implementation would need to replicate this logic independently.
+  // See: MainUnit.pas TMainForm.Defrag and TMainForm.ImportFiles
   WriteLnColored('Defrag/compact is not available in CLI mode.', clRed);
   WriteLn('Please use the GUI application for this operation.');
 end;
@@ -1387,15 +1703,12 @@ begin
 
   CmdType := LowerCase(Params[0]);
 
-  // Validate hex number for exec/load
-  if (CmdType = 'exec') or (CmdType = 'load') then
+  // Validate hex number (matching GUI behavior - validates all three commands)
+  if IntToHex(StrToIntDef('$' + Params[2], 0), 8) <>
+     UpperCase(RightStr('00000000' + Params[2], 8)) then
   begin
-    if IntToHex(StrToIntDef('$' + Params[2], 0), 8) <>
-       UpperCase(RightStr('00000000' + Params[2], 8)) then
-    begin
-      WriteLnColored('Invalid hex number.', clRed);
-      Exit;
-    end;
+    WriteLnColored('Invalid hex number.', clRed);
+    Exit;
   end;
 
   Files := GetListOfFiles(Params[1]);
@@ -1406,25 +1719,25 @@ begin
       Temp := BuildFilename(Files[I]);
       Ok := False;
 
-      // Print the text
-      if CmdType = 'exec' then
+      // Print the text and perform action
+      if (CmdType = 'load') or (CmdType = 'exec') then
       begin
-        Write('Change execution address for ' + Temp + ' to 0x' +
+        Write('Change ' + CmdType + ' address for ' + Temp + ' to 0x' +
               IntToHex(StrToIntDef('$' + Params[2], 0), 8) + ' ');
-        Ok := FContext.Image.UpdateExecAddr(Temp, StrToIntDef('$' + Params[2], 0));
-      end
-      else if CmdType = 'load' then
-      begin
-        Write('Change load address for ' + Temp + ' to 0x' +
-              IntToHex(StrToIntDef('$' + Params[2], 0), 8) + ' ');
-        Ok := FContext.Image.UpdateLoadAddr(Temp, StrToIntDef('$' + Params[2], 0));
-      end
-      else if CmdType = 'type' then
-      begin
-        Write('Change filetype for ' + Temp + ' to 0x' +
-              IntToHex(StrToIntDef('$' + RightStr('000' + Params[2], 3), 0), 3) + ' ');
-        Ok := FContext.Image.ChangeFileType(Temp, Params[2]);
       end;
+      if CmdType = 'type' then
+      begin
+        Params[2] := RightStr('000' + Params[2], 3); // Ensure filetype is 12 bits
+        Write('Change filetype for ' + Temp + ' to 0x' +
+              IntToHex(StrToIntDef('$' + Params[2], 0), 3) + ' ');
+      end;
+      // Attempt to update details
+      if CmdType = 'exec' then
+        Ok := FContext.Image.UpdateExecAddr(Temp, StrToIntDef('$' + Params[2], 0));
+      if CmdType = 'load' then
+        Ok := FContext.Image.UpdateLoadAddr(Temp, StrToIntDef('$' + Params[2], 0));
+      if CmdType = 'type' then
+        Ok := FContext.Image.ChangeFileType(Temp, Params[2]);
 
       if Ok then
       begin
@@ -1538,10 +1851,12 @@ var
   SearchList: TSearchRec;
   I: Integer;
   FileList: TStringList;
+  LImage: TDiscImage;
+  CurrFile, CSVFilename: String;
 begin
   if Length(Params) < 2 then
   begin
-    WriteLnColored('Usage: filetocsv <imagepattern> [pattern2] ...', clRed);
+    WriteLnColored('Not enough parameters.', clRed);
     Exit;
   end;
 
@@ -1549,20 +1864,48 @@ begin
   try
     for I := 1 to Length(Params) - 1 do
     begin
-      if FindFirst(Params[I], faAnyFile and not faDirectory, SearchList) = 0 then
+      if FindFirst(Params[I], faAnyFile, SearchList) = 0 then
       begin
         repeat
           if (SearchList.Name <> '.') and (SearchList.Name <> '..') then
-            if FileExists(ExtractFilePath(Params[I]) + SearchList.Name) then
-              FileList.Add(ExtractFilePath(Params[I]) + SearchList.Name);
+            if (SearchList.Attr and faDirectory) <> faDirectory then
+              if FileExists(ExtractFilePath(Params[I]) + SearchList.Name) then
+                FileList.Add(ExtractFilePath(Params[I]) + SearchList.Name);
         until FindNext(SearchList) <> 0;
         FindClose(SearchList);
       end;
     end;
 
-    WriteLn('Processing ' + IntToStr(FileList.Count) + ' image(s).');
+    WriteLn('Processing images.');
     if FileList.Count > 0 then
-      WriteLnColored('filetocsv: CSV batch output not fully implemented in CLI.', clYellow)
+    begin
+      for I := 0 to FileList.Count - 1 do
+      begin
+        CurrFile := FileList[I];
+        // Calculate CSV output filename
+        CSVFilename := LeftStr(CurrFile,
+                       Length(CurrFile) - Length(ExtractFileExt(CurrFile))) + '.csv';
+        // If this is the currently loaded image, use its object
+        if (FContext.Image.FormatNumber <> diInvalidImg) and
+           (CurrFile = FContext.Image.Filename) then
+        begin
+          WriteCSVForImage(FContext.Image, CSVFilename);
+        end
+        else
+        begin
+          // Load a new image
+          LImage := TDiscImage.Create;
+          try
+            if LImage.LoadFromFile(CurrFile) then
+              WriteCSVForImage(LImage, CSVFilename)
+            else
+              WriteLnColored('Could not load image: ' + CurrFile, clRed);
+          finally
+            LImage.Free;
+          end;
+        end;
+      end;
+    end
     else
       WriteLn('No images found.');
   finally
@@ -1855,11 +2198,131 @@ begin
   end;
 end;
 
+procedure TCLICommandProcessor.WriteCSVForImage(LImage: TDiscImage;
+  const CSVFilename: String);
+var
+  F: TFileStream;
+  Dir, Entry: Integer;
+  Line: String;
+  HexLen: Byte;
+  Report: TStringList;
+  IncDir, IncFilename, IncReport: Boolean;
+  CSVParent, CSVFilenameCol, CSVLoadAddr, CSVExecAddr: Boolean;
+  CSVLength, CSVAttributes, CSVAddress, CSVCRC32, CSVMD5: Boolean;
+
+  procedure WriteCSVLine(const S: String);
+  var
+    LineBytes: String;
+  begin
+    LineBytes := S + LineEnding;
+    F.Write(LineBytes[1], Length(LineBytes));
+  end;
+
+begin
+  // Read CSV preference settings from registry (matching GUI behavior)
+  IncDir       := FSettings.GetBool('CSVIncDir',      False);
+  IncFilename  := FSettings.GetBool('CSVIncFilename',  True);
+  IncReport    := FSettings.GetBool('CSVIncReport',    True);
+  CSVParent    := FSettings.GetBool('CSVParent',       True);
+  CSVFilenameCol := FSettings.GetBool('CSVFilename',   True);
+  CSVLoadAddr  := FSettings.GetBool('CSVLoadAddr',     True);
+  CSVExecAddr  := FSettings.GetBool('CSVExecAddr',     True);
+  CSVLength    := FSettings.GetBool('CSVLength',       True);
+  CSVAttributes := FSettings.GetBool('CSVAttributes',  True);
+  CSVAddress   := FSettings.GetBool('CSVAddress',      False);
+  CSVCRC32     := FSettings.GetBool('CSVCRC32',        True);
+  CSVMD5       := FSettings.GetBool('CSVMD5',          False);
+
+  HexLen := 8;
+  if LImage.MajorFormatNumber = diAcornDFS then HexLen := 6;
+
+  try
+    F := TFileStream.Create(CSVFilename, fmCreate or fmShareDenyNone);
+    try
+      // Write image filename and CRC
+      if IncFilename then
+        WriteCSVLine(LImage.Filename.QuotedString('"') + ',"0x' + LImage.CRC32 + '"');
+      // Write report
+      if IncReport then
+      begin
+        Report := LImage.ImageReport(True);
+        try
+          if Report.Count > 0 then
+            for Dir := 0 to Report.Count - 1 do
+              WriteCSVLine(Report[Dir]);
+        finally
+          Report.Free;
+        end;
+      end;
+      // Write column headers
+      Line := '';
+      if CSVParent     then Line := Line + '"Parent",';
+      if CSVFilenameCol then Line := Line + '"Filename",';
+      if CSVLoadAddr   then Line := Line + '"Load Address",';
+      if CSVExecAddr   then Line := Line + '"Execution Address",';
+      if CSVLength     then Line := Line + '"Length",';
+      if CSVAttributes then Line := Line + '"Attributes",';
+      if CSVAddress    then Line := Line + '"Address",';
+      if CSVCRC32      then Line := Line + '"CRC32",';
+      if CSVMD5        then Line := Line + '"MD-5",';
+      Line := LeftStr(Line, Length(Line) - 1);
+      WriteCSVLine(Line);
+      // Write entries
+      for Dir := 0 to Length(LImage.Disc) - 1 do
+        for Entry := 0 to Length(LImage.Disc[Dir].Entries) - 1 do
+          if (LImage.Disc[Dir].Entries[Entry].DirRef = -1) or IncDir then
+          begin
+            Line := '';
+            if CSVParent then
+              Line := Line + LImage.GetParent(Dir).QuotedString('"') + ',';
+            if CSVFilenameCol then
+              Line := Line + LImage.Disc[Dir].Entries[Entry].Filename.QuotedString('"') + ',';
+            if CSVLoadAddr then
+              Line := Line + '"0x' +
+                      IntToHex(LImage.Disc[Dir].Entries[Entry].LoadAddr, HexLen) + '",';
+            if CSVExecAddr then
+              Line := Line + '"0x' +
+                      IntToHex(LImage.Disc[Dir].Entries[Entry].ExecAddr, HexLen) + '",';
+            if CSVLength then
+              Line := Line + '"0x' +
+                      IntToHex(LImage.Disc[Dir].Entries[Entry].Length, HexLen) + '",';
+            if CSVAttributes then
+              Line := Line + '"' + LImage.Disc[Dir].Entries[Entry].Attributes + '",';
+            if CSVAddress then
+              Line := Line + '"0x' +
+                      IntToHex(LImage.Disc[Dir].Entries[Entry].Sector, HexLen) + '",';
+            if CSVCRC32 then
+              Line := Line + '"0x' + LImage.GetFileCRC(
+                      LImage.GetParent(Dir)
+                      + LImage.GetDirSep(LImage.Disc[Dir].Partition)
+                      + LImage.Disc[Dir].Entries[Entry].Filename) + '",';
+            if CSVMD5 then
+              Line := Line + '"0x' + LImage.GetFileMD5(
+                      LImage.GetParent(Dir)
+                      + LImage.GetDirSep(LImage.Disc[Dir].Partition)
+                      + LImage.Disc[Dir].Entries[Entry].Filename) + '",';
+            Line := LeftStr(Line, Length(Line) - 1);
+            WriteCSVLine(Line);
+          end;
+      // Write footer
+      WriteCSVLine('""');
+      WriteCSVLine('"' + ApplicationTitle + ' v' + ApplicationVersion + '",'
+                   + '"by Gerald J Holdsworth",'
+                   + '"gerald@geraldholdsworth.co.uk"');
+    finally
+      F.Free;
+    end;
+    WriteLn('CSV output for ' + CSVFilename + ' complete.');
+  except
+    on E: Exception do
+      WriteLnColored('Failed to write file stream "' + CSVFilename
+                     + '": ' + E.Message, clRed);
+  end;
+end;
+
 procedure TCLICommandProcessor.CmdSaveCSV(const Params: TStringArray);
 var
   Filename: String;
-  CSVFile: TextFile;
-  I, J: Integer;
 begin
   if FContext.Image.FormatNumber = diInvalidImg then
   begin
@@ -1871,7 +2334,7 @@ begin
   if Length(Params) > 1 then
     Filename := Params[1]
   else
-    Filename := FContext.Filename;
+    Filename := FContext.Image.Filename;
 
   if Filename = '' then
   begin
@@ -1880,40 +2343,9 @@ begin
   end;
 
   // Ensure .csv extension
-  Filename := ChangeFileExt(Filename, '.csv');
+  Filename := LeftStr(Filename, Length(Filename) - Length(ExtractFileExt(Filename))) + '.csv';
 
-  AssignFile(CSVFile, Filename);
-  try
-    Rewrite(CSVFile);
-
-    // Write header
-    WriteLn(CSVFile, 'Parent,Filename,Attributes,LoadAddr,ExecAddr,Length,FileType');
-
-    // Write entries for all directories
-    for I := 0 to Length(FContext.Image.Disc) - 1 do
-    begin
-      for J := 0 to Length(FContext.Image.Disc[I].Entries) - 1 do
-      begin
-        with FContext.Image.Disc[I].Entries[J] do
-        begin
-          WriteLn(CSVFile,
-            '"' + Parent + '",' +
-            '"' + Filename + '",' +
-            '"' + Attributes + '",' +
-            IntToHex(LoadAddr, 8) + ',' +
-            IntToHex(ExecAddr, 8) + ',' +
-            IntToStr(Length) + ',' +
-            '"' + FileType + '"');
-        end;
-      end;
-    end;
-
-    CloseFile(CSVFile);
-    WriteLn('CSV output saved to ' + Filename);
-  except
-    on E: Exception do
-      WriteLnColored('Error writing CSV: ' + E.Message, clRed);
-  end;
+  WriteCSVForImage(FContext.Image, Filename);
 end;
 
 procedure TCLICommandProcessor.CmdStamp(const Params: TStringArray);
