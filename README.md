@@ -38,6 +38,6 @@ In order to compile Disc Image Manager, you will require the <a href="https://gi
 You might like to also check out the thread on <a href="https://stardot.org.uk/forums/viewtopic.php?f=12&t=21252">Stardot</a> concerning this project. I have also put this onto the <a href="http://eab.abime.net/index.php">English Amiga Board</a>.<br>
 <br>
 If you want, you can support this project, and others, by buying me a coffee (or a tea/beer/rum/etc.): https://ko-fi.com/geraldholdsworth<br>
-<br>
+
 ## DIM2: Virtual Image Manager
 <B>See <a href="https://github.com/geraldholdsworth/VirtualImageManager">here</a> for version 2 of Disc Image Manager - known as Virtual Image Manager</I>.</B>
