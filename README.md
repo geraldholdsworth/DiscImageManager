@@ -40,4 +40,4 @@ You might like to also check out the thread on <a href="https://stardot.org.uk/f
 If you want, you can support this project, and others, by buying me a coffee (or a tea/beer/rum/etc.): https://ko-fi.com/geraldholdsworth<br>
 
 ## DIM2: Virtual Image Manager
-<B>See <a href="https://github.com/geraldholdsworth/VirtualImageManager">here</a> for version 2 of Disc Image Manager - known as Virtual Image Manager</I>.</B>
+See <a href="https://github.com/geraldholdsworth/VirtualImageManager">here</a> for version 2 of Disc Image Manager - known as Virtual Image Manager.
