@@ -3,7 +3,7 @@ unit Utils;
 {$MODE Delphi}
 
 {
-Copyright (c) 2002-2025 Damien Guard.  
+Copyright (c) 2002-2025 Damien Guard.
 
 Originally from Disk Image Manager https://github.com/damieng/diskimagemanager
 Relicensed for this project under GNU GPL with permission.
@@ -27,6 +27,11 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
+  Classes, SysUtils
+  {$IFNDEF NO_GUI}
+  , Graphics, LCLIntf
+  {$ENDIF}
+  ;
   Classes, Graphics, LCLIntf, SysUtils, ComCtrls{, CommCtrl};
 
 const
@@ -35,8 +40,10 @@ const
     (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536);
   LVSCW_AUTOSIZE_BESTFIT = -3;
 
+{$IFNDEF NO_GUI}
 type
   TSpinBorderStyle = (bsRaised, bsLowered, bsNone);
+{$ENDIF}
   TDiskByteArray = array of byte;
 
 function StrInt(I: integer): string;
@@ -52,16 +59,23 @@ function CompareBlock(A: array of char; B: string): boolean;
 function CompareBlockStart(A: array of char; B: string; Start: integer): boolean;
 function CompareBlockInsensitive(A: array of char; B: string): boolean;
 
+{$IFNDEF NO_GUI}
 function FontToDescription(ThisFont: TFont): string;
 function FontFromDescription(Description: string): TFont;
 function FontHumanReadable(ThisFont: TFont): string;
 function FontCopy(ThisFont: TFont): TFont;
+{$ENDIF}
 
 function BlockShiftToBlockSize(BlockShift: byte): integer;
 function StrFileSize(Size: integer): string;
 function CompareByLength(List: TStringList; Index1, Index2: integer): integer;
 
+function HTTPEncode(const AStr: String): String;
+function HTTPDecode(const AStr: String): String;
+
+{$IFNDEF NO_GUI}
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
+{$ENDIF}
 procedure AutoResizeListView(const ListView: TListView;
   const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);
 
@@ -150,6 +164,7 @@ begin
   end;
 end;
 
+{$IFNDEF NO_GUI}
 // Draw a windows style 3D border
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
 var
@@ -251,6 +266,7 @@ function FontHumanReadable(ThisFont: TFont): string;
 begin
   Result := Trim(StringReplace(FontToDescription(ThisFont), ',', ' ', [rfReplaceAll]));
 end;
+{$ENDIF}
 
 function StrYesNo(IsEmpty: boolean): string;
 begin
@@ -351,6 +367,52 @@ var
 begin
   for i := 0 to ListView.Columns.Count - 1 do
     AutoResizeColumn(ListView.Columns[i], Mode);
+end;
+
+// HTTP/URL Encode a string (percent encoding)
+function HTTPEncode(const AStr: String): String;
+const
+  SafeChars: set of Char = ['A'..'Z', 'a'..'z', '0'..'9', '-', '_', '.', '~'];
+var
+  I: Integer;
+  Ch: Char;
+begin
+  Result := '';
+  for I := 1 to Length(AStr) do
+  begin
+    Ch := AStr[I];
+    if Ch in SafeChars then
+      Result := Result + Ch
+    else
+      Result := Result + '%' + IntToHex(Ord(Ch), 2);
+  end;
+end;
+
+// HTTP/URL Decode a string (percent decoding)
+function HTTPDecode(const AStr: String): String;
+var
+  I: Integer;
+  Ch: Char;
+  HexVal: Integer;
+begin
+  Result := '';
+  I := 1;
+  while I <= Length(AStr) do
+  begin
+    Ch := AStr[I];
+    if (Ch = '%') and (I + 2 <= Length(AStr)) then
+    begin
+      HexVal := StrToIntDef('$' + Copy(AStr, I + 1, 2), -1);
+      if HexVal >= 0 then
+      begin
+        Result := Result + Chr(HexVal);
+        Inc(I, 3);
+        Continue;
+      end;
+    end;
+    Result := Result + Ch;
+    Inc(I);
+  end;
 end;
 
 end.

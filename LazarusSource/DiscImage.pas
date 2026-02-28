@@ -39,8 +39,8 @@ with different filing systems. This is done to separate the systems and make
 maintenance easier.
 }
 
-uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,ExtCtrls,DateUtils,md5,
-  DskImage,FileSystem,HTTPProtocol,fpjson,DOM,XMLWrite;
+uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,DateUtils,md5,
+  DskImage,FileSystem,fpjson,DOM,XMLWrite,Utils;
 
 {$M+}
 
