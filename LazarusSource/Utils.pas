@@ -27,21 +27,25 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  Classes, Graphics, LCLIntf, SysUtils;
+  Classes, Graphics, LCLIntf, SysUtils, ComCtrls{, CommCtrl};
 
 const
   BytesPerKB: integer = 1024;
-  Power2: array[1..17] of integer = (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536);
+  Power2: array[1..17] of integer =
+    (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536);
+  LVSCW_AUTOSIZE_BESTFIT = -3;
 
 type
   TSpinBorderStyle = (bsRaised, bsLowered, bsNone);
+  TDiskByteArray = array of byte;
 
 function StrInt(I: integer): string;
 function StrHex(I: integer): string;
 function IntStr(S: string): integer;
 function StrBlockClean(S: array of byte; Start, Len: integer): string;
 function StrYesNo(IsEmpty: boolean): string;
-function StrInByteArray(ByteArray: array of byte; SubString: string; Start: integer): boolean;
+function StrInByteArray(ByteArray: array of byte; SubString: string;
+  Start: integer): boolean;
 function StrBufPos(ByteArray: array of byte; SubString: string): integer;
 
 function CompareBlock(A: array of char; B: string): boolean;
@@ -53,9 +57,13 @@ function FontFromDescription(Description: string): TFont;
 function FontHumanReadable(ThisFont: TFont): string;
 function FontCopy(ThisFont: TFont): TFont;
 
+function BlockShiftToBlockSize(BlockShift: byte): integer;
 function StrFileSize(Size: integer): string;
+function CompareByLength(List: TStringList; Index1, Index2: integer): integer;
 
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
+procedure AutoResizeListView(const ListView: TListView;
+  const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);
 
 implementation
 
@@ -73,8 +81,11 @@ end;
 
 // Get string as an integer
 function IntStr(S: string): integer;
+var
+  Code: integer;
 begin
-  Val(S, Result);
+  Val(S, Result, Code);
+  if Code <> 0 then Result := 0;
 end;
 
 // Extract ASCII string from a char array
@@ -125,7 +136,7 @@ end;
 function CompareBlockInsensitive(A: array of char; B: string): boolean;
 var
   Idx: integer;
-  AChar, BChar: Char;
+  AChar, BChar: char;
 begin
   Result := True;
   Idx := 0;
@@ -213,10 +224,11 @@ begin
   Break.DelimitedText := StringReplace(Description, ' ', '_', [rfReplaceAll]);
   Result := TFont.Create;
   Result.Name := StringReplace(Break[0], '_', ' ', [rfReplaceAll]);
-  Result.Size := IntStr(StringReplace(Break[1], 'pt', '', [rfReplaceAll]));
-  if (Break[1] = 'Bold') then
+  if Break.Count > 1 then
+    Result.Size := IntStr(StringReplace(Break[1], 'pt', '', [rfReplaceAll]));
+  if (Break.Count > 2) and (Break[2] = 'Bold') then
     Result.Style := Result.Style + [fsBold];
-  if (Break[2] = 'Italic') then
+  if (Break.Count > 3) and (Break[3] = 'Italic') then
     Result.Style := Result.Style + [fsItalic];
   Break.Free;
 end;
@@ -270,7 +282,8 @@ begin
   end;
 end;
 
-function StrInByteArray(ByteArray: array of byte; SubString: string; Start: integer): boolean;
+function StrInByteArray(ByteArray: array of byte; SubString: string;
+  Start: integer): boolean;
 var
   Idx, Last: integer;
 begin
@@ -286,17 +299,58 @@ begin
   end;
 end;
 
+function BlockShiftToBlockSize(BlockShift: byte): integer;
+begin
+  Result := 2 << (BlockShift + 6);
+end;
+
 function StrFileSize(Size: integer): string;
 const
-     Megabyte: integer = 1024 * 1024;
+  Megabyte: integer = 1024 * 1024;
 begin
   if Size < 1024 then
-     Result := Format('%d bytes', [Size])
+    Result := Format('%d bytes', [Size])
   else
-      if Size < Megabyte then
-         Result := Format('%d KB', [Size div 1024])
-      else
-          Result := Format('%d MB', [Size div Megabyte]);
+  if Size < Megabyte then
+    Result := Format('%d KB', [Size div 1024])
+  else
+    Result := Format('%d MB', [Size div Megabyte]);
+end;
+
+function CompareByLength(List: TStringList; Index1, Index2: integer): integer;
+begin
+  Result := Length(List[Index2]) - Length(List[Index1]);  // Longest first
+  if Result = 0 then
+    Result := CompareText(List[Index1], List[Index2]);  // Alphabetical if same length
+end;
+
+procedure AutoResizeColumn(const Column: TListColumn;
+  const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);
+var
+  Width: integer;
+begin
+{  case Mode of
+    LVSCW_AUTOSIZE_BESTFIT:
+    begin // Calculate thw widest of data or header and use that
+      Column.Width := LVSCW_AUTOSIZE;
+      Width := Column.Width;
+      Column.Width := LVSCW_AUTOSIZE_USEHEADER;
+      if Width > Column.Width then
+        Column.Width := LVSCW_AUTOSIZE;
+    end;
+
+    LVSCW_AUTOSIZE: Column.Width := LVSCW_AUTOSIZE;
+    LVSCW_AUTOSIZE_USEHEADER: Column.Width := LVSCW_AUTOSIZE_USEHEADER;
+  end;}
+end;
+
+procedure AutoResizeListView(const ListView: TListView;
+  const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);
+var
+  i: integer;
+begin
+  for i := 0 to ListView.Columns.Count - 1 do
+    AutoResizeColumn(ListView.Columns[i], Mode);
 end;
 
 end.

@@ -2550,6 +2550,7 @@ begin
   if Result then
    for zone:=0 to nzones-1 do
    begin
+    zoneptr:=zone*secsize;
     //Ensure the top bit is set on the first link for each zone
     WriteByte(ReadByte(bootmap+2+zoneptr)OR$80,bootmap+2+zoneptr);
     //Zone checks

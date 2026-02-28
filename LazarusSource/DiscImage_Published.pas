@@ -1935,6 +1935,7 @@ Create a Windows filename
 function TDiscImage.GetWindowsFilename(dir,entry: Integer): String;
 var
  extsep: Char='.';
+ Lext  : String='';
 begin
  Result:='';
  if(dir>=0)and(dir<Length(FDisc))then
@@ -1959,7 +1960,13 @@ begin
     if(GetMajorFormatNumber=diCommodore)                //Commodore
     or(GetMajorFormatNumber=diAmiga)
     or(FISOFormat=diAmiga)then extsep:='.';   //Amiga
-    Result:=Result+extsep+FDisc[dir].Entries[entry].ShortFileType;
+    //Remove any spurious spaces
+    Result:=Trim(Result);
+    //Create the new extension
+    Lext  :=extsep+FDisc[dir].Entries[entry].ShortFileType;
+    //Add it to the end, if it is different to what is there
+    if LowerCase(RightStr(Result,Length(Lext)))<>LowerCase(Lext) then
+     Result:=Result+Lext;
    end;
   end;
 end;
