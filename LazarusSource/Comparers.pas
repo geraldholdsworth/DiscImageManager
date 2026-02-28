@@ -70,24 +70,26 @@ end;
 function TryStrToFileBytes(const S: ansistring; out Value: integer): boolean;
 var
   Parts: array of string;
+  NumValue: integer;
 begin
   Result := False;
   Parts := S.Split(' ');
   if High(Parts) = 1 then
   begin
+    if not TryStrToInt(Parts[0], NumValue) then exit;
     if Parts[1] = 'bytes' then
     begin
-      Value := StrToInt(Parts[0]);
+      Value := NumValue;
       Result := True;
     end;
     if Parts[1] = 'KB' then
     begin
-      Value := StrToInt(Parts[0]) * 1024;
+      Value := NumValue * 1024;
       Result := True;
     end;
     if Parts[1] = 'MB' then
     begin
-      Value := StrToInt(Parts[0]) * 1024 * 1024;
+      Value := NumValue * 1024 * 1024;
       Result := True;
     end;
   end;
