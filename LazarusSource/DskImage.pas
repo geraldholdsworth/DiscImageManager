@@ -472,7 +472,7 @@ begin
   end
   else
   begin
-    MessageDlg('Load failure', FileName + ' is unknown file type. Load aborted.', mtWarning, [mbOK], 0);
+//    MessageDlg('Load failure', FileName + ' is unknown file type. Load aborted.', mtWarning, [mbOK], 0);
     Corrupt := True;
   end;
 end;
@@ -539,7 +539,7 @@ begin
   end;
 
   if NextSector = nil then
-    MessageDlg(SysUtils.Format('Cannot find "%s"', [Text]), mtInformation, [mbOK], 0)
+//    MessageDlg(SysUtils.Format('Cannot find "%s"', [Text]), mtInformation, [mbOK], 0)
   else
     Result := NextSector;
 end;
@@ -651,7 +651,7 @@ begin
               ErrorMessage := SysUtils.Format('Side %d track %d not found at offset %d to %d. Load stopped.',
                 [SIdx, TIdx, TOff, DiskFile.Position]);
               Messages.Add(ErrorMessage);
-              MessageDlg(ExtractFileName(FileName) + ': ' + ErrorMessage, mtError, [mbOK], 0);
+//              MessageDlg(ExtractFileName(FileName) + ': ' + ErrorMessage, mtError, [mbOK], 0);
               Corrupt := True;
               exit;
             end;
@@ -750,7 +750,7 @@ begin
   Result := False;
   if Corrupt then
   begin
-    MessageDlg('Image is corrupt. Save aborted.', mtError, [mbOK], 0);
+//    MessageDlg('Image is corrupt. Save aborted.', mtError, [mbOK], 0);
     exit;
   end;
 
@@ -760,7 +760,7 @@ begin
       diStandardDSK: Result := SaveFileDSK(DiskFile, diStandardDSK, False);
       diExtendedDSK: Result := SaveFileDSK(DiskFile, diExtendedDSK, Compress);
       else
-        MessageDlg(SysUtils.Format('Unknown file format %i', [SaveFileFormat]), mtError, [mbOK], 0);
+//        MessageDlg(SysUtils.Format('Unknown file format %i', [SaveFileFormat]), mtError, [mbOK], 0);
     end;
 
     FileSize := DiskFile.Size;
@@ -769,7 +769,7 @@ begin
   end;
 
   if not Result then
-    MessageDlg('Could not save file. Save aborted.', mtError, [mbOK], 0)
+//    MessageDlg('Could not save file. Save aborted.', mtError, [mbOK], 0)
   else
   if not Copy then
   begin

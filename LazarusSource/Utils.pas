@@ -31,8 +31,7 @@ uses
   {$IFNDEF NO_GUI}
   , Graphics, LCLIntf
   {$ENDIF}
-  ;
-  Classes, Graphics, LCLIntf, SysUtils, ComCtrls{, CommCtrl};
+  {, CommCtrl};
 
 const
   BytesPerKB: integer = 1024;
@@ -40,8 +39,8 @@ const
     (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536);
   LVSCW_AUTOSIZE_BESTFIT = -3;
 
+type            
 {$IFNDEF NO_GUI}
-type
   TSpinBorderStyle = (bsRaised, bsLowered, bsNone);
 {$ENDIF}
   TDiskByteArray = array of byte;
@@ -76,8 +75,8 @@ function HTTPDecode(const AStr: String): String;
 {$IFNDEF NO_GUI}
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
 {$ENDIF}
-procedure AutoResizeListView(const ListView: TListView;
-  const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);
+{procedure AutoResizeListView(const ListView: TListView;
+  const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);}
 
 implementation
 
@@ -340,12 +339,12 @@ begin
     Result := CompareText(List[Index1], List[Index2]);  // Alphabetical if same length
 end;
 
-procedure AutoResizeColumn(const Column: TListColumn;
+{procedure AutoResizeColumn(const Column: TListColumn;
   const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);
 var
   Width: integer;
 begin
-{  case Mode of
+  case Mode of
     LVSCW_AUTOSIZE_BESTFIT:
     begin // Calculate thw widest of data or header and use that
       Column.Width := LVSCW_AUTOSIZE;
@@ -357,7 +356,7 @@ begin
 
     LVSCW_AUTOSIZE: Column.Width := LVSCW_AUTOSIZE;
     LVSCW_AUTOSIZE_USEHEADER: Column.Width := LVSCW_AUTOSIZE_USEHEADER;
-  end;}
+  end;
 end;
 
 procedure AutoResizeListView(const ListView: TListView;
@@ -367,7 +366,7 @@ var
 begin
   for i := 0 to ListView.Columns.Count - 1 do
     AutoResizeColumn(ListView.Columns[i], Mode);
-end;
+end;}
 
 // HTTP/URL Encode a string (percent encoding)
 function HTTPEncode(const AStr: String): String;
