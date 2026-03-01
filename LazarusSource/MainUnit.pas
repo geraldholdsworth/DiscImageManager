@@ -410,7 +410,6 @@ type
                                                 Errors: Boolean=True): Integer;
   function IntToStrComma(size: Int64): String;
   procedure OpenImage(filename: String);
-  procedure ParseCommand(var Command: TStringArray);
   function QueryUnsaved: Boolean;
   procedure ReadInDirectory(Node: TTreeNode);
   procedure ReportError(error: String);
@@ -620,7 +619,7 @@ uses
   AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SearchUnit,
   CustomDialogueUnit,ErrorLogUnit,SettingsUnit,ImportSelectorUnit,
   PWordEditorUnit,AFSPartitionUnit,ChangeInterleaveUnit,CSVPrefUnit,
-  ImageReportUnit,ConsoleAppUnit;
+  ImageReportUnit;
 
 {-------------------------------------------------------------------------------
 Add a new file to the disc image
@@ -3086,8 +3085,6 @@ begin
  //Reset the changed variable
 // HasChanged               :=False;
 end;
-
-{$INCLUDE 'MainUnit_Console.pas'}
 
 {------------------------------------------------------------------------------}
 //Rescale all the components
@@ -7353,18 +7350,14 @@ procedure TMainForm.ReportError(error: String);
 begin
  //Remove the top bit, if present
  RemoveTopBit(error);
- if Fguiopen then
- begin
-  WriteToDebug('MainForm.ReportError('+error+')');
-  if ErrorReporting then
-   if Fstyling=RISCOSStyle then
-    CustomDialogue.ShowError(error,'')
-   else
-    MessageDlg(error,mtError,[mbOK],0)
+ WriteToDebug('MainForm.ReportError('+error+')');
+ if ErrorReporting then
+  if Fstyling=RISCOSStyle then
+   CustomDialogue.ShowError(error,'')
   else
-   ErrorLogForm.ErrorLog.Lines.Add(error);
- end
- else if ErrorReporting then WriteLn(cmdRed+error+cmdNormal);
+   MessageDlg(error,mtError,[mbOK],0)
+ else
+  ErrorLogForm.ErrorLog.Lines.Add(error);
 end;
 
 {------------------------------------------------------------------------------}
