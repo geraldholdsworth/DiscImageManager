@@ -36,7 +36,7 @@ var
  LSector: Integer=0;
  LFile  : Integer=0;
  LEntry : Integer=0;
- FDSKFS : TCPMFileSystem=nil;
+ FDSKFS : TDSKFileSystem=nil;
 begin
  Result      :=FDSKImage.Disk.Sides>0;
  if Result then
@@ -55,7 +55,7 @@ begin
   free_space[0]:=0;
   SetLength(disc_name     ,1);
   SetLength(FDisc         ,1);
-  FDSKFS:=TCPMFileSystem.Create(FDSKImage.Disk);
+  FDSKFS:=TDSKFileSystem.Create(FDSKImage.Disk);
   disc_name[0]:=FDSKFS.DiskLabel;
   //Root
   ResetDir(FDisc[0]);
@@ -176,14 +176,14 @@ Extract a file from a Spectrum image
 function TDiscImage.ExtractSpectrumFile(filename: String;
                                              var buffer: TDIByteArray): Boolean;
 var
- FDSKFS : TCPMFileSystem=nil;
+ FDSKFS : TDSKFileSystem=nil;
  dir    : Cardinal=0;
  entry  : Cardinal=0;
 begin
  Result:=False;
  if FileExists(filename,dir,entry)then
  begin
-  FDSKFS:=TCPMFileSystem.Create(FDSKImage.Disk);
+  FDSKFS:=TDSKFileSystem.Create(FDSKImage.Disk);
   buffer:=FDSKFS.Directory[FDisc[dir].Entries[entry].Sequence].GetData(False);
   FDSKFS.Free;
   Result:=True;

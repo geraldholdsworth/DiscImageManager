@@ -40,7 +40,7 @@ maintenance easier.
 }
 
 uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,DateUtils,md5,
-  DskImage,FileSystem,fpjson,DOM,XMLWrite,Utils;
+  DskImage,FileSystem,fpjson,DOM,XMLWrite;
 
 {$M+}
 

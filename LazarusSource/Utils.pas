@@ -3,7 +3,7 @@ unit Utils;
 {$MODE Delphi}
 
 {
-Copyright (c) 2002-2025 Damien Guard.
+Copyright (c) 2002-2025 Damien Guard.  
 
 Originally from Disk Image Manager https://github.com/damieng/diskimagemanager
 Relicensed for this project under GNU GPL with permission.
@@ -27,56 +27,35 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  Classes, SysUtils
-  {$IFNDEF NO_GUI}
-  , Graphics, LCLIntf
-  {$ENDIF}
-  {, CommCtrl};
+  Classes, Graphics, LCLIntf, SysUtils;
 
 const
   BytesPerKB: integer = 1024;
-  Power2: array[1..17] of integer =
-    (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536);
-  LVSCW_AUTOSIZE_BESTFIT = -3;
+  Power2: array[1..17] of integer = (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536);
 
-type            
-{$IFNDEF NO_GUI}
+type
   TSpinBorderStyle = (bsRaised, bsLowered, bsNone);
-{$ENDIF}
-  TDiskByteArray = array of byte;
 
 function StrInt(I: integer): string;
 function StrHex(I: integer): string;
 function IntStr(S: string): integer;
 function StrBlockClean(S: array of byte; Start, Len: integer): string;
 function StrYesNo(IsEmpty: boolean): string;
-function StrInByteArray(ByteArray: array of byte; SubString: string;
-  Start: integer): boolean;
+function StrInByteArray(ByteArray: array of byte; SubString: string; Start: integer): boolean;
 function StrBufPos(ByteArray: array of byte; SubString: string): integer;
 
 function CompareBlock(A: array of char; B: string): boolean;
 function CompareBlockStart(A: array of char; B: string; Start: integer): boolean;
 function CompareBlockInsensitive(A: array of char; B: string): boolean;
 
-{$IFNDEF NO_GUI}
 function FontToDescription(ThisFont: TFont): string;
 function FontFromDescription(Description: string): TFont;
 function FontHumanReadable(ThisFont: TFont): string;
 function FontCopy(ThisFont: TFont): TFont;
-{$ENDIF}
 
-function BlockShiftToBlockSize(BlockShift: byte): integer;
 function StrFileSize(Size: integer): string;
-function CompareByLength(List: TStringList; Index1, Index2: integer): integer;
 
-function HTTPEncode(const AStr: String): String;
-function HTTPDecode(const AStr: String): String;
-
-{$IFNDEF NO_GUI}
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
-{$ENDIF}
-{procedure AutoResizeListView(const ListView: TListView;
-  const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);}
 
 implementation
 
@@ -94,11 +73,8 @@ end;
 
 // Get string as an integer
 function IntStr(S: string): integer;
-var
-  Code: integer;
 begin
-  Val(S, Result, Code);
-  if Code <> 0 then Result := 0;
+  Val(S, Result);
 end;
 
 // Extract ASCII string from a char array
@@ -149,7 +125,7 @@ end;
 function CompareBlockInsensitive(A: array of char; B: string): boolean;
 var
   Idx: integer;
-  AChar, BChar: char;
+  AChar, BChar: Char;
 begin
   Result := True;
   Idx := 0;
@@ -163,7 +139,6 @@ begin
   end;
 end;
 
-{$IFNDEF NO_GUI}
 // Draw a windows style 3D border
 procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
 var
@@ -238,11 +213,10 @@ begin
   Break.DelimitedText := StringReplace(Description, ' ', '_', [rfReplaceAll]);
   Result := TFont.Create;
   Result.Name := StringReplace(Break[0], '_', ' ', [rfReplaceAll]);
-  if Break.Count > 1 then
-    Result.Size := IntStr(StringReplace(Break[1], 'pt', '', [rfReplaceAll]));
-  if (Break.Count > 2) and (Break[2] = 'Bold') then
+  Result.Size := IntStr(StringReplace(Break[1], 'pt', '', [rfReplaceAll]));
+  if (Break[1] = 'Bold') then
     Result.Style := Result.Style + [fsBold];
-  if (Break.Count > 3) and (Break[3] = 'Italic') then
+  if (Break[2] = 'Italic') then
     Result.Style := Result.Style + [fsItalic];
   Break.Free;
 end;
@@ -265,7 +239,6 @@ function FontHumanReadable(ThisFont: TFont): string;
 begin
   Result := Trim(StringReplace(FontToDescription(ThisFont), ',', ' ', [rfReplaceAll]));
 end;
-{$ENDIF}
 
 function StrYesNo(IsEmpty: boolean): string;
 begin
@@ -297,8 +270,7 @@ begin
   end;
 end;
 
-function StrInByteArray(ByteArray: array of byte; SubString: string;
-  Start: integer): boolean;
+function StrInByteArray(ByteArray: array of byte; SubString: string; Start: integer): boolean;
 var
   Idx, Last: integer;
 begin
@@ -314,104 +286,17 @@ begin
   end;
 end;
 
-function BlockShiftToBlockSize(BlockShift: byte): integer;
-begin
-  Result := 2 << (BlockShift + 6);
-end;
-
 function StrFileSize(Size: integer): string;
 const
-  Megabyte: integer = 1024 * 1024;
+     Megabyte: integer = 1024 * 1024;
 begin
   if Size < 1024 then
-    Result := Format('%d bytes', [Size])
+     Result := Format('%d bytes', [Size])
   else
-  if Size < Megabyte then
-    Result := Format('%d KB', [Size div 1024])
-  else
-    Result := Format('%d MB', [Size div Megabyte]);
-end;
-
-function CompareByLength(List: TStringList; Index1, Index2: integer): integer;
-begin
-  Result := Length(List[Index2]) - Length(List[Index1]);  // Longest first
-  if Result = 0 then
-    Result := CompareText(List[Index1], List[Index2]);  // Alphabetical if same length
-end;
-
-{procedure AutoResizeColumn(const Column: TListColumn;
-  const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);
-var
-  Width: integer;
-begin
-  case Mode of
-    LVSCW_AUTOSIZE_BESTFIT:
-    begin // Calculate thw widest of data or header and use that
-      Column.Width := LVSCW_AUTOSIZE;
-      Width := Column.Width;
-      Column.Width := LVSCW_AUTOSIZE_USEHEADER;
-      if Width > Column.Width then
-        Column.Width := LVSCW_AUTOSIZE;
-    end;
-
-    LVSCW_AUTOSIZE: Column.Width := LVSCW_AUTOSIZE;
-    LVSCW_AUTOSIZE_USEHEADER: Column.Width := LVSCW_AUTOSIZE_USEHEADER;
-  end;
-end;
-
-procedure AutoResizeListView(const ListView: TListView;
-  const Mode: integer = LVSCW_AUTOSIZE_BESTFIT);
-var
-  i: integer;
-begin
-  for i := 0 to ListView.Columns.Count - 1 do
-    AutoResizeColumn(ListView.Columns[i], Mode);
-end;}
-
-// HTTP/URL Encode a string (percent encoding)
-function HTTPEncode(const AStr: String): String;
-const
-  SafeChars: set of Char = ['A'..'Z', 'a'..'z', '0'..'9', '-', '_', '.', '~'];
-var
-  I: Integer;
-  Ch: Char;
-begin
-  Result := '';
-  for I := 1 to Length(AStr) do
-  begin
-    Ch := AStr[I];
-    if Ch in SafeChars then
-      Result := Result + Ch
-    else
-      Result := Result + '%' + IntToHex(Ord(Ch), 2);
-  end;
-end;
-
-// HTTP/URL Decode a string (percent decoding)
-function HTTPDecode(const AStr: String): String;
-var
-  I: Integer;
-  Ch: Char;
-  HexVal: Integer;
-begin
-  Result := '';
-  I := 1;
-  while I <= Length(AStr) do
-  begin
-    Ch := AStr[I];
-    if (Ch = '%') and (I + 2 <= Length(AStr)) then
-    begin
-      HexVal := StrToIntDef('$' + Copy(AStr, I + 1, 2), -1);
-      if HexVal >= 0 then
-      begin
-        Result := Result + Chr(HexVal);
-        Inc(I, 3);
-        Continue;
-      end;
-    end;
-    Result := Result + Ch;
-    Inc(I);
-  end;
+      if Size < Megabyte then
+         Result := Format('%d KB', [Size div 1024])
+      else
+          Result := Format('%d MB', [Size div Megabyte]);
 end;
 
 end.

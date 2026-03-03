@@ -200,7 +200,7 @@ begin
   if not ID_CDR      then //Commodore
   if not ID_Amiga    then //Amiga
   if not ID_DOSPlus  then //DOS plus
-  if not ID_Sinclair then //Sinclair/Amstrad
+//  if not ID_Sinclair then //Sinclair/Amstrad
   if not ID_CFS      then //Acorn CFS
   if not ID_RFS      then //Acorn RFS
   if not ID_MMB      then //MMFS

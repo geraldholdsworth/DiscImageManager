@@ -31,31 +31,32 @@ uses
   Classes, SysUtils, FGL;
 
 type
-  TCPMFile = class;
+  TDiskByteArray = array of byte;
+  TDSKFile = class;
 
-  TCPMFileSystem = class(TObject)
+  TDSKFileSystem = class(TObject)
   private
     FParentDisk: TDSKDisk;
     FEntryAllocationSize: TDSKAllocationSize;
 
-    procedure TryPlus3DOSHeader(Data: array of byte; DiskFile: TCPMFile);
-    procedure TryAMSDOSHeader(Data: array of byte; DiskFile: TCPMFile);
+    procedure TryPlus3DOSHeader(Data: array of byte; DiskFile: TDSKFile);
+    procedure TryAMSDOSHeader(Data: array of byte; DiskFile: TDSKFile);
   public
     DiskLabel: string;
 
     property EntryAllocationSize: TDSKAllocationSize read FEntryAllocationSize;
 
     function ReadLabelEntry(Data: array of byte; Offset: integer): string;
-    function ReadFileEntry(Data: array of byte; Offset: integer): TCPMFile;
-    function Directory: TFPGList<TCPMFile>;
+    function ReadFileEntry(Data: array of byte; Offset: integer): TDSKFile;
+    function Directory: TFPGList<TDSKFile>;
 
     constructor Create(ParentDisk: TDSKDisk);
     destructor Destroy; override;
   end;
 
-  TCPMFile = class(TObject)
+  TDSKFile = class(TObject)
   private
-    FParentFileSystem: TCPMFileSystem;
+    FParentFileSystem: TDSKFileSystem;
   public
     Blocks: TFPGList<integer>;
     FileName: string;
@@ -76,7 +77,7 @@ type
 
     function GetData(WithHeader: boolean): TDiskByteArray;
 
-    constructor Create(ParentFileSystem: TCPMFileSystem);
+    constructor Create(ParentFileSystem: TDSKFileSystem);
     destructor Destroy; override;
   end;
 
@@ -85,13 +86,13 @@ implementation
 
 // File system
 
-constructor TCPMFileSystem.Create(ParentDisk: TDSKDisk);
+constructor TDSKFileSystem.Create(ParentDisk: TDSKDisk);
 begin
   inherited Create;
   FParentDisk := ParentDisk;
 end;
 
-destructor TCPMFileSystem.Destroy;
+destructor TDSKFileSystem.Destroy;
 begin
   FParentDisk := nil;
   inherited Destroy;
@@ -108,22 +109,21 @@ const
   RECORD_COUNT_OFFSET: integer = 15;
   ALLOCATION_OFFSET: integer = 16;
 
-function CompareByExtent(const Item1, Item2: TCPMFile): integer;
+function CompareByExtent(const Item1, Item2: TDSKFile): integer;
 begin
   Result := Item1.Extent - Item2.Extent;
 end;
 
-function TCPMFileSystem.Directory: TFPGList<TCPMFile>;
+function TDSKFileSystem.Directory: TFPGList<TDSKFile>;
 const
   DIR_ENTRY_SIZE: integer = 32;
 var
   MaxEntries, SectorOffset: integer;
   Sector: TDSKSector;
-  Track: TDSKTrack;
   Spec: TDSKSpecification;
   Index: integer;
-  Extents: TFPGList<TCPMFile>;
-  PrimaryDiskFile, ExtentEntry, DiskFile: TCPMFile;
+  Extents: TFPGList<TDSKFile>;
+  PrimaryDiskFile, ExtentEntry, DiskFile: TDSKFile;
 begin
   Spec := FParentDisk.Specification;
   case Spec.Format of
@@ -135,12 +135,10 @@ begin
       MaxEntries := Spec.DirectoryBlocks * Spec.GetBlockSize() div DIR_ENTRY_SIZE;
   end;
 
-  Result := TFPGList<TCPMFile>.Create;
-  Extents := TFPGList<TCPMFile>.Create;
+  Result := TFPGList<TDSKFile>.Create;
+  Extents := TFPGList<TDSKFile>.Create;
 
-  Track := FParentDisk.GetLogicalTrack(Spec.ReservedTracks);
-  if Track = nil then exit;
-  Sector := Track.GetFirstLogicalSector();
+  Sector := FParentDisk.GetLogicalTrack(Spec.ReservedTracks).GetFirstLogicalSector();
   if Sector = nil then exit;
 
   SectorOffset := 0;
@@ -150,7 +148,6 @@ begin
     if (SectorOffset + DIR_ENTRY_SIZE > Sector.DataSize) then
     begin
       Sector := FParentDisk.GetNextLogicalSector(Sector);
-      if Sector = nil then break;
       SectorOffset := 0;
     end;
 
@@ -159,14 +156,10 @@ begin
       DiskFile := ReadFileEntry(Sector.Data, SectorOffset);
       DiskFile.EntryIndex := Index;
       if (DiskFile.FileName <> '') and (DiskFile.Blocks.Count > 0) then
-      begin
         if DiskFile.Extent = 0 then
           Result.Add(DiskFile)
         else
           Extents.Add(DiskFile);
-      end
-      else
-        DiskFile.Free;
     end;
 
     if Sector.Data[SectorOffset] = 32 then
@@ -191,24 +184,23 @@ begin
         break;
       end;
     end;
-    ExtentEntry.Free;
   end;
 
   Extents.Free;
 end;
 
-function TCPMFileSystem.ReadLabelEntry(Data: array of byte; Offset: integer): string;
+function TDSKFileSystem.ReadLabelEntry(Data: array of byte; Offset: integer): string;
 begin
   Result := StrBlockClean(Data, Offset + FILENAME_OFFSET, 11);
 end;
 
-function TCPMFileSystem.ReadFileEntry(Data: array of byte; Offset: integer): TCPMFile;
+function TDSKFileSystem.ReadFileEntry(Data: array of byte; Offset: integer): TDSKFile;
 var
   Extension: string;
   AllocBlock, AllocOffset: integer;
   Spec: TDSKSpecification;
 begin
-  Result := TCPMFile.Create(self);
+  Result := TDskFile.Create(self);
   Spec := FParentDisk.Specification;
 
   with Result do
@@ -262,7 +254,7 @@ begin
   end;
 end;
 
-procedure TCPMFileSystem.TryAMSDOSHeader(Data: array of byte; DiskFile: TCPMFile);
+procedure TDSKFileSystem.TryAMSDOSHeader(Data: array of byte; DiskFile: TDSKFile);
 var
   CalcCheckSum: word;
   Idx: integer;
@@ -296,7 +288,7 @@ begin
 
 end;
 
-procedure TCPMFileSystem.TryPlus3DOSHeader(Data: array of byte; DiskFile: TCPMFile);
+procedure TDSKFileSystem.TryPlus3DOSHeader(Data: array of byte; DiskFile: TDSKFile);
 var
   Sig: string;
   CalcChecksum: byte;
@@ -334,21 +326,21 @@ end;
 
 // File
 
-constructor TCPMFile.Create(ParentFileSystem: TCPMFileSystem);
+constructor TDSKFile.Create(ParentFileSystem: TDSKFileSystem);
 begin
   inherited Create;
   FParentFileSystem := ParentFileSystem;
   Blocks := TFPGList<integer>.Create;
 end;
 
-destructor TCPMFile.Destroy;
+destructor TDSKFile.Destroy;
 begin
   FParentFileSystem := nil;
   Blocks.Free;
   inherited Destroy;
 end;
 
-function TCPMFile.GetData(WithHeader: boolean): TDiskByteArray;
+function TDSKFile.GetData(WithHeader: boolean): TDiskByteArray;
 var
   Block, BytesLeft, TargetIdx, BlockSize, SectorsLeft, SectorsPerBlock: integer;
   Disk: TDSKDisk;
@@ -368,7 +360,6 @@ begin
   for Block in Blocks do
   begin
     Sector := Disk.GetSectorByBlock(Block);
-    if Sector = nil then break;
     SectorsLeft := SectorsPerBlock;
     repeat
       begin
@@ -393,7 +384,7 @@ begin
 
   // Strip any headers
   if (not WithHeader) and ((HeaderType = 'PLUS3DOS') or (HeaderType = 'AMSDOS')) then
-    Result := Copy(FileData, HeaderSize, Size - HeaderSize)
+    Result := Copy(FileData, HeaderSize, Size)
   else
     Result := Copy(FileData, 0, Size + HeaderSize);
 end;
