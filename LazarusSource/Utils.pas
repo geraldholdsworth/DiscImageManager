@@ -27,7 +27,7 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  Classes, Graphics, LCLIntf, SysUtils;
+  Classes{, Graphics, LCLIntf}, SysUtils;
 
 const
   BytesPerKB: integer = 1024;
@@ -48,14 +48,14 @@ function CompareBlock(A: array of char; B: string): boolean;
 function CompareBlockStart(A: array of char; B: string; Start: integer): boolean;
 function CompareBlockInsensitive(A: array of char; B: string): boolean;
 
-function FontToDescription(ThisFont: TFont): string;
+{function FontToDescription(ThisFont: TFont): string;
 function FontFromDescription(Description: string): TFont;
 function FontHumanReadable(ThisFont: TFont): string;
-function FontCopy(ThisFont: TFont): TFont;
+function FontCopy(ThisFont: TFont): TFont;}
 
 function StrFileSize(Size: integer): string;
 
-procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
+{procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);}
 
 implementation
 
@@ -140,7 +140,7 @@ begin
 end;
 
 // Draw a windows style 3D border
-procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
+{procedure DrawBorder(Canvas: TCanvas; var Rect: TRect; BorderStyle: TSpinBorderStyle);
 var
   OTL, ITL, OBR, IBR: TColor;
 begin
@@ -238,7 +238,7 @@ end;
 function FontHumanReadable(ThisFont: TFont): string;
 begin
   Result := Trim(StringReplace(FontToDescription(ThisFont), ',', ' ', [rfReplaceAll]));
-end;
+end;}
 
 function StrYesNo(IsEmpty: boolean): string;
 begin
