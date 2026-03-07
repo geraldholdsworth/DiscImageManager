@@ -7,7 +7,7 @@ There are five folders contained in the top level of this repository:<br>
 * Documentation : any relevant documentation for Disc Image Manager. Should not included reference material, with the exception of Guide To Disc Formats.<br>
 * Graphics : any graphics used in the GUI side of Disc Image Manager.<br>
 * LazarusSource : the source code.<br>
-<br>
+  
 ## Layout of code
 The code for dealing with the actual images is in the DiscImage unit, which is split into further files where they are then included into the main DiscImage unit. The main DiscImage unit just contains the class definitions, including the procedure/functions and properties.<br>
 <br>
@@ -16,7 +16,7 @@ General procedures and functions, which are part of the classes (as this include
 Code is invariably duplicated across these filing system files just to keep it all separate and easier to maintain.<br>
 <br>
 The other files are normal Lazarus units with lfm form definition files. Disc Image Manager version 1 can also be started up in console mode, and this is dealt with by the DiscImageManager.lpr file. There is another file, containing a class, used for the Console Mode - ConsoleAppUnit. When in Console Mode, the code calls routines in MainUnit so, therefore, there is also a MainUnit_Console include file.<br>
-<br>
+
 ## Other code
 There are other files, which were taken (with the author's permission) from Disk Image Manager used for reading in the DSK format (for Amstrad CPC and Sinclair Spectrum +3). These files are:<br>
 * Comparers.pas<br>
