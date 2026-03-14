@@ -19,8 +19,7 @@ Currently working on:<br>
 • SJ Research MDFS<br>
 • Multiple images open simultaenously<br>
 <br>
-The DSK Image section, for reading Sinclair/Amstrad images, was written by Damien Guard and taken from his <a href="https://github.com/damieng/DiskImageManager">Disk Image Manager</a>, which is also written in Lazarus.<br>
-<br>
+## Instructions
 <a href="https://github.com/geraldholdsworth/DiscImageManager/blob/main/Documentation/Disc%20Image%20Manager%20User%20Guide.pdf">Full instructions, in PDF format</a>, are provided within the documentation folder.
 <br>
 For images in HFE format, I recommend you use <a href="https://sourceforge.net/projects/hxcfloppyemu/">HxC Floppy Emulator</a> to export the file in a format that Disc Image Manager understands.<br>
@@ -28,13 +27,13 @@ For images in HFE format, I recommend you use <a href="https://sourceforge.net/p
 For some reason, despite my best attempts, running the ARM version of Disc Image Manager on an ARM Mac results in <i>"Disc Image Manager" is damaged and can't be opened. You should eject the disc image</i>. To get around this, Extract the application from the DMG, then go to Terminal and enter:<br>
 <B>cd path/to/application</B><br>
 <B>xattr -cr "Disc Image Manager.app"</B><br>
-<hr>
+## Other Projects
 Another project that may interest users of Disc Image Manager is a test tool I wrote for UEF files - <a href="https://github.com/geraldholdsworth/UEFReader">UEF Reader</a>. The results of this project paved the way for UEF files to be read by Disc Image Manager.<br>
-<br>
+## Compiling
 In order to compile Disc Image Manager, you will require the <a href="https://github.com/geraldholdsworth/SpriteToBitmap">TSpriteFile class</a> (specifically the files SpriteFile.pas and SpriteFilePalettes.pas), and the <a href="https://github.com/geraldholdsworth/GJHCustomComponents">TGJHCustomComponents class</a> (specifically the files GJHCustomComponents.pas, ButtonGraphics.pas, PointerGraphics.pas, RadioBoxGraphics.pas and TickBoxGraphics.pas).<br>
 <br>
   Project was written in <a href="https://www.lazarus-ide.org">Lazarus</a>. Binaries are available for macOS 32 bit, 64 bit &amp; ARM, Windows 32 &amp; 64 bit, and Linux 32 bit, 64 bit, ARM 64 bit &amp; ARM 32 bit. Full source is available if you wish to compile for other systems.<br>
-<br>
+## Discussion
 You might like to also check out the thread on <a href="https://stardot.org.uk/forums/viewtopic.php?f=12&t=21252">Stardot</a> concerning this project. I have also put this onto the <a href="http://eab.abime.net/index.php">English Amiga Board</a>.<br>
 <br>
 If you want, you can support this project, and others, by buying me a coffee (or a tea/beer/rum/etc.): https://ko-fi.com/geraldholdsworth<br>
