@@ -25,8 +25,6 @@ A copy of the GNU General Public Licence is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
-
-DSK Image modules written by Damien Guard
 }
 
 {$MODE objFPC}{$H+}
@@ -260,6 +258,7 @@ type
   cb_Sinclair_system, //Sinclair
   cb_Sinclair_readonly,
   cb_Sinclair_archive,
+  cb_Sinclair_deleted,
   cb_ISO_hidden,
   cb_ISO_associated,
   cb_Amiga_othd, //Amiga
@@ -600,7 +599,7 @@ type
    DesignedDPI        = 96;
    //Application Title
    ApplicationTitle   = 'Disc Image Manager';
-   ApplicationVersion = '1.49.3';
+   ApplicationVersion = '1.50';
    //Current platform and architecture (compile time directive)
    TargetOS  = {$I %FPCTARGETOS%};
    TargetCPU = {$I %FPCTARGETCPU%};
@@ -2150,10 +2149,12 @@ begin
    cb_Sinclair_readonly.Top :=SinclairAttributeLabel.Top+SinclairAttributeLabel.Height;
    cb_Sinclair_system.Top   :=cb_Sinclair_readonly.Top;
    cb_Sinclair_archive.Top  :=cb_Sinclair_readonly.Top;
-   cbpos:=EquallySpace(3); //Equally space them
+   cb_Sinclair_deleted.Top  :=cb_Sinclair_readonly.Top;
+   cbpos:=EquallySpace(4); //Equally space them
    cb_Sinclair_readonly.Left :=cbpos*0;
    cb_Sinclair_system.Left   :=cbpos*1;
    cb_Sinclair_archive.Left  :=cbpos*2;
+   cb_Sinclair_deleted.Left  :=cbpos*3;
    //And change the panel height to accomodate
    SinclairAttrPanel.Height:=cb_Sinclair_readonly.Top+cb_Sinclair_readonly.Height;
   end;
@@ -2457,7 +2458,7 @@ begin
     end;
    end;
    //Then, get the filename and filetype of the file...not root directory
-   if(dir>=0)and(entry>=0)then
+   if(dir>=0)and(entry>=0)and(dir<>$FFFF)and(Entry<>$FFFF)then
    begin
     filename:=Image.Disc[dir].Entries[entry].Filename;
     //Attributes
@@ -2516,8 +2517,9 @@ begin
     begin
      //Tick/untick them
      cb_Sinclair_readonly.Ticked:=Pos('R',temp)>0;
-     cb_Sinclair_system.Ticked  :=Pos('S',temp)>0;
+     cb_Sinclair_system.Ticked  :=Pos('H',temp)>0;
      cb_Sinclair_archive.Ticked :=Pos('A',temp)>0;
+     cb_Sinclair_deleted.Ticked :=Pos('D',temp)>0;
     end;
     //Commodore 64
     if Image.MajorFormatNumber=diCommodore then
@@ -2685,7 +2687,8 @@ begin
    or(Image.MajorFormatNumber=diAmiga)     //AmigaDOS
    or(Image.MajorFormatNumber=diSpark)     //Spark
    or(Image.MajorFormatNumber=diAcornFS)   //Acorn FS
-   or(Image.MajorFormatNumber=diDOSPlus)   //DOS Plya
+   or(Image.MajorFormatNumber=diDOSPlus)   //DOS Plus
+   or(Image.MajorFormatNumber=diSinclair)  //Sinclair/Amstrad
    or(Image.ISOFormatNumber=diAcornADFS)then//ISO (ADFS)
     lb_FileType.Caption:=filetype;
    location:=''; //Default location string
@@ -2766,9 +2769,11 @@ begin
               +IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
     //Sinclair - indicates Side, Track and Sector
     if Image.MajorFormatNumber=diSinclair then
-     location:= 'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side)
+     location:=' Starting Cluster: 0x'
+              +IntToHex(Image.Disc[dir].Entries[entry].Clusters[0],4);
+{     location:= 'Side '  +IntToStr(Image.Disc[dir].Entries[entry].Side)
               +' Track ' +IntToStr(Image.Disc[dir].Entries[entry].Track)
-              +' Sector '+IntToStr(Image.Disc[dir].Entries[entry].Sector);
+              +' Sector '+IntToStr(Image.Disc[dir].Entries[entry].Sector);}
     //ISO - Block number
     if Image.MajorFormatNumber=diISO then
      location:='Block 0x'+IntToHex(Image.Disc[dir].Entries[entry].Sector,8);
@@ -2935,7 +2940,7 @@ begin
    end;
   end;
   Result:=ft;
- end;
+ end else WriteToDebug('MainForm.GetImageIndex: File not found');
 end;
 
 {------------------------------------------------------------------------------}
@@ -3181,8 +3186,9 @@ begin
  cb_DOS_archive      :=CreateTickBox('Archive'   ,DOSAttrPanel);
  //Create the attribute panel tick boxes (Sinclair)
  cb_Sinclair_readonly:=CreateTickBox('Read Only' ,SinclairAttrPanel);
- cb_Sinclair_system  :=CreateTickBox('System'    ,SinclairAttrPanel);
+ cb_Sinclair_system  :=CreateTickBox('Hidden'    ,SinclairAttrPanel);
  cb_Sinclair_archive :=CreateTickBox('Archive'   ,SinclairAttrPanel);
+ cb_Sinclair_deleted :=CreateTickBox('Deleted'   ,SinclairAttrPanel);
  //Create the attribute panel tick boxes (Amiga)
  cb_Amiga_ownw       :=CreateTickBox('Write'     ,AmigaAttrPanel);
  cb_Amiga_ownr       :=CreateTickBox('Read'      ,AmigaAttrPanel);
@@ -3316,6 +3322,7 @@ begin
  cb_Sinclair_system.NativeOS  :=Fstyling=NativeStyle;
  cb_Sinclair_readonly.NativeOS:=Fstyling=NativeStyle;
  cb_Sinclair_archive.NativeOS :=Fstyling=NativeStyle;
+ cb_Sinclair_deleted.NativeOS :=Fstyling=NativeStyle;
  cb_ISO_hidden.NativeOS       :=Fstyling=NativeStyle;
  cb_ISO_associated.NativeOS   :=Fstyling=NativeStyle;
  cb_Amiga_othd.NativeOS       :=Fstyling=NativeStyle;
@@ -6655,6 +6662,7 @@ begin
    Result:=Node.Text+Image.GetDirSep(TMyTreeNode(Node).Partition)+Result;
   end;
  end;
+ WriteToDebug('MainForm.GetFilePath Result: '+Result);
 end;
 
 {------------------------------------------------------------------------------}
@@ -7171,6 +7179,7 @@ begin
  cb_Sinclair_system.Ticked  :=False;
  cb_Sinclair_readonly.Ticked:=False;
  cb_Sinclair_archive.Ticked :=False;
+ cb_Sinclair_deleted.Ticked :=False;
  cb_Amiga_othd.Ticked       :=False;
  cb_Amiga_arch.Ticked       :=False;
  cb_Amiga_othe.Ticked       :=False;

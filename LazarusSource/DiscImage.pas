@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.49 and TSpark class V1.06
+TDiscImage class V1.50 and TSpark class V1.06
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -24,8 +24,6 @@ A copy of the GNU General Public Licence is available on the World Wide Web
 at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
 to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1335, USA.
-
-DSK Image modules written by Damien Guard
 }
 
 {$MODE objFPC}{$H+}
@@ -39,23 +37,24 @@ with different filing systems. This is done to separate the systems and make
 maintenance easier.
 }
 
-uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,DateUtils,md5,
-  DskImage,FileSystem,fpjson,DOM,XMLWrite;
+uses Classes,Math,crc,ZStream,StrUtils,SysUtils,Zipper,DateUtils,md5,fpjson,DOM,
+  XMLWrite;
 
 {$M+}
 
 type
 //Define the TDIByteArray - saves using the System.Types unit for TByteDynArray
  TDIByteArray = array of Byte;
-
+//Type of file header for DSK
+ TDSKHeaderType = (diNone,diSOFT968,diPLUS3DOS,diOther);
 //Define the records to hold the catalogue
  TDirEntry     = record     //Not all fields are used on all formats
   Parent,                   //Complete path for parent directory (ALL)
   Filename,                 //Filename (ALL)
   ShortFilename,            //Long Filename (DOS)
-  Attributes,               //File attributes (ADFS/DFS/D64/D71/D81/AmigaDOS)
+  Attributes,               //File attributes (ADFS/DFS/D64/D71/D81/AmigaDOS/DSK)
   Filetype,                 //Full name filetype (ADFS/D64/D71/D81)
-  ShortFileType: String;    //Filetype shortname (ADFS/D64/D71/D81)
+  ShortFileType: String;    //Filetype shortname (ADFS/D64/D71/D81) or extension (DOS/DSK)
   LoadAddr,                 //Load Address (ADFS/DFS)
   ExecAddr,                 //Execution Address (ADFS/DFS)
   Length,                   //Total length (ALL)
@@ -69,6 +68,9 @@ type
   TimeStamp   : TDateTime;  //Timestamp (ADFS D/E/E+/F/F+)
   isDOSPart   : Boolean;    //This file is the DOS partition
   Sequence    : Byte;       //Sequence number for the file (ADFS S/M/L)
+  UserNumber  : Byte;       //User number (DSK)
+  Clusters    : array of Word;//Cluster numbers of where to find the file (DSK)
+  HeaderType  : TDSKHeaderType;//Header type on file (DSK)
  end;
  TSearchResults =array of TDirEntry;
 
@@ -299,6 +301,37 @@ type
    DateExp     : TDateTime;
    DateUse     : TDateTime;
   end;
+  //For use with DSK images
+  TDSKSector = record
+   ID        : Byte;
+   Size      : Word;
+   Offset    : Cardinal;
+  end;
+  //For use with DSK images
+  TDSKTrack = record
+   Sectors   : array of TDSKSector;
+   Offset    : Cardinal;
+   Size      : Word;
+   Number    : Byte;
+   Side      : Byte;
+   Filler    : Byte;
+   Sector    : Word;
+   Boot      : Boolean;
+   BootSize  : Byte;
+   Valid     : Boolean;
+  end;
+  //For use with DSK images
+  TDSKImage = record
+//   Creator    : String;
+   Reserved   : array[0..1] of Integer;
+   NumTracks  : Word;
+   Sides      : Byte;
+   Tracks     : array of TDSKTrack;
+   Capacity   : Cardinal;
+   Used       : Cardinal;
+   DataAreas  : Byte;
+   NumBlocks  : Word;
+  end;
   //Collection of directories
   TDisc         = array of TDir;
   //Partitions
@@ -411,6 +444,7 @@ type
   FATType,                      //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
   DOSVersion,                   //Version of DOS being used (0, $28 or $29)
   NumFATs       : Byte;         //Number of FATs in a DOS Plus image
+  FCreator,
   Fcopyright,
   Fversion,
   root_name,                    //Root title
@@ -664,6 +698,11 @@ type
   //Sinclair Spectrum +3/Amstrad Routines
   function ID_Sinclair: Boolean;
   function ReadSinclairDisc: Boolean;
+  function ConvertDSKAttributes(ReadOnly,Hidden,Archive,Deleted:Boolean):String;
+  function GetDSKOffset(Cluster: Word;Side: Byte;First:Boolean=True): Cardinal;
+  function GetDSKTrackSector(Cluster: Word;Side:Byte;First:Boolean=True): Word;
+  function CheckForDSKBoot(Ptr: Cardinal): Boolean;
+  function GetDSKHeaderType(Ptr: Cardinal;out len: Cardinal): TDSKHeaderType;
   function FormatSpectrum(minor: Byte): Boolean;
   function WriteSpectrumFile(file_details: TDirEntry;
                                              var buffer: TDIByteArray): Integer;
@@ -997,6 +1036,7 @@ type
   property CRC32:               String        read GetImageCrc;
   property CreateDSC:           Boolean       read FcreateDSC
                                               write FcreateDSC;
+  property Creator:             String        read FCreator;
   property DefaultDiscTitle:    String        read Fdisctitle
                                               write SetDefaultDiscTitle;
   property DefaultAFSDiscTitle: String        read Fafsdisctitle

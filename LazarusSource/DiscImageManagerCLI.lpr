@@ -40,7 +40,7 @@ type
     FScriptOpen: Boolean;
     procedure OpenScript(const ScriptName: String);
     procedure ReadInput(var Input: String);
-    function DetectColorSupport: Boolean;
+    function DetectColourSupport: Boolean;
     function FindPositionalArg: String;
   protected
     procedure DoRun; override;
@@ -111,20 +111,20 @@ begin
   end;
 end;
 
-function TDiscImageManagerCLI.DetectColorSupport: Boolean;
+function TDiscImageManagerCLI.DetectColourSupport: Boolean;
 var
   Term: String;
 begin
   Result := False;
   {$IFDEF UNIX}
   Term := GetEnvironmentVariable('TERM');
-  Result := (Term <> '') and (Pos('color', LowerCase(Term)) > 0) or
+  Result := (Term <> '') and (Pos('colour', LowerCase(Term)) > 0) or
             (Pos('xterm', LowerCase(Term)) > 0) or
             (Pos('linux', LowerCase(Term)) > 0) or
             (Pos('ansi', LowerCase(Term)) > 0);
   {$ENDIF}
   {$IFDEF WINDOWS}
-  // Windows 10+ supports ANSI colors
+  // Windows 10+ supports ANSI colours
   Result := True;
   {$ENDIF}
 end;
@@ -189,8 +189,8 @@ begin
     Exit;
   end;
 
-  // Detect color support
-  FProcessor.UseColors := DetectColorSupport and not HasOption('n', 'no-color');
+  // Detect colour support
+  FProcessor.UseColors := DetectColourSupport and not HasOption('n', 'no-colour');
 
   // Print header
   if FProcessor.UseColors then
@@ -275,7 +275,7 @@ begin
   WriteLn('  -h, --help              Show this help message');
   WriteLn('  -e, --execute <cmd>     Execute a single command and exit');
   WriteLn('  -s, --script <file>     Run commands from a script file');
-  WriteLn('  -n, --no-color          Disable colored output');
+  WriteLn('  -n, --no-colour         Disable coloured output');
   WriteLn;
   WriteLn('Examples:');
   WriteLn('  ', ExeName, ' mydisk.ssd            Open mydisk.ssd');

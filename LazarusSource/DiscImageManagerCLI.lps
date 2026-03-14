@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <Version Value="12"/>
+    <BuildModes Active="Release macOS ARM"/>
+    <Units Count="8">
+      <Unit0>
+        <Filename Value="DiscImageManagerCLI.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
+        <TopLine Value="214"/>
+        <CursorPos X="49" Y="293"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="DiscImage.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UsageCount Value="21"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="DiscImageContext.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="2"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="CLICommands.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="1"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="DskImage.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="4"/>
+        <TopLine Value="729"/>
+        <CursorPos X="3" Y="772"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="Global.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UsageCount Value="21"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="filesystem.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="FileSystem"/>
+        <UsageCount Value="21"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="Utils.pas"/>
+        <EditorIndex Value="3"/>
+        <CursorPos X="6" Y="369"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit7>
+    </Units>
+    <JumpHistory Count="16" HistoryIndex="15">
+      <Position1>
+        <Filename Value="DiscImageManagerCLI.lpr"/>
+        <Caret Line="278" Column="27" TopLine="230"/>
+      </Position1>
+      <Position2>
+        <Filename Value="DiscImageManagerCLI.lpr"/>
+        <Caret Line="43" Column="21"/>
+      </Position2>
+      <Position3>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="34" Column="3" TopLine="10"/>
+      </Position3>
+      <Position4>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="46" Column="20" TopLine="22"/>
+      </Position4>
+      <Position5>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="43" Column="17" TopLine="22"/>
+      </Position5>
+      <Position6>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="79" Column="50" TopLine="54"/>
+      </Position6>
+      <Position7>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="360" Column="6" TopLine="318"/>
+      </Position7>
+      <Position8>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="369" Column="6" TopLine="338"/>
+      </Position8>
+      <Position9>
+        <Filename Value="DskImage.pas"/>
+        <Caret Line="475" Column="3" TopLine="452"/>
+      </Position9>
+      <Position10>
+        <Filename Value="DskImage.pas"/>
+        <Caret Line="542" Column="3" TopLine="518"/>
+      </Position10>
+      <Position11>
+        <Filename Value="DskImage.pas"/>
+        <Caret Line="654" Column="3" TopLine="630"/>
+      </Position11>
+      <Position12>
+        <Filename Value="DskImage.pas"/>
+        <Caret Line="753" Column="5" TopLine="729"/>
+      </Position12>
+      <Position13>
+        <Filename Value="DskImage.pas"/>
+        <Caret Line="772" Column="3" TopLine="729"/>
+      </Position13>
+      <Position14>
+        <Filename Value="DiscImageManagerCLI.lpr"/>
+        <Caret Line="196" Column="24" TopLine="173"/>
+      </Position14>
+      <Position15>
+        <Filename Value="DiscImageManagerCLI.lpr"/>
+        <Caret Line="260" Column="17" TopLine="236"/>
+      </Position15>
+      <Position16>
+        <Filename Value="DiscImageManagerCLI.lpr"/>
+        <Caret Line="205"/>
+      </Position16>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode=""/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>

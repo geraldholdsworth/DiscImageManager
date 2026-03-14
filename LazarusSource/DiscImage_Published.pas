@@ -82,7 +82,6 @@ Free the instance
 -------------------------------------------------------------------------------}
 destructor TDiscImage.Destroy;
 begin
- if FDSKImage<>nil then FDSKImage.Free;
  Close;
  inherited;
 end;
@@ -200,7 +199,7 @@ begin
   if not ID_CDR      then //Commodore
   if not ID_Amiga    then //Amiga
   if not ID_DOSPlus  then //DOS plus
-//  if not ID_Sinclair then //Sinclair/Amstrad
+  if not ID_Sinclair then //Sinclair/Amstrad
   if not ID_CFS      then //Acorn CFS
   if not ID_RFS      then //Acorn RFS
   if not ID_MMB      then //MMFS
@@ -618,7 +617,7 @@ begin
  dir:=$FFFF;
  entry:=$FFFF;
  Result:=FileExists(filename,dir,entry,sfn);
- Ref:=dir*$10000+entry;
+ Ref:=dir<<16+entry;
 end;
 function TDiscImage.FileExists(filename: String;var dir,entry: Integer;sfn: Boolean=False): Boolean;
 var
@@ -626,8 +625,8 @@ var
  Lentry:Cardinal=0;
 begin
  Result:=FileExists(filename,Ldir,Lentry,sfn);
- if dir=$FFFF then dir:=-1 else dir:=Ldir;
- if entry=$FFFF then entry:=-1 else entry:=Lentry;
+ if Ldir=$FFFF   then dir  :=-1 else dir  :=Ldir;
+ if Lentry=$FFFF then entry:=-1 else entry:=Lentry;
 end;
 function TDiscImage.FileExists(filename: String;var dir,entry: Cardinal;sfn: Boolean=False): Boolean;
 var
@@ -656,7 +655,9 @@ begin
  if Length(filename)=0 then exit;
  //For the root, we'll just return a default value
  if(filename=root_name)
- or((GetMajorFormatNumber=diAcornDFS)and(filename.EndsWith(root_name)))then
+ or((GetMajorFormatNumber=diAcornDFS)and(filename.EndsWith(root_name)))
+ or((GetMajorFormatNumber=diSinclair)and(filename.StartsWith(root_name))
+  and(Length(filename)=4))then
  begin
   dir:=$FFFF;
   entry:=$FFFF;

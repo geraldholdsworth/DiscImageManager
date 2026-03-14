@@ -1077,13 +1077,14 @@ New or improved features
 * Tightened up the hex number detection when parsing *.inf files.
 * Added a preferences option not to use RISC OS styling of the windows and controls, and to use the native OS styling instead.
 * Tightened up the error handling routines when opening data files.
-* Incorporated version 2.9.0 of DSKImage from Damien Guard.
+* Removed DSKImage and replaced with our own code to read Sinclair and Amstrad DSK images.
 
 Bug fixes
 * In 1.49 the reading of a string from a data file was changed which caused spurious characters to be suffixed to filenames in some images. This was reverted, but may now have broken something else.
 * Zero length files in UEF images could cause the application to hang.
 * When writing to multi-zone ADFS images, the free space map zone checksums were not getting updated correctly.
 * Extracting files to the local system sometimes resulted in double extensions and extra spurious spaces.
+* The "find file" function would sometimes return the wrong result.
 
 Platform History
 ----------------

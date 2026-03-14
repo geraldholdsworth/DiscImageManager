@@ -431,7 +431,7 @@ begin
   //Now we know the size of the directory, we can read in the tail
   tail:=dirsize-tail;
   //And mark it on the Free Space Map
-  for amt:=0 to dirsize do ADFSFillFreeSpaceMap(amt,$FD);
+  for amt:=0 to dirsize do ADFSFillFreeSpaceMap(amt,diFSMDir);
   //Not all of the tail is read in
   case FDirType of
    diADFSOldDir:
@@ -1200,7 +1200,7 @@ begin
       SetLength(free_space_map[0,c],secspertrack{*(secsize div $100)});
      //Set them all to be uesd, for now.
      for d:=0 to Length(free_space_map[0,c])-1 do
-      free_space_map[0,c,d]:=$FF;
+      free_space_map[0,c,d]:=diFSMUsed;
     end;
    //Update progress
 //   UpdateProgress('Reading ADFS Free Space Map..');
@@ -1215,11 +1215,11 @@ begin
       for p:=0 to Length(FDisc[d].Entries)-1 do
        if FDisc[d].Entries[p].DirRef<>-1 then
         for f:=0 to FDisc[d].Entries[p].Length-1 do
-         ADFSFillFreeSpaceMap(FDisc[d].Entries[p].Sector*$100+f,$FD);
+         ADFSFillFreeSpaceMap(FDisc[d].Entries[p].Sector*$100+f,diFSMDir);
    ptr:=(root*$100)+root_size; //Pointer to the first free space area
    //Set the system area on the FSM
    for address:=0 to ptr-1 do
-    ADFSFillFreeSpaceMap(address,$FE);
+    ADFSFillFreeSpaceMap(address,diFSMSystem);
    //Now the free space
    d:=0;//Counter into the map
    freeend:=ReadByte($1FE);//Number of entries
@@ -1232,7 +1232,7 @@ begin
     //Update the array
     if (secspertrack>0) and (secsize>0) then
      for address:=p to (p+f)-1 do
-      ADFSFillFreeSpaceMap(address,$00);
+      ADFSFillFreeSpaceMap(address,diFSMBlank);
     //Update the pointer to the end of the current area
     ptr:=p+f;
     //Add it to the total
@@ -1259,7 +1259,7 @@ begin
      while address<finish do
      begin
       //Mark it as empty
-      ADFSFillFreeSpaceMap(address,$00);
+      ADFSFillFreeSpaceMap(address,diFSMBlank);
       //Add to the free space counter
       if address<disc_size[0] then inc(free_space[0],bpmb);
       //Advance the address
@@ -1278,14 +1278,14 @@ begin
         if Length(fsfragments)>0 then
          for f:=0 to Length(fsfragments)-1 do
           for address:=0 to fsfragments[f].Length-1 do
-           ADFSFillFreeSpaceMap(fsfragments[0].Offset+address,$FD);
+           ADFSFillFreeSpaceMap(fsfragments[0].Offset+address,diFSMDir);
        end;}
    //Mark the system area
    for address:=bootmap to bootmap+(nzones*secsize*2) do //Two copies of the map
-    ADFSFillFreeSpaceMap(address,$FE);
+    ADFSFillFreeSpaceMap(address,diFSMSystem);
    //And the partial disc record/disc defect list
    if nzones>1 then
-    for address:=$C00 to $DFF do ADFSFillFreeSpaceMap(address,$FE);
+    for address:=$C00 to $DFF do ADFSFillFreeSpaceMap(address,diFSMSystem);
   end;
  end;
 end;
