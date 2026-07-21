@@ -9,7 +9,7 @@ class has also grown from being just a reader to also a writer.
 Extra 'gimmicks' have been added over time, to utilise the code in the
 underlying class.
 
-Copyright ©2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright ©2018-2026 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -366,7 +366,8 @@ type
   procedure ToolBarContainerChange(Sender: TObject);
   procedure HoverTimerTimer(Sender: TObject);
   //Misc
-  function AddDirectoryToImage(dirname: String): Boolean;
+  function AddDirectoryToImage(dirname: String;NewImage: TDiscImage=nil;
+                                                   srcPath: String=''): Boolean;
   procedure AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer;
                                    ImageToUse:TDiscImage;var highdir: Integer);
   function AddFileErrorToText(error: Integer):String;
@@ -407,8 +408,11 @@ type
   function GetTextureTile(Ltile:Integer=-1): TBitmap;
   function ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
                                                 Errors: Boolean=True): Integer;
+  function ImportFile(NewImage: TDiscImage;dir,entry: Integer;
+          method: String='Importing';rootname: String='$';Errors: Boolean=True): Integer;
   function IntToStrComma(size: Int64): String;
   procedure OpenImage(filename: String);
+  procedure ParseCommand(var Command: TStringArray);
   function QueryUnsaved: Boolean;
   procedure ReadInDirectory(Node: TTreeNode);
   procedure ReportError(error: String);
@@ -618,7 +622,7 @@ uses
   AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SearchUnit,
   CustomDialogueUnit,ErrorLogUnit,SettingsUnit,ImportSelectorUnit,
   PWordEditorUnit,AFSPartitionUnit,ChangeInterleaveUnit,CSVPrefUnit,
-  ImageReportUnit;
+  ImageReportUnit,ConsoleAppUnit;
 
 {-------------------------------------------------------------------------------
 Add a new file to the disc image
@@ -656,7 +660,8 @@ end;
 {------------------------------------------------------------------------------}
 //Add a directory to an image
 {------------------------------------------------------------------------------}
-function TMainForm.AddDirectoryToImage(dirname: String): Boolean;
+function TMainForm.AddDirectoryToImage(dirname: String;NewImage: TDiscImage=nil;
+                                                   srcPath: String=''): Boolean;
 var
  OriginalNode : TTreeNode=nil;
  NewNode      : TTreeNode=nil;
@@ -672,6 +677,9 @@ var
  Dir          : TSearchRec;
  Lcurrdir     : Integer=0;
  thisdir      : Integer=0;
+ index        : Integer=0;
+ Ldir         : Integer=0;
+ Lentry       : Integer=0;
 begin
  Result:=False;
  WriteToDebug('MainForm.AddDirectoryToImage('+dirname+')');
@@ -792,24 +800,64 @@ begin
      Image.RetitleDirectory(disctitle,dirtitle);
     end;
    //Now we import everything inside this
-   FindFirst(dirname+pathdelim+'*',faDirectory,Dir);
-   repeat
-    if(Dir.Name<>'.')and(Dir.Name<>'..')then
-    begin
-     if(Dir.Attr AND faDirectory)=faDirectory then
-     begin //Add any sub-directories
-      UpdateProgress('Adding '+Dir.Name);
-      Result:=(AddDirectoryToImage(dirname+pathdelim+Dir.Name))and(Result);
-     end
-     else
-     begin //Add any files
-      if not Fguiopen then Fcurrdir:=thisdir;
-      if LowerCase(RightStr(Dir.Name,4))<>'.inf' then
-       Result:=(AddFileToImage(dirname+pathdelim+Dir.Name)>=0)and(Result);
+   if NewImage=nil then //Add files from host OS
+   begin
+    FindFirst(dirname+pathdelim+'*',faDirectory,Dir);
+    repeat
+     if(Dir.Name<>'.')and(Dir.Name<>'..')then
+     begin
+      if(Dir.Attr AND faDirectory)=faDirectory then
+      begin //Add any sub-directories
+       UpdateProgress('Adding '+Dir.Name);
+       Result:=(AddDirectoryToImage(dirname+pathdelim+Dir.Name))and(Result);
+      end
+      else
+      begin //Add any files
+       if not Fguiopen then Fcurrdir:=thisdir;
+       if LowerCase(RightStr(Dir.Name,4))<>'.inf' then
+        Result:=(AddFileToImage(dirname+pathdelim+Dir.Name)>=0)and(Result);
+      end;
      end;
+    until FindNext(Dir)<>0;
+    FindClose(Dir);
+   end
+   else
+   begin //Add files from supplied image
+    if NewImage.FileExists(srcPath+NewImage.DirSep+dirname,Ldir,Lentry) then
+    begin
+     //Set the current directory
+     Fcurrdir:=thisdir;
+     //Import each file in the directory
+     for Index:=0 to Length(NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries)-1 do
+     begin  //Doesn't add sub-sub-directory contents
+      if not Fguiopen then
+      begin
+       //Clear to the end of the line
+       Write(#$1B'[0K');
+       //Display the information
+       temp:='Adding '
+              +Image.GetParent(Fcurrdir)
+              +NewImage.DirSep
+              +NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries[Index].Filename;
+       //Write to the console and move the cursor back
+       Write(temp+#$1B'['+IntToStr(Length(temp))+'D');
+      end;
+      //Do the actual importing
+      if NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries[Index].DirRef=-1 then
+       Result:=Result
+           and(ImportFile(NewImage,NewImage.Disc[LDir].Entries[Lentry].DirRef,Index)>=0)
+      else
+       Result:=Result
+           and AddDirectoryToImage(NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries[Index].Filename
+                                  ,NewImage
+                                  ,NewImage.GetParent(NewImage.Disc[LDir].Entries[Lentry].DirRef));
+     end;
+     //Restore the current directory
+     Fcurrdir:=Lcurrdir;
+     //Clear to the end of the line
+     if not Fguiopen then Write(#$1B'[0K');
     end;
-   until FindNext(Dir)<>0;
-   FindClose(Dir);
+   end;
   end;
  end;
  //Revert to the original selection
@@ -1114,12 +1162,18 @@ var
       GetJSONString(fields,'Access',attr1);
       temp:='';
       GetJSONString(fields,'DATETIME',temp);
-      timestamp:=EncodeDate(StrToIntDef(Copy(temp,10,4),2023),
+      {timestamp:=EncodeDate(StrToIntDef(Copy(temp,10,4),2023),
                             StrToIntDef(Copy(temp,14,2),4),
                             StrToIntDef(Copy(temp,16,2),9))
                 +EncodeTime(StrToIntDef(Copy(temp,18,2),0),
                             StrToIntDef(Copy(temp,20,2),0),
-                            StrToIntDef(Copy(temp,22,2),0),0);
+                            StrToIntDef(Copy(temp,22,2),0),0);}
+      timestamp:=EncodeDate(StrToIntDef(Copy(temp, 1,4),2023),
+                            StrToIntDef(Copy(temp, 5,2),4),
+                            StrToIntDef(Copy(temp, 7,2),9))
+                +EncodeTime(StrToIntDef(Copy(temp, 9,2),0),
+                            StrToIntDef(Copy(temp,11,2),0),
+                            StrToIntDef(Copy(temp,13,2),0),0);
       //Full time and date overrides the AFS word
       temp:='';
       GetJSONString(fields,'Modification Date',temp);
@@ -3091,6 +3145,8 @@ begin
 // HasChanged               :=False;
 end;
 
+{$INCLUDE 'MainUnit_Console.pas'}
+
 {------------------------------------------------------------------------------}
 //Rescale all the components
 {------------------------------------------------------------------------------}
@@ -3626,13 +3682,12 @@ function TMainForm.ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
 var
  Node      : TTreeNode=nil;
  newentry  : TDirEntry=();
-// oldroot   : String='$';
  rootname  : String='$';
  method    : String='Moving';
- temp      : String='';
- tempattr  : String='';
- curformat : Byte=0;
- newformat : Byte=0;
+// temp      : String='';
+// tempattr  : String='';
+// curformat : Byte=0;
+// newformat : Byte=0;
  side      : Byte=0;
  sidecount : Byte=0;
  dir       : Integer=0;
@@ -3641,8 +3696,8 @@ var
  index     : Integer=0;
  MaxDirEnt : Integer=0;
  NumFiles  : Integer=0;
- DirEntry  : Cardinal=0;
- buffer    : TDIByteArray=nil;
+// DirEntry  : Cardinal=0;
+// buffer    : TDIByteArray=nil;
  ok        : Boolean=True;
 begin
  Result:=0;
@@ -3791,8 +3846,8 @@ begin
      end;
     end;
    end;
-   curformat:=Image.MajorFormatNumber;   //Format of the current open image
-   newformat:=NewImage.MajorFormatNumber;//Format of the importing image
+//   curformat:=Image.MajorFormatNumber;   //Format of the current open image
+//   newformat:=NewImage.MajorFormatNumber;//Format of the importing image
 //   oldroot  :=NewImage.RootName;
    //Go through each directory
    if Length(NewImage.Disc)>0 then
@@ -3800,7 +3855,8 @@ begin
      if Length(NewImage.Disc[dir].Entries)>0 then
       for entry:=0 to Length(NewImage.Disc[dir].Entries)-1 do
        if ImportSelectorForm.IsNodeTicked(dir,entry) then //Only those that are selected
-       begin
+        inc(Result,ImportFile(NewImage,dir,entry,method,rootname,Errors));
+{       begin
         newentry:=NewImage.Disc[dir].Entries[entry];
         //Set the parent, as this may be different
         newentry.Parent:=NewImage.GetParent(dir);
@@ -3939,7 +3995,7 @@ begin
           end;
          end;
         end;
-       end;
+       end;}
    if Fguiopen then
    begin
     UpdateImageInfo;
@@ -3954,6 +4010,167 @@ begin
  end;
  //Clear the Import Selector Form List, otherwise this could cause issues later
  if Fguiopen then ImportSelectorForm.ImportDirList.Items.Clear;
+end;
+
+{------------------------------------------------------------------------------}
+//Import a file into the current image
+{------------------------------------------------------------------------------}
+function TMainForm.ImportFile(NewImage: TDiscImage; dir,entry: Integer;
+           method: String='Importing';rootname: String='$';Errors: Boolean=True): Integer;
+var
+ newentry  : TDirEntry=();
+ temp      : String='';
+ tempattr  : String='';
+ curformat : Byte=0;
+ newformat : Byte=0;
+ index     : Integer=0;
+ DirEntry  : Cardinal=0;
+ ok        : Boolean=True;
+ buffer    : TDIByteArray=nil;
+begin
+ Result:=0;
+ curformat:=Image.MajorFormatNumber;   //Format of the current open image
+ newformat:=NewImage.MajorFormatNumber;//Format of the importing image
+ newentry:=NewImage.Disc[dir].Entries[entry];
+ //Set the parent, as this may be different
+ if not Fguiopen then newentry.Parent:=Image.GetParent(Fcurrdir)
+ else newentry.Parent:=NewImage.GetParent(dir);
+ if Fguiopen then
+  UpdateProgress(method+' '+newentry.Parent
+                +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                +newentry.Filename);
+ //Validate the filename, as it could be different across file systems
+ if(newformat<>diAcornDFS)and(newformat<>curformat)then
+  WinToBBC(newentry.Filename);//Unless the systems are the same, but not DFS
+ //DFS and C64 don't have directories, so the parent is the selected node
+ if(newformat=diCommodore)or(newformat=diAcornDFS)then
+  newentry.Parent:=rootname;
+ //If going to DFS or C64
+ if(curformat=diAcornDFS)or(curformat=diCommodore)then
+ begin
+  //If coming from ADFS, AFS or Amiga, and is inside a directory,
+  //add the first letter of this.
+  //if((newformat=diAcornADFS)or(newformat=diAmiga)or(newformat=diAcornFS))
+  if(NewImage.DirectoryCapable)
+  and(newentry.Parent<>NewImage.Disc[0].Directory)then
+  begin
+   index:=Length(newentry.Parent);
+   while(newentry.Parent[index]<>NewImage.GetDirSep(NewImage.Disc[index].Partition))
+     and(index>1)do dec(index);
+   if index=Length(newentry.Parent) then index:=0;
+   newentry.Filename:=newentry.Parent[index+1]+'.'+newentry.Filename;
+  end;
+  //Make the root the parent
+  newentry.Parent:=rootname;
+ end;
+ //Coming from DFS and first letter holds the directory?
+ //And going to directory capable system?
+ if (newformat=diAcornDFS)and(newentry.Filename[2]='.')
+ and(Image.DirectoryCapable) then
+ begin
+  //Then create the directory
+  if Fguiopen then SelectNode(rootname);//First, get the root
+  //Get the temporary filename
+  temp:=newentry.Filename[1];
+  //Does it exist already?
+  if not Image.FileExists(rootname+'.'+temp,DirEntry) then
+  begin
+   //New attributes
+   tempattr:='LR';
+   //Create it
+   if Fguiopen then CreateDirectory(temp,tempattr)
+   else Image.CreateDirectory(temp,rootname,tempattr);
+  end;
+  //Move the Parent
+  newentry.Parent:=rootname+Image.DirSep+temp;
+  //And rename the file
+  newentry.Filename:=Copy(newentry.Filename,3,Length(newentry.Filename));
+ end;
+ //Going to ADFS or !Spark, from another system, ensure it has 'WR' attributes
+ if ((curformat= diAcornADFS) or(curformat= diSpark))
+ and((newformat<>diAcornADFS)and(newformat<>diSpark))then
+ begin
+  if Pos('W',newentry.Attributes)=0 then
+   newentry.Attributes:=newentry.Attributes+'W';
+  if Pos('R',newentry.Attributes)=0 then
+   newentry.Attributes:=newentry.Attributes+'R';
+ end;
+ //Convert the parent name to the new path system
+ newentry.Parent:=StringReplace(newentry.Parent
+                               ,NewImage.DirSep
+                               ,Image.DirSep
+                               ,[rfReplaceAll,rfIgnoreCase]);
+ newentry.Parent:=StringReplace(newentry.Parent
+                               ,NewImage.RootName
+                               ,rootname
+                               ,[rfReplaceAll,rfIgnoreCase]);
+ ok:=True;
+ if Fguiopen then
+ begin
+  //Select the parent directory
+  SelectNode(newentry.Parent);
+  if DirList.SelectionCount=0 then
+  begin
+   if Errors then
+    ReportError('Cannot find directory "'+newentry.Parent
+                +'" when adding "'+newentry.Filename+'"');
+   inc(Result);
+   ok:=False;
+  end;
+ end;
+ if ok then
+ begin
+  //Make sure it has been read in
+  if Fguiopen then
+   if not TMyTreeNode(DirList.Selected).BeenRead then
+    ReadInDirectory(DirList.Selected);
+  //Is it a directory we're adding?
+  if(newentry.DirRef>=0)and(Image.DirectoryCapable)then
+   if newentry.Filename<>rootname then //Create the directory
+   begin
+    newentry.Attributes:='DLR';
+    if Fguiopen then
+     CreateDirectory(newentry.Filename,newentry.Attributes)
+    else
+     Image.CreateDirectory(newentry.Filename,
+                           newentry.Parent,
+                           newentry.Attributes);
+   end;
+  //Is it a file
+  if newentry.DirRef=-1 then
+  begin
+   //Read the file in
+   if NewImage.ExtractFile(NewImage.GetParent(dir)
+                        +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                        +NewImage.Disc[dir].Entries[entry].Filename,
+                         buffer,entry) then
+   begin
+    //Write it out to the current image
+    index:=Image.WriteFile(newentry,buffer);
+    //Then add it to the tree, if successful
+    if index>=0 then
+     AddFileToTree(DirList.Selected,newentry.Filename,index,False,
+                   DirList,False)
+    else //Failed to write the file
+    begin
+     if Errors then
+      ReportError('Failed when '+method+' '+newentry.Parent+Image.DirSep
+                                           +newentry.Filename
+                                           +' : '
+                                           +AddFileErrorToText(-index));
+     inc(Result);
+    end;
+   end
+   else //Failed to read the file
+   begin
+    if Errors then
+     ReportError('Failed to read '+NewImage.GetParent(dir)
+                        +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                        +NewImage.Disc[dir].Entries[entry].Filename);
+    inc(Result);
+   end;
+  end;
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -5137,9 +5354,9 @@ begin
  FileNames:=TStringList.Create;
  FileNames.Add(Image.Filename);
  //No filename specified, so get the current image's one
- if filename.IsEmpty then
-  filename:=LeftStr(Image.Filename,
-                    Length(Image.Filename)-Length(ExtractFileExt(Image.Filename)))
+ if filename.IsEmpty then filename:=Image.Filename;
+ filename:=LeftStr(filename,
+                    Length(filename)-Length(ExtractFileExt(filename)))
            +'.csv';
  //Display the save dialogue box (GUI only)
  if Fguiopen then
@@ -5228,7 +5445,6 @@ begin
      LImage:=TDiscimage.Create;
      ok:=LImage.LoadFromFile(currfile);
     end else LImage:=TDiscImage.Create(Image); //Clone the current image
-    WriteLn(ok);
     if ok then
     begin
      hexlen:=8;
@@ -5320,7 +5536,7 @@ begin
      F.Free;
      //Close the progress window
      if Fguiopen then ProgressForm.Hide
-     else WriteLn('CSV output for '+filename+' complete.');
+     {else WriteLn('CSV output for '+filename+' complete.')};
      LImage.Free;
      filename:='';
     end;
@@ -7359,14 +7575,18 @@ procedure TMainForm.ReportError(error: String);
 begin
  //Remove the top bit, if present
  RemoveTopBit(error);
- WriteToDebug('MainForm.ReportError('+error+')');
- if ErrorReporting then
-  if Fstyling=RISCOSStyle then
-   CustomDialogue.ShowError(error,'')
+ if Fguiopen then
+ begin
+  WriteToDebug('MainForm.ReportError('+error+')');
+  if ErrorReporting then
+   if Fstyling=RISCOSStyle then
+    CustomDialogue.ShowError(error,'')
+   else
+    MessageDlg(error,mtError,[mbOK],0)
   else
-   MessageDlg(error,mtError,[mbOK],0)
- else
-  ErrorLogForm.ErrorLog.Lines.Add(error);
+   ErrorLogForm.ErrorLog.Lines.Add(error);
+ end
+ else if ErrorReporting then WriteLn(cmdRed+error+cmdNormal);
 end;
 
 {------------------------------------------------------------------------------}

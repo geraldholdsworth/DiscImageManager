@@ -11,6 +11,7 @@ object ImportSelectorForm: TImportSelectorForm
   Constraints.MinHeight = 456
   Constraints.MinWidth = 400
   Position = poMainFormCenter
+  LCLVersion = '4.2.0.0'
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow

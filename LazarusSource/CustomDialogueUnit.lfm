@@ -11,6 +11,7 @@ object CustomDialogue: TCustomDialogue
   Color = 15527148
   Font.Color = clBlack
   Position = poMainFormCenter
+  LCLVersion = '4.2.0.0'
   OnCreate = FormCreate
   OnKeyDown = FormKeyDown
   OnPaint = FormPaint

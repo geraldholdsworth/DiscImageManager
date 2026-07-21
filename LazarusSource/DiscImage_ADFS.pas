@@ -624,6 +624,18 @@ var
  temp: String='';
  rotd: Int64=0;
 begin
+ { From RISC OS ADFS Source code:
+  ; A file is not date stamped if:
+  ; load          exec    Meaning
+  ; 0             -1      A command file
+  ; -1            -1      A command file
+  ; < &FFF000000   *       Load/execute address pair
+  ; nnnn          nnnn    (load = exec) probably &ffff0900 for BBCs
+
+  For the 1st and 3rd cases, the top 12 bits of load address are not set anyway
+ }
+ if((Entry.LoadAddr=$FFFFFFFF)and(Entry.ExecAddr=$FFFFFFFF))
+ or(Entry.LoadAddr=Entry.ExecAddr)then exit;
  //Only valid for New and Big directories in ADFS or SparkFS
  if((GetMajorFormatNumber=diAcornADFS)and((FDirType=diADFSNewDir)or(FDirType=diADFSBigDir)))
  or(GetMajorFormatNumber=diSpark)
@@ -751,26 +763,28 @@ end;
 Build a lookup index of all ADFS new-map fragment entries.
 Called once per disc load; thereafter NewDiscAddrToOffset uses O(1) lookup
 instead of scanning all nzones zones for every file.
+Written by Phil Pemberton
 -------------------------------------------------------------------------------}
 procedure TDiscImage.BuildADFSBitmapIndex;
 const
- dr_size = $40;
- header  = 4;
+ dr_size=$40;
+ header =4;
 var
- zone  : Cardinal;
- i,j   : Cardinal;
- allmap: Cardinal;
- start : Cardinal;
- id    : Cardinal;
- off   : Cardinal;
- len   : Cardinal;
- n     : Integer;
+ zone  : Cardinal=0;
+ i     : Cardinal=0;
+ j     : Cardinal=0;
+ allmap: Cardinal=0;
+ start : Cardinal=0;
+ id    : Cardinal=0;
+ off   : Cardinal=0;
+ len   : Cardinal=0;
+ n     : Integer=0;
 begin
  FBitmapIndexValid:=False;
  SetLength(FBitmapIndex,0);
  if not FMap then exit;
  if(idlen=0)or(bpmb=0)or(disc_size[0]=0)then exit;
- SetLength(FBitmapIndex,1 shl idlen);
+ SetLength(FBitmapIndex,1<<idlen);
  for zone:=0 to nzones-1 do
  begin
   start :=bootmap+dr_size;
@@ -783,9 +797,9 @@ begin
    inc(i,idlen);
    j:=i;
    while(j<allmap)and((j and 7)<>0)
-        and not IsBitSet(ReadByte(start+(j shr 3)),j and 7)do inc(j);
-   while(j<allmap)and((j and 7)=0)and(ReadByte(start+(j shr 3))=0)do inc(j,8);
-   while(j<allmap)and not IsBitSet(ReadByte(start+(j shr 3)),j and 7)do inc(j);
+        and not IsBitSet(ReadByte(start+(j>>3)),j and 7)do inc(j);
+   while(j<allmap)and((j and 7)=0)and(ReadByte(start+(j>>3))=0)do inc(j,8);
+   while(j<allmap)and not IsBitSet(ReadByte(start+(j>>3)),j and 7)do inc(j);
    len:=((j-i)+1+idlen)*bpmb;
    i:=j;
    if id>0 then
@@ -815,7 +829,7 @@ var
  id          : Cardinal=0;
  allmap      : Cardinal=0;
  len         : Cardinal=0;
- off         : Cardinal=0;
+ off         : Int64=0;
  zone        : Cardinal=0;
  start       : Cardinal=0;
  start_zone  : Cardinal=0;
@@ -856,8 +870,7 @@ begin
    begin
     Result:=Copy(FBitmapIndex[fragid]);
     if Length(Result)>0 then
-     for i:=0 to Length(Result)-1 do
-      inc(Result[i].Offset,sector*secsize);
+     for i:=0 to Length(Result)-1 do inc(Result[i].Offset,sector*secsize);
     exit;
    end;
    //Slow path: scan the allocation map zone by zone
@@ -885,6 +898,11 @@ begin
      id:=ReadBits(start,i,idlen);
      //and move the pointer on idlen bits
      inc(i,idlen);
+{     //Now find the end of the fragment entry
+     j:=i-1;
+     repeat
+      inc(j);
+     until(IsBitSet(ReadByte(start+(j div 8)),j mod 8))or(j>=allmap);}
      //Now find the end of the fragment entry.
      //Byte-at-a-time scan (up to 8x faster than bit-by-bit for large allocations):
      //  Phase 1: bit-by-bit until byte-aligned (at most 7 bits)
@@ -892,9 +910,9 @@ begin
      //  Phase 3: bit-by-bit within the last non-zero byte (at most 8 bits)
      j:=i;
      while(j<allmap)and((j and 7)<>0)
-          and not IsBitSet(ReadByte(start+(j shr 3)),j and 7)do inc(j);
-     while(j<allmap)and((j and 7)=0)and(ReadByte(start+(j shr 3))=0)do inc(j,8);
-     while(j<allmap)and not IsBitSet(ReadByte(start+(j shr 3)),j and 7)do inc(j);
+          and not IsBitSet(ReadByte(start+(j>>3)),j and 7)do inc(j);
+     while(j<allmap)and((j and 7)=0)and(ReadByte(start+(j>>3))=0)do inc(j,8);
+     while(j<allmap)and not IsBitSet(ReadByte(start+(j>>3)),j and 7)do inc(j);
      //Make a note of the length
      if offset then
       len:=((j-i)+1+idlen)*bpmb
@@ -906,7 +924,7 @@ begin
      if id=fragid then
      begin
       if offset then //Offset as image file offset
-       off:=((off-(zone_spare*zone))*bpmb) mod disc_size[0]
+       off:=((off-(zone_spare*zone))*Int64(bpmb)) mod Int64(disc_size[0])
       else //Offset as number of bits from start of zone
        begin
         //Add the disc record (we are counting from the zone start
@@ -3820,7 +3838,7 @@ function TDiscImage.ExtractFragmentedData(fragments: TFragmentArray;
 var
  dest   : Cardinal=0;
  len    : Cardinal=0;
- source : Cardinal=0;
+ source : Int64=0;
  frag   : Cardinal=0; //Pointer into the fragment array
 begin
  Result:=False;
@@ -4943,6 +4961,8 @@ begin
  end
  else
  begin
+  //If not FMap, then we'll have a missing quote mark
+  if CSV then temp:=temp+'"';
   Result.Add(temp);
   if not CSV then Result.Add('--------------------------');
   Index:=ReadByte($1FE); //Number of free space entries

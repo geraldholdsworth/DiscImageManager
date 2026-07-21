@@ -10,6 +10,7 @@ object ChangeInterleaveForm: TChangeInterleaveForm
   ClientWidth = 234
   Color = 15527148
   Position = poMainFormCenter
+  LCLVersion = '4.2.0.0'
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow

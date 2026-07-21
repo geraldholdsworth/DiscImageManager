@@ -382,7 +382,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="23">
+    <Units Count="24">
       <Unit0>
         <Filename Value="DiscImageManager.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -519,16 +519,20 @@
         <ResourceBaseClass Value="Form"/>
       </Unit20>
       <Unit21>
+        <Filename Value="ConsoleAppUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit21>
+      <Unit22>
         <Filename Value="RFSDetailUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="RFSDetailForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit21>
-      <Unit22>
+      </Unit22>
+      <Unit23>
         <Filename Value="DiscImageHelper.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit22>
+      </Unit23>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

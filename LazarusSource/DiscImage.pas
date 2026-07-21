@@ -8,7 +8,7 @@ filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
 1541, Commodore 1571, Commodore 1581, Commodore AmigaDOS, Acorn File Server,
 SparkFS, PackDir, MS-DOS, Acorn DOS Plus, Spectrum DSK, and ISO 9660/Joilet.
 
-Copyright ©2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright ©2018-2026 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -166,6 +166,10 @@ type
   diFSMDir     = $FD;
   diFSMSystem  = $FE;
   diFSMUsed    = $FF;
+  //Streamed (read-only) backend - windowed page cache
+  diStreamPageSize  = $10000;     //64 KB per cache page
+  diStreamPageCount = $40;        //Number of cache pages (~4 MB resident)
+  diStreamThreshold = $80000000;  //2 GiB - default streamed-load size threshold
 
  //TSpark class definition
  type
@@ -368,18 +372,32 @@ type
   TPartitions   = array of TPartition;
   //Fragment
   TFragment     = record        //For retrieving the ADFS E/F fragment information
-   Offset,
+   Offset       : Int64;
    Length,
    Zone         : Cardinal;
   end;
   //To collate fragments (ADFS/CDR/Amiga/AFS)
   TFragmentArray= array of TFragment;
+  //A single resident page of the streamed (read-only) backend cache
+  TDIPage       = record
+   Tag          : Int64;        //Page-aligned file offset, -1 when the slot is empty
+   LastUse      : QWord;        //FPageClock value when last accessed (for LRU eviction)
+   Data         : TDIByteArray; //diStreamPageSize bytes of image data
+  end;
   //Provides feedback
   TProgressProc = procedure(Fupdate: String) of Object;
  private
   FDisc         : TDisc;        //Container for the entire catalogue
   FPartitions   : TPartitions;  //Container for the entire catalogue (partitioned)
   Fdata         : TDIByteArray; //Container for the image to be loaded into
+  //Streamed (read-only) backend - used when the image is too large for RAM
+  FStreamed     : Boolean;      //True when the image is served from the file on demand
+  FBackStream   : TFileStream;  //Backing file, kept open for the image lifetime
+  FBackSize     : Int64;        //Authoritative image length when streamed
+  FBackTemp     : String;       //Temp file to delete on close ('' if none)
+  FPageCache    : array of TDIPage; //Windowed read-through cache (streamed mode)
+  FPageClock    : QWord;        //Monotonic counter driving LRU eviction
+  FStreamThreshold: Int64;      //Size at/above which images are streamed (0=never)
   FDSD,                         //Double sided flag (Acorn DFS)
   FMap,                         //Old/New Map flag (Acorn ADFS) OFS/FFS (Amiga)
   FBootBlock,                   //Is disc an AmigaDOS Kickstart?
@@ -449,6 +467,7 @@ type
   Fversion,
   root_name,                    //Root title
   dosrootname,                  //DOS Plus root name
+  FLoadError,                   //Reason the last load failed (e.g. too large)
   imagefilename,                //Filename of the disc image
   FFilename     : String;       //Copy of above, but doesn't get wiped
   dir_sep       : Char;         //Directory Separator
@@ -462,8 +481,8 @@ type
   SparkFile     : TSpark;       //For reading in Spark archives
   FDSKImage     : TDSKImage;    //For reading in Sinclair/Amstrad DSK files
   ISOVolDes     : array of TISOVolDes;//ISO Volume Descriptors
-  FBitmapIndex      : array of TFragmentArray;//Pre-built ADFS new-map lookup index
-  FBitmapIndexValid : Boolean;              //True once FBitmapIndex is populated
+  FBitmapIndex  : array of TFragmentArray;//Pre-built ADFS new-map lookup index
+  FBitmapIndexValid: Boolean;              //True once FBitmapIndex is populated
   //Disc title for new images
   Fdisctitle,
   Fafsdisctitle,                //AFS has longer titles
@@ -491,33 +510,41 @@ type
                                                 buffer: TDIByteArray); overload;
   function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
   function TimeDateToRISCOS(delphitime: TDateTime): Int64;
-  function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
-  function Read32b(offset: Cardinal; var buffer: TDIByteArray;
+  function Read32b(offset: Int64; bigendian: Boolean=False): Cardinal;
+  function Read32b(offset: Int64; var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal; overload;
-  function Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
-  function Read24b(offset: Cardinal; var buffer: TDIByteArray;
+  function Read24b(offset: Int64; bigendian: Boolean=False): Cardinal;
+  function Read24b(offset: Int64; var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal; overload;
-  function Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
-  function Read16b(offset: Cardinal; var buffer: TDIByteArray;
+  function Read16b(offset: Int64; bigendian: Boolean=False): Word;
+  function Read16b(offset: Int64; var buffer: TDIByteArray;
                                       bigendian: Boolean=False): Word; overload;
-  function ReadByte(offset: Cardinal): Byte;
-  function ReadByte(offset: Cardinal; var buffer: TDIByteArray): Byte; overload;
+  function ReadByte(offset: Int64): Byte;
+  function ReadByte(offset: Int64; var buffer: TDIByteArray): Byte; overload;
+  function ReadByteBackend(offset: Int64): Byte;
+  function ShouldStream(filesize: Int64): Boolean;
+  function OpenStreamed(filename: String): Boolean;
+  procedure CloseStream;
+  function FileStartsGZip(filename: String): Boolean;
+  function SizeOfFile(filename: String): Int64;
+  function CountGZipMembers(filename: String): Integer;
+  function InflateGZipToFile(srcfile,destfile: String): Boolean;
   procedure RemoveDirectory(dirref: Cardinal);
-  function DiscAddrToIntOffset(disc_addr: Cardinal): Cardinal;
-  procedure Write32b(value, offset: Cardinal; bigendian: Boolean=False); 
-  procedure Write32b(value, offset: Cardinal; var buffer: TDIByteArray;
+  function DiscAddrToIntOffset(disc_addr: Int64): Int64;
+  procedure Write32b(value:Cardinal;offset: Int64; bigendian: Boolean=False);
+  procedure Write32b(value:Cardinal;offset: Int64; var buffer: TDIByteArray;
                                       bigendian: Boolean=False); overload;
-  procedure Write24b(value, offset: Cardinal; bigendian: Boolean=False);
-  procedure Write24b(value, offset: Cardinal; var buffer: TDIByteArray;
+  procedure Write24b(value:Cardinal;offset: Int64; bigendian: Boolean=False);
+  procedure Write24b(value:Cardinal;offset: Int64; var buffer: TDIByteArray;
                                       bigendian: Boolean=False); overload;
-  procedure Write16b(value: Word; offset: Cardinal; bigendian: Boolean=False);
-  procedure Write16b(value: Word; offset: Cardinal; var buffer: TDIByteArray;
+  procedure Write16b(value: Word; offset: Int64; bigendian: Boolean=False);
+  procedure Write16b(value: Word; offset: Int64; var buffer: TDIByteArray;
                                       bigendian: Boolean=False); overload;
-  procedure WriteByte(value: Byte; offset: Cardinal);
-  procedure WriteByte(value: Byte; offset: Cardinal;
+  procedure WriteByte(value: Byte; offset: Int64);
+  procedure WriteByte(value: Byte; offset: Int64;
                                             var buffer: TDIByteArray); overload;
-  function GetDataLength: Cardinal;
-  procedure SetDataLength(newlen: Cardinal);
+  function GetDataLength: Int64;
+  procedure SetDataLength(newlen: Int64);
   function ROR13(v: Cardinal): Cardinal;
   procedure ResetDir(var Entry: TDir);
   function MapFlagToByte: Byte;
@@ -995,7 +1022,7 @@ type
   function MoveFile(filename,directory: String): Integer;
   function MoveFile(source: Cardinal;dest: Integer): Integer; overload;
   function ReadDirectory(dirname: String): Integer;
-  function ReadDiscData(addr,count,side,offset: Cardinal;
+  function ReadDiscData(addr,count:Int64;side:Cardinal;offset: Int64;
                                              var buffer: TDIByteArray): Boolean;
   procedure ReadImage;
   function ReadPasswordFile: TUserAccounts;
@@ -1019,7 +1046,7 @@ type
   function UpdateVersionString(version: String): Boolean;
   procedure ValidateAttributes(var attributes: String);
   function ValidateFilename(parent:String;var filename:String): Boolean;
-  function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
+  function WriteDiscData(addr:Int64;side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
   function WriteFile(var file_details: TDirEntry;
                       var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
@@ -1072,6 +1099,7 @@ type
                                               write FForceInter;
   property ISOFormatNumber:     Word          read FISOFormat;
   property ISOFormatString:     String        read ISOFormatToString;
+  property LoadErrorMessage:    String        read FLoadError;
   property MajorFormatNumber:   Word          read GetMajorFormatNumber;
   property MapType:             Byte          read MapFlagToByte;
   property MapTypeString:       String        read MapTypeToString;
@@ -1086,6 +1114,9 @@ type
   property RootName:            String        read root_name;
   property ScanSubDirs:         Boolean       read FScanSubDirs
                                               write FScanSubDirs;
+  property Streamed:            Boolean       read FStreamed;
+  property StreamThreshold:     Int64         read FStreamThreshold
+                                              write FStreamThreshold;
   property Sectors:             Byte          read secspertrack;
   property SparkAsFS:           Boolean       read FSparkAsFS
                                               write FSparkAsFS;

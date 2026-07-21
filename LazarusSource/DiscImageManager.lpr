@@ -1,7 +1,7 @@
 program DiscImageManager;
 
 {
-Copyright (C) 2018-2025 Gerald Holdsworth gerald@hollypops.co.uk
+Copyright (C) 2018-2026 Gerald Holdsworth gerald@hollypops.co.uk
 
 This source is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public Licence as published by the Free
@@ -22,7 +22,7 @@ Boston, MA 02110-1335, USA.
 {$MODE objFPC}{$H+}
 
 uses
-  Forms,Interfaces,
+  Forms,Interfaces,ConsoleAppUnit,
   MainUnit in 'MainUnit.pas',
   DiscImage in 'DiscImage.pas',
   AboutUnit in 'AboutUnit.pas',
@@ -69,6 +69,13 @@ begin
  Application.CreateForm(TChangeInterleaveForm, ChangeInterleaveForm);
  Application.CreateForm(TCSVPrefForm, CSVPrefForm);
  Application.CreateForm(TImageReportForm, ImageReportForm);
- Application.CreateForm(TRFSDetailForm, RFSDetailForm);
- Application.Run;
+ //Check if console needs to be run
+ if not CheckConsole then
+ begin
+  {$IFDEF Windows}
+  IsConsole:=False;
+  {$ENDIF}
+  Application.CreateForm(TRFSDetailForm, RFSDetailForm);
+  Application.Run; //Open as normal
+ end;
 end.

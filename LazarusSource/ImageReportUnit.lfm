@@ -7,7 +7,7 @@ object ImageReportForm: TImageReportForm
   ClientHeight = 401
   ClientWidth = 639
   Position = poMainFormCenter
-  LCLVersion = '3.0.0.3'
+  LCLVersion = '4.2.0.0'
   object Report: TMemo
     Left = 0
     Height = 401

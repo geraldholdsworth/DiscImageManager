@@ -242,7 +242,7 @@ object AboutForm: TAboutForm
       Align = alTop
       Alignment = taCenter
       AutoSize = False
-      Caption = 'with additions by Greg Cook'#10'DSK Image written by Damien Guard'
+      Caption = 'with additions by Greg Cook and Phil Pemberton'
       Font.Color = clBlack
       Font.Height = -11
       Font.Name = 'Tahoma'

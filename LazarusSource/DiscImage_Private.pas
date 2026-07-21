@@ -413,7 +413,7 @@ end;
 {-------------------------------------------------------------------------------
 Read in 4 bytes (word)
 -------------------------------------------------------------------------------}
-function TDiscImage.Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+function TDiscImage.Read32b(offset: Int64; bigendian: Boolean=False): Cardinal;
 var
  buffer: TDIByteArray=nil;
 begin
@@ -421,7 +421,7 @@ begin
  SetLength(buffer,0);
  Result:=Read32b(offset,buffer,bigendian);
 end;
-function TDiscImage.Read32b(offset: Cardinal;var buffer: TDIByteArray;
+function TDiscImage.Read32b(offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
 var
  i: Cardinal=0;
@@ -440,7 +440,7 @@ end;
 {-------------------------------------------------------------------------------
 Read in 3 bytes
 -------------------------------------------------------------------------------}
-function TDiscImage.Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+function TDiscImage.Read24b(offset: Int64; bigendian: Boolean=False): Cardinal;
 var
  buffer: TDIByteArray=nil;
 begin
@@ -448,7 +448,7 @@ begin
  SetLength(buffer,0);
  Result:=Read24b(offset,buffer,bigendian);
 end;
-function TDiscImage.Read24b(offset: Cardinal;var buffer: TDIByteArray;
+function TDiscImage.Read24b(offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
 var
  i: Cardinal=0;
@@ -467,7 +467,7 @@ end;
 {-------------------------------------------------------------------------------
 Read in 2 bytes
 -------------------------------------------------------------------------------}
-function TDiscImage.Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
+function TDiscImage.Read16b(offset: Int64; bigendian: Boolean=False): Word;
 var
  buffer: TDIByteArray=nil;
 begin
@@ -475,7 +475,7 @@ begin
  SetLength(buffer,0);
  Result:=Read16b(offset,buffer,bigendian);
 end;
-function TDiscImage.Read16b(offset: Cardinal;var buffer: TDIByteArray;
+function TDiscImage.Read16b(offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Word;
 var
  i: Cardinal=0;
@@ -494,7 +494,7 @@ end;
 {-------------------------------------------------------------------------------
 Read in a byte
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadByte(offset: Cardinal): Byte;
+function TDiscImage.ReadByte(offset: Int64): Byte;
 var
  buffer: TDIByteArray=nil;
 begin
@@ -502,11 +502,11 @@ begin
  SetLength(buffer,0);
  Result:=ReadByte(offset,buffer);
 end;
-function TDiscImage.ReadByte(offset: Cardinal;var buffer: TDIByteArray): Byte;
+function TDiscImage.ReadByte(offset: Int64;var buffer: TDIByteArray): Byte;
 begin
  Result:=$FF;
  if buffer<>nil then
-  if offset<Length(buffer) then Result:=buffer[offset];
+  if(offset>=0)and(offset<Length(buffer))then Result:=buffer[offset];
  //If no buffer has been passed, resort to the standard function
  if buffer=nil then
  begin
@@ -514,15 +514,21 @@ begin
   offset:=DiscAddrToIntOffset(offset);
   //Compensate for emulator header
   inc(offset,emuheader);
+  //Streamed (read-only) mode: read on demand from the backing file
+  if FStreamed then
+  begin
+   if(offset>=0)and(offset<FBackSize)then Result:=ReadByteBackend(offset);
+   exit;
+  end;
   //If we are inside the data, read the byte
-  if offset<Length(Fdata) then Result:=Fdata[offset];
+  if(offset>=0)and(offset<Length(Fdata))then Result:=Fdata[offset];
  end;
 end;
 
 {-------------------------------------------------------------------------------
 Calculate offset into image given the disc address (Interleaved or Multiplexed)
 -------------------------------------------------------------------------------}
-function TDiscImage.DiscAddrToIntOffset(disc_addr: Cardinal): Cardinal;
+function TDiscImage.DiscAddrToIntOffset(disc_addr: Int64): Int64;
 var
  track_size : Cardinal=0;
  track      : Cardinal=0;
@@ -574,7 +580,7 @@ end;
 {-------------------------------------------------------------------------------
 Write 4 bytes (word)
 -------------------------------------------------------------------------------}
-procedure TDiscImage.Write32b(value, offset: Cardinal; bigendian: Boolean=False);
+procedure TDiscImage.Write32b(value:Cardinal;offset: Int64; bigendian: Boolean=False);
 var
  buffer: TDIByteArray=nil;
 begin
@@ -582,7 +588,7 @@ begin
  SetLength(buffer,0);
  Write32b(value,offset,buffer,bigendian);
 end;
-procedure TDiscImage.Write32b(value, offset: Cardinal;var buffer: TDIByteArray;
+procedure TDiscImage.Write32b(value:Cardinal;offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
  i: Cardinal=0;
@@ -600,7 +606,7 @@ end;
 {-------------------------------------------------------------------------------
 Write 3 bytes
 -------------------------------------------------------------------------------}
-procedure TDiscImage.Write24b(value,offset: Cardinal; bigendian: Boolean=False);
+procedure TDiscImage.Write24b(value:Cardinal;offset: Int64; bigendian: Boolean=False);
 var
  buffer: TDIByteArray=nil;
 begin
@@ -608,7 +614,7 @@ begin
  SetLength(buffer,0);
  Write24b(value,offset,buffer,bigendian);
 end;
-procedure TDiscImage.Write24b(value,offset: Cardinal;var buffer: TDIByteArray;
+procedure TDiscImage.Write24b(value:Cardinal;offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
  i: Cardinal=0;
@@ -626,7 +632,7 @@ end;
 {-------------------------------------------------------------------------------
 Write 2 bytes
 -------------------------------------------------------------------------------}
-procedure TDiscImage.Write16b(value: Word; offset: Cardinal; bigendian: Boolean=False);
+procedure TDiscImage.Write16b(value: Word; offset: Int64; bigendian: Boolean=False);
 var
  buffer: TDIByteArray=nil;
 begin
@@ -634,7 +640,7 @@ begin
  SetLength(buffer,0);
  Write16b(value,offset,buffer,bigendian);
 end;
-procedure TDiscImage.Write16b(value: Word; offset: Cardinal;var buffer: TDIByteArray;
+procedure TDiscImage.Write16b(value: Word; offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
 var
  i: Cardinal=0;
@@ -652,45 +658,267 @@ end;
 {-------------------------------------------------------------------------------
 Write byte
 -------------------------------------------------------------------------------}
-procedure TDiscImage.WriteByte(value: Byte; offset: Cardinal);
+procedure TDiscImage.WriteByte(value: Byte; offset: Int64);
 var
  buffer: TDIByteArray=nil;
 begin
  SetLength(buffer,0);
  WriteByte(value,offset,buffer);
 end;
-procedure TDiscImage.WriteByte(value: Byte; offset: Cardinal;var buffer: TDIByteArray);
+procedure TDiscImage.WriteByte(value: Byte; offset: Int64;var buffer: TDIByteArray);
 begin
  if buffer=nil then
  begin
+  //Streamed images are opened read-only - never write to the backing file
+  if FStreamed then exit;
   //Compensate for interleaving (ADFS L & AFS)
   offset:=DiscAddrToIntOffset(offset);
   //Compensate for emulator header
   inc(offset,emuheader);
   //Will it go beyond the size of the array?
-  if offset<Length(Fdata) then
+  if(offset>=0)and(offset<Length(Fdata))then
    Fdata[offset]:=value; //Write the byte
  end
  else
   //Will it go beyond the size of the array?
-  if offset<Length(buffer) then
+  if(offset>=0)and(offset<Length(Fdata))then
    buffer[offset]:=value; //Write the byte
 end;
 
 {-------------------------------------------------------------------------------
 Gets the length of the data
 -------------------------------------------------------------------------------}
-function TDiscImage.GetDataLength: Cardinal;
+function TDiscImage.GetDataLength: Int64;
 begin
- Result:=Length(Fdata);
+ if FStreamed then Result:=FBackSize else Result:=Length(Fdata);
 end;
 
 {-------------------------------------------------------------------------------
 Sets the length of the data
 -------------------------------------------------------------------------------}
-procedure TDiscImage.SetDataLength(newlen: Cardinal);
+procedure TDiscImage.SetDataLength(newlen: Int64);
 begin
+ //Allocating an in-RAM buffer means we are leaving streamed (read-only) mode -
+ //this is how the format/new-image routines take ownership of the data.
+ if FStreamed then CloseStream;
  SetLength(Fdata,newlen);
+end;
+
+{-------------------------------------------------------------------------------
+Read a byte directly from the backing file, via a windowed page cache.
+Used only in streamed (read-only) mode. Keeps a small, bounded amount of the
+image resident (diStreamPageCount * diStreamPageSize) regardless of image size.
+written by Phil Pemberton
+-------------------------------------------------------------------------------}
+function TDiscImage.ReadByteBackend(offset: Int64): Byte;
+var
+ page : Int64;
+ slot : Integer;
+ lru  : Integer;
+ i    : Integer;
+ cnt  : Integer;
+begin
+ Result:=$FF;
+ if(FBackStream=nil)or(Length(FPageCache)=0)then exit;
+ //Page-aligned base address of the byte we want
+ page:=offset and not(Int64(diStreamPageSize-1));
+ //Look for the page in the cache, tracking the least recently used slot
+ slot:=-1;
+ lru :=0;
+ for i:=0 to Length(FPageCache)-1 do
+ begin
+  if FPageCache[i].Tag=page then begin slot:=i; break; end;
+  if FPageCache[i].LastUse<FPageCache[lru].LastUse then lru:=i;
+ end;
+ //Not resident - load it into the least recently used slot
+ if slot=-1 then
+ begin
+  slot:=lru;
+  //How much of the page actually exists in the file (always <= page size)
+  cnt:=diStreamPageSize;
+  if FBackSize-page<cnt then cnt:=Integer(FBackSize-page);
+  try
+   FBackStream.Position:=page;
+   if cnt>0 then FBackStream.Read(FPageCache[slot].Data[0],cnt);
+  except
+   //Read failure - mark the slot empty and bail out
+   FPageCache[slot].Tag:=-1;
+   exit;
+  end;
+  //Zero any tail beyond the end of the file so stale data isn't returned
+  for i:=cnt to diStreamPageSize-1 do FPageCache[slot].Data[i]:=0;
+  FPageCache[slot].Tag:=page;
+ end;
+ //Touch for LRU and return the requested byte
+ inc(FPageClock);
+ FPageCache[slot].LastUse:=FPageClock;
+ Result:=FPageCache[slot].Data[offset-page];
+end;
+
+{-------------------------------------------------------------------------------
+Decide whether an image of the given size should be streamed from disc rather
+than loaded entirely into RAM.
+written by Phil Pemberton
+-------------------------------------------------------------------------------}
+function TDiscImage.ShouldStream(filesize: Int64): Boolean;
+begin
+ //Beyond the 32-bit addressable range it must be streamed
+ if filesize>=$100000000 then exit(True);
+ //Otherwise stream when at/above the configured threshold (0 disables this)
+ Result:=(FStreamThreshold>0)and(filesize>=FStreamThreshold);
+end;
+
+{-------------------------------------------------------------------------------
+Open an image for streamed (read-only) access, leaving Fdata empty.
+written by Phil Pemberton
+-------------------------------------------------------------------------------}
+function TDiscImage.OpenStreamed(filename: String): Boolean;
+var
+ i: Integer;
+begin
+ Result:=False;
+ try
+  FBackStream:=TFileStream.Create(filename,fmOpenRead or fmShareDenyNone);
+ except
+  FBackStream:=nil;
+  exit;
+ end;
+ FBackSize:=FBackStream.Size;
+ FStreamed:=True;
+ //No in-RAM copy is held
+ SetLength(Fdata,0);
+ //Initialise the windowed page cache
+ SetLength(FPageCache,diStreamPageCount);
+ for i:=0 to diStreamPageCount-1 do
+ begin
+  SetLength(FPageCache[i].Data,diStreamPageSize);
+  FPageCache[i].Tag    :=-1;
+  FPageCache[i].LastUse:=0;
+ end;
+ FPageClock:=0;
+ Result:=True;
+end;
+
+{-------------------------------------------------------------------------------
+Release the streamed backing store (if any) and return to in-RAM mode.
+written by Phil Pemberton
+-------------------------------------------------------------------------------}
+procedure TDiscImage.CloseStream;
+begin
+ if FBackStream<>nil then FreeAndNil(FBackStream);
+ SetLength(FPageCache,0);
+ FStreamed:=False;
+ FBackSize:=0;
+ //Remove any temporary (decompressed) file we created
+ if FBackTemp<>'' then
+ begin
+  if SysUtils.FileExists(FBackTemp) then SysUtils.DeleteFile(FBackTemp);
+  FBackTemp:='';
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Peek at a file's first bytes to see if it is GZip compressed 
+written by Phil Pemberton
+-------------------------------------------------------------------------------}
+function TDiscImage.FileStartsGZip(filename: String): Boolean;
+var
+ F     : TFileStream=nil;
+ sig   : array[0..2] of Byte=(0,0,0);
+begin
+ Result:=False;
+ try
+  F:=TFileStream.Create(filename,fmOpenRead or fmShareDenyNone);
+  if F.Size>=3 then Result:=F.Read(sig[0],3)=3;
+ except
+  Result:=False;
+ end;
+ if F<>nil then F.Free;
+ Result:=Result and(sig[0]=$1F)and(sig[1]=$8B)and(sig[2]=$08);
+end;
+
+{-------------------------------------------------------------------------------
+Return the size of a file, in bytes (0 if it cannot be opened)
+written by Phil Pemberton
+-------------------------------------------------------------------------------}
+function TDiscImage.SizeOfFile(filename: String): Int64;
+var
+ F: TFileStream=nil;
+begin
+ Result:=0;
+ try
+  F:=TFileStream.Create(filename,fmOpenRead or fmShareDenyNone);
+  Result:=F.Size;
+ except
+  Result:=0;
+ end;
+ if F<>nil then F.Free;
+end;
+
+{-------------------------------------------------------------------------------
+Count the number of GZip members in a file, by scanning for the signature.
+Streamed (bounded memory) so it works on large compressed files. Uses the same
+'1F 8B 08' heuristic as Inflate, so routing stays consistent.
+written by Phil Pemberton
+-------------------------------------------------------------------------------}
+function TDiscImage.CountGZipMembers(filename: String): Integer;
+var
+ F     : TFileStream=nil;
+ buf   : array of Byte=nil;
+ n     : Integer=0;
+ i     : Integer=0;
+ prev1 : Integer=-1; //Previous byte
+ prev2 : Integer=-1; //Byte before that
+const
+ chunk = 65536;
+begin
+ Result:=0;
+ try
+  F:=TFileStream.Create(filename,fmOpenRead or fmShareDenyNone);
+  SetLength(buf,chunk);
+  repeat
+   n:=F.Read(buf[0],chunk);
+   for i:=0 to n-1 do
+   begin
+    if(prev2=$1F)and(prev1=$8B)and(buf[i]=$08)then inc(Result);
+    prev2:=prev1;
+    prev1:=buf[i];
+   end;
+  until n<chunk;
+ except
+ end;
+ if F<>nil then F.Free;
+end;
+
+{-------------------------------------------------------------------------------
+Decompress a single-member GZip file straight to another file, in chunks, so
+no more than a chunk is held in memory at once. Returns False on failure.
+written by Phil Pemberton
+-------------------------------------------------------------------------------}
+function TDiscImage.InflateGZipToFile(srcfile,destfile: String): Boolean;
+var
+ GZ  : TGZFileStream=nil;
+ FO  : TFileStream=nil;
+ buf : array of Byte=nil;
+ cnt : Integer=0;
+const
+ chunk = 65536;
+begin
+ Result:=False;
+ SetLength(buf,chunk);
+ try
+  GZ:=TGZFileStream.Create(srcfile,gzOpenRead);
+  FO:=TFileStream.Create(destfile,fmCreate);
+  repeat
+   cnt:=GZ.Read(buf[0],chunk);
+   if cnt>0 then FO.Write(buf[0],cnt);
+  until cnt<chunk;
+  Result:=True;
+ except
+  Result:=False;
+ end;
+ if GZ<>nil then GZ.Free;
+ if FO<>nil then FO.Free;
 end;
 
 {-------------------------------------------------------------------------------
@@ -965,6 +1193,19 @@ begin
  //Read in the entire file
  try
   F:=TFileStream.Create(filename,fmOpenRead or fmShareDenyNone);
+  try
+   SetLength(buffer,F.Size);
+   F.Read(buffer[0],F.Size);
+  except
+   //Most likely the image is too large to fit into available memory
+   on EOutOfMemory do
+   begin
+    FLoadError:='The image is too large to load into memory ('
+               +IntToStr(F.Size)+' bytes).';
+    F.Free;
+    exit;
+   end;
+  end;
   SetLength(buffer,F.Size);
   F.Read(buffer[0],F.Size);
  except

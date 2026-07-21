@@ -10,9 +10,9 @@ object ProgressForm: TProgressForm
   ClientWidth = 597
   Color = 15527148
   FormStyle = fsStayOnTop
-  OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.2.0.4'
+  LCLVersion = '4.2.0.0'
+  OnShow = FormShow
   object MainPanel: TPanel
     Cursor = crHourGlass
     Left = 0
@@ -24,6 +24,7 @@ object ProgressForm: TProgressForm
     ClientWidth = 597
     Font.Height = -32
     Font.Style = [fsBold]
+    ParentBackground = False
     ParentFont = False
     TabOrder = 0
     OnPaint = FormPaint

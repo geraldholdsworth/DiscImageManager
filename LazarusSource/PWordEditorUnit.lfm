@@ -14,6 +14,7 @@ object PwordEditorForm: TPwordEditorForm
   ClientWidth = 500
   Color = 15527148
   Position = poMainFormCenter
+  LCLVersion = '4.2.0.0'
   OnCreate = FormCreate
   OnHide = FormHide
   OnPaint = FormPaint
