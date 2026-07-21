@@ -748,6 +748,62 @@ begin
 end;
 
 {-------------------------------------------------------------------------------
+Build a lookup index of all ADFS new-map fragment entries.
+Called once per disc load; thereafter NewDiscAddrToOffset uses O(1) lookup
+instead of scanning all nzones zones for every file.
+-------------------------------------------------------------------------------}
+procedure TDiscImage.BuildADFSBitmapIndex;
+const
+ dr_size = $40;
+ header  = 4;
+var
+ zone  : Cardinal;
+ i,j   : Cardinal;
+ allmap: Cardinal;
+ start : Cardinal;
+ id    : Cardinal;
+ off   : Cardinal;
+ len   : Cardinal;
+ n     : Integer;
+begin
+ FBitmapIndexValid:=False;
+ SetLength(FBitmapIndex,0);
+ if not FMap then exit;
+ if(idlen=0)or(bpmb=0)or(disc_size[0]=0)then exit;
+ SetLength(FBitmapIndex,1 shl idlen);
+ for zone:=0 to nzones-1 do
+ begin
+  start :=bootmap+dr_size;
+  allmap:=(zone+1)*secsize*8-dr_size*8;
+  i     :=zone*secsize*8;
+  if zone>0 then dec(i,dr_size*8-header*8);
+  repeat
+   off:=i;
+   id :=ReadBits(start,i,idlen);
+   inc(i,idlen);
+   j:=i;
+   while(j<allmap)and((j and 7)<>0)
+        and not IsBitSet(ReadByte(start+(j shr 3)),j and 7)do inc(j);
+   while(j<allmap)and((j and 7)=0)and(ReadByte(start+(j shr 3))=0)do inc(j,8);
+   while(j<allmap)and not IsBitSet(ReadByte(start+(j shr 3)),j and 7)do inc(j);
+   len:=((j-i)+1+idlen)*bpmb;
+   i:=j;
+   if id>0 then
+   begin
+    off:=((off-(zone_spare*zone))*bpmb) mod disc_size[0];
+    n:=Length(FBitmapIndex[id]);
+    SetLength(FBitmapIndex[id],n+1);
+    FBitmapIndex[id][n].Offset:=off;
+    FBitmapIndex[id][n].Length:=len;
+    FBitmapIndex[id][n].Zone  :=zone;
+   end;
+   inc(i);
+  until i>=allmap;
+ end;
+ FBitmapIndexValid:=True;
+end;
+
+{-------------------------------------------------------------------------------
 Convert an ADFS New Map address to buffer offset address, with fragment lengths
 -------------------------------------------------------------------------------}
 function TDiscImage.NewDiscAddrToOffset(addr: Cardinal;
@@ -795,7 +851,16 @@ begin
    sector:=addr mod $100;
    //Sector needs to have 1 subtracted, if >=1
    if sector>=1 then dec(sector);
-   //Go through the allocation map, looking for the fragment
+   //Fast path: use pre-built index when available (offset=True only)
+   if FBitmapIndexValid and offset then
+   begin
+    Result:=Copy(FBitmapIndex[fragid]);
+    if Length(Result)>0 then
+     for i:=0 to Length(Result)-1 do
+      inc(Result[i].Offset,sector*secsize);
+    exit;
+   end;
+   //Slow path: scan the allocation map zone by zone
    //First we need to know how many ids per zone there are (max)
    id_per_zone:=((secsize*8)-zone_spare)div(idlen+1);
    //Then work out the start zone
@@ -820,11 +885,16 @@ begin
      id:=ReadBits(start,i,idlen);
      //and move the pointer on idlen bits
      inc(i,idlen);
-     //Now find the end of the fragment entry
-     j:=i-1;
-     repeat
-      inc(j);
-     until(IsBitSet(ReadByte(start+(j div 8)),j mod 8))or(j>=allmap);
+     //Now find the end of the fragment entry.
+     //Byte-at-a-time scan (up to 8x faster than bit-by-bit for large allocations):
+     //  Phase 1: bit-by-bit until byte-aligned (at most 7 bits)
+     //  Phase 2: skip zero bytes 8 bits at a time
+     //  Phase 3: bit-by-bit within the last non-zero byte (at most 8 bits)
+     j:=i;
+     while(j<allmap)and((j and 7)<>0)
+          and not IsBitSet(ReadByte(start+(j shr 3)),j and 7)do inc(j);
+     while(j<allmap)and((j and 7)=0)and(ReadByte(start+(j shr 3))=0)do inc(j,8);
+     while(j<allmap)and not IsBitSet(ReadByte(start+(j shr 3)),j and 7)do inc(j);
      //Make a note of the length
      if offset then
       len:=((j-i)+1+idlen)*bpmb
@@ -1047,6 +1117,8 @@ function TDiscImage.ReadADFSDisc: Boolean;
    format_vers :=Read32b(bootmap+$30);
    root_size   :=Read32b(bootmap+$34);
    if root_size=0 then root_size:=$800;
+   //Build the bitmap index for O(1) fragment lookups during directory traversal
+   BuildADFSBitmapIndex;
    //The root does not always follow the map
    addr:=NewDiscAddrToOffset(rootfrag);
    //So, find it - first reset it

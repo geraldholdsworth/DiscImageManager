@@ -462,6 +462,8 @@ type
   SparkFile     : TSpark;       //For reading in Spark archives
   FDSKImage     : TDSKImage;    //For reading in Sinclair/Amstrad DSK files
   ISOVolDes     : array of TISOVolDes;//ISO Volume Descriptors
+  FBitmapIndex      : array of TFragmentArray;//Pre-built ADFS new-map lookup index
+  FBitmapIndexValid : Boolean;              //True once FBitmapIndex is populated
   //Disc title for new images
   Fdisctitle,
   Fafsdisctitle,                //AFS has longer titles
@@ -549,6 +551,7 @@ type
                                           buffer: TDIByteArray): Byte; overload;
   function NewDiscAddrToOffset(addr: Cardinal;
                                           offset: Boolean=True): TFragmentArray;
+  procedure BuildADFSBitmapIndex;
   function OffsetToOldDiscAddr(offset: Cardinal): Cardinal;
   function ByteChecksum(offset,size: Cardinal;newmap: Boolean): Byte;
   function ByteChecksum(offset,size: Cardinal;newmap: Boolean;

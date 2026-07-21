@@ -65,6 +65,8 @@ begin
  Fupdating     :=False;
  Fcopyright    :='';
  Fversion      :='';
+ SetLength(FBitmapIndex,0);
+ FBitmapIndexValid:=False;
 end;
 
 {-------------------------------------------------------------------------------
