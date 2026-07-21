@@ -275,11 +275,14 @@ begin
 end;
 
 procedure TRegistrySettings.SetBool(const Key: String; Value: Boolean);
+var
+  i: Integer;
+  s: String;
 begin
-  if Value then
-    FSettings.Values[Key] := 'true'
-  else
-    FSettings.Values[Key] := 'false';
+  if Value then s := 'true' else s := 'false';
+  i := FSettings.IndexOfName(Key);
+  if i >= 0 then FSettings.Delete(i);
+  FSettings.Add(Key + '=' + s);
   FModified := True;
 end;
 
@@ -295,8 +298,12 @@ begin
 end;
 
 procedure TRegistrySettings.SetInt(const Key: String; Value: Integer);
+var
+  i: Integer;
 begin
-  FSettings.Values[Key] := IntToStr(Value);
+  i := FSettings.IndexOfName(Key);
+  if i >= 0 then FSettings.Delete(i);
+  FSettings.Add(Key + '=' + IntToStr(Value));
   FModified := True;
 end;
 
@@ -308,8 +315,12 @@ begin
 end;
 
 procedure TRegistrySettings.SetString(const Key: String; const Value: String);
+var
+  i: Integer;
 begin
-  FSettings.Values[Key] := Value;
+  i := FSettings.IndexOfName(Key);
+  if i >= 0 then FSettings.Delete(i);
+  FSettings.Add(Key + '=' + Value);
   FModified := True;
 end;
 
