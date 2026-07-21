@@ -126,7 +126,7 @@ implementation
 
 {$R *.lfm}
 
-uses MainUnit,ConsoleAppUnit;
+uses MainUnit;
 
 { THexDumpForm }
 
@@ -334,49 +334,38 @@ var
  len   : Byte=0;
  i     : Integer=0;
  pos   : Integer=0;
- ok    : Boolean=False;
 begin
- if MainForm.Fguiopen then
+ //Adapt the filename
+ line:=Caption;
+ BBCToWin(line);
+ //Remove any dots
+ for i:=1 to Length(line) do if line[i]='.' then line[i]:='-';
+ SaveFile.Filename:=line+'-dump.txt';
+ //And open the dialogue box
+ if SaveFile.Execute then
  begin
-  //Adapt the filename
-  line:=Caption;
-  BBCToWin(line);
-  //Remove any dots
-  for i:=1 to Length(line) do if line[i]='.' then line[i]:='-';
-  SaveFile.Filename:=line+'-dump.txt';
-  //And open the dialogue box
-  ok:=SaveFile.Execute;
- end else ok:=True;
- if ok then
- begin
-  if MainForm.Fguiopen then
-  begin
-   //Show the progress bar
-   pbProgress.Visible:=True;
-   pbProgress.Position:=0;
-   //Create a new file (overwrite one if already exists)
-   F:=TFileStream.Create(SaveFile.Filename,fmCreate);
-   //Set to start of file
-   F.Position:=0;
-   //Write out the header
-   WriteLine(F,MainForm.ApplicationTitle+' V'+MainForm.ApplicationVersion);
-   WriteLine(F,'https://www.geraldholdsworth.co.uk https://github.com/geraldholdsworth/DiscImageManager');
-   WriteLine(F,'');
-   WriteLine(F,'Filename      : '+Caption);
-   WriteLine(F,'Total Filesize: '+IntToStr(Length(buffer))
-                    +' (0x'+IntToHex(Length(buffer),10)+') bytes');
-   WriteLine(F,'');
-  end;
+  //Show the progress bar
+  pbProgress.Visible:=True;
+  pbProgress.Position:=0;
+  //Create a new file (overwrite one if already exists)
+  F:=TFileStream.Create(SaveFile.Filename,fmCreate);
+  //Set to start of file
+  F.Position:=0;
+  //Write out the header
+  WriteLine(F,MainForm.ApplicationTitle+' V'+MainForm.ApplicationVersion);
+  WriteLine(F,'https://www.geraldholdsworth.co.uk https://github.com/geraldholdsworth/DiscImageManager');
+  WriteLine(F,'');
+  WriteLine(F,'Filename      : '+Caption);
+  WriteLine(F,'Total Filesize: '+IntToStr(Length(buffer))
+                   +' (0x'+IntToHex(Length(buffer),10)+') bytes');
+  WriteLine(F,'');
   line:='Address     00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  ASCII';
-  if MainForm.Fguiopen then WriteLine(F,line)
-  else WriteLn(cmdBold+line+cmdNormal);
+  WriteLine(F,line);
   //Now the data
   pos:=0;//Start of the data
   repeat
    //Start the line off with the address, in hex, 10 digits long
    line:=IntToHex((pos div $10)*$10,10)+'  ';
-   if not MainForm.Fguiopen then
-    line:=cmdBold+line+cmdNormal;
    //Set the amount of data to read to 16 bytes
    len:=$10;
    //If this will take us over the total size, then adjust accordingly
@@ -392,10 +381,7 @@ begin
      if p=$07 then line:=line+' '; //Split in the middle
     end;
     //Extra space to separate from the characters
-    if MainForm.Fguiopen then
-     line:=PadRight(line,62)
-    else
-     line:=PadRight(line,70);
+    line:=PadRight(line,62);
     //Now the characters
     for p:=0 to len-1 do
      if (buffer[p+pos]>31) AND (buffer[p+pos]<127) then
@@ -403,24 +389,18 @@ begin
      else
       line:=line+'.'; //Not printable
     //Write out the complete line
-    if MainForm.Fguiopen then WriteLine(F,line) else WriteLn(line);
+    WriteLine(F,line);
    end;
-   if MainForm.Fguiopen then
-   begin
-    //Update the progress bar
-    pbProgress.Position:=Round((pos/Length(buffer))*100);
-    Application.ProcessMessages;
-   end;
+   //Update the progress bar
+   pbProgress.Position:=Round((pos/Length(buffer))*100);
+   Application.ProcessMessages;
    //Continue until no more data
    inc(pos,len);
   until pos=Length(buffer);
-  if MainForm.Fguiopen then
-  begin
-   //Close the file and exit
-   F.Free;
-   //Hide the progress bar
-   pbProgress.Visible:=False;
-  end;
+  //Close the file and exit
+  F.Free;
+  //Hide the progress bar
+  pbProgress.Visible:=False;
  end;
 end;
 
@@ -872,8 +852,6 @@ begin
             +StringReplace(PadLeft(IntToStr(linenum),5),' ','&nbsp;',[rfReplaceAll])
             +'</span>&nbsp;';
     basictxt:=PadLeft(IntToStr(linenum),5);
-    if not MainForm.Fguiopen then
-     basictxt:=cmdBlue+basictxt+cmdNormal;
     //Line length
     linelen:=buffer[ptr+3];
     //Move our line pointer one
@@ -917,8 +895,6 @@ begin
          inc(lineptr,3);
         end;
        linetxt:=linetxt+'<span '+keywordstyle+'>'+tmp+'</span>';
-       if not MainForm.Fguiopen then
-        tmp:=cmdBold+cmdMagenta+tmp+cmdNormal;
        basictxt:=basictxt+tmp;
       end
       else //Extended tokens (BASIC V)
@@ -938,8 +914,6 @@ begin
         if c=$C8 then
          if t-$8E<=High(exttokens3)then tmp:=exttokens3[t-$8E];
         linetxt:=linetxt+'<span '+keywordstyle+'>'+tmp+'</span>';
-        if not MainForm.Fguiopen then
-         tmp:=cmdBold+cmdMagenta+tmp+cmdNormal;
         basictxt:=basictxt+tmp;
        end;
       end;
@@ -950,10 +924,7 @@ begin
      if c>31 then
      begin
       if not rem then if(c=34)AND(detok)then
-       if MainForm.Fguiopen then
-        linetxt:=linetxt+'<span '+quotestyle+'>'
-       else
-        basictxt:=basictxt+cmdRed+cmdItalic;
+       linetxt:=linetxt+'<span '+quotestyle+'>';
       if(c<>32)and(c<>38)and(c<>60)and(c<>62)then
        linetxt:=linetxt+Chr(c AND$7F);
       if c=32 then linetxt:=linetxt+'&nbsp;';
@@ -962,8 +933,6 @@ begin
       if c=62 then linetxt:=linetxt+'&gt;';
       if not rem then if(c=34)and(not detok)then linetxt:=linetxt+'</span>';
       basictxt:=basictxt+Chr(c AND$7F);
-      if not rem then if(c=34)and(not detok)and(not MainForm.Fguiopen)then
-       basictxt:=basictxt+cmdNormal;
       //Do not detokenise within quotes
       if(c=34)and(not rem)then detok:=not detok;
      end;
@@ -975,43 +944,36 @@ begin
     inc(ptr,linelen);
    end;
   end;
-  if MainForm.Fguiopen then
-  begin
-   //Display the minimum compatible BASIC version
-   linetxt:='';
-   case basicver of
-    1: linetxt:=' I';
-    2: linetxt:=' II';
-    3: linetxt:=' III';
-    4: linetxt:=' IV';
-    5: linetxt:=' V';
-   end;
-   BasicViewer.Caption:='BBC BASIC'+linetxt;
-   //Change the colour
-   BasicOutput.Color:=$FF0000;
-   BasicOutput.Font.Color:=$FFFFFF;
-   //Finish off the HTML
-   fs.WriteString('</body></html>');
-   //Now upload the document to the display
-   fs.Position:=0;
-   BasicOutput.SetHtmlFromStream(fs);
-   fs.Free;
-   //Make the tab visible
-   BasicViewer.TabVisible:=True;
-   //And switch to it
-   PageControl.ActivePage:=BasicViewer;
-   PageControlChange(nil);
-  end
-  else
-   if BasicTxtOutput.Count>0 then
-    for ptr:=0 to BasicTxtOutput.Count-1 do
-     WriteLn(BasicTxtOutput[ptr]);
+  //Display the minimum compatible BASIC version
+  linetxt:='';
+  case basicver of
+   1: linetxt:=' I';
+   2: linetxt:=' II';
+   3: linetxt:=' III';
+   4: linetxt:=' IV';
+   5: linetxt:=' V';
+  end;
+  BasicViewer.Caption:='BBC BASIC'+linetxt;
+  //Change the colour
+  BasicOutput.Color:=$FF0000;
+  BasicOutput.Font.Color:=$FFFFFF;
+  //Finish off the HTML
+  fs.WriteString('</body></html>');
+  //Now upload the document to the display
+  fs.Position:=0;
+  BasicOutput.SetHtmlFromStream(fs);
+  fs.Free;
+  //Make the tab visible
+  BasicViewer.TabVisible:=True;
+  //And switch to it
+  PageControl.ActivePage:=BasicViewer;
+  PageControlChange(nil);
  end
  else //Display as text file, if it is a text file
  if IsTextFile then
  begin
   //Clear the container
-  if MainForm.Fguiopen then TextOutput.Clear;
+  TextOutput.Clear;
   linetxt:='';
   while ptr<Length(buffer) do
   begin
@@ -1027,26 +989,21 @@ begin
    if((c=$0A)and(cn<>$0D))
    or((c=$0D)and(cn<>$0A))then
    begin
-    if MainForm.Fguiopen then TextOutput.Lines.Add(linetxt)
-    else WriteLn(linetxt);
+    TextOutput.Lines.Add(linetxt);
     linetxt:='';
    end;
   end;
   //At the end, anything left then push to the output container
   if linetxt<>'' then
-   if MainForm.Fguiopen then TextOutput.Lines.Add(linetxt)
-   else WriteLn(linetxt);
-  if MainForm.Fguiopen then
-  begin
-   //Move the cursor to the beginning
-   TextOutput.SelStart:=0;
-   TextOutput.SelLength:=0;
-   //Make the tab visible
-   TextViewer.TabVisible:=True;
-   //And switch to it
-   PageControl.ActivePage:=TextViewer;
-   PageControlChange(nil);
-  end;
+   TextOutput.Lines.Add(linetxt);
+  //Move the cursor to the beginning
+  TextOutput.SelStart:=0;
+  TextOutput.SelLength:=0;
+  //Make the tab visible
+  TextViewer.TabVisible:=True;
+  //And switch to it
+  PageControl.ActivePage:=TextViewer;
+  PageControlChange(nil);
  end;
 end;
 
