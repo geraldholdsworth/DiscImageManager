@@ -829,7 +829,12 @@ var
  id          : Cardinal=0;
  allmap      : Cardinal=0;
  len         : Cardinal=0;
+ {$IFDEF CPU64}
  off         : Int64=0;
+ {$ENDIF}
+ {$IFDEF CPU32}
+ off         : Cardinal=0;
+ {$ENDIF}
  zone        : Cardinal=0;
  start       : Cardinal=0;
  start_zone  : Cardinal=0;
@@ -924,7 +929,8 @@ begin
      if id=fragid then
      begin
       if offset then //Offset as image file offset
-       off:=((off-(zone_spare*zone))*Int64(bpmb)) mod Int64(disc_size[0])
+       {$IFDEF CPU64}off:=((off-(zone_spare*zone))*Int64(bpmb)) mod Int64(disc_size[0]){$ENDIF}
+       {$IFDEF CPU32}off:=((off-(zone_spare*zone))*bpmb) mod disc_size[0]{$ENDIF}
       else //Offset as number of bits from start of zone
        begin
         //Add the disc record (we are counting from the zone start
@@ -3838,7 +3844,12 @@ function TDiscImage.ExtractFragmentedData(fragments: TFragmentArray;
 var
  dest   : Cardinal=0;
  len    : Cardinal=0;
+ {$IFDEF CPU64}
  source : Int64=0;
+ {$ENDIF}
+ {$IFDEF CPU32}
+ source : Cardinal=0;
+ {$ENDIF}
  frag   : Cardinal=0; //Pointer into the fragment array
 begin
  Result:=False;

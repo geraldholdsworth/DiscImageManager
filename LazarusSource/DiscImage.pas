@@ -166,10 +166,12 @@ type
   diFSMDir     = $FD;
   diFSMSystem  = $FE;
   diFSMUsed    = $FF;
+  {$IFDEF CPU64}
   //Streamed (read-only) backend - windowed page cache
   diStreamPageSize  = $10000;     //64 KB per cache page
   diStreamPageCount = $40;        //Number of cache pages (~4 MB resident)
   diStreamThreshold = $80000000;  //2 GiB - default streamed-load size threshold
+  {$ENDIF}
 
  //TSpark class definition
  type
@@ -372,24 +374,32 @@ type
   TPartitions   = array of TPartition;
   //Fragment
   TFragment     = record        //For retrieving the ADFS E/F fragment information
+   {$IFDEF CPU64}
    Offset       : Int64;
+   {$ENDIF}
+   {$IFDEF CPU32}
+   Offset,
+   {$ENDIF}
    Length,
    Zone         : Cardinal;
   end;
   //To collate fragments (ADFS/CDR/Amiga/AFS)
   TFragmentArray= array of TFragment;
+  {$IFDEF CPU64}
   //A single resident page of the streamed (read-only) backend cache
   TDIPage       = record
    Tag          : Int64;        //Page-aligned file offset, -1 when the slot is empty
    LastUse      : QWord;        //FPageClock value when last accessed (for LRU eviction)
    Data         : TDIByteArray; //diStreamPageSize bytes of image data
   end;
+  {$ENDIF}
   //Provides feedback
   TProgressProc = procedure(Fupdate: String) of Object;
  private
   FDisc         : TDisc;        //Container for the entire catalogue
   FPartitions   : TPartitions;  //Container for the entire catalogue (partitioned)
   Fdata         : TDIByteArray; //Container for the image to be loaded into
+  {$IFDEF CPU64}
   //Streamed (read-only) backend - used when the image is too large for RAM
   FStreamed     : Boolean;      //True when the image is served from the file on demand
   FBackStream   : TFileStream;  //Backing file, kept open for the image lifetime
@@ -398,6 +408,7 @@ type
   FPageCache    : array of TDIPage; //Windowed read-through cache (streamed mode)
   FPageClock    : QWord;        //Monotonic counter driving LRU eviction
   FStreamThreshold: Int64;      //Size at/above which images are streamed (0=never)
+  {$ENDIF}
   FDSD,                         //Double sided flag (Acorn DFS)
   FMap,                         //Old/New Map flag (Acorn ADFS) OFS/FFS (Amiga)
   FBootBlock,                   //Is disc an AmigaDOS Kickstart?
@@ -510,6 +521,7 @@ type
                                                 buffer: TDIByteArray); overload;
   function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
   function TimeDateToRISCOS(delphitime: TDateTime): Int64;
+  {$IFDEF CPU64}
   function Read32b(offset: Int64; bigendian: Boolean=False): Cardinal;
   function Read32b(offset: Int64; var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal; overload;
@@ -529,7 +541,22 @@ type
   function SizeOfFile(filename: String): Int64;
   function CountGZipMembers(filename: String): Integer;
   function InflateGZipToFile(srcfile,destfile: String): Boolean;
+  {$ENDIF}
+  {$IFDEF CPU32}
+  function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+  function Read32b(offset: Cardinal; var buffer: TDIByteArray;
+                                  bigendian: Boolean=False): Cardinal; overload;
+  function Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+  function Read24b(offset: Cardinal; var buffer: TDIByteArray;
+                                  bigendian: Boolean=False): Cardinal; overload;
+  function Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
+  function Read16b(offset: Cardinal; var buffer: TDIByteArray;
+                                      bigendian: Boolean=False): Word; overload;
+  function ReadByte(offset: Cardinal): Byte;
+  function ReadByte(offset: Cardinal; var buffer: TDIByteArray): Byte; overload;
+  {$ENDIF}
   procedure RemoveDirectory(dirref: Cardinal);
+  {$IFDEF CPU64}
   function DiscAddrToIntOffset(disc_addr: Int64): Int64;
   procedure Write32b(value:Cardinal;offset: Int64; bigendian: Boolean=False);
   procedure Write32b(value:Cardinal;offset: Int64; var buffer: TDIByteArray;
@@ -545,6 +572,24 @@ type
                                             var buffer: TDIByteArray); overload;
   function GetDataLength: Int64;
   procedure SetDataLength(newlen: Int64);
+  {$ENDIF}
+  {$IFDEF CPU32}
+  function DiscAddrToIntOffset(disc_addr: Cardinal): Cardinal;
+  procedure Write32b(value,offset: Cardinal; bigendian: Boolean=False);
+  procedure Write32b(value,offset: Cardinal; var buffer: TDIByteArray;
+                                      bigendian: Boolean=False); overload;
+  procedure Write24b(value,offset: Cardinal; bigendian: Boolean=False);
+  procedure Write24b(value,offset: Cardinal; var buffer: TDIByteArray;
+                                      bigendian: Boolean=False); overload;
+  procedure Write16b(value:Word; offset: Cardinal; bigendian: Boolean=False);
+  procedure Write16b(value:Word; offset: Cardinal; var buffer: TDIByteArray;
+                                      bigendian: Boolean=False); overload;
+  procedure WriteByte(value: Byte; offset: Cardinal);
+  procedure WriteByte(value: Byte; offset: Cardinal;
+                                            var buffer: TDIByteArray); overload;
+  function GetDataLength: Cardinal;
+  procedure SetDataLength(newlen: Cardinal);
+  {$ENDIF}
   function ROR13(v: Cardinal): Cardinal;
   procedure ResetDir(var Entry: TDir);
   function MapFlagToByte: Byte;
@@ -1022,8 +1067,14 @@ type
   function MoveFile(filename,directory: String): Integer;
   function MoveFile(source: Cardinal;dest: Integer): Integer; overload;
   function ReadDirectory(dirname: String): Integer;
+  {$IFDEF CPU64}
   function ReadDiscData(addr,count:Int64;side:Cardinal;offset: Int64;
                                              var buffer: TDIByteArray): Boolean;
+  {$ENDIF}
+  {$IFDEF CPU32}
+  function ReadDiscData(addr,count,side,offset: Cardinal;
+                                             var buffer: TDIByteArray): Boolean;
+  {$ENDIF}
   procedure ReadImage;
   function ReadPasswordFile: TUserAccounts;
   function RenameFile(oldfilename: String;var newfilename: String): Integer;
@@ -1046,8 +1097,14 @@ type
   function UpdateVersionString(version: String): Boolean;
   procedure ValidateAttributes(var attributes: String);
   function ValidateFilename(parent:String;var filename:String): Boolean;
+  {$IFDEF CPU64}
   function WriteDiscData(addr:Int64;side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
+  {$ENDIF}
+  {$IFDEF CPU32}
+  function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
+                                    count: Cardinal;start: Cardinal=0): Boolean;
+  {$ENDIF}
   function WriteFile(var file_details: TDirEntry;
                       var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
   //Published properties
@@ -1114,9 +1171,11 @@ type
   property RootName:            String        read root_name;
   property ScanSubDirs:         Boolean       read FScanSubDirs
                                               write FScanSubDirs;
+  {$IFDEF CPU64}
   property Streamed:            Boolean       read FStreamed;
   property StreamThreshold:     Int64         read FStreamThreshold
                                               write FStreamThreshold;
+  {$ENDIF}
   property Sectors:             Byte          read secspertrack;
   property SparkAsFS:           Boolean       read FSparkAsFS
                                               write FSparkAsFS;

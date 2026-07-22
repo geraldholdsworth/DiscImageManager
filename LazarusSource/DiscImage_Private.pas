@@ -413,7 +413,12 @@ end;
 {-------------------------------------------------------------------------------
 Read in 4 bytes (word)
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 function TDiscImage.Read32b(offset: Int64; bigendian: Boolean=False): Cardinal;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+{$ENDIF}
 var
  buffer: TDIByteArray=nil;
 begin
@@ -421,8 +426,14 @@ begin
  SetLength(buffer,0);
  Result:=Read32b(offset,buffer,bigendian);
 end;
+{$IFDEF CPU64}
 function TDiscImage.Read32b(offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.Read32b(offset: Cardinal;var buffer: TDIByteArray;
+                                  bigendian: Boolean=False): Cardinal;
+{$ENDIF}
 var
  i: Cardinal=0;
 const
@@ -440,7 +451,12 @@ end;
 {-------------------------------------------------------------------------------
 Read in 3 bytes
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 function TDiscImage.Read24b(offset: Int64; bigendian: Boolean=False): Cardinal;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+{$ENDIF}
 var
  buffer: TDIByteArray=nil;
 begin
@@ -448,8 +464,14 @@ begin
  SetLength(buffer,0);
  Result:=Read24b(offset,buffer,bigendian);
 end;
+{$IFDEF CPU64}
 function TDiscImage.Read24b(offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Cardinal;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.Read24b(offset: Cardinal;var buffer: TDIByteArray;
+                                  bigendian: Boolean=False): Cardinal;
+{$ENDIF}
 var
  i: Cardinal=0;
 const
@@ -467,7 +489,12 @@ end;
 {-------------------------------------------------------------------------------
 Read in 2 bytes
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 function TDiscImage.Read16b(offset: Int64; bigendian: Boolean=False): Word;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
+{$ENDIF}
 var
  buffer: TDIByteArray=nil;
 begin
@@ -475,8 +502,14 @@ begin
  SetLength(buffer,0);
  Result:=Read16b(offset,buffer,bigendian);
 end;
+{$IFDEF CPU64}
 function TDiscImage.Read16b(offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False): Word;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.Read16b(offset: Cardinal;var buffer: TDIByteArray;
+                                  bigendian: Boolean=False): Word;
+{$ENDIF}
 var
  i: Cardinal=0;
 const
@@ -494,7 +527,12 @@ end;
 {-------------------------------------------------------------------------------
 Read in a byte
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 function TDiscImage.ReadByte(offset: Int64): Byte;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.ReadByte(offset: Cardinal): Byte;
+{$ENDIF}
 var
  buffer: TDIByteArray=nil;
 begin
@@ -502,7 +540,12 @@ begin
  SetLength(buffer,0);
  Result:=ReadByte(offset,buffer);
 end;
+{$IFDEF CPU64}
 function TDiscImage.ReadByte(offset: Int64;var buffer: TDIByteArray): Byte;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.ReadByte(offset: Cardinal;var buffer: TDIByteArray): Byte;
+{$ENDIF}
 begin
  Result:=$FF;
  if buffer<>nil then
@@ -514,12 +557,14 @@ begin
   offset:=DiscAddrToIntOffset(offset);
   //Compensate for emulator header
   inc(offset,emuheader);
+  {$IFDEF CPU64}
   //Streamed (read-only) mode: read on demand from the backing file
   if FStreamed then
   begin
    if(offset>=0)and(offset<FBackSize)then Result:=ReadByteBackend(offset);
    exit;
   end;
+  {$ENDIF}
   //If we are inside the data, read the byte
   if(offset>=0)and(offset<Length(Fdata))then Result:=Fdata[offset];
  end;
@@ -528,7 +573,12 @@ end;
 {-------------------------------------------------------------------------------
 Calculate offset into image given the disc address (Interleaved or Multiplexed)
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 function TDiscImage.DiscAddrToIntOffset(disc_addr: Int64): Int64;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.DiscAddrToIntOffset(disc_addr: Cardinal): Cardinal;
+{$ENDIF}
 var
  track_size : Cardinal=0;
  track      : Cardinal=0;
@@ -580,7 +630,12 @@ end;
 {-------------------------------------------------------------------------------
 Write 4 bytes (word)
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 procedure TDiscImage.Write32b(value:Cardinal;offset: Int64; bigendian: Boolean=False);
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.Write32b(value,offset: Cardinal; bigendian: Boolean=False);
+{$ENDIF}
 var
  buffer: TDIByteArray=nil;
 begin
@@ -588,8 +643,14 @@ begin
  SetLength(buffer,0);
  Write32b(value,offset,buffer,bigendian);
 end;
+{$IFDEF CPU64}
 procedure TDiscImage.Write32b(value:Cardinal;offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.Write32b(value,offset: Cardinal;var buffer: TDIByteArray;
+                                  bigendian: Boolean=False);
+{$ENDIF}
 var
  i: Cardinal=0;
 const
@@ -606,7 +667,12 @@ end;
 {-------------------------------------------------------------------------------
 Write 3 bytes
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 procedure TDiscImage.Write24b(value:Cardinal;offset: Int64; bigendian: Boolean=False);
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.Write24b(value,offset: Cardinal; bigendian: Boolean=False);
+{$ENDIF}
 var
  buffer: TDIByteArray=nil;
 begin
@@ -614,8 +680,14 @@ begin
  SetLength(buffer,0);
  Write24b(value,offset,buffer,bigendian);
 end;
+{$IFDEF CPU64}
 procedure TDiscImage.Write24b(value:Cardinal;offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.Write24b(value,offset: Cardinal;var buffer: TDIByteArray;
+                                  bigendian: Boolean=False);
+{$ENDIF}
 var
  i: Cardinal=0;
 const
@@ -632,7 +704,12 @@ end;
 {-------------------------------------------------------------------------------
 Write 2 bytes
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 procedure TDiscImage.Write16b(value: Word; offset: Int64; bigendian: Boolean=False);
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.Write16b(value: Word; offset: Cardinal; bigendian: Boolean=False);
+{$ENDIF}
 var
  buffer: TDIByteArray=nil;
 begin
@@ -640,8 +717,14 @@ begin
  SetLength(buffer,0);
  Write16b(value,offset,buffer,bigendian);
 end;
+{$IFDEF CPU64}
 procedure TDiscImage.Write16b(value: Word; offset: Int64;var buffer: TDIByteArray;
                                   bigendian: Boolean=False);
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.Write16b(value: Word; offset: Cardinal;var buffer: TDIByteArray;
+                                  bigendian: Boolean=False);
+{$ENDIF}
 var
  i: Cardinal=0;
 const
@@ -658,19 +741,31 @@ end;
 {-------------------------------------------------------------------------------
 Write byte
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 procedure TDiscImage.WriteByte(value: Byte; offset: Int64);
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.WriteByte(value: Byte; offset: Cardinal);
+{$ENDIF}
 var
  buffer: TDIByteArray=nil;
 begin
  SetLength(buffer,0);
  WriteByte(value,offset,buffer);
 end;
+{$IFDEF CPU64}
 procedure TDiscImage.WriteByte(value: Byte; offset: Int64;var buffer: TDIByteArray);
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.WriteByte(value: Byte; offset: Cardinal;var buffer: TDIByteArray);
+{$ENDIF}
 begin
  if buffer=nil then
  begin
+  {$IFDEF CPU64}
   //Streamed images are opened read-only - never write to the backing file
   if FStreamed then exit;
+  {$ENDIF}
   //Compensate for interleaving (ADFS L & AFS)
   offset:=DiscAddrToIntOffset(offset);
   //Compensate for emulator header
@@ -688,22 +783,34 @@ end;
 {-------------------------------------------------------------------------------
 Gets the length of the data
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 function TDiscImage.GetDataLength: Int64;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.GetDataLength: Cardinal;
+{$ENDIF}
 begin
- if FStreamed then Result:=FBackSize else Result:=Length(Fdata);
+ {$IFDEF CPU64}if FStreamed then Result:=FBackSize else {$ENDIF}Result:=Length(Fdata);
 end;
 
 {-------------------------------------------------------------------------------
 Sets the length of the data
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 procedure TDiscImage.SetDataLength(newlen: Int64);
 begin
  //Allocating an in-RAM buffer means we are leaving streamed (read-only) mode -
  //this is how the format/new-image routines take ownership of the data.
  if FStreamed then CloseStream;
+{$ENDIF}
+{$IFDEF CPU32}
+procedure TDiscImage.SetDataLength(newlen: Cardinal);
+begin
+{$ENDIF}
  SetLength(Fdata,newlen);
 end;
 
+{$IFDEF CPU64}
 {-------------------------------------------------------------------------------
 Read a byte directly from the backing file, via a windowed page cache.
 Used only in streamed (read-only) mode. Keeps a small, bounded amount of the
@@ -920,6 +1027,7 @@ begin
  if GZ<>nil then GZ.Free;
  if FO<>nil then FO.Free;
 end;
+{$ENDIF}
 
 {-------------------------------------------------------------------------------
 Rotate Right 13 bits
@@ -1193,9 +1301,10 @@ begin
  //Read in the entire file
  try
   F:=TFileStream.Create(filename,fmOpenRead or fmShareDenyNone);
-  try
+  {$IFDEF CPU64}try{$ENDIF}
    SetLength(buffer,F.Size);
    F.Read(buffer[0],F.Size);
+  {$IFDEF CPU64}
   except
    //Most likely the image is too large to fit into available memory
    on EOutOfMemory do
@@ -1206,8 +1315,7 @@ begin
     exit;
    end;
   end;
-  SetLength(buffer,F.Size);
-  F.Read(buffer[0],F.Size);
+  {$ENDIF}
  except
   on Exception do
   begin

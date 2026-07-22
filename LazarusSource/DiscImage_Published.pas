@@ -12,12 +12,14 @@ begin
 // SetLength(Fpartitions,0);
  //ADFS Interleaving option
  FForceInter          :=0;
+ {$IFDEF CPU64}
  //Stream images at/above this size rather than loading them all into RAM
  FStreamThreshold     :=diStreamThreshold;
  //No streamed backing store yet
  FBackStream          :=nil;
  FStreamed            :=False;
  FBackTemp            :='';
+ {$ENDIF}
  //Deal with Spark archives as a filing system (i.e. in this class)
  FSparkAsFS           :=True;
  //Allow DFS images which report number of sectors as zero
@@ -166,15 +168,19 @@ end;
 Load an image from a file, unGZIPping it, if necessary
 -------------------------------------------------------------------------------}
 function TDiscImage.LoadFromFile(filename: String;readdisc: Boolean=True): Boolean;
+{$IFDEF CPU64}
 var
  Ltemp: String='';
+{$ENDIF}
 begin
  Result:=False;
  //Clear any previous load error (not reset by ResetVariables so it survives
  //the ResetVariables call inside IDImage)
  FLoadError:='';
+ {$IFDEF CPU64}
  //Release any backing store left over from a previous load
  CloseStream;
+ {$ENDIF}
  //Only read the file in if it actually exists (or rather, Windows can find it)
  if SysUtils.FileExists(filename) then
  begin
@@ -184,8 +190,7 @@ begin
   if GetMajorFormatNumber=diSpark then SparkFile.Free;
   //Blank off the variables
   ResetVariables;
-{  //Read the file in, uncompressing if need be
-  FData:=Inflate(filename);}
+  {$IFDEF CPU64}
   //Large images are streamed from disc on demand rather than loaded entirely
   //into RAM (which would exhaust memory and overflow the 32-bit addressing).
   if FileStartsGZip(filename)then
@@ -228,6 +233,7 @@ begin
      FLoadError:='Unable to open the image for streamed access.';
    end
    else
+   {$ENDIF}
     //Read the file in
     FData:=Inflate(filename);
   //ID the image
@@ -345,12 +351,14 @@ var
  end;
 begin
  Result:=False;
+ {$IFDEF CPU64}
  //Streamed images are read-only and hold no in-RAM copy to save
  if FStreamed then
  begin
   FLoadError:='Streamed (large) images are read-only and cannot be saved.';
   exit;
  end;
+ {$ENDIF}
  //Validate the filename
  ext:=ExtractFileExt(filename); //First extract the extension
  if ext='' then //If it hasn't been given an extension, then give it the default
@@ -432,8 +440,10 @@ Closes an image file
 -------------------------------------------------------------------------------}
 procedure TDiscImage.Close;
 begin
+ {$IFDEF CPU64}
  //Release any streamed backing store (and temp file) before resetting
  CloseStream;
+ {$ENDIF}
  ResetVariables;
 end;
 
@@ -887,10 +897,18 @@ end;
 {-------------------------------------------------------------------------------
 Direct access to disc data
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 function TDiscImage.ReadDiscData(addr,count:Int64;side:Cardinal;offset:Int64;
                                              var buffer: TDIByteArray): Boolean;
 var
  i      : Int64=0;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.ReadDiscData(addr,count,side,offset:Cardinal;
+                                             var buffer: TDIByteArray): Boolean;
+var
+ i      : Cardinal=0;
+{$ENDIF}
 begin
  Result:=False;
  if count>0 then //Make sure there is something to read
@@ -918,8 +936,14 @@ end;
 {-------------------------------------------------------------------------------
 Direct access writing to disc
 -------------------------------------------------------------------------------}
+{$IFDEF CPU64}
 function TDiscImage.WriteDiscData(addr:Int64;side:Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
+{$ENDIF}
+{$IFDEF CPU32}
+function TDiscImage.WriteDiscData(addr,side:Cardinal;var buffer: TDIByteArray;
+                                    count: Cardinal;start: Cardinal=0): Boolean;
+{$ENDIF}
 var
  i   : Cardinal=0;
 begin

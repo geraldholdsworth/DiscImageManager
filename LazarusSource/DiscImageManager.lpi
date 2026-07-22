@@ -35,7 +35,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Debug/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -69,7 +68,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -103,7 +101,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -140,7 +137,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -176,7 +172,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -207,7 +202,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -238,7 +232,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -269,7 +262,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -300,7 +292,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -331,7 +322,6 @@
           <Version Value="11"/>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
             <UnitOutputDirectory Value="lib/Release/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -539,7 +529,6 @@
     <Version Value="11"/>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="../SpriteToBitmap;../GJHCustomComponents;../GJHCustomConponents"/>
       <UnitOutputDirectory Value="lib/Debug/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>
