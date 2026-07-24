@@ -30,9 +30,7 @@ For some reason, despite my best attempts, running the ARM version of Disc Image
 ## Other Projects
 Another project that may interest users of Disc Image Manager is a test tool I wrote for UEF files - <a href="https://github.com/geraldholdsworth/UEFReader">UEF Reader</a>. The results of this project paved the way for UEF files to be read by Disc Image Manager.<br>
 ## Compiling
-In order to compile Disc Image Manager, you will require the <a href="https://github.com/geraldholdsworth/SpriteToBitmap">TSpriteFile class</a> (specifically the files SpriteFile.pas and SpriteFilePalettes.pas), and the <a href="https://github.com/geraldholdsworth/GJHCustomComponents">TGJHCustomComponents class</a> (specifically the files GJHCustomComponents.pas, ButtonGraphics.pas, PointerGraphics.pas, RadioBoxGraphics.pas and TickBoxGraphics.pas).<br>
-<br>
-  Project was written in <a href="https://www.lazarus-ide.org">Lazarus</a>. Binaries are available for macOS 32 bit, 64 bit &amp; ARM, Windows 32 &amp; 64 bit, and Linux 32 bit, 64 bit, ARM 64 bit &amp; ARM 32 bit. Full source is available if you wish to compile for other systems.<br>
+Project was written in <a href="https://www.lazarus-ide.org">Lazarus</a>. Binaries are available for macOS 32 bit, 64 bit &amp; ARM, Windows 32 &amp; 64 bit, and Linux 32 bit, 64 bit, ARM 64 bit &amp; ARM 32 bit. Full source is available if you wish to compile for other systems.<br>
 ## Discussion
 You might like to also check out the thread on <a href="https://stardot.org.uk/forums/viewtopic.php?f=12&t=21252">Stardot</a> concerning this project. I have also put this onto the <a href="http://eab.abime.net/index.php">English Amiga Board</a>.<br>
 <br>
