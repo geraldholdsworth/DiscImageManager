@@ -29,7 +29,7 @@ uses
  {$IFDEF Windows}Windows,{$ENDIF} //For Windows console
  {$IFDEF Linux}BaseUnix,{$ENDIF}  //For Linux console
  {$IFDEF Darwin}typinfo,CocoaAll,{$ENDIF} //For macOS console
- Classes, SysUtils, CustApp, MainUnit{$IFNDEF DIMCONSOLE}, Forms{$ENDIF}, DiscImage;
+ Classes, SysUtils, CustApp, MainUnit, Forms, DiscImage;
 
 type
 
@@ -108,7 +108,6 @@ var
 begin
  Result:=False;
  //'console' passed as a parameter
- {$IFNDEF DIMCONSOLE}
  if((Application.HasOption('c','console'))
  or(IsRunFromConsole))
  and(not Application.HasOption('g','gui'))then
@@ -117,7 +116,7 @@ begin
   if Application.HasOption('w','width')then
    ConsoleWidth:=StrToIntDef(Application.GetOptionValue('w','width'),80)
   else ConsoleWidth:=80;
-  if ConsoleWidth<80 then ConsoleWidth:=80;{$ENDIF}
+  if ConsoleWidth<80 then ConsoleWidth:=80;
   //Windows does not create a console for GUI applications, so we need to
   {$IFDEF Windows}
   //Blank the styles for older versions of Windows
@@ -162,21 +161,13 @@ begin
   //Create the console application
   ConsoleApp:=TConsoleApp.Create(nil);
   ConsoleApp.Title:=MainForm.ApplicationTitle+' Console';
-  {$IFDEF DIMCONSOLE}
-  if ConsoleApp.HasOption('w','width')then
-   ConsoleWidth:=StrToIntDef(ConsoleApp.GetOptionValue('w','width'),80)
-  else ConsoleWidth:=80;
-  if ConsoleWidth<80 then ConsoleWidth:=80;
-  {$ENDIF}
   //Run the user interface
   Result:=ConsoleApp.UserInterface;
   //Close the console application
   ConsoleApp.Free;
   //Close the GUI application if not needed, otherwise open the GUI application
-  {$IFNDEF DIMCONSOLE}
   if Result then Application.Terminate;
  end;
- {$ENDIF}
 end;
 
 {-------------------------------------------------------------------------------
@@ -221,7 +212,6 @@ var
     end;
  end;
 begin
- {$IFDEF DIMCONSOLE}MainForm:=TMainForm.Create;{$ENDIF}
  ScriptFile:=nil;
  ScriptOpen:=False;
  //Write out a header
@@ -234,11 +224,7 @@ begin
  WriteLn(MainForm.platform+' '+MainForm.arch);
  WriteLn(cmdNormal);
  //Did the user supply a file for commands to run?
- {$IFNDEF DIMCONSOLE}
  OpenScript(Application.GetOptionValue('c','console'));
- {$ELSE}
- OpenScript(GetOptionValue('c','console'));
- {$ENDIF}
  //Intialise the array
  Lparams:=nil;
  WriteLn(cmdBold+'Ready'+cmdNormal);

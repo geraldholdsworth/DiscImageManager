@@ -88,7 +88,6 @@ const
  ('UEF_Compress'         ,'B','Compress UEF images when saving'),
  ('View_Options'         ,'I','Displays which menus are visible'),
  ('WindowStyle'          ,'I','Native or RISC OS styling'));
- {$INCLUDE 'DIMHelp.pas'}
  //Validate a filename, building a complete path if required
  function ValidFile(thisfile: String): Boolean;
  begin
@@ -837,9 +836,8 @@ begin
   //Exit the console application +++++++++++++++++++++++++++++++++++++++++++++++
   'exit':
    begin
-    {$IFNDEF DIMCONSOLE}if Length(Command)=1 then{$ENDIF} //Complete exit
+    if Length(Command)=1 then //Complete exit
      if not Confirm then Command[0]:='';
-{$IFNDEF DIMCONSOLE}
     if Length(Command)>1 then //Just to the GUI
      if Command[1]='togui' then WriteLn('Entering GUI.')
      else
@@ -847,7 +845,6 @@ begin
       WriteLn(cmdRed+'Unknown parameter'+cmdNormal);
       Command[0]:='';
      end;
-{$ENDIF}
    end;
   //Extract and search commands ++++++++++++++++++++++++++++++++++++++++++++++++
   'extract','search':
@@ -935,9 +932,9 @@ begin
   'help':
    begin
     WriteLn(cmdBlue+cmdBold+'Console Help'+cmdNormal);
-    for Index:=0 to Length(Help)-1 do
+    for Index:=0 to Help.Lines.Count-1 do
     begin
-     temp:=Help[Index];
+     temp:=Help.Lines[Index];
      if Length(temp)>1 then
       if temp[1]<>' ' then temp:=cmdRed+cmdBold+temp
       else temp:=Copy(temp,2);
@@ -998,7 +995,6 @@ begin
     if Length(Command)>1 then
      if ValidFile(Command[1])then
      begin
-      {$IFNDEF DIMCONSOLE}
       //We'll need to create a container
       SetLength(HexDump,1);
       HexDump[0]:=THexDumpForm.Create(nil);
@@ -1014,25 +1010,7 @@ begin
        HexDump[0].Free;
        SetLength(HexDump,0);
       end
-      else WriteLn(cmdRed+'Failed to extract file.'+cmdNormal);
-      {$ELSE}
-      //Extract the file into this container
-      if Image.ExtractFile(temp,HexDumpForm.buffer,entry) then
-      begin
-       //Only display if it is text or BASIC
-       if(HexDumpForm.IsBasicFile)or(HexDumpForm.IsTextFile)then
-        HexDumpForm.DecodeBasicFile
-       else
-        HexDumpForm.btnSaveTextClick(nil);
-       {$ENDIF}
-       {$IFNDEF DIMCONSOLE}
-       //Free up the container
-       HexDumpForm.Free;
-       SetLength(HexDump,0);
-       {$ELSE}
-      end
       else WriteLn(cmdRed+'Failed to extract file.'+cmdNormal)
-      {$ENDIF}
      end
      else WriteLn(cmdRed+'Cannot find file '''+Command[1]+'''.'+cmdNormal)
     else error:=2

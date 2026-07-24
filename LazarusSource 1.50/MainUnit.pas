@@ -32,16 +32,14 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
-  SysUtils,Classes,DiscImage,Global,StrUtils,HexDumpUnit,
-  {$IFNDEF DIMCONSOLE}Graphics,Controls,Forms,Dialogs,StdCtrls,ExtCtrls,Buttons,
-  ComCtrls,Menus,DateUtils,ImgList,Clipbrd,FPImage,IntfGraphics,
-  ActnList,GraphType,DateTimePicker,Types,RFSDetailUnit,{$ENDIF}
+  SysUtils,Classes,Graphics,Controls,Forms,Dialogs,StdCtrls,DiscImage,Global,
+  ExtCtrls,Buttons,ComCtrls,Menus,DateUtils,ImgList,StrUtils,Clipbrd,HexDumpUnit,
+  FPImage,IntfGraphics,ActnList,GraphType,DateTimePicker,Types,RFSDetailUnit,
   GJHCustomComponents,fpjson,DiscImageHelper;
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
  //Will need to set the OnCreateNodeClass event in the TTreeView
- {$IFNDEF DIMCONSOLE}
  TMyTreeNode = class(TTreeNode)
   private
    FPart      : Cardinal;
@@ -64,9 +62,8 @@ type
    property ParentName: String   read FParentName write FParentName;//Fully qualified name of the parent
    property Partition : Cardinal read FPart       write FPart;      //Which partition?
  end;
- {$ENDIF}
  //Form definition - TMainForm
- TMainForm = class{$IFNDEF DIMCONSOLE}(TForm)
+ TMainForm = class(TForm)
   DeleteAFile: TAction;
   AmigaAttrPanel: TPanel;
   AFSAttrPanel: TPanel;
@@ -77,6 +74,7 @@ type
   ISOAttrPanel: TPanel;
   ISOAttributeLabel: TLabel;
   CancelDragDrop: TAction;
+  Help: TMemo;
   menuFixADFS: TMenuItem;
   menuDefrag: TMenuItem;
   menuChangeInterleave: TMenuItem;
@@ -295,9 +293,7 @@ type
   procedure btn_SaveAsCSVClick(Sender: TObject);
   procedure btn_SavePartitionClick(Sender: TObject);
   procedure btn_SettingsClick(Sender: TObject);
-{$ENDIF}
   procedure btn_ShowReportClick(Sender: TObject);
-{$IFNDEF DIMCONSOLE}
   procedure DuplicateFile1Click(Sender: TObject);
   procedure ed_timestampEditingDone(Sender: TObject);
   procedure HexDumpSubItemClick(Sender: TObject);
@@ -369,22 +365,15 @@ type
   procedure PasteFromClipboardExecute(Sender: TObject);
   procedure ToolBarContainerChange(Sender: TObject);
   procedure HoverTimerTimer(Sender: TObject);
-{$ENDIF}
-{$IFDEF DIMCONSOLE}
-  constructor Create;
-{$ENDIF}
   //Misc
   function AddDirectoryToImage(dirname: String;NewImage: TDiscImage=nil;
                                                    srcPath: String=''): Boolean;
-{$IFNDEF DIMCONSOLE}
   procedure AddDirectoryToTree(CurrDir: TTreeNode; dir: Integer;
                                    ImageToUse:TDiscImage;var highdir: Integer);
-{$ENDIF}
   function AddFileErrorToText(error: Integer):String;
   function AddFileToImage(filename: String):Integer;
   function AddFileToImage(filename: String;filedetails: TDirEntry;
           buffer:TDIByteArray=nil;ignoreerror:Boolean=False):Integer; overload;
-{$IFNDEF DIMCONSOLE}
   function AddFileToTree(ParentNode: TTreeNode;importfilename: String;
      index:Integer;dir:Boolean;Tree:TTreeView;IsDOSPart:Boolean):TTreeNode;
   procedure AddImageToTree(Tree: TTreeView;ImageToUse: TDiscImage);
@@ -392,24 +381,18 @@ type
   procedure ArrangeFileDetails;
   function AskConfirm(confim: String; Buttons: array of String): TModalResult;
   procedure CloseAllHexDumps;
-{$ENDIF}
   function ConvertToKMG(size: Int64): String;
-{$IFNDEF DIMCONSOLE}
   function CreateButton(Lparent: TControl; Lcaption: String;LDef: Boolean;
                         LLeft,LTop: Integer; LModal: TModalResult): TRISCOSButton;
   function CreateDirectory(dirname,attr: String): TTreeNode;
   procedure CreateFileTypeDialogue;
   procedure CreateNewImage;
-{$ENDIF}
   procedure Defrag(side: Byte=0);
-{$IFNDEF DIMCONSOLE}
   function DeleteFile(confirm: Boolean): Boolean;
   procedure DisableControls;
   procedure DoCopyMove(copymode: Boolean);
-{$ENDIF}
   procedure DownLoadDirectory(dir,entry: Integer; path: String);
   procedure DownLoadFile(dir,entry: Integer; path: String;filename: String='');
-{$IFNDEF DIMCONSOLE}
   procedure ExtractFiles(ShowDialogue: Boolean);
   function FindNode(filename: String;casesens:Boolean=True): TTreeNode;
   function FindPartitionRoot(filepath: String): Integer;
@@ -417,37 +400,25 @@ type
   function GetFilePath(Node: TTreeNode): String;
   function GetFileTypeGraphic(filetype: String;offset: Integer;
                                     const filetypes: array of String): Integer;
-{$ENDIF}
   function GetImageFilename(dir,entry: Integer): String;
-{$IFNDEF DIMCONSOLE}
   function GetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage): Integer;
-{$ENDIF}
   procedure GetJSONString(json: TJSONObject; search: String; var output: String);
-{$IFNDEF DIMCONSOLE}
   procedure SetImageIndex(Node: TTreeNode;ImageToUse: TDiscImage);
   function GetNodeAt(Y: Integer): TTreeNode;
   function GetTextureTile(Ltile:Integer=-1): TBitmap;
   function ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
                                                 Errors: Boolean=True): Integer;
-{$ENDIF}
   function ImportFile(NewImage: TDiscImage;dir,entry: Integer;
           method: String='Importing';rootname: String='$';Errors: Boolean=True): Integer;
-{$IFNDEF DIMCONSOLE}
   function IntToStrComma(size: Int64): String;
   procedure OpenImage(filename: String);
-{$ENDIF}
   procedure ParseCommand(var Command: TStringArray);
-{$IFNDEF DIMCONSOLE}
   function QueryUnsaved: Boolean;
   procedure ReadInDirectory(Node: TTreeNode);
-{$ENDIF}
   procedure ReportError(error: String);
-{$IFNDEF DIMCONSOLE}
   procedure ResetFileFields;
-{$ENDIF}
   procedure SaveAsCSV(filename: String='');
   procedure SaveAsCSV(FileNames: TStrings; filename: String=''); overload;
-{$IFNDEF DIMCONSOLE}
   procedure SaveConfigSettings;
   procedure SetNativeControls;
   procedure Scaling;
@@ -459,12 +430,10 @@ type
   procedure TileCanvas(c: TCanvas);
   procedure TileCanvas(c: TCanvas;rc: TRect); overload;
   procedure UpdateImageInfo(partition: Cardinal=0);
-{$ENDIF}
   procedure UpdateProgress(Fupdate: String);
   procedure WriteToDebug(line: String);
  private
   var
-{$IFNDEF DIMCONSOLE}
    //To keep track of renames
    PathBeforeEdit,
    NameBeforeEdit      :String;
@@ -482,9 +451,12 @@ type
    ObjectDrag          :TImage;
    //Keep track of which hex dump windows are open
    HexDump             :array of THexDumpForm;
-{$ENDIF}
    //Reporting of errors
    ErrorReporting      :Boolean;
+   //Delay flag
+   progsleep           :Boolean;
+   //Texture type
+   TextureType         :Byte;
    //ADFS L Interleaved
    ADFSInterleave      :Byte;
    //Treat Spark as Filing System
@@ -497,29 +469,6 @@ type
    AddImpliedAttributes:Boolean;
    //Hide Commodore DEL files?
    DoHideDEL           :Boolean;
-   //Allow DFS images with zero number of sectors
-   FDFSZeroSecs        :Boolean;
-   //Check for files going beyond the disc edge on DFS
-   FDFSBeyondEdge      :Boolean;
-   //Check for blank filenames
-   FDFSAllowBlank      :Boolean;
-   //Compress UEF files
-   FUEFCompress        :Boolean;
-   //Scan sub-directories on opening
-   FScanSubDirs        :Boolean;
-   //Open DOS Partitions on ADFS
-   FOpenDOS            :Boolean;
-   //Create *.dsc files with ADFS hard drives
-   FCreateDSC          :Boolean;
-   //Produce a log file for debugging
-   Fdebug              :Boolean;
-   //View options (what is visible)
-   ViewOptions         :Cardinal;
-{$IFNDEF DIMCONSOLE}
-   //Delay flag
-   progsleep           :Boolean;
-   //Texture type
-   TextureType         :Byte;
    //Filetype Dialogue Form
    FTDialogue          :TForm;
    //Filetype buttons on dialogue form
@@ -530,12 +479,28 @@ type
    FTEdit              :TEdit;
    //Keep a track of which buttons are pressed on the form
    FormShiftState      :TShiftState;
+   //Produce a log file for debugging
+   Fdebug              :Boolean;
+   //Allow DFS images with zero number of sectors
+   FDFSZeroSecs        :Boolean;
+   //Check for files going beyond the disc edge on DFS
+   FDFSBeyondEdge      :Boolean;
+   //Check for blank filenames
+   FDFSAllowBlank      :Boolean;
+   //Compress UEF files
+   FUEFCompress        :Boolean;
+   //View options (what is visible)
+   ViewOptions         :Cardinal;
+   //Scan sub-directories on opening
+   FScanSubDirs        :Boolean;
+   //Open DOS Partitions on ADFS
+   FOpenDOS            :Boolean;
+   //Create *.dsc files with ADFS hard drives
+   FCreateDSC          :Boolean;
    AppIsClosing        :Boolean;
-{$ENDIF}
    //Currently selected directory, when in console mode
    Fcurrdir            :Integer;
   const
-{$IFNDEF DIMCONSOLE}
    //These point to certain icons used when no filetype is found, or non-ADFS
    //The numbers are indexes into the TImageList component 'FileImages'.
    appicon     =   0; //RISC OS Application
@@ -586,7 +551,6 @@ type
                              ('APP','BAT','BIN','CFG','CMD','COM','DOC','EXE',
                               'FNT','HLP','ICN','IMG','INF','INI','PAT','SYS',
                               'TXT');
-{$ENDIF}
    //Windows extension - used to translate from RISC OS to Windows
    Extensions: array[1..42] of String =
                         ('004aim','132ico' ,'190dsk' ,'198z80'   ,'1A6CPM',
@@ -598,7 +562,6 @@ type
                          'F83mng','F91uri' ,'FAFhtm' ,'FAFhtml'  ,'FE4dos',
                          'FF0tif','FF0tiff','FF6ttf' ,'FF9sprite','FFBbas',
                          'FFDdat','FFFtxt');
-{$IFNDEF DIMCONSOLE}
    //Others
    mmbdisc     = 202; //MMFS Disc with image
    mmbdisclock = 201; //MMFS Locked disc
@@ -615,7 +578,6 @@ type
    bbcmasterlogo =  8;
    msdoslogo     =  9;
    romfslogo     = 10;
-{$ENDIF}
    //Time and Date format
    TimeDateFormat = 'hh:nn:ss dd mmm yyyy';
  public
@@ -629,30 +591,24 @@ type
   //What are we running on?
   platform,
   arch          :String;
-{$IFNDEF DIMCONSOLE}
   //Is the GUI open?
   Fguiopen      :Boolean;
   //Window styling
   Fstyling      :Byte;
-{$ENDIF}
   //Registry
   DIMReg        :TGJHRegistry;
   const
-{$IFNDEF DIMCONSOLE}
    //DPI that the application was designed in
    DesignedDPI        = 96;
-{$ENDIF}
    //Application Title
    ApplicationTitle   = 'Disc Image Manager';
-   ApplicationVersion = '1.50.1';
+   ApplicationVersion = '1.50';
    //Current platform and architecture (compile time directive)
    TargetOS  = {$I %FPCTARGETOS%};
    TargetCPU = {$I %FPCTARGETCPU%};
-{$IFNDEF DIMCONSOLE}
    //Styling
    NativeStyle = 0;
    RISCOSStyle = 1;
-{$ENDIF}
  end;
 
 var
@@ -660,18 +616,14 @@ var
 
 implementation
 
-{$IFNDEF DIMCONSOLE}
 {$R *.lfm}
-{$ENDIF}
 
 uses
-{$IFNDEF DIMCONSOLE}
   AboutUnit,NewImageUnit,ImageDetailUnit,ProgressUnit,SearchUnit,
   CustomDialogueUnit,ErrorLogUnit,SettingsUnit,ImportSelectorUnit,
   PWordEditorUnit,AFSPartitionUnit,ChangeInterleaveUnit,CSVPrefUnit,
-  ImageReportUnit,{$ENDIF}ConsoleAppUnit;
+  ImageReportUnit,ConsoleAppUnit;
 
-{$IFNDEF DIMCONSOLE}
 {-------------------------------------------------------------------------------
 Add a new file to the disc image
 -------------------------------------------------------------------------------}
@@ -694,7 +646,6 @@ begin
    FormDropFiles(Sender,files);
   end;
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Get a string from a JSON
@@ -712,10 +663,8 @@ end;
 function TMainForm.AddDirectoryToImage(dirname: String;NewImage: TDiscImage=nil;
                                                    srcPath: String=''): Boolean;
 var
-{$IFNDEF DIMCONSOLE}
  OriginalNode : TTreeNode=nil;
  NewNode      : TTreeNode=nil;
-{$ENDIF}
  Lparent      : String='';
  inffile      : String='';
  attr         : String='';
@@ -733,7 +682,6 @@ var
  Lentry       : Integer=0;
 begin
  Result:=False;
-{$IFNDEF DIMCONSOLE}
  WriteToDebug('MainForm.AddDirectoryToImage('+dirname+')');
  if Fguiopen then
  begin
@@ -751,10 +699,9 @@ begin
  end
  else
  begin
-{$ENDIF}
   thisdir:=Fcurrdir;
   Lcurrdir:=Fcurrdir; //Save the current directory pointer
-{$IFNDEF DIMCONSOLE} end;{$ENDIF}
+ end;
  //If ADFS, create the directory, then select it
  if Image.MajorFormatNumber=diAcornADFS then
  begin
@@ -803,12 +750,10 @@ begin
    F.Free;
   end;
   //Convert a Windows filename to a BBC filename
-{$IFNDEF DIMCONSOLE}
   if Fguiopen then
    if(TMyTreeNode(OriginalNode).Parent=nil)
    and(importname=OriginalNode.Text)then else WinToBBC(importname)
   else
-{$ENDIF}
    if(Image.Disc[thisdir].Parent<0)
    and(importname=Image.Disc[thisdir].Directory) then else WinToBBC(importname);
   //Remove spaces for non-big directories, and ensure is 10 chars or less
@@ -818,7 +763,6 @@ begin
    importname:=LeftStr(importname,10);
   end;
   //Create the directory
-{$IFNDEF DIMCONSOLE}
   NewNode:=nil;
   if Fguiopen then
    if importname<>'$' then
@@ -826,7 +770,6 @@ begin
    else
     NewNode:=OriginalNode
   else
-{$ENDIF}
    if importname<>'$' then
    begin
     Lparent:=Image.GetParent(thisdir);
@@ -835,10 +778,9 @@ begin
    end
    else
     thisdir:=Fcurrdir;
-  if({$IFNDEF DIMCONSOLE}NewNode<>nil)or((not Fguiopen)and{$ENDIF}(thisdir>=0))then //Success
+  if(NewNode<>nil)or((not Fguiopen)and(thisdir>=0))then //Success
   begin
    Result:=True;
-{$IFNDEF DIMCONSOLE}
    if Fguiopen then
    begin
     //And select it
@@ -846,7 +788,6 @@ begin
     NewNode.Selected:=True;
     thisdir:=TMyTreeNode(NewNode).DirRef;
    end;
-{$ENDIF}
    //Update the directory title
    if not dirtitle.IsEmpty then
     if(thisdir>=0)
@@ -867,12 +808,12 @@ begin
      begin
       if(Dir.Attr AND faDirectory)=faDirectory then
       begin //Add any sub-directories
-       {$IFNDEF DIMCONSOLE}UpdateProgress('Adding '+Dir.Name);{$ENDIF}
+       UpdateProgress('Adding '+Dir.Name);
        Result:=(AddDirectoryToImage(dirname+pathdelim+Dir.Name))and(Result);
       end
       else
       begin //Add any files
-       {$IFNDEF DIMCONSOLE}if not Fguiopen then{$ENDIF} Fcurrdir:=thisdir;
+       if not Fguiopen then Fcurrdir:=thisdir;
        if LowerCase(RightStr(Dir.Name,4))<>'.inf' then
         Result:=(AddFileToImage(dirname+pathdelim+Dir.Name)>=0)and(Result);
       end;
@@ -889,10 +830,8 @@ begin
      //Import each file in the directory
      for Index:=0 to Length(NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries)-1 do
      begin  //Doesn't add sub-sub-directory contents
-{$IFNDEF DIMCONSOLE}
       if not Fguiopen then
       begin
-{$ENDIF}
        //Clear to the end of the line
        Write(#$1B'[0K');
        //Display the information
@@ -902,7 +841,7 @@ begin
               +NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries[Index].Filename;
        //Write to the console and move the cursor back
        Write(temp+#$1B'['+IntToStr(Length(temp))+'D');
-      {$IFNDEF DIMCONSOLE}end;{$ENDIF}
+      end;
       //Do the actual importing
       if NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries[Index].DirRef=-1 then
        Result:=Result
@@ -916,22 +855,20 @@ begin
      //Restore the current directory
      Fcurrdir:=Lcurrdir;
      //Clear to the end of the line
-     {$IFNDEF DIMCONSOLE}if not Fguiopen then{$ENDIF} Write(#$1B'[0K');
+     if not Fguiopen then Write(#$1B'[0K');
     end;
    end;
   end;
  end;
  //Revert to the original selection
-{$IFNDEF DIMCONSOLE}
  if Fguiopen then
  begin
   DirList.ClearSelection;
   OriginalNode.Selected:=True;
  end
- else {$ENDIF}Fcurrdir:=Lcurrdir; //Restore the current directory pointer
+ else Fcurrdir:=Lcurrdir; //Restore the current directory pointer
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Add a spark archive to an image
 {------------------------------------------------------------------------------}
@@ -1105,7 +1042,6 @@ begin
   if ErrorLogForm.Top>Screen.DesktopHeight then ErrorLogForm.Top:=0;
  end;
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Add a file to an image
@@ -1138,9 +1074,7 @@ var
   fields         : TJSONOBject=nil;//array of String=nil;
   F              : TFileStream=nil;
   ok             : Boolean=False;
-{$IFNDEF DIMCONSOLE}
   Node           : TTreeNode=nil;
-{$ENDIF}
  //This does the adding of the file
  function AddFile: Boolean;
  var
@@ -1149,7 +1083,6 @@ var
   Result:=False;
   WriteToDebug('MainForm.AddFile');
   //Find out which side of a DFS disc it is
-{$IFNDEF DIMCONSOLE}
   if Fguiopen then
    if (Image.DoubleSided)//FormatNumber mod 2=1)
    and(Image.MajorFormatNumber=diAcornDFS)then //Only for DFS double sided
@@ -1159,7 +1092,6 @@ var
    //Not double sided or DFS, so assume side 0
     side:=0
   else
-{$ENDIF}
    side:=Image.Disc[Fcurrdir].Partition;
   //Extract the filename
   if filedetails.Filename.IsEmpty then
@@ -1309,7 +1241,6 @@ var
    NewFile.DirRef       :=-1; //Not a directory
    NewFile.ShortFileType:=filetype;
    //Set the parent
-{$IFNDEF DIMCONSOLE}
    if Fguiopen then
    begin
     if(Image.MajorFormatNumber=diAcornADFS) //Need the selected directory for ADFS
@@ -1328,12 +1259,11 @@ var
     if Image.MajorFormatNumber=diAcornDFS then //We'll set up a parent for DFS
      NewFile.Parent:=':'+IntToStr(side*2)+'.$';
    end
-   else{$ENDIF} NewFile.Parent:=Image.GetParent(Fcurrdir);
+   else NewFile.Parent:=Image.GetParent(Fcurrdir);
    //Set the length - the actual length overrides everything else
    NewFile.Length:=Length(buffer);
    //Does the file already exist?
    Result:=True;
-{$IFNDEF DIMCONSOLE}
    if Fguiopen then
     if (Image.MajorFormatNumber<>diAcornUEF)
     and(Image.MajorFormatNumber<>diAcornRFS)then
@@ -1355,7 +1285,6 @@ var
        Result:=True;
       end;
      end;
-{$ENDIF}
   end;
  end;
 //Main function code starts here
@@ -1382,7 +1311,6 @@ begin
  if Length(buffer)>0 then //Only try and add if there is some data
  begin
   ok:=False;
-{$IFNDEF DIMCONSOLE}
   if Fguiopen then
   begin
    //First, if there is no selection, make one, or if multiple, select the root
@@ -1419,7 +1347,7 @@ begin
      ReportError('No destination directory selected')
     else
      ReportError('Cannot add to multiple selection');
-  end else {$ENDIF}ok:=True;
+  end else ok:=True;
   if ok then
   begin
    ok:=AddFile;
@@ -1427,7 +1355,6 @@ begin
    if ok then
    begin
     Result:=Image.WriteFile(NewFile,buffer);
-{$IFNDEF DIMCONSOLE}
     if Fguiopen then
      //Function returns pointer to next item (or parent if no children)
      if Result>-1 then //File added OK
@@ -1446,7 +1373,6 @@ begin
       ReportError('Error when adding file "'+p+NewFile.Filename
                  +'": '+AddFileErrorToText(-Result));
      end;
-{$ENDIF}
    end else Result:=-3;
   end;
  end else Result:=-8;
@@ -1472,7 +1398,6 @@ begin
  end;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Add a file or directory to the TTreeView, under ParentNode
 {------------------------------------------------------------------------------}
@@ -1663,7 +1588,6 @@ begin
     Roots[s].Selected:=True;
  end;
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Create an Image filename
@@ -1713,7 +1637,7 @@ begin
     F.Position:=0;
     F.Write(buffer[0],Length(buffer));
     if DoCreateInf then Image.CreateINFFile(dir,entry,path,filename);
-    {$IFNDEF DIMCONSOLE}if not Fguiopen then {$ENDIF}WriteLn('Success.');
+    if not Fguiopen then WriteLn('Success.');
    except
     //Could not create file
     on E: Exception do
@@ -1739,9 +1663,7 @@ var
  ref            : Cardinal=0;
  c              : Integer=0;
  s              : Integer=0;
-{$IFNDEF DIMCONSOLE}
  Node           : TTreeNode=nil;
-{$ENDIF}
  ok             : Boolean=False;
 begin
  WriteToDebug('MainForm.DownloadDirectory('+IntToStr(dir)+','+IntToStr(entry)
@@ -1753,25 +1675,21 @@ begin
  imagefilename:=GetImageFilename(dir,entry);
  ok:=False;
  //Find the correct node
-{$IFNDEF DIMCONSOLE}
  if Fguiopen then
  begin
   Node:=FindNode(imagefilename);
   ok:=Node<>nil;
  end else
  begin
-{$ENDIF}
   ok:=True;
   WriteLn();
-{$IFNDEF DIMCONSOLE} end;{$ENDIF}
+ end;
  if ok then
  begin
   //Need to ensure that the directory has been read in
-{$IFNDEF DIMCONSOLE}
   if Fguiopen then
    if not TMyTreeNode(Node).BeenRead then
     ReadInDirectory(Node);
-{$ENDIF}
   //Convert to Windows filename
   windowsfilename:=Image.GetWindowsFilename(dir,entry);
   if Image.FileExists(imagefilename,ref) then
@@ -1787,7 +1705,7 @@ begin
    //Iterate through the entries
    for c:=0 to Length(Image.Disc[s].Entries)-1 do
    begin
-    {$IFNDEF DIMCONSOLE}if not Fguiopen then{$ENDIF}
+    if not Fguiopen then
      Write('Extracting '
            +Image.Disc[s].Entries[c].Parent
            +Image.GetDirSep(Image.Disc[s].Partition)
@@ -1801,7 +1719,6 @@ begin
  end;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //User has clicked on the button to open a new image
 {------------------------------------------------------------------------------}
@@ -3227,9 +3144,9 @@ begin
  //Reset the changed variable
 // HasChanged               :=False;
 end;
-{$ENDIF}
+
 {$INCLUDE 'MainUnit_Console.pas'}
-{$IFNDEF DIMCONSOLE}
+
 {------------------------------------------------------------------------------}
 //Rescale all the components
 {------------------------------------------------------------------------------}
@@ -3275,12 +3192,7 @@ begin
  //File Info Panel
  FileInfoPanel.Width            :=Round(355*ratio);
 end;
-{$ELSE}
-constructor TMainForm.Create;
-begin
- inherited;
-{$ENDIF}
-{$IFNDEF DIMCONSOLE}
+
 {------------------------------------------------------------------------------}
 //This is called when the form is created - i.e. when the application is created
 {------------------------------------------------------------------------------}
@@ -3350,39 +3262,36 @@ begin
  //Create the attribute panel tick boxes (ISO)
  cb_ISO_hidden       :=CreateTickBox('Hidden'    ,ISOAttrPanel);
  cb_ISO_associated   :=CreateTickBox('Associated',ISOAttrPanel);
-{$ENDIF}
  //Platform Details
  platform:='OS?';
+ arch:='CPU?';
  //Platform details - OS
  if TargetOS='Darwin'   then {%H-}platform:= 'macOS';   //Apple Mac OS X
  if(TargetOS='Win64')
  or(TargetOS='Win32')   then {%H-}platform:= 'Windows'; //Microsoft Windows
  if TargetOS='Linux'    then {%H-}platform:= 'Linux';   //Linux
- arch    :='CPU?';
  //Platform details - CPU
  if TargetCPU='aarch64' then {%H-}arch    := 'ARM 64 bit';
  if TargetCPU='arm'     then {%H-}arch    := 'ARM 32 bit';
  if TargetCPU='i386'    then {%H-}arch    := 'Intel 32 bit';
  if TargetCPU='x86_64'  then {%H-}arch    := 'Intel 64 bit';
- //Create the image instance
- Image:=TDiscImage.Create;
- //Initiate the Registry
- DIMReg:=TGJHRegistry.Create('\Software\GJH Software\Disc Image Manager');
-{$IFNDEF DIMCONSOLE}
  //Just updates the title bar
  Caption:=ApplicationTitle;
+ //Create the image instance
+ Image:=TDiscImage.Create;
  //Used for dragging and dropping
  imgCopy.Parent:=DirList;
  //Turn error reporting on
  ErrorReporting:=True;
  //Reset the form shift state
  FormShiftState:=[];
+ //Initiate the Registry
+ DIMReg:=TGJHRegistry.Create('\Software\GJH Software\Disc Image Manager');
  //Texture style - get from the registry
  TextureType               :=DIMReg.GetRegValI('Texture',1);
  //Window style - get from the registry
  Fstyling                  :=DIMReg.GetRegValI('WindowStyle',RISCOSStyle);
  SetNativeControls; //And set the controls on this form
- {$ENDIF}
  //ADFS L Interleaved type - get from the registry
  ADFSInterleave            :=DIMReg.GetRegValI('ADFS_L_Interleave',0);
  Image.InterleaveMethod    :=ADFSInterleave;
@@ -3431,16 +3340,13 @@ begin
  //Write some debugging info
  WriteToDebug('Application Started.');
  WriteToDebug('Version '+ApplicationVersion+' '+platform+' ('+arch+')');
-{$IFNDEF DIMCONSOLE}
  WriteToDebug('Screen DPI: '+IntToStr(Screen.PixelsPerInch));
-{$ENDIF}
  WriteToDebug('If you are experiencing any issues, please email this to '+
               'gerald@hollypops.co.uk with a description of your issue.');
  //Reset the changed variable
  HasChanged:=False;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Set the custom controls to either Native OS or RISC OS style
 {------------------------------------------------------------------------------}
@@ -3796,66 +3702,75 @@ var
 begin
  Result:=0;
  ResetDirEntry(newentry);
- WriteToDebug('MainForm.ImportFiles');
+ if Fguiopen then WriteToDebug('MainForm.ImportFiles');
  //Read in the catalogue of the new image, if there is none
  if Length(NewImage.Disc)=0 then
  begin
   //Show a progress message
-  Image.ProgressIndicator:=@UpdateProgress;
-  ProgressForm.Show;
-  //Process the messages to close the file dialogue box
-  Application.ProcessMessages;
+  if Fguiopen then
+  begin
+   Image.ProgressIndicator:=@UpdateProgress;
+   ProgressForm.Show;
+   //Process the messages to close the file dialogue box
+   Application.ProcessMessages;
+  end;
   //Read the catalogue
   NewImage.ReadImage;
-  ProgressForm.Hide;
-  Application.ProcessMessages;
+  if Fguiopen then
+  begin
+   ProgressForm.Hide;
+   Application.ProcessMessages;
+  end;
  end;
  ok:=True;
- //Show the contents in the import selector box
- ImportSelectorForm.Show; //The TTreeView needs to be visible
- //Copy the DiscImage across
- ImportSelectorForm.FImage:=NewImage;
- //Add the disc image to the tree
- AddImageToTree(ImportSelectorForm.ImportDirList,NewImage);
- //Which side to tick
- side:=0;
- if DirList.SelectionCount>0 then
+ if Fguiopen then
  begin
-  entry:=DirList.Selections[0].Index;
-  if DirList.Selections[0].Parent<>nil then
-   dir:=TMyTreeNode(DirList.Selections[0].Parent).DirRef
-  else
-   dir:=-1;
-  dr:=TMyTreeNode(DirList.Selections[0]).DirRef;
-  if dir>=0 then side:=Image.Disc[dir].Entries[entry].Side
-  else side:=Image.Disc[dr].Partition;
- end;
- //Tick them all (just by ticking the roots...i.e. those without parents)
- if ImportSelectorForm.ImportDirList.Items.Count>0 then
- begin
-  sidecount:=0;
-  for index:=0 to ImportSelectorForm.ImportDirList.Items.Count-1 do
-   if ImportSelectorForm.ImportDirList.Items[index].Parent=nil then
-   begin
-    if sidecount=side then //Only tick the root on the first side/partition
+  //Show the contents in the import selector box
+  ImportSelectorForm.Show; //The TTreeView needs to be visible
+  //Copy the DiscImage across
+  ImportSelectorForm.FImage:=NewImage;
+  //Add the disc image to the tree
+  AddImageToTree(ImportSelectorForm.ImportDirList,NewImage);
+  //Which side to tick
+  side:=0;
+  if DirList.SelectionCount>0 then
+  begin
+   entry:=DirList.Selections[0].Index;
+   if DirList.Selections[0].Parent<>nil then
+    dir:=TMyTreeNode(DirList.Selections[0].Parent).DirRef
+   else
+    dir:=-1;
+   dr:=TMyTreeNode(DirList.Selections[0]).DirRef;
+   if dir>=0 then side:=Image.Disc[dir].Entries[entry].Side
+   else side:=Image.Disc[dr].Partition;
+  end;
+  //Tick them all (just by ticking the roots...i.e. those without parents)
+  if ImportSelectorForm.ImportDirList.Items.Count>0 then
+  begin
+   sidecount:=0;
+   for index:=0 to ImportSelectorForm.ImportDirList.Items.Count-1 do
+    if ImportSelectorForm.ImportDirList.Items[index].Parent=nil then
     begin
-     ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],
-                                 True);
-     ImportSelectorForm.ImportDirList.Items[index].Expand(False);
-    end
-    else                   //And untick the other side/partition
-    begin
-     ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],
-                                 False);
-     ImportSelectorForm.ImportDirList.Items[index].Collapse(True);
+     if sidecount=side then //Only tick the root on the first side/partition
+     begin
+      ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],
+                                  True);
+      ImportSelectorForm.ImportDirList.Items[index].Expand(False);
+     end
+     else                   //And untick the other side/partition
+     begin
+      ImportSelectorForm.TickNode(ImportSelectorForm.ImportDirList.Items[index],
+                                  False);
+      ImportSelectorForm.ImportDirList.Items[index].Collapse(True);
+     end;
+     inc(sidecount);
     end;
-    inc(sidecount);
-   end;
   end;
   //Now we need to hide the form so we can show it again, but modally.
   ImportSelectorForm.Hide;
   //And, finally, modally
   if Dialogue then ok:=ImportSelectorForm.ShowModal=mrOK;
+ end;
  if ok then //And start the import
  begin
   //Work out the Maximum Directory Entries, now the user has chosen which files
@@ -3869,7 +3784,11 @@ begin
     if Length(NewImage.Disc[dir].Entries)>0 then
      for entry:=0 to Length(NewImage.Disc[dir].Entries)-1 do
      begin
-      if ImportSelectorForm.IsNodeTicked(dir,entry) then ok:=True else ok:=False;
+      //When this is not open in a GUI, assume everything is ticked
+      //This function is used when defragging an image
+      ok:=not Fguiopen;
+      if Fguiopen then
+       if ImportSelectorForm.IsNodeTicked(dir,entry) then ok:=True;
       if ok then
       begin
        inc(index);
@@ -3888,7 +3807,7 @@ begin
   or  ((Image.MajorFormatNumber=diAcornDFS)and(NumFiles>31))     //Check DFS
   or  ((Image.MajorFormatNumber=diCommodore)and(NumFiles>144))   //Check Commodore
   then
-   if Dialogue then ok:=AskConfirm(
+   if(Dialogue)and(Fguiopen)then ok:=AskConfirm(
            'The current open image is not suitable for this archive. '
           +'Would you like to continue regardless?',
           ['Yes','No'])=mrOK;
@@ -3896,32 +3815,35 @@ begin
   if ok then
   begin
    rootname:=Image.Disc[0].Directory;
-   //We don't need progress update from the class as we'll produce our own
-   NewImage.ProgressIndicator:=nil;
-   Image.ProgressIndicator:=@UpdateProgress;
-   //Show the progress form again
-   ProgressForm.Show;
-   Application.ProcessMessages;
-   //Importing or moving (this is also used by defrag)
-   method:='Importing';
-   if not Dialogue then method:='Moving';
-   //Turn error reporting off
-   ErrorReporting:=False;
-   //Clear the log
-   ErrorLogForm.ErrorLog.Clear;
-   //Get the name of the directory where this is being imported
-   if DirList.SelectionCount>0 then
+   if Fguiopen then
    begin
-    if TMyTreeNode(DirList.Selections[0]).IsDir then
-     Node:=DirList.Selections[0]
-    else
-     Node:=DirList.Selections[0].Parent;
-    //We need the complete path, from the root
-    rootname:=Node.Text;
-    while Node.Parent<>nil do
+    //We don't need progress update from the class as we'll produce our own
+    NewImage.ProgressIndicator:=nil;
+    Image.ProgressIndicator:=@UpdateProgress;
+    //Show the progress form again
+    ProgressForm.Show;
+    Application.ProcessMessages;
+    //Importing or moving (this is also used by defrag)
+    method:='Importing';
+    if not Dialogue then method:='Moving';
+    //Turn error reporting off
+    ErrorReporting:=False;
+    //Clear the log
+    ErrorLogForm.ErrorLog.Clear;
+    //Get the name of the directory where this is being imported
+    if DirList.SelectionCount>0 then
     begin
-     Node:=Node.Parent;
-     rootname:=Node.Text+Image.DirSep+rootname;
+     if TMyTreeNode(DirList.Selections[0]).IsDir then
+      Node:=DirList.Selections[0]
+     else
+      Node:=DirList.Selections[0].Parent;
+     //We need the complete path, from the root
+     rootname:=Node.Text;
+     while Node.Parent<>nil do
+     begin
+      Node:=Node.Parent;
+      rootname:=Node.Text+Image.DirSep+rootname;
+     end;
     end;
    end;
 //   curformat:=Image.MajorFormatNumber;   //Format of the current open image
@@ -4074,19 +3996,21 @@ begin
          end;
         end;
        end;}
-   UpdateImageInfo;
-   //Turn error reporting on
-   ErrorReporting:=True;
-   //Show the log
-   ShowErrorLog;
-   //Hide the progress message
-   ProgressForm.Hide;
+   if Fguiopen then
+   begin
+    UpdateImageInfo;
+    //Turn error reporting on
+    ErrorReporting:=True;
+    //Show the log
+    ShowErrorLog;
+    //Hide the progress message
+    ProgressForm.Hide;
+   end;
   end;
  end;
  //Clear the Import Selector Form List, otherwise this could cause issues later
- ImportSelectorForm.ImportDirList.Items.Clear;
+ if Fguiopen then ImportSelectorForm.ImportDirList.Items.Clear;
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Import a file into the current image
@@ -4109,14 +4033,12 @@ begin
  newformat:=NewImage.MajorFormatNumber;//Format of the importing image
  newentry:=NewImage.Disc[dir].Entries[entry];
  //Set the parent, as this may be different
- {$IFNDEF DIMCONSOLE}if not Fguiopen then newentry.Parent:=Image.GetParent(Fcurrdir)
- else {$ENDIF}newentry.Parent:=NewImage.GetParent(dir);
-{$IFNDEF DIMCONSOLE}
+ if not Fguiopen then newentry.Parent:=Image.GetParent(Fcurrdir)
+ else newentry.Parent:=NewImage.GetParent(dir);
  if Fguiopen then
   UpdateProgress(method+' '+newentry.Parent
                 +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
                 +newentry.Filename);
-{$ENDIF}
  //Validate the filename, as it could be different across file systems
  if(newformat<>diAcornDFS)and(newformat<>curformat)then
   WinToBBC(newentry.Filename);//Unless the systems are the same, but not DFS
@@ -4147,7 +4069,7 @@ begin
  and(Image.DirectoryCapable) then
  begin
   //Then create the directory
-  {$IFNDEF DIMCONSOLE}if Fguiopen then SelectNode(rootname);{$ENDIF}//First, get the root
+  if Fguiopen then SelectNode(rootname);//First, get the root
   //Get the temporary filename
   temp:=newentry.Filename[1];
   //Does it exist already?
@@ -4156,8 +4078,8 @@ begin
    //New attributes
    tempattr:='LR';
    //Create it
-   {$IFNDEF DIMCONSOLE}if Fguiopen then CreateDirectory(temp,tempattr)
-   else {$ENDIF}Image.CreateDirectory(temp,rootname,tempattr);
+   if Fguiopen then CreateDirectory(temp,tempattr)
+   else Image.CreateDirectory(temp,rootname,tempattr);
   end;
   //Move the Parent
   newentry.Parent:=rootname+Image.DirSep+temp;
@@ -4183,7 +4105,6 @@ begin
                                ,rootname
                                ,[rfReplaceAll,rfIgnoreCase]);
  ok:=True;
-{$IFNDEF DIMCONSOLE}
  if Fguiopen then
  begin
   //Select the parent directory
@@ -4197,25 +4118,20 @@ begin
    ok:=False;
   end;
  end;
-{$ENDIF}
  if ok then
  begin
   //Make sure it has been read in
-{$IFNDEF DIMCONSOLE}
   if Fguiopen then
    if not TMyTreeNode(DirList.Selected).BeenRead then
     ReadInDirectory(DirList.Selected);
-{$ENDIF}
   //Is it a directory we're adding?
   if(newentry.DirRef>=0)and(Image.DirectoryCapable)then
    if newentry.Filename<>rootname then //Create the directory
    begin
     newentry.Attributes:='DLR';
-{$IFNDEF DIMCONSOLE}
     if Fguiopen then
      CreateDirectory(newentry.Filename,newentry.Attributes)
     else
-{$ENDIF}
      Image.CreateDirectory(newentry.Filename,
                            newentry.Parent,
                            newentry.Attributes);
@@ -4232,25 +4148,18 @@ begin
     //Write it out to the current image
     index:=Image.WriteFile(newentry,buffer);
     //Then add it to the tree, if successful
-     if index>=0 then
-     begin
-      {$IFNDEF DIMCONSOLE}
-      if Fguiopen then AddFileToTree(DirList.Selected,
-                                     newentry.Filename,
-                                     index,
-                                     False,
-                                     DirList,False);
-      {$ENDIF}
-     end
-     else //Failed to write the file
-     begin
-      if Errors then
-       ReportError('Failed when '+method+' '+newentry.Parent+Image.DirSep
-                                            +newentry.Filename
-                                            +' : '
-                                            +AddFileErrorToText(-index));
-      inc(Result);
-     end;
+    if index>=0 then
+     AddFileToTree(DirList.Selected,newentry.Filename,index,False,
+                   DirList,False)
+    else //Failed to write the file
+    begin
+     if Errors then
+      ReportError('Failed when '+method+' '+newentry.Parent+Image.DirSep
+                                           +newentry.Filename
+                                           +' : '
+                                           +AddFileErrorToText(-index));
+     inc(Result);
+    end;
    end
    else //Failed to read the file
    begin
@@ -4264,7 +4173,6 @@ begin
  end;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Edit the filetypes
 {------------------------------------------------------------------------------}
@@ -5133,7 +5041,6 @@ begin
   ProgressForm.Hide;
  end;
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Defrags (Compacts) the image
@@ -5149,13 +5056,13 @@ var
  root      : Integer=0;
  filename  : String='';
 begin
- {$IFNDEF DIMCONSOLE}if Fguiopen then WriteToDebug('MainForm.Defrag('+IntToStr(side)+')');{$ENDIF}
+ if Fguiopen then WriteToDebug('MainForm.Defrag('+IntToStr(side)+')');
  //Can only defrag if there are objects and free space
  if(Length(Image.Disc)>0){and(Image.FreeSpace(side)>0)}then
  begin
   //Display progress form
   Image.ProgressIndicator:=nil;
-  {$IFNDEF DIMCONSOLE}if Fguiopen then ProgressForm.Show;{$ENDIF}
+  if Fguiopen then ProgressForm.Show;
   UpdateProgress('Preparing to defrag');
   //Create a new image, with the same shape as the original
   oldscan:=Image.ScanSubDirs;
@@ -5184,53 +5091,37 @@ begin
   ok:=True;
   while(Length(Image.Disc[root].Entries)>0)and(ok)do
   begin
-{$IFNDEF DIMCONSOLE}
    if Fguiopen then
    begin
     ProgressForm.Show;
     Application.ProcessMessages;
    end;
-{$ENDIF}
    filename:=Image.Disc[root].Entries[0].Parent
             +Image.GetDirSep(Image.Disc[root].Partition)
             +Image.Disc[root].Entries[0].Filename;
    UpdateProgress('Preparing '+filename);
-{$IFNDEF DIMCONSOLE}
    if Fguiopen then
    begin
     SelectNode(filename);
     ok:=DeleteFile(False);
    end
    else
-{$ENDIF}
     ok:=Image.DeleteFile(filename);
   end;
   Image.EndUpdate;
   ok:=Length(Image.Disc[root].Entries)=0;
-{$IFNDEF DIMCONSOLE}
   if Fguiopen then
   begin
    ProgressForm.Show;
    Application.ProcessMessages;
    Image.ProgressIndicator:=@UpdateProgress;
   end;
-{$ENDIF}
   //Deleted all the files OK, so import again
   if ok then
   begin
-{$IFNDEF DIMCONSOLE}
-   if Fguiopen then
-   begin
-    SelectNode(Image.Disc[root].Directory);
+   if Fguiopen then SelectNode(Image.Disc[root].Directory);
    //Import the contents of the current image into it
-    ok:=ImportFiles(NewImage,False,False)=0;
-   end
-   else
-   begin
-{$ENDIF}
-    for index:=0 to Length(NewImage.Disc[root].Entries)-1 do
-     ok:=ok AND(ImportFile(NewImage,root,index)>=0);
-   {$IFNDEF DIMCONSOLE}end;{$ENDIF}
+   ok:=ImportFiles(NewImage,False,False)=0;
    if ok then HasChanged:=True;//Update the changed flag
   end;
   //Didn't create a new image, so revert
@@ -5240,17 +5131,15 @@ begin
    Image:=TDiscImage.Create(NewImage);
    ReportError('Failed to defrag');
   end;
-{$IFNDEF DIMCONSOLE}
   if Fguiopen then
   begin
    //Update the directory display, whether it failed or not
    ShowNewImage(Image.Filename);
    UpdateImageInfo;
   end;
-{$ENDIF}
   //Free up resources and hide the progress form
   NewImage.Free;
-  {$IFNDEF DIMCONSOLE}if Fguiopen then ProgressForm.Hide;{$ENDIF}
+  if Fguiopen then ProgressForm.Hide;
   Image.ProgressIndicator:=nil;
  end
  else //Report an error
@@ -5262,7 +5151,6 @@ begin
  end;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Adds a new AFS or DOS partition to an ADFS image, or a second side to a DFS SS
 {------------------------------------------------------------------------------}
@@ -5452,7 +5340,6 @@ begin
  WriteToDebug('MainForm.btn_SaveAsCSVClick');
  SaveAsCSV;
 end;
-{$ENDIF}
 
 {-------------------------------------------------------------------------------
 Output an image's file details to a CSV file
@@ -5472,7 +5359,6 @@ begin
                     Length(filename)-Length(ExtractFileExt(filename)))
            +'.csv';
  //Display the save dialogue box (GUI only)
-{$IFNDEF DIMCONSOLE}
  if Fguiopen then
  begin
   //Populate the save dialogue box
@@ -5484,7 +5370,7 @@ begin
   SaveImage.Filename:=filename;
   ok:=SaveImage.Execute;
   if ok then filename:=SaveImage.FileName;
- end else {$ENDIF}ok:=True;
+ end else ok:=True;
  //Finally, execute the other procedure with the values calculated
  if ok then SaveAsCSV(Filenames,filename);
  //Free up the stringlist
@@ -5492,27 +5378,15 @@ begin
 end;
 procedure TMainForm.SaveAsCSV(FileNames: TStrings; filename: String='');
 var
- ok          : Boolean=False;
- F           : TFileStream=nil;
- dir         : Integer=0;
- entry       : Integer=0;
- currfile    : String='';
- line        : String='';
- hexlen      : Byte=0;
- report      : TStringList=nil;
- LImage      : TDiscImage=nil;
- LIncDir     : Boolean=False;
- LIncFilename: Boolean=False;
- LIncReport  : Boolean=False;
- LParent     : Boolean=False;
- LFilename   : Boolean=False;
- LLoadAddr   : Boolean=False;
- LExecAddr   : Boolean=False;
- LLength     : Boolean=False;
- LAttributes : Boolean=False;
- LAddress    : Boolean=False;
- LCRC32      : Boolean=False;
- LMD5        : Boolean=False;
+ ok       : Boolean=False;
+ F        : TFileStream=nil;
+ dir      : Integer=0;
+ entry    : Integer=0;
+ currfile : String='';
+ line     : String='';
+ hexlen   : Byte=0;
+ report   : TStringList=nil;
+ LImage   : TDiscImage=nil;
 begin
  WriteToDebug('MainForm.SaveAsCSV(TStrings,'+filename+')');
  //More than one filename given, then blank off the filename
@@ -5520,41 +5394,27 @@ begin
  //No filenames given, then quit
  if FileNames.Count=0 then exit;
  //Get the last used settings from the registry
- LIncDir     :=DIMReg.GetRegValB('CSVIncDir'     ,False);
- LIncFilename:=DIMReg.GetRegValB('CSVIncFilename',True);
- LIncReport  :=DIMReg.GetRegValB('CSVIncReport'  ,True);
- LParent     :=DIMReg.GetRegValB('CSVParent'     ,True);
- LFilename   :=DIMReg.GetRegValB('CSVFilename'   ,True);
- LLoadAddr   :=DIMReg.GetRegValB('CSVLoadAddr'   ,True);
- LExecAddr   :=DIMReg.GetRegValB('CSVExecAddr'   ,True);
- LLength     :=DIMReg.GetRegValB('CSVLength'     ,True);
- LAttributes :=DIMReg.GetRegValB('CSVAttributes' ,True);
- LAddress    :=DIMReg.GetRegValB('CSVAddress'    ,False);
- LCRC32      :=DIMReg.GetRegValB('CSVCRC32'      ,True);
- LMD5        :=DIMReg.GetRegValB('CSVMD5'        ,False);
-{$IFNDEF DIMCONSOLE}
+ CSVPrefForm.cb_IncDir.Ticked     :=DIMReg.GetRegValB('CSVIncDir'     ,False);
+ CSVPrefForm.cb_IncFilename.Ticked:=DIMReg.GetRegValB('CSVIncFilename',True);
+ CSVPrefForm.cb_IncReport.Ticked  :=DIMReg.GetRegValB('CSVIncReport'  ,True);
+ CSVPrefForm.cb_Parent.Ticked     :=DIMReg.GetRegValB('CSVParent'     ,True);
+ CSVPrefForm.cb_Filename.Ticked   :=DIMReg.GetRegValB('CSVFilename'   ,True);
+ CSVPrefForm.cb_LoadAddr.Ticked   :=DIMReg.GetRegValB('CSVLoadAddr'   ,True);
+ CSVPrefForm.cb_ExecAddr.Ticked   :=DIMReg.GetRegValB('CSVExecAddr'   ,True);
+ CSVPrefForm.cb_Length.Ticked     :=DIMReg.GetRegValB('CSVLength'     ,True);
+ CSVPrefForm.cb_Attributes.Ticked :=DIMReg.GetRegValB('CSVAttributes' ,True);
+ CSVPrefForm.cb_Address.Ticked    :=DIMReg.GetRegValB('CSVAddress'    ,False);
+ CSVPrefForm.cb_CRC32.Ticked      :=DIMReg.GetRegValB('CSVCRC32'      ,True); 
+ CSVPrefForm.cb_MD5.Ticked        :=DIMReg.GetRegValB('CSVMD5'        ,False);
  if Fguiopen then
  begin
-  CSVPrefForm.cb_IncDir.Ticked     :=LIncDir;
-  CSVPrefForm.cb_IncFilename.Ticked:=LIncFilename;
-  CSVPrefForm.cb_IncReport.Ticked  :=LIncReport;
-  CSVPrefForm.cb_Parent.Ticked     :=LParent;
-  CSVPrefForm.cb_Filename.Ticked   :=LFilename;
-  CSVPrefForm.cb_LoadAddr.Ticked   :=LLoadAddr;
-  CSVPrefForm.cb_ExecAddr.Ticked   :=LExecAddr;
-  CSVPrefForm.cb_Length.Ticked     :=LLength;
-  CSVPrefForm.cb_Attributes.Ticked :=LAttributes;
-  CSVPrefForm.cb_Address.Ticked    :=LAddress;
-  CSVPrefForm.cb_CRC32.Ticked      :=LCRC32;
-  CSVPrefForm.cb_MD5.Ticked        :=LMD5;
   //Ask user what they want in the CSV file
   CSVPrefForm.ShowModal;
   ok:=CSVPrefForm.ModalResult=mrOK;
- end else {$ENDIF}ok:=True;
+ end else ok:=True;
  if ok then //Unless they clicked Cancel
  begin
   //Save the settings to the registry
-{$IFNDEF DIMCONSOLE}
   if Fguiopen then
   begin
    DIMReg.SetRegValB('CSVIncDir'     ,CSVPrefForm.cb_IncDir.Ticked);
@@ -5569,20 +5429,7 @@ begin
    DIMReg.SetRegValB('CSVAddress'    ,CSVPrefForm.cb_Address.Ticked);
    DIMReg.SetRegValB('CSVCRC32'      ,CSVPrefForm.cb_CRC32.Ticked);
    DIMReg.SetRegValB('CSVMD5'        ,CSVPrefForm.cb_MD5.Ticked);
-   LIncDir     :=CSVPrefForm.cb_IncDir.Ticked;
-   LIncFilename:=CSVPrefForm.cb_IncFilename.Ticked;
-   LIncReport  :=CSVPrefForm.cb_IncReport.Ticked;
-   LParent     :=CSVPrefForm.cb_Parent.Ticked;
-   LFilename   :=CSVPrefForm.cb_Filename.Ticked;
-   LLoadAddr   :=CSVPrefForm.cb_LoadAddr.Ticked;
-   LExecAddr   :=CSVPrefForm.cb_ExecAddr.Ticked;
-   LLength     :=CSVPrefForm.cb_Length.Ticked;
-   LAttributes :=CSVPrefForm.cb_Attributes.Ticked;
-   LAddress    :=CSVPrefForm.cb_Address.Ticked;
-   LCRC32      :=CSVPrefForm.cb_CRC32.Ticked;
-   LMD5        :=CSVPrefForm.cb_MD5.Ticked;
   end;
-{$ENDIF}
   //Remove the existing part of the original filename
   for currfile in FileNames do
    if FileExists(currfile) then
@@ -5603,7 +5450,6 @@ begin
      hexlen:=8;
      if LImage.MajorFormatNumber=diAcornDFS then hexlen:=6;
      //Show a progress message
-{$IFNDEF DIMCONSOLE}
      if Fguiopen then
      begin
       LImage.ProgressIndicator:=@UpdateProgress;
@@ -5611,15 +5457,14 @@ begin
       //Process the messages to close the file dialogue box
       Application.ProcessMessages;
      end;
-{$ENDIF}
      //Open a new file
      try
       F:=TFileStream.Create(filename,fmCreate OR fmShareDenyNone);
       //Write the image details
-      if LIncFilename then
+      if CSVPrefForm.cb_IncFilename.Ticked then
        WriteLine(F,LImage.Filename.QuotedString('"')+',"0x'+LImage.CRC32+'"');
       //Write the report
-      if LIncReport then
+      if CSVPrefForm.cb_IncReport.Ticked then
       begin
        report:=LImage.ImageReport(True);
        if report.Count>0 then
@@ -5628,15 +5473,15 @@ begin
       end;
       //Write the headers
       line:='';
-      if LParent     then line:=line+'"Parent",';
-      if LFilename   then line:=line+'"Filename",';
-      if LLoadAddr   then line:=line+'"Load Address",';
-      if LExecAddr   then line:=line+'"Execution Address",';
-      if LLength     then line:=line+'"Length",';
-      if LAttributes then line:=line+'"Attributes",';
-      if LAddress    then line:=line+'"Address",';
-      if LCRC32      then line:=line+'"CRC32",';
-      if LMD5        then line:=line+'"MD-5",';
+      if CSVPrefForm.cb_Parent.Ticked     then line:=line+'"Parent",';
+      if CSVPrefForm.cb_Filename.Ticked   then line:=line+'"Filename",';
+      if CSVPrefForm.cb_LoadAddr.Ticked   then line:=line+'"Load Address",';
+      if CSVPrefForm.cb_ExecAddr.Ticked   then line:=line+'"Execution Address",';
+      if CSVPrefForm.cb_Length.Ticked     then line:=line+'"Length",';
+      if CSVPrefForm.cb_Attributes.Ticked then line:=line+'"Attributes",';
+      if CSVPrefForm.cb_Address.Ticked    then line:=line+'"Address",';
+      if CSVPrefForm.cb_CRC32.Ticked      then line:=line+'"CRC32",';
+      if CSVPrefForm.cb_MD5.Ticked        then line:=line+'"MD-5",';
       line:=LeftStr(line,Length(line)-1);
       WriteLine(F,line);
       //Go through each directory
@@ -5645,33 +5490,33 @@ begin
        for entry:=0 to Length(LImage.Disc[dir].Entries)-1 do
         //write out each entry
         if(LImage.Disc[dir].Entries[entry].DirRef=-1) //Exclude directories?
-        or(LIncDir)then        //Or include them?
+        or(CSVPrefForm.cb_IncDir.Ticked)then        //Or include them?
         begin
          line:='';
-         if LParent     then
+         if CSVPrefForm.cb_Parent.Ticked     then
           line:=line+LImage.GetParent(dir).QuotedString('"')+',';
-         if LFilename   then
+         if CSVPrefForm.cb_Filename.Ticked   then
           line:=line+
                 LImage.Disc[dir].Entries[entry].Filename.QuotedString('"')+',';
-         if LLoadAddr   then
+         if CSVPrefForm.cb_LoadAddr.Ticked   then
           line:=line+'"0x'
                +IntToHex(LImage.Disc[dir].Entries[entry].LoadAddr,hexlen)+'",';
-         if LExecAddr   then
+         if CSVPrefForm.cb_ExecAddr.Ticked   then
           line:=line+'"0x'
                +IntToHex(LImage.Disc[dir].Entries[entry].ExecAddr,hexlen)+'",';
-         if LLength     then
+         if CSVPrefForm.cb_Length.Ticked     then
           line:=line+'"0x'
                +IntToHex(LImage.Disc[dir].Entries[entry].Length,hexlen)+'",';
-         if LAttributes then
+         if CSVPrefForm.cb_Attributes.Ticked then
           line:=line+'"'+LImage.Disc[dir].Entries[entry].Attributes+'",';
-         if LAddress    then
+         if CSVPrefForm.cb_Address.Ticked    then
           line:=line+'"0x'
                +IntToHex(LImage.Disc[dir].Entries[entry].Sector,hexlen)+'",';
-         if LCRC32      then
+         if CSVPrefForm.cb_CRC32.Ticked      then
           line:=line+'"0x'+LImage.GetFileCRC(LImage.GetParent(dir)
                                 +LImage.GetDirSep(LImage.Disc[dir].Partition)
                                 +LImage.Disc[dir].Entries[entry].Filename)+'",';
-         if LMD5        then
+         if CSVPrefForm.cb_MD5.Ticked        then
           line:=line+'"0x'+LImage.GetFileMD5(LImage.GetParent(dir)
                                 +LImage.GetDirSep(LImage.Disc[dir].Partition)
                                 +LImage.Disc[dir].Entries[entry].Filename)+'",';
@@ -5690,7 +5535,7 @@ begin
      //Finally free up the file stream
      F.Free;
      //Close the progress window
-     {$IFNDEF DIMCONSOLE}if Fguiopen then ProgressForm.Hide{$ENDIF}
+     if Fguiopen then ProgressForm.Hide
      {else WriteLn('CSV output for '+filename+' complete.')};
      LImage.Free;
      filename:='';
@@ -5698,7 +5543,6 @@ begin
    end;
  end;
 end;
-{$IFNDEF DIMCONSOLE}
 
 {------------------------------------------------------------------------------}
 //Open the preferences window
@@ -5783,15 +5627,15 @@ begin
   Repaint;
  end;
 end;
-{$ENDIF}
+
 {------------------------------------------------------------------------------}
 //Produces a report on the image
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_ShowReportClick(Sender: TObject);
  procedure AddLine(line: String);
  begin
-  {$IFNDEF DIMCONSOLE}if Fguiopen then ImageReportForm.Report.Lines.Add(line)
-  else{$ENDIF} WriteLn(line);
+  if Fguiopen then ImageReportForm.Report.Lines.Add(line)
+  else WriteLn(line);
  end;
 var
  pcent     : Integer=0;
@@ -5805,7 +5649,6 @@ begin
  //Get the report
  Lreport:=Image.ImageReport(False);
  //Display it
-{$IFNDEF DIMCONSOLE}
  if Fguiopen then
  begin
   MainForm.Cursor:=crHourGlass;
@@ -5816,7 +5659,6 @@ begin
   ImageReportForm.Report.Lines:=Lreport;
  end
  else
-{$ENDIF}
   if Lreport.Count>0 then
    for pcent:=0 to Lreport.Count-1 do AddLine(Lreport[pcent]);
  //Add file details
@@ -5831,7 +5673,6 @@ begin
   for dir:=0 to Length(Image.Disc)-1 do
   begin
    //Progress display
-{$IFNDEF DIMCONSOLE}
    if Fguiopen then
    begin
     pcent:=Round(((dir+1)/Length(Image.Disc))*100);
@@ -5839,7 +5680,6 @@ begin
      UpdateProgress('Preparing report...'+IntToStr(pcent)+'%');
     lpcent:=lpcent;
    end;
-{$ENDIF}
    //Broken directory
    if Image.Disc[dir].Broken then
    begin
@@ -5867,7 +5707,6 @@ begin
  AddLine('by Gerald J Holdsworth');
  AddLine('gerald@geraldholdsworth.co.uk');
  //Show the form
-{$IFNDEF DIMCONSOLE}
  if Fguiopen then
  begin
   ProgressForm.Hide;
@@ -5875,10 +5714,8 @@ begin
   MainForm.Cursor:=crDefault;
   ImageReportForm.ShowModal;
  end;
-{$ENDIF}
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Saves the configuration settings to the registry
 {------------------------------------------------------------------------------}
@@ -7577,7 +7414,6 @@ begin
  //Hide all the labels
  ArrangeFileDetails;
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Converts a number into a string with trailing 'Bytes', 'KB', etc.
@@ -7629,7 +7465,6 @@ begin
  end;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Converts Int64 to string, adding in the thousand separator ','
 {------------------------------------------------------------------------------}
@@ -7732,7 +7567,6 @@ begin
  end
 // Panel.Width:=panwid;
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Report an error to the user
@@ -7741,7 +7575,6 @@ procedure TMainForm.ReportError(error: String);
 begin
  //Remove the top bit, if present
  RemoveTopBit(error);
-{$IFNDEF DIMCONSOLE}
  if Fguiopen then
  begin
   WriteToDebug('MainForm.ReportError('+error+')');
@@ -7753,10 +7586,9 @@ begin
   else
    ErrorLogForm.ErrorLog.Lines.Add(error);
  end
- else {$ENDIF}if ErrorReporting then WriteLn(cmdRed+error+cmdNormal);
+ else if ErrorReporting then WriteLn(cmdRed+error+cmdNormal);
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Ask the user for confirmation
 {------------------------------------------------------------------------------}
@@ -7819,7 +7651,6 @@ begin
    else
     MessageDlg(info,mtInformation,[mbOK],0);
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Update the progress text
@@ -7827,16 +7658,14 @@ end;
 procedure TMainForm.UpdateProgress(Fupdate: String);
 begin
  WriteToDebug('MainForm.UpdateProgress('+Fupdate+')');
-{$IFNDEF DIMCONSOLE}
  if Fguiopen then
  begin
   ProgressForm.UpdateProgress.Caption:=Fupdate;
   Application.ProcessMessages;
  end
- else {$ENDIF}WriteLn(Fupdate);
+ else WriteLn(Fupdate);
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Texture the form/components
 {------------------------------------------------------------------------------}
@@ -7943,7 +7772,6 @@ begin
  FTEdit.Left:=((Length(FTButtons)+1)mod 5)*FTEdit.Width;
  FTEdit.OnKeyPress:=@FileTypeKeyPress;
 end;
-{$ENDIF}
 
 {------------------------------------------------------------------------------}
 //Write to the debug file
@@ -7962,18 +7790,13 @@ begin
    F.Position:=F.Size;
    WriteLine(F,FormatDateTime(TimeDateFormat,Now)+': '+line);
   except
-   on E: Exception do
-{$IFNDEF DIMCONSOLE}
-    if Fguiopen then ShowMessage('Failed to write logfile "'+debuglogfile
-                                  +'": '+E.Message)
-    else{$ENDIF} WriteLn(cmdRed+'Failed to write logfile "'+debuglogfile
-                                  +'": '+E.Message+cmdNormal);
+   on E: Exception do ShowMessage('Failed to write logfile "'+debuglogfile
+                                  +'": '+E.Message);
   end;
   F.Free;
  end;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {------------------------------------------------------------------------------}
 //Create a RISC OS button
 {------------------------------------------------------------------------------}
@@ -7989,6 +7812,5 @@ begin
  Result.ModalResult:=LModal;
  Result.Font.Color:=clBlack;
 end;
-{$ENDIF}
 
 end.

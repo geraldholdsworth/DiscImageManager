@@ -24,14 +24,14 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils,{$IFNDEF DIMCONSOLE}Forms,Controls,Graphics,Dialogs,Grids,ExtCtrls,Buttons,
- StdCtrls,ComCtrls,IpHtml,SpriteFile,{$ENDIF}Global,StrUtils,DiscImage,Types;
+ Classes,SysUtils,Forms,Controls,Graphics,Dialogs,Grids,ExtCtrls,Buttons,
+ StdCtrls,ComCtrls,IpHtml,Global,StrUtils,SpriteFile,DiscImage,Types;
 
 type
 
  { THexDumpForm }
 
- THexDumpForm = class{$IFNDEF DIMCONSOLE}(TForm)
+ THexDumpForm = class(TForm)
   btnMoveDown: TSpeedButton;
   btnMoveDownLine: TSpeedButton;
   btnMoveToBottom: TSpeedButton;
@@ -84,9 +84,7 @@ type
   procedure PageControlChange(Sender: TObject);
   procedure ScrollBarScroll(Sender: TObject; ScrollCode: TScrollCode;
    var ScrollPos: Integer);
-{$ENDIF}
   procedure btnSaveTextClick(Sender: TObject);
-{$IFNDEF DIMCONSOLE}
   procedure DisplayHex(start: Cardinal);
   procedure edJumpKeyPress(Sender: TObject; var Key: char);
   procedure FormResize(Sender: TObject);
@@ -103,24 +101,19 @@ type
    const Value: String);
   procedure HexDumpDisplayValidateEntry(sender: TObject; aCol, aRow: Integer;
    const OldValue: String; var NewValue: String);
-{$ENDIF}
   function IsBasicFile: Boolean;
   function IsTextFile: Boolean;
   procedure DecodeBasicFile;
-{$IFNDEF DIMCONSOLE}
   procedure DisplayImage;
   procedure DisplaySpriteFile;
   procedure SpriteOutputResize(Sender: TObject);
-{$ENDIF}
  private
   basiclength     : Cardinal;
-{$IFNDEF DIMCONSOLE}
   numsprites,
   spritew,
   spriteh,
   formwidth,
   formheight      : Integer;
-{$ENDIF}
   BasicTxtOutput  : TStringList;
  public
   buffer          : TDIByteArray;
@@ -136,7 +129,7 @@ implementation
 uses MainUnit,ConsoleAppUnit;
 
 { THexDumpForm }
-{$IFNDEF DIMCONSOLE}
+
 {-------------------------------------------------------------------------------
  Procedure to run when the application first runs
 -------------------------------------------------------------------------------}
@@ -329,7 +322,6 @@ begin
  //Just move the display on to the position dictated by the scroll bar
  DisplayHex((ScrollPos div $10)*$10);
 end;
-{$ENDIF}
 
 {-------------------------------------------------------------------------------
  User has clicked on the Save As Text File button
@@ -344,7 +336,6 @@ var
  pos   : Integer=0;
  ok    : Boolean=False;
 begin
-{$IFNDEF DIMCONSOLE}
  if MainForm.Fguiopen then
  begin
   //Adapt the filename
@@ -355,10 +346,9 @@ begin
   SaveFile.Filename:=line+'-dump.txt';
   //And open the dialogue box
   ok:=SaveFile.Execute;
- end else {$ENDIF}ok:=True;
+ end else ok:=True;
  if ok then
  begin
-{$IFNDEF DIMCONSOLE}
   if MainForm.Fguiopen then
   begin
    //Show the progress bar
@@ -377,16 +367,15 @@ begin
                     +' (0x'+IntToHex(Length(buffer),10)+') bytes');
    WriteLine(F,'');
   end;
-{$ENDIF}
   line:='Address     00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  ASCII';
-  {$IFNDEF DIMCONSOLE}if MainForm.Fguiopen then WriteLine(F,line)
-  else {$ENDIF}WriteLn(cmdBold+line+cmdNormal);
+  if MainForm.Fguiopen then WriteLine(F,line)
+  else WriteLn(cmdBold+line+cmdNormal);
   //Now the data
   pos:=0;//Start of the data
   repeat
    //Start the line off with the address, in hex, 10 digits long
    line:=IntToHex((pos div $10)*$10,10)+'  ';
-   {$IFNDEF DIMCONSOLE}if not MainForm.Fguiopen then{$ENDIF}
+   if not MainForm.Fguiopen then
     line:=cmdBold+line+cmdNormal;
    //Set the amount of data to read to 16 bytes
    len:=$10;
@@ -403,11 +392,9 @@ begin
      if p=$07 then line:=line+' '; //Split in the middle
     end;
     //Extra space to separate from the characters
-{$IFNDEF DIMCONSOLE}
     if MainForm.Fguiopen then
      line:=PadRight(line,62)
     else
-{$ENDIF}
      line:=PadRight(line,70);
     //Now the characters
     for p:=0 to len-1 do
@@ -416,20 +403,17 @@ begin
      else
       line:=line+'.'; //Not printable
     //Write out the complete line
-    {$IFNDEF DIMCONSOLE}if MainForm.Fguiopen then WriteLine(F,line) else{$ENDIF} WriteLn(line);
+    if MainForm.Fguiopen then WriteLine(F,line) else WriteLn(line);
    end;
-{$IFNDEF DIMCONSOLE}
    if MainForm.Fguiopen then
    begin
     //Update the progress bar
     pbProgress.Position:=Round((pos/Length(buffer))*100);
     Application.ProcessMessages;
    end;
-{$ENDIF}
    //Continue until no more data
    inc(pos,len);
   until pos=Length(buffer);
-{$IFNDEF DIMCONSOLE}
   if MainForm.Fguiopen then
   begin
    //Close the file and exit
@@ -437,11 +421,9 @@ begin
    //Hide the progress bar
    pbProgress.Visible:=False;
   end;
-{$ENDIF}
  end;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {-------------------------------------------------------------------------------
  User has clicked on the Save As Text File button on the BASIC viewer tab
 -------------------------------------------------------------------------------}
@@ -761,7 +743,6 @@ begin
  else //Otherwise, change back to what it was before
   NewValue:=OldValue;
 end;
-{$ENDIF}
 
 {-------------------------------------------------------------------------------
  Analysis a file to see if it is a BASIC file or not
@@ -891,7 +872,7 @@ begin
             +StringReplace(PadLeft(IntToStr(linenum),5),' ','&nbsp;',[rfReplaceAll])
             +'</span>&nbsp;';
     basictxt:=PadLeft(IntToStr(linenum),5);
-    {$IFNDEF DIMCONSOLE}if not MainForm.Fguiopen then{$ENDIF}
+    if not MainForm.Fguiopen then
      basictxt:=cmdBlue+basictxt+cmdNormal;
     //Line length
     linelen:=buffer[ptr+3];
@@ -936,7 +917,7 @@ begin
          inc(lineptr,3);
         end;
        linetxt:=linetxt+'<span '+keywordstyle+'>'+tmp+'</span>';
-       {$IFNDEF DIMCONSOLE}if not MainForm.Fguiopen then{$ENDIF}
+       if not MainForm.Fguiopen then
         tmp:=cmdBold+cmdMagenta+tmp+cmdNormal;
        basictxt:=basictxt+tmp;
       end
@@ -957,7 +938,7 @@ begin
         if c=$C8 then
          if t-$8E<=High(exttokens3)then tmp:=exttokens3[t-$8E];
         linetxt:=linetxt+'<span '+keywordstyle+'>'+tmp+'</span>';
-        {$IFNDEF DIMCONSOLE}if not MainForm.Fguiopen then{$ENDIF}
+        if not MainForm.Fguiopen then
          tmp:=cmdBold+cmdMagenta+tmp+cmdNormal;
         basictxt:=basictxt+tmp;
        end;
@@ -969,11 +950,9 @@ begin
      if c>31 then
      begin
       if not rem then if(c=34)AND(detok)then
-{$IFNDEF DIMCONSOLE}
        if MainForm.Fguiopen then
         linetxt:=linetxt+'<span '+quotestyle+'>'
        else
-{$ENDIF}
         basictxt:=basictxt+cmdRed+cmdItalic;
       if(c<>32)and(c<>38)and(c<>60)and(c<>62)then
        linetxt:=linetxt+Chr(c AND$7F);
@@ -983,7 +962,7 @@ begin
       if c=62 then linetxt:=linetxt+'&gt;';
       if not rem then if(c=34)and(not detok)then linetxt:=linetxt+'</span>';
       basictxt:=basictxt+Chr(c AND$7F);
-      if not rem then if(c=34)and(not detok){$IFNDEF DIMCONSOLE}and(not MainForm.Fguiopen){$ENDIF}then
+      if not rem then if(c=34)and(not detok)and(not MainForm.Fguiopen)then
        basictxt:=basictxt+cmdNormal;
       //Do not detokenise within quotes
       if(c=34)and(not rem)then detok:=not detok;
@@ -996,7 +975,6 @@ begin
     inc(ptr,linelen);
    end;
   end;
-{$IFNDEF DIMCONSOLE}
   if MainForm.Fguiopen then
   begin
    //Display the minimum compatible BASIC version
@@ -1025,7 +1003,6 @@ begin
    PageControlChange(nil);
   end
   else
-{$ENDIF}
    if BasicTxtOutput.Count>0 then
     for ptr:=0 to BasicTxtOutput.Count-1 do
      WriteLn(BasicTxtOutput[ptr]);
@@ -1034,7 +1011,7 @@ begin
  if IsTextFile then
  begin
   //Clear the container
-  {$IFNDEF DIMCONSOLE}if MainForm.Fguiopen then TextOutput.Clear;{$ENDIF}
+  if MainForm.Fguiopen then TextOutput.Clear;
   linetxt:='';
   while ptr<Length(buffer) do
   begin
@@ -1050,16 +1027,15 @@ begin
    if((c=$0A)and(cn<>$0D))
    or((c=$0D)and(cn<>$0A))then
    begin
-    {$IFNDEF DIMCONSOLE}if MainForm.Fguiopen then TextOutput.Lines.Add(linetxt)
-    else {$ENDIF}WriteLn(linetxt);
+    if MainForm.Fguiopen then TextOutput.Lines.Add(linetxt)
+    else WriteLn(linetxt);
     linetxt:='';
    end;
   end;
   //At the end, anything left then push to the output container
   if linetxt<>'' then
-   {$IFNDEF DIMCONSOLE}if MainForm.Fguiopen then TextOutput.Lines.Add(linetxt)
-   else {$ENDIF}WriteLn(linetxt);
-{$IFNDEF DIMCONSOLE}
+   if MainForm.Fguiopen then TextOutput.Lines.Add(linetxt)
+   else WriteLn(linetxt);
   if MainForm.Fguiopen then
   begin
    //Move the cursor to the beginning
@@ -1071,11 +1047,9 @@ begin
    PageControl.ActivePage:=TextViewer;
    PageControlChange(nil);
   end;
-{$ENDIF}
  end;
 end;
 
-{$IFNDEF DIMCONSOLE}
 {-------------------------------------------------------------------------------
  Displays a compatible image
 -------------------------------------------------------------------------------}
@@ -1250,6 +1224,5 @@ begin
  BasicOutput.DefaultFontSize:=udFontSize.Position;
  DecodeBasicFile;
 end;
-{$ENDIF}
 
 end.

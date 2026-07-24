@@ -25,9 +25,9 @@ Boston, MA 02110-1335, USA.
 interface
 
 uses
- Classes,SysUtils,StrUtils,{$IFNDEF DIMCONSOLE}Graphics,ExtCtrls,Controls,Math,Forms,Buttons,StdCtrls,
- {{ $IFNDEF Darwin}}{$ENDIF} Registry//{ $ENDIF}
-// { $IFDEF Darwin}, MacOSAll, CFPreferences{ $ENDIF}
+ Classes,SysUtils,Graphics,ExtCtrls,Controls,StrUtils,Math,Forms,Buttons,StdCtrls
+ {{$IFNDEF Darwin}}, Registry//{$ENDIF}
+// {$IFDEF Darwin}, MacOSAll, CFPreferences{$ENDIF}
  ;
 
 {$M+}
@@ -70,7 +70,7 @@ const
  cmItalicStrikeUnder    = #$85#$0E;
  cmBoldItalicStrikeUnder= #$85#$0F;
  cmResetStyle           = #$86;
-{$IFNDEF DIMCONSOLE}
+
 //RISC OS style control parent class - declarations ++++++++++++++++++++++++++++
 type
  TRISCOSControl = class(TGraphicControl)
@@ -355,26 +355,26 @@ type TColouredMemo = class(TScrollingWinControl)
   property PlainText : TExtStringList read FPlainText;
   property TextWrap  : Boolean        read FTextWrap  write SetTextWrap;
 end;
-{$ENDIF}
+
 //Registry Class - declarations ++++++++++++++++++++++++++++++++++++++++++++++++
 type TGJHRegistry = class
  private
-//  { $IFNDEF Darwin}
+//  {$IFNDEF Darwin}
   FRegistry : TRegistry;
-//  { $ENDIF}
+//  {$ENDIF}
   FRegKey   : String;
-//  { $IFNDEF Darwin}
+//  {$IFNDEF Darwin}
   procedure OpenReg(key: String);
-//  { $ENDIF}
+//  {$ENDIF}
   function ExtractKey(var V: String):String;
-{  { $IFDEF Darwin}
+{  {$IFDEF Darwin}
   procedure SetMacValue(V,X: String);
-  { $ENDIF}}
+  {$ENDIF}}
  published
   //Methods
   constructor Create(LRegKey: String);
   function DoesKeyExist(V: String):Boolean;
-//  { $IFNDEF Darwin}
+//  {$IFNDEF Darwin}
   function DeleteKey(key: String): Boolean;
   procedure GetRegValA(V: String;var D: array of Byte);
   function GetRegValS(V: String;D: String): String;
@@ -383,15 +383,15 @@ type TGJHRegistry = class
   function GetRegValB(V: String): Boolean; overload;
   function GetRegValI(V: String;D: Cardinal;CrNew: Boolean=True): Cardinal;
   function GetRegValI(V: String): Cardinal; overload;
-{  { $ENDIF}
-  { $IFDEF Darwin}
+{  {$ENDIF}
+  {$IFDEF Darwin}
   procedure DeleteKey(key: String);
   function GetRegValB(V: String;D: Boolean): Boolean;
   function GetRegValI(V: String;D: Cardinal): Cardinal;
-  { $ENDIF}
-  { $IFNDEF Darwin}}
+  {$ENDIF}
+  {$IFNDEF Darwin}}
   procedure SetRegValA(V: String;var D: array of Byte);
-//  { $ENDIF}
+//  {$ENDIF}
   procedure SetRegValS(V: String;D: String);
   procedure SetRegValB(V: String;D: Boolean);
   procedure SetRegValI(V: String;D: Cardinal);
@@ -401,11 +401,25 @@ type TGJHRegistry = class
   destructor Destroy; override;
 end;
 
+procedure Register;
 function ParseCSVLine(Line: String): TStringArray;
 
 //Methods and functions ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 implementation
+
+{-------------------------------------------------------------------------------
+Register all the components
+-------------------------------------------------------------------------------}
+procedure Register;
+begin
+ RegisterComponents('GJH Custom Components',[TRISCOSTickBox,
+                                             TRISCOSRadioBox,
+                                             TRISCOSTickBoxes,
+                                             TRISCOSSlider,
+                                             TRISCOSButton,
+                                             TColouredMemo]);
+end;
 
 {-------------------------------------------------------------------------------
 Parse a CSV line into an array
@@ -432,7 +446,7 @@ begin
   end;
  end;
 end;
-{$IFNDEF DIMCONSOLE}
+
 //RISC OS Control parent Methods +++++++++++++++++++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------
@@ -2065,7 +2079,7 @@ begin
  FTextWrap:=AValue;
  Invalidate;
 end;
-{$ENDIF}
+
 //Registry Class methods +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 {-------------------------------------------------------------------------------
@@ -2088,43 +2102,43 @@ end;
 {-------------------------------------------------------------------------------
 Open the registry key
 -------------------------------------------------------------------------------}
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
 procedure TGJHRegistry.OpenReg(key: String);
 begin
  FRegistry:=TRegistry.Create;
  if key<>'' then key:='\'+key;
  FRegistry.OpenKey(FRegKey+key,true);
 end;
-//{ $ENDIF}
+//{$ENDIF}
 
 {-------------------------------------------------------------------------------
 Function to delete a key from the registry
 -------------------------------------------------------------------------------}
-{{ $IFDEF Darwin}
+{{$IFDEF Darwin}
 procedure TGJHRegistry.DeleteKey(key: String); 
-{ $ENDIF}
-{ $IFNDEF Darwin}}
+{$ENDIF}
+{$IFNDEF Darwin}}
 function TGJHRegistry.DeleteKey(key: String): Boolean;
 var
  x: Boolean=False;
-//{ $ENDIF}
+//{$ENDIF}
 begin
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
  x:=True;
  OpenReg(ExtractKey(key));
  if FRegistry.ValueExists(key) then x:=FRegistry.DeleteValue(key);
  FRegistry.Free;
  Result:=x;
-{{ $ENDIF}
-{ $IFDEF Darwin}
+{{$ENDIF}
+{$IFDEF Darwin}
  SetMacValue(key,NULL{%H-});
-{ $ENDIF}}
+{$ENDIF}}
 end;
 
 {-------------------------------------------------------------------------------
 Function to read a string from the registry, or create it if it doesn't exist
 -------------------------------------------------------------------------------}
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
 function TGJHRegistry.GetRegValS(V: String;D: String): String;
 var
  X: String='';
@@ -2144,12 +2158,12 @@ begin
  FRegistry.Free;
  Result:=X;
 end;
-//{ $ENDIF}
+//{$ENDIF}
 
 {-------------------------------------------------------------------------------
 Function to read an array from the registry, or create it if it doesn't exist
 -------------------------------------------------------------------------------}
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
 procedure TGJHRegistry.GetRegValA(V: String;var D: array of Byte);
 var
  s: Integer=0;
@@ -2166,12 +2180,12 @@ begin
  end;
  FRegistry.Free;
 end;
-//{ $ENDIF}
+//{$ENDIF}
 
 {-------------------------------------------------------------------------------
 Function to read an integer from the registry, or create it if it doesn't exist
 -------------------------------------------------------------------------------}  
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
 function TGJHRegistry.GetRegValI(V: String;D: Cardinal;CrNew: Boolean=True): Cardinal;
 var
  X: Cardinal=0;
@@ -2191,7 +2205,7 @@ function TGJHRegistry.GetRegValI(V: String): Cardinal;
 begin
  Result:=GetRegValI(V,0,False);
 end;
-{{ $ENDIF}
+{{$ENDIF}
 function TGJHRegistry.GetRegValI(V: String;D: Cardinal): Cardinal;
 var
  X: Cardinal;
@@ -2207,7 +2221,7 @@ end; }
 {-------------------------------------------------------------------------------
 Function to read a boolean from the registry, or create it if it doesn't exist
 -------------------------------------------------------------------------------}
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
 function TGJHRegistry.GetRegValB(V: String;D: Boolean): Boolean;
 var
  X: Boolean=False;
@@ -2227,8 +2241,8 @@ begin
  FRegistry.Free;
  Result:=X;
 end;
-{{ $ENDIF}
-{ $IFDEF Darwin}
+{{$ENDIF}
+{$IFDEF Darwin}
 function TGJHRegistry.GetRegValB(V: String;D: Boolean): Boolean;
 var
  X      : Int64;
@@ -2240,24 +2254,24 @@ begin
                                    ,IsValid);
  if IsValid then Result:=X<>0 else Result:=D;
 end;
-{ $ENDIF}  }
+{$ENDIF}  }
 
 {-------------------------------------------------------------------------------
 Does the specified key exist?
 -------------------------------------------------------------------------------}
 function TGJHRegistry.DoesKeyExist(V: String):Boolean;
 begin
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
  OpenReg(ExtractKey(V));
  Result:=FRegistry.ValueExists(V);
  FRegistry.Free;
-{{ $ENDIF}
-{ $IFDEF Darwin}
+{{$ENDIF}
+{$IFDEF Darwin}
  Result:=False;
  CFPreferencesGetAppIntegerValue(CFStr(PChar(ExtractKey(V)))
                                 ,kCFPreferencesCurrentApplication
                                 ,Result);
-{ $ENDIF}}
+{$ENDIF}}
 end;
 
 {-------------------------------------------------------------------------------
@@ -2265,41 +2279,41 @@ Function to save a string to the registry
 -------------------------------------------------------------------------------}
 procedure TGJHRegistry.SetRegValS(V: String;D: String);
 begin
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
  OpenReg(ExtractKey(V));
  FRegistry.WriteString(V,D);
  FRegistry.Free;
-{{ $ENDIF}
-{ $IFDEF Darwin}
+{{$ENDIF}
+{$IFDEF Darwin}
  SetMacValue(V,D);
-{ $ENDIF}}
+{$ENDIF}}
 end;
 
 {-------------------------------------------------------------------------------
 Function to save an array to the registry
 -------------------------------------------------------------------------------}
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
 procedure TGJHRegistry.SetRegValA(V: String;var D: array of Byte);
 begin
  OpenReg(ExtractKey(V));
  FRegistry.WriteBinaryData(V,D,SizeOf(D));
  FRegistry.Free;
 end;
-//{ $ENDIF}
+//{$ENDIF}
 
 {-------------------------------------------------------------------------------
 Function to save an integer to the registry
 -------------------------------------------------------------------------------}
 procedure TGJHRegistry.SetRegValI(V: String;D: Cardinal);
 begin
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
  OpenReg(ExtractKey(V));
  FRegistry.WriteInteger(V,D);
  FRegistry.Free;
-{{ $ENDIF}
-{ $IFDEF Darwin}
+{{$ENDIF}
+{$IFDEF Darwin}
  SetMacValue(V,IntToStr(D));
-{ $ENDIF}}
+{$ENDIF}}
 end;
 
 {-------------------------------------------------------------------------------
@@ -2307,14 +2321,14 @@ Function to save a boolean to the registry
 -------------------------------------------------------------------------------}
 procedure TGJHRegistry.SetRegValB(V: String;D: Boolean);
 begin
-//{ $IFNDEF Darwin}
+//{$IFNDEF Darwin}
  OpenReg(ExtractKey(V));
  FRegistry.WriteBool(V,D);
  FRegistry.Free;
-{{ $ENDIF}
-{ $IFDEF Darwin}
+{{$ENDIF}
+{$IFDEF Darwin}
  if D then SetMacValue(V,'1') else SetMacValue(V,'0');
-{ $ENDIF}}
+{$ENDIF}}
 end;
 
 {-------------------------------------------------------------------------------
@@ -2333,7 +2347,7 @@ end;
 {-------------------------------------------------------------------------------
 Procedure to write a Mac preference
 -------------------------------------------------------------------------------}
-{{ $IFDEF Darwin}
+{{$IFDEF Darwin}
 procedure TGJHRegistry.SetMacValue(V,X: String);
 var
  ItemVal : CFPropertyListRef;
@@ -2347,6 +2361,6 @@ begin
  // write out the preference data
  CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);
 end;
-{ $ENDIF} }
+{$ENDIF} }
 
 end.
