@@ -17,15 +17,5 @@ Code is invariably duplicated across these filing system files just to keep it a
 <br>
 The other files are normal Lazarus units with lfm form definition files. Disc Image Manager version 1 can also be started up in console mode, and this is dealt with by the DiscImageManager.lpr file. There is another file, containing a class, used for the Console Mode - ConsoleAppUnit. When in Console Mode, the code calls routines in MainUnit so, therefore, there is also a MainUnit_Console include file.<br>
 
-## Other code
-There are other files, which were taken (with the author's permission) from Disk Image Manager used for reading in the DSK format (for Amstrad CPC and Sinclair Spectrum +3). These files are:<br>
-* Comparers.pas<br>
-* DSKFormat.pas<br>
-* DskImage.pas<br>
-* filesystem.pas<br>
-* FormatAnalysis.pas<br>
-* Header.pas<br>
-* Utils.pas<br>
-The only alterations undertaken with these should be with the commented licence header, or to comment out procedures/functions or units 'used' if they are not required (i.e., if they deal with the GUI).<br>
-<br>
-However, I have written my own code to deal with the DSK format, which will be getting added in due course.<br>
+## CLI Version
+There is a console version, in a separate project in this repository. This uses, mostly, the same code as the GUI. However, to tell the compiler to compile this as a console program rather than a GUI application, I have utilised a compiler directive "DIMCONSOLE". If this compiler directive is not defined, then it is for GUI. If it is defined then it is for CLI only. There is also code that is "don't care", i.e. both (shared).
