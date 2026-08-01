@@ -1101,6 +1101,15 @@ Bug fixes
 * Date/Time stamps in ADFS were not being handled correctly. They now match the behaviour of RISC OS ADFS.
 * In the CLI, when selecting the root using "dir ^", it would incorrectly report that it could not be found, but selected it anyway.
 
+1.50.1
+-------------------
+New or improved features
+* There are now two binaries: a GUI/CLI combo and a CLI only.
+
+Bug fixes
+* New map ADFS sometimes did not write the free space map correctly when deleting files.
+* Creating a new ADFS directory did not set the "BeenRead" flag which then sometimes resulted in spurious blank directories being created.
+
 Platform History
 ----------------
 

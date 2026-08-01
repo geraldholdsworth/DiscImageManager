@@ -350,6 +350,7 @@ begin
         //Report the number of entries found
         WriteLn(IntToStr(Length(OSFiles))+' entries found.');
         //Now we add/list them
+        ok:=True;
         for ptr:=0 to Length(OSFiles)-1 do
         begin
          //Add directory
@@ -359,9 +360,9 @@ begin
           begin
            Write('Adding directory: '''+OSFiles[ptr].Filename+'''.');
            if from='' then
-            ok:=AddDirectoryToImage(OSFiles[ptr].Filename)
+            ok:=(ok)AND(AddDirectoryToImage(OSFiles[ptr].Filename))
            else
-            ok:=AddDirectoryToImage(OSFiles[ptr].Filename,newImage,OSFiles[ptr].Parent);
+            ok:=(ok)AND(AddDirectoryToImage(OSFiles[ptr].Filename,newImage,OSFiles[ptr].Parent));
           end //Or list the directory
           else WriteLn(cmdBlue+'Directory'+cmdNormal+': '''
                       +OSFiles[ptr].Filename+'''.');
@@ -372,12 +373,12 @@ begin
           begin
            Write('Adding file: '''+OSFiles[ptr].Filename+'''.');
            if from='' then //Add from host OS
-            ok:=AddFileToImage(OSFiles[ptr].Filename)>=0
+            ok:=(ok)AND(AddFileToImage(OSFiles[ptr].Filename)>=0)
            else //Add from supplied image
            begin
             if newImage.FileExists(OSFiles[ptr].Parent+newImage.DirSep+OSFiles[ptr].Filename,dir,entry) then
-             ok:=ImportFile(newImage,dir,entry)>=0
-            else ok:=False;
+             ok:=(ok)AND(ImportFile(newImage,dir,entry)=0);
+            //else ok:=False;
            end;
           end //Or list the file
           else WriteLn(cmdBlue+'File'+cmdNormal+': '''

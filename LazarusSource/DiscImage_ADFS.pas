@@ -871,7 +871,7 @@ begin
    //Sector needs to have 1 subtracted, if >=1
    if sector>=1 then dec(sector);
    //Fast path: use pre-built index when available (offset=True only)
-   if FBitmapIndexValid and offset then
+   if(FBitmapIndexValid) and (offset) then
    begin
     Result:=Copy(FBitmapIndex[fragid]);
     if Length(Result)>0 then
@@ -1968,7 +1968,6 @@ begin
      SetLength(fragments,Length(fragments)+1);
      if offset then
      begin
-      //Mark the offset - number of bits from the start of the bootmap
       fragments[Length(fragments)-1].Offset:=i+8+(zone*secsize*8);
       //But we need it as an absolute address in order to write the data
       fragments[Length(fragments)-1].Offset:=
@@ -2022,7 +2021,10 @@ begin
     if(zonecounter<0)and(startzone+startoffset<Length(zonecheck))then
      zonecounter:=startzone+startoffset;
     if(zonecounter<0)or(zonecounter>=Length(zonecheck))then
-     startoffset:=nzones; //This will finish off the loop
+    begin
+     startoffset:=nzones*4; //This will finish off the loop
+     zonecounter:=0;
+    end;
    end;
   end;
  end;
@@ -2314,6 +2316,7 @@ begin
         FDisc[Length(FDisc)-1].Broken   :=False;
         FDisc[Length(FDisc)-1].Parent   :=dir;
         FDisc[Length(FDisc)-1].Sector   :=FDisc[dir].Entries[ptr].Sector;
+        FDisc[Length(FDisc)-1].BeenRead :=True;
         SetLength(FDisc[Length(FDisc)-1].Entries,0);
        end;
        //And send the result back to the client
@@ -3567,7 +3570,7 @@ begin
     if not FDisc[dirref].BeenRead then ReadDirectory(filename);
     //We'll do a bit of recursion to remove each entry one by one. If it
     //encounters a directory, that will get it's contents deleted, then itself.
-    if entry<Length(FDisc[dir].Entries) then
+//    if entry<Length(FDisc[dir].Entries) then    //**** not sure why this was here
      while(Length(FDisc[dirref].Entries)>0)and(success)do
       //If any fail for some reason, the whole thing fails
       success:=DeleteADFSFile(filename+dir_sep+FDisc[dirref].Entries[0].Filename);
@@ -3707,14 +3710,13 @@ begin
    //list each time
    fragments:=NewDiscAddrToOffset(addr,False);
    lastzone:=-1;
-  if Length(fragments)=0 then//ERROR - WE SHOULD HAVE FRAGMENTS ****************
-   addr:=addr; //***************************************************************
+   if Length(fragments)=0 then exit;//ERROR - WE SHOULD HAVE FRAGMENTS *********
    //Go through each one
    if Length(fragments)>0 then
     for i:=0 to Length(fragments)-1 do
     begin
      //Get all the free space fragments from the zone we are looking at
-     if fragments[i].Zone<>lastzone then
+     //if fragments[i].Zone<>lastzone then
       fsfragments:=ADFSGetFreeFragments(False,fragments[i].Zone);
      lastzone:=fragments[i].Zone;
      //There are no free fragments in this zone
@@ -3727,14 +3729,14 @@ begin
       //And blank the fragment ID, leaving the stop bit, if it is there
       WriteBits($0,(fragments[i].Offset DIV 8)
                   +(fragments[i].Zone*secsize)+bootmap+1,
-                   fragments[i].Offset MOD 8,idlen);
+                    fragments[i].Offset MOD 8,idlen);
      end;
      //We do have some free fragments in this zone
      if Length(fsfragments)>0 then
      begin
       fs:=0;
       ptr:=fsfragments[fs].Offset;//Use as a counter
-      while(fs<Length(fsfragments)-1)AND(ptr<fragments[i].Offset)do
+      while(fs<Length(fsfragments))AND(ptr<fragments[i].Offset)do
       begin //We'll now find the first pointer past this fragment
        inc(fs);
        inc(ptr,fsfragments[fs].Offset);
@@ -3758,19 +3760,20 @@ begin
                     linklen);
       end
       else  //We exit the loop with ptr not as high, so we need to add an entry
-      begin // and update the final fragment
-       //Write the new pointer to our fragment
-       linklen:=GetLinkLen(ptr);
-       WriteBits(fragments[i].Offset-ptr,(ptr DIV 8)
-                                        +(fragments[i].Zone*secsize)+bootmap+1,
-                                        ptr MOD 8,linklen);
-       linklen:=GetLinkLen(fragments[i].Offset);
-       //Now write zero in place of our fragid
-       WriteBits(0,(fragments[i].Offset DIV 8)
-                  +(fragments[i].Zone*secsize)+bootmap+1,
-                  fragments[i].Offset MOD 8,
-                  linklen);
-      end;
+       if ptr<fragments[i].Offset then
+       begin // and update the final fragment
+        //Write the new pointer to our fragment
+        linklen:=GetLinkLen(ptr);
+        WriteBits(fragments[i].Offset-ptr,(ptr DIV 8)
+                                         +(fragments[i].Zone*secsize)+bootmap+1,
+                                         ptr MOD 8,linklen);
+        linklen:=GetLinkLen(fragments[i].Offset);
+        //Now write zero in place of our fragid
+        WriteBits(0,(fragments[i].Offset DIV 8)
+                   +(fragments[i].Zone*secsize)+bootmap+1,
+                   fragments[i].Offset MOD 8,
+                   linklen);
+       end; //If equal, then we ignore
      end;
     end;
    //Update the checksums

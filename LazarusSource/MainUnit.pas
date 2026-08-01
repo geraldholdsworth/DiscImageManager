@@ -763,45 +763,46 @@ begin
   disctitle :='';
   dirtitle  :='';
   //Is there an inf file?
-  if FileExists(dirname+'.inf') then
-  begin
-   inffile:='';
-   //Read in the first line
-   try
-    F:=TFileStream.Create(dirname+'.inf',fmOpenRead OR fmShareDenyNone);
-    F.Position:=0;
-    ReadLine(F,inffile);
-    fields:=TJSONObject.Create;
-    ParseInf(fields,inffile);
-    //Then extract the fields
-    GetJSONString(fields,'Filename',importname);
-    temp:='';
-    GetJSONString(fields,'OPT',temp);
-    if not temp.IsEmpty then
-     Image.UpdateBootOption(StrToIntDef(temp,0)
-                           ,Image.Disc[thisdir].Partition);
-    GetJSONString(fields,'DIRTITLE',dirtitle);
-    if importname='$' then
-     GetJSONString(fields,'TITLE',disctitle)
-    else
-     GetJSONString(fields,'TITLE',dirtitle);
-    GetJSONString(fields,'Access',attr);
-    fields.Free;
-    //Convert the attributes from hex to letters, if necessary
-    attr:=GetAttributes(attr,Image.MajorFormatNumber);
-    //Remove any quotes from the titles
-    dirtitle :=dirtitle.DeQuotedString('"');
-    disctitle:=disctitle.DeQuotedString('"');
-    //Update the disc title, only on the root
-    if(not disctitle.IsEmpty)and(importname='$')then
-     Image.UpdateDiscTitle(LeftStr(disctitle,10)
-                       ,Image.Disc[thisdir].Partition);
-   except
-    on E: Exception do
-     ReportError('Failed to read inf file "'+dirname+'": '+E.Message);
+  if NewImage=nil then
+   if FileExists(dirname+'.inf') then
+   begin
+    inffile:='';
+    //Read in the first line
+    try
+     F:=TFileStream.Create(dirname+'.inf',fmOpenRead OR fmShareDenyNone);
+     F.Position:=0;
+     ReadLine(F,inffile);
+     fields:=TJSONObject.Create;
+     ParseInf(fields,inffile);
+     //Then extract the fields
+     GetJSONString(fields,'Filename',importname);
+     temp:='';
+     GetJSONString(fields,'OPT',temp);
+     if not temp.IsEmpty then
+      Image.UpdateBootOption(StrToIntDef(temp,0)
+                            ,Image.Disc[thisdir].Partition);
+     GetJSONString(fields,'DIRTITLE',dirtitle);
+     if importname='$' then
+      GetJSONString(fields,'TITLE',disctitle)
+     else
+      GetJSONString(fields,'TITLE',dirtitle);
+     GetJSONString(fields,'Access',attr);
+     fields.Free;
+     //Convert the attributes from hex to letters, if necessary
+     attr:=GetAttributes(attr,Image.MajorFormatNumber);
+     //Remove any quotes from the titles
+     dirtitle :=dirtitle.DeQuotedString('"');
+     disctitle:=disctitle.DeQuotedString('"');
+     //Update the disc title, only on the root
+     if(not disctitle.IsEmpty)and(importname='$')then
+      Image.UpdateDiscTitle(LeftStr(disctitle,10)
+                        ,Image.Disc[thisdir].Partition);
+    except
+     on E: Exception do
+      ReportError('Failed to read inf file "'+dirname+'": '+E.Message);
+    end;
+    F.Free;
    end;
-   F.Free;
-  end;
   //Convert a Windows filename to a BBC filename
 {$IFNDEF DIMCONSOLE}
   if Fguiopen then
@@ -888,7 +889,7 @@ begin
      Fcurrdir:=thisdir;
      //Import each file in the directory
      for Index:=0 to Length(NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries)-1 do
-     begin  //Doesn't add sub-sub-directory contents
+     begin
 {$IFNDEF DIMCONSOLE}
       if not Fguiopen then
       begin
@@ -905,13 +906,18 @@ begin
       {$IFNDEF DIMCONSOLE}end;{$ENDIF}
       //Do the actual importing
       if NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries[Index].DirRef=-1 then
-       Result:=Result
-           and(ImportFile(NewImage,NewImage.Disc[LDir].Entries[Lentry].DirRef,Index)>=0)
+       Result:=(Result)
+           and(ImportFile(NewImage,
+                          NewImage.Disc[LDir].Entries[Lentry].DirRef,
+                          Index,
+                          'Importing',
+                          '$',
+                          False)=0)
       else
-       Result:=Result
-           and AddDirectoryToImage(NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries[Index].Filename
+       Result:=(Result)
+           and(AddDirectoryToImage(NewImage.Disc[NewImage.Disc[LDir].Entries[Lentry].DirRef].Entries[Index].Filename
                                   ,NewImage
-                                  ,NewImage.GetParent(NewImage.Disc[LDir].Entries[Lentry].DirRef));
+                                  ,NewImage.GetParent(NewImage.Disc[LDir].Entries[Lentry].DirRef)));
      end;
      //Restore the current directory
      Fcurrdir:=Lcurrdir;
@@ -919,7 +925,11 @@ begin
      {$IFNDEF DIMCONSOLE}if not Fguiopen then{$ENDIF} Write(#$1B'[0K');
     end;
    end;
-  end;
+  end
+  else
+   ReportError('Failed when creating directory '
+              +Lparent+Image.DirSep+importname
+              +' : '+AddFileErrorToText(-thisdir));
  end;
  //Revert to the original selection
 {$IFNDEF DIMCONSOLE}
@@ -3373,8 +3383,6 @@ begin
  Caption:=ApplicationTitle;
  //Used for dragging and dropping
  imgCopy.Parent:=DirList;
- //Turn error reporting on
- ErrorReporting:=True;
  //Reset the form shift state
  FormShiftState:=[];
  //Texture style - get from the registry
@@ -3383,6 +3391,8 @@ begin
  Fstyling                  :=DIMReg.GetRegValI('WindowStyle',RISCOSStyle);
  SetNativeControls; //And set the controls on this form
  {$ENDIF}
+ //Turn error reporting on
+ ErrorReporting:=True;
  //ADFS L Interleaved type - get from the registry
  ADFSInterleave            :=DIMReg.GetRegValI('ADFS_L_Interleave',0);
  Image.InterleaveMethod    :=ADFSInterleave;
@@ -4109,14 +4119,13 @@ begin
  newformat:=NewImage.MajorFormatNumber;//Format of the importing image
  newentry:=NewImage.Disc[dir].Entries[entry];
  //Set the parent, as this may be different
- {$IFNDEF DIMCONSOLE}if not Fguiopen then newentry.Parent:=Image.GetParent(Fcurrdir)
- else {$ENDIF}newentry.Parent:=NewImage.GetParent(dir);
+ {$IFNDEF DIMCONSOLE}if not Fguiopen then {$ENDIF}newentry.Parent:=Image.GetParent(Fcurrdir)
 {$IFNDEF DIMCONSOLE}
+ else newentry.Parent:=NewImage.GetParent(dir);
  if Fguiopen then
   UpdateProgress(method+' '+newentry.Parent
                 +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
-                +newentry.Filename);
-{$ENDIF}
+                +newentry.Filename){$ENDIF};
  //Validate the filename, as it could be different across file systems
  if(newformat<>diAcornDFS)and(newformat<>curformat)then
   WinToBBC(newentry.Filename);//Unless the systems are the same, but not DFS
@@ -4232,25 +4241,25 @@ begin
     //Write it out to the current image
     index:=Image.WriteFile(newentry,buffer);
     //Then add it to the tree, if successful
-     if index>=0 then
-     begin
-      {$IFNDEF DIMCONSOLE}
-      if Fguiopen then AddFileToTree(DirList.Selected,
-                                     newentry.Filename,
-                                     index,
-                                     False,
-                                     DirList,False);
-      {$ENDIF}
-     end
-     else //Failed to write the file
-     begin
-      if Errors then
-       ReportError('Failed when '+method+' '+newentry.Parent+Image.DirSep
-                                            +newentry.Filename
-                                            +' : '
-                                            +AddFileErrorToText(-index));
-      inc(Result);
-     end;
+    if index>=0 then
+    begin
+     {$IFNDEF DIMCONSOLE}
+     if Fguiopen then AddFileToTree(DirList.Selected,
+                                    newentry.Filename,
+                                    index,
+                                    False,
+                                    DirList,False);
+     {$ENDIF}
+    end
+    else //Failed to write the file
+    begin
+     if Errors then
+      ReportError('Failed when '+method+' '+newentry.Parent+Image.DirSep
+                                           +newentry.Filename
+                                           +' : '
+                                           +AddFileErrorToText(-index));
+     inc(Result);
+    end;
    end
    else //Failed to read the file
    begin
@@ -5180,7 +5189,7 @@ begin
   sidecount:=Length(Image.Disc[root].Entries);
   NewImage.ProgressIndicator:=nil;
   //Delete all the existing objects in the root
-  Image.BeginUpdate;
+//  Image.BeginUpdate;
   ok:=True;
   while(Length(Image.Disc[root].Entries)>0)and(ok)do
   begin
@@ -5205,7 +5214,7 @@ begin
 {$ENDIF}
     ok:=Image.DeleteFile(filename);
   end;
-  Image.EndUpdate;
+//  Image.EndUpdate;
   ok:=Length(Image.Disc[root].Entries)=0;
 {$IFNDEF DIMCONSOLE}
   if Fguiopen then
@@ -5228,8 +5237,14 @@ begin
    else
    begin
 {$ENDIF}
+    Fcurrdir:=root;
     for index:=0 to Length(NewImage.Disc[root].Entries)-1 do
-     ok:=ok AND(ImportFile(NewImage,root,index)>=0);
+     if NewImage.Disc[root].Entries[index].DirRef=-1 then //File
+      ok:=(ok)AND(ImportFile(NewImage,root,index)=0)
+     else //Directory
+      ok:=(ok)AND(AddDirectoryToImage(NewImage.Disc[root].Entries[index].Filename,
+                                     NewImage,
+                                     NewImage.Disc[root].Entries[index].Parent));
    {$IFNDEF DIMCONSOLE}end;{$ENDIF}
    if ok then HasChanged:=True;//Update the changed flag
   end;

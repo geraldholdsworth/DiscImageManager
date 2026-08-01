@@ -689,8 +689,8 @@ var
  dir  : Cardinal=0;
  entry: Cardinal=0;
 begin
- dir:=$FFFF;
- entry:=$FFFF;
+ dir   :=$FFFF;
+ entry :=$FFFF;
  Result:=FileExists(filename,dir,entry,sfn);
  Ref:=dir<<16+entry;
 end;
@@ -717,8 +717,8 @@ begin
  //This will not work with CFS as you can have multiple files with the same name
  //in the same 'directory'. It will just find the first occurance.
  Result:=False;
- dir:=$FFFF;
- entry:=$FFFF;
+ dir   :=$FFFF;
+ entry :=$FFFF;
  //Blank filename, so quit
  if Length(filename)=0 then exit;
  //Ends in a DOS directory separator
@@ -734,8 +734,8 @@ begin
  or((GetMajorFormatNumber=diSinclair)and(filename.StartsWith(root_name))
   and(Length(filename)=4))then
  begin
-  dir:=$FFFF;
-  entry:=$FFFF;
+  dir   :=$FFFF;
+  entry :=$FFFF;
   Result:=True;
   exit;
  end;
@@ -751,15 +751,15 @@ begin
       and(UpperCase(FDisc[i].Directory)<>UpperCase(filename))do inc(i);
     if UpperCase(FDisc[i].Directory)=UpperCase(filename) then
     begin
-     dir:=i;
-     entry:=$FFFF;
+     dir   :=i;
+     entry :=$FFFF;
      Result:=True;
      exit;
     end;
    end else
    begin
-    dir:=0;
-    entry:=$FFFF;
+    dir   :=0;
+    entry :=$FFFF;
     Result:=True;
     exit;
    end;
@@ -825,10 +825,10 @@ begin
    //Position into the Path array (i.e. directory level)
    level:=0;
    //Counters/Pointers
-   i:=0;
-   j:=-1;
-   ptr:=-1;
-   test:=UpperCase(AddTopBit(Path[level]));
+   i    :=0;
+   j    :=-1;
+   ptr  :=-1;
+   test :=UpperCase(AddTopBit(Path[level]));
    test2:=UpperCase(AddTopBit(FDisc[i].Directory));
    //Haven't matched the root, so need to look for it
    if test<>test2 then
@@ -888,8 +888,8 @@ begin
   if j<>-1 then
   begin
    Result:=True;
-   dir:=ptr;
-   entry:=j;
+   dir   :=ptr;
+   entry :=j;
   end;
  end;
 end;
