@@ -32,6 +32,9 @@ var
  filedetails  : TDirEntry=();
  filelist     : TStringList;
  newImage     : TDiscImage;
+ {$IFDEF DIMCONSOLE}
+ HexDumpForm  : THexDumpForm;
+ {$ENDIF}
 const
  DiscFormats = //Accepted format strings
  'DFSS80  DFSS40  DFSD80  DFSD40  WDFSS40 WDFSS40 WDFSD80 WDFSD40 ADFSS   ADFSM   '+
@@ -44,9 +47,10 @@ const
  Options : array[0..3] of String = ('none','load','run','exec'); //Boot options
  Inter   : array[0..3] of String = ('auto','seq', 'int','mux' ); //Interleave
  //Configuration settings (registry)
- Configs : array[0..42] of array[0..2] of String = (
+ Configs : array of array[0..2] of String = (
  ('AddImpliedAttributes' ,'B','Add Implied Attributes for DFS/CFS/RFS'),
  ('ADFS_L_Interleave'    ,'I','0=Automatic; 1=Sequential; 2=Interleave; 3=Multiplex'),
+// ('ConsoleWidth'         ,'I','Console width in characters'),
  ('Create_DSC'           ,'B','Create *.dsc file with hard drives'),
  ('CreateINF'            ,'B','Create a *.inf file when extracting'),
  ('CSVAddress'           ,'B','Include the disc address in CSV file'),
@@ -200,16 +204,16 @@ begin
        Write('Changing attributes for '+temp+' ');
        if Image.UpdateAttributes(temp,Command[2])then
        begin
-        WriteLn(cmdGreen+'success.'+cmdNormal);
+        error:=-1;
         HasChanged:=True;
-       end else WriteLn(cmdRed+'failed.'+cmdNormal);
+       end else error:=3;
       end
-     else WriteLn(cmdRed+'No files not found.'+cmdNormal)
+     else WriteLn(cmdRed+'No files found.'+cmdNormal)
     end
     else error:=2
    else error:=1;
   //Add files ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  'add','find','from': {Update command to be [from <image>] add <file> [[<file>] ...] }
+  'add','find','from':
    begin
     newImage:=TDiscImage.Create;
     ok   :=True;
@@ -358,7 +362,7 @@ begin
          begin
           if Command[0]='add' then
           begin
-           Write('Adding directory: '''+OSFiles[ptr].Filename+'''.');
+           Write('Adding directory: '''+OSFiles[ptr].Filename+'''. ');
            if from='' then
             ok:=(ok)AND(AddDirectoryToImage(OSFiles[ptr].Filename))
            else
@@ -371,7 +375,7 @@ begin
          begin
           if Command[0]='add' then
           begin
-           Write('Adding file: '''+OSFiles[ptr].Filename+'''.');
+           Write('Adding file: '''+OSFiles[ptr].Filename+'''. ');
            if from='' then //Add from host OS
             ok:=(ok)AND(AddFileToImage(OSFiles[ptr].Filename)>=0)
            else //Add from supplied image
@@ -388,10 +392,10 @@ begin
          if(Command[0]='add')and(ok)then
          begin
           HasChanged:=True;
-          WriteLn(cmdGreen+' Success.'+cmdNormal);
+          error:=-1;
          end;
          //Write was a failure
-         if(Command[0]='add')and(not ok)then WriteLn(cmdRed+' Failed.'+cmdNormal);
+         if(Command[0]='add')and(not ok)then error:=3;
         end;
        end
        else error:=2//Nothing has been passed
@@ -436,8 +440,14 @@ begin
               +' ('
               +UpperCase(Options[Image.BootOpt[Image.Disc[Lcurrdir].Partition]])
               +')');
-       WriteLn('Number of entries: '
-              +IntToStr(Length(Image.Disc[Lcurrdir].Entries)));
+       Write(PadRight('Number of entries: '
+                     +IntToStr(Length(Image.Disc[Lcurrdir].Entries)),40));
+       if (Image.Disc[Lcurrdir].Broken)
+       and(Image.MajorFormatNumber=diAcornADFS)then
+        WriteLn(cmdRed
+               +'Broken (0x'
+               +IntToHex(Image.Disc[Lcurrdir].ErrorCode,2)+')')
+       else WriteLn();
        WriteLn(cmdNormal);
        if Length(Image.Disc[Lcurrdir].Entries)>0 then
         for Index:=0 to Length(Image.Disc[Lcurrdir].Entries)-1 do
@@ -474,7 +484,11 @@ begin
           //Length
           Write(' '+ConvertToKMG(Image.Disc[Lcurrdir].Entries[Index].Length)+
                 ' ('+IntToHex(Image.Disc[Lcurrdir].Entries[Index].Length,8)+')');
-         end;
+         end
+         else
+          if (Image.MajorFormatNumber=diAcornADFS)
+          and(Image.Disc[Image.Disc[Lcurrdir].Entries[Index].DirRef].Broken)then
+           Write(cmdRed+' Broken'+cmdNormal);
          //New line
          WriteLn();
         end;
@@ -541,8 +555,8 @@ begin
   //Change the host directory ++++++++++++++++++++++++++++++++++++++++++++++++++
   'chdir':
    if Length(Command)>1 then
-    if SetCurrentDir(Command[1]) then WriteLn(cmdGreen+'Success'+cmdNormal)
-    else WriteLn(cmdRed+'Failed'+cmdNormal)
+    if SetCurrentDir(Command[1]) then error:=-1
+    else error:=3
    else WriteLn(cmdBold+cmdCyan+GetCurrentDir+cmdNormal);
   //Defrag +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'compact','defrag':
@@ -649,10 +663,10 @@ begin
     //Create the directory
     if Image.CreateDirectory(temp,Lparent,format)>=0 then
     begin
-     WriteLn(cmdGreen+'success.'+cmdNormal);
+     error:=-1;
      HasChanged:=True;
     end
-    else WriteLn(cmdRed+'failed.'+cmdNormal);
+    else error:=3
    end
    else error:=1;//No image
   //Delete a specified file or directory +++++++++++++++++++++++++++++++++++++++
@@ -766,10 +780,10 @@ begin
      Write('Retitle directory '+temp+' ');
      if Image.RetitleDirectory(temp,Command[1]) then
      begin
-      WriteLn(cmdGreen+'success.'+cmdNormal);
+      error:=-1;
       HasChanged:=True;
      end
-     else WriteLn(cmdRed+'failed.'+cmdNormal);
+     else error:=3
     end
     else error:=2//Nothing has been passed
    else error:=1;//No image
@@ -826,9 +840,9 @@ begin
        if ok then
        begin
         HasChanged:=True;
-        WriteLn(cmdGreen+'success.'+cmdNormal);
+        error:=-1;
        end
-       else WriteLn(cmdRed+'failed.'+cmdNormal);
+       else error:=3;
       end
       else WriteLn(cmdRed+'No files found'+cmdNormal);
      end
@@ -928,12 +942,25 @@ begin
     end //No, hex number passed
     else WriteLn(Image.GetFileType(StrToInt('$'+Command[1])))
    else error:=2;
+  //Fix ADFS dirs ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  'fixdirs':
+   if Image.FormatNumber<>diInvalidImg then
+    if Image.MajorFormatNumber=diAcornADFS then
+     if Image.FixDirectories then
+     begin
+      error:=-1;
+      HasChanged:=True;
+     end
+     else error:=3
+    else WriteLn(cmdRed+'Not possible in this format.'+cmdNormal)
+   else error:=1;
   //Get the free space +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'free':
    if Image.FormatNumber<>diInvalidImg then ReportFreeSpace
    else error:=1;//No image
   //Help command +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'help':
+   if Length(Command)=1 then
    begin
     WriteLn(cmdBlue+cmdBold+'Console Help'+cmdNormal);
     for Index:=0 to Length(Help)-1 do
@@ -944,7 +971,22 @@ begin
       else temp:=Copy(temp,2);
      WriteLn(WrapText(temp,ConsoleWidth)+cmdNormal);
     end;
-   end;
+   end
+   else
+    if Command[1]='brokencodes' then
+    begin
+     WriteLn(cmdBlue+cmdBold+'ADFS Broken Directory Codes'+cmdNormal);
+     WriteLn(cmdRed+cmdBold +'0x01 '+cmdNormal+'Start and end sequence number not matching');
+     WriteLn(cmdRed+cmdBold +'0x02 '+cmdNormal+'Start and end identity name not matching or incorrect (old/new directory)');
+     WriteLn(cmdRed+cmdBold +'0x04 '+cmdNormal+'Start and end identity being incorrect (big directory)');
+     WriteLn(cmdRed+cmdBold +'0x08 '+cmdNormal+'Incorrect cyclic redundancy check');
+     WriteLn(cmdRed+cmdBold +'0x10 '+cmdNormal+'Other reason');
+     WriteLn(cmdRed+cmdBold +'0x20 '+cmdNormal+'Not sector aligned');
+     WriteLn(cmdRed+cmdBold +'0x40 '+cmdNormal+'Start or end do match but are not "Hugo" or "Nick"');
+     WriteLn(cmdRed+cmdBold +'0x80 '+cmdNormal+'Parent Sector incorrect');
+     WriteLn(cmdGreen+'Codes can be any combination of the above, summed together.'+cmdNormal);
+    end
+    else WriteLn(cmdRed+'No help found.'+cmdNormal);
   //Open command +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'insert':
    if Confirm then
@@ -1011,13 +1053,14 @@ begin
         HexDump[0].DecodeBasicFile
        else
         HexDump[0].btnSaveTextClick(nil);
-       //Free up the container
-       HexDump[0].Free;
-       SetLength(HexDump,0);
       end
       else WriteLn(cmdRed+'Failed to extract file.'+cmdNormal);
+      //Free up the container
+      HexDump[0].Free;
+      SetLength(HexDump,0);
       {$ELSE}
       //Extract the file into this container
+      HexDumpForm:=THexDumpForm.Create;
       if Image.ExtractFile(temp,HexDumpForm.buffer,entry) then
       begin
        //Only display if it is text or BASIC
@@ -1025,14 +1068,9 @@ begin
         HexDumpForm.DecodeBasicFile
        else
         HexDumpForm.btnSaveTextClick(nil);
-       {$ENDIF}
-       {$IFNDEF DIMCONSOLE}
-       //Free up the container
-       HexDumpForm.Free;
-       SetLength(HexDump,0);
-       {$ELSE}
       end
-      else WriteLn(cmdRed+'Failed to extract file.'+cmdNormal)
+      else WriteLn(cmdRed+'Failed to extract file.'+cmdNormal);
+      HexDumpForm.Free;
       {$ENDIF}
      end
      else WriteLn(cmdRed+'Cannot find file '''+Command[1]+'''.'+cmdNormal)
@@ -1171,9 +1209,9 @@ begin
       if Image.UpdateBootOption(opt,ptr) then
       begin
        HasChanged:=True;
-       WriteLn(cmdGreen+'success.'+cmdNormal);
+       error:=-1;
       end
-      else WriteLn(cmdRed+'failed.'+cmdNormal)
+      else error:=3;
      end
      else WriteLn(cmdRed+'Invalid boot option.'+cmdNormal)
     end
@@ -1191,10 +1229,10 @@ begin
       opt:=Image.RenameFile(temp,Command[2]);
       if opt>=0 then
       begin
-       WriteLn(cmdGreen+'success.'+cmdNormal);
+       error:=-1;
        HasChanged:=True;
       end
-      else WriteLn(cmdRed+'failed ('+IntToStr(opt)+').'+cmdNormal);
+      else error:=3;
      end else WriteLn(cmdRed+''''+Command[1]+''' not found.'+cmdNormal)
     else error:=2
    else error:=1;
@@ -1245,13 +1283,13 @@ begin
       for Index:=0 to Length(Files)-1 do
       begin
        temp:=BuildFilename(Files[Index]);
-       Write('Setting date/time stamp for '+temp);
+       Write('Setting date/time stamp for '+temp+' ');
        if Image.TimeStampFile(temp,Now) then
        begin
         HasChanged:=True;
-        WriteLn(cmdGreen+' Success'+cmdNormal);
+        error:=-1;
        end
-       else WriteLn(cmdRed+' Failed'+cmdNormal);
+       else error:=3;
       end
      else WriteLn(cmdRed+'No files found'+cmdNormal);
     end
@@ -1268,13 +1306,13 @@ begin
     //Needs a title, of course
     if Length(Command)>1 then
     begin
-     Write('Update disc title ');
+     Write('Update disc title: ');
      if Image.UpdateDiscTitle(Command[1],ptr) then
      begin
       HasChanged:=True;
-      WriteLn(cmdGreen+'success.'+cmdNormal);
+      error:=-1;
      end
-     else WriteLn(cmdRed+'failed.'+cmdNormal)
+     else error:=3;
     end
     else error:=2
    end
@@ -1286,7 +1324,9 @@ begin
  end;
  //Report any errors +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  case error of
-  1: WriteLn(cmdRed+'No Image inserted.'+cmdNormal);
-  2: WriteLn(cmdRed+'Not enough parameters.'+cmdNormal);
+  -1: WriteLn(cmdGreen+'Success.'+cmdNormal);
+   1: WriteLn(cmdRed+'No Image inserted.'+cmdNormal);
+   2: WriteLn(cmdRed+'Not enough parameters.'+cmdNormal);
+   3: WriteLn(cmdRed+'Failed.'+cmdNormal);
  end;
 end;

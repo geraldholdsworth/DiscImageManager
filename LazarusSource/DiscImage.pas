@@ -275,10 +275,22 @@ type
    DOSPartition,                    //Is this in the DOS Plus partition? (ADFS/DOS Plus)
    AFSPartition: Boolean;           //Is this in the AFS partition? (ADFS/AFS)
    Sector,                          //Where is this directory located (same as TDirEntry)
+   ParentSector,                    //Where is the parent directory located?
    Length,                          //How big is the directory (same as TDirEntry)
    Partition   : Cardinal;          //Which partition (side) is this on?
    Parent      : Integer;           //What is the TDir reference of the parent (-1 if none)
   end;
+  {ADFS Broken Directory ErrorCode:
+  bit  Meaning
+  0    Broken directory due to the start and end sequence number not matching
+  1    Broken directory due to the start and end identity name not matching or incorrect (old/new directory)
+  2    Broken directory due to the start and end identity being incorrect (big directory)
+  3    Broken directory due to incorrect cyclic redundancy check
+  4    Other reason
+  5    Broken directory due to the directory not being sector aligned
+  6    The start or end do match but are not ‘Hugo’ or ‘Nick’
+  7    Parent Sector incorrect
+  }
   //For use with ISO images
   TISOVolDes = record
    VDType      : Byte;

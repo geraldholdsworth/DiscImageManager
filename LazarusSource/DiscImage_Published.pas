@@ -833,7 +833,7 @@ begin
    //Haven't matched the root, so need to look for it
    if test<>test2 then
     //So we'll continue until we find it
-    while(i<Length(FDisc))and(test2<>test)do
+    while(i<Length(FDisc)-1)and(test2<>test)do
     begin
      inc(i);
      test2:=UpperCase(AddTopBit(FDisc[i].Directory));
@@ -884,7 +884,7 @@ begin
      else j:=-1;
     until (i=-1) or (j=-1); //End if it is not a directory, or is not found
   end;
-   //Found, so return TRUE, with the references
+  //Found, so return TRUE, with the references
   if j<>-1 then
   begin
    Result:=True;

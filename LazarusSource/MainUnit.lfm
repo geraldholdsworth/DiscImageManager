@@ -4286,7 +4286,7 @@ object MainForm: TMainForm
   Menu = Main_Menu
   Position = poScreenCenter
   ShowHint = True
-  LCLVersion = '4.2.0.0'
+  LCLVersion = '4.8.0.0'
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
@@ -4297,12 +4297,12 @@ object MainForm: TMainForm
   OnShow = FormShow
   object ImageContentsPanel: TPanel
     Left = 0
-    Height = 513
-    Top = 68
+    Height = 515
+    Top = 66
     Width = 385
     Align = alClient
     BevelColor = 15527148
-    ClientHeight = 513
+    ClientHeight = 515
     ClientWidth = 385
     ParentBackground = False
     TabOrder = 0
@@ -4323,7 +4323,7 @@ object MainForm: TMainForm
     end
     object DirList: TTreeView
       Left = 1
-      Height = 495
+      Height = 497
       Top = 17
       Width = 383
       Align = alClient
@@ -4486,8 +4486,8 @@ object MainForm: TMainForm
   end
   object ToolSplitter: TSplitter
     Left = 385
-    Height = 513
-    Top = 68
+    Height = 515
+    Top = 66
     Width = 5
     Align = alRight
     Beveled = True
@@ -4496,12 +4496,12 @@ object MainForm: TMainForm
   end
   object FileInfoPanel: TPanel
     Left = 390
-    Height = 513
-    Top = 68
+    Height = 515
+    Top = 66
     Width = 355
     Align = alRight
     BevelColor = 15527148
-    ClientHeight = 513
+    ClientHeight = 515
     ClientWidth = 355
     Constraints.MinWidth = 200
     ParentBackground = False
@@ -4525,7 +4525,7 @@ object MainForm: TMainForm
     object ADFSAttrPanel: TPanel
       Left = 1
       Height = 88
-      Top = 512
+      Top = 514
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -4565,7 +4565,7 @@ object MainForm: TMainForm
     object DFSAttrPanel: TPanel
       Left = 1
       Height = 50
-      Top = 512
+      Top = 514
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -4593,7 +4593,7 @@ object MainForm: TMainForm
     object C64AttrPanel: TPanel
       Left = 1
       Height = 50
-      Top = 512
+      Top = 514
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5157,7 +5157,7 @@ object MainForm: TMainForm
     object AFSAttrPanel: TPanel
       Left = 1
       Height = 88
-      Top = 512
+      Top = 514
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5197,7 +5197,7 @@ object MainForm: TMainForm
     object DOSAttrPanel: TPanel
       Left = 1
       Height = 21
-      Top = 512
+      Top = 514
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5290,7 +5290,7 @@ object MainForm: TMainForm
     object SinclairAttrPanel: TPanel
       Left = 1
       Height = 21
-      Top = 512
+      Top = 514
       Width = 353
       Align = alTop
       BevelOuter = bvNone
@@ -5317,7 +5317,7 @@ object MainForm: TMainForm
     object ISOAttrPanel: TPanel
       Left = 1
       Height = 50
-      Top = 512
+      Top = 514
       Width = 353
       Align = alTop
       ClientHeight = 50
@@ -9201,23 +9201,25 @@ object MainForm: TMainForm
   end
   object ToolBarContainer: TPageControl
     Left = 0
-    Height = 68
+    Height = 66
     Top = 0
     Width = 745
-    ActivePage = ToolsToolBarPage
+    ActivePage = ImageToolBarPage
     Align = alTop
     AutoSize = True
-    TabIndex = 3
+    Font.Color = clBlack
+    ParentFont = False
+    TabIndex = 0
     TabOrder = 5
     object ImageToolBarPage: TTabSheet
       AutoSize = True
       Caption = 'Image'
       ClientHeight = 32
-      ClientWidth = 739
+      ClientWidth = 735
       object ImageToolBar: TToolBar
         Left = 0
         Top = 0
-        Width = 739
+        Width = 735
         AutoSize = True
         ButtonHeight = 32
         ButtonWidth = 32
@@ -9304,11 +9306,11 @@ object MainForm: TMainForm
       AutoSize = True
       Caption = 'Files'
       ClientHeight = 32
-      ClientWidth = 739
+      ClientWidth = 735
       object FilesToolBar: TToolBar
         Left = 0
         Top = 0
-        Width = 739
+        Width = 735
         AutoSize = True
         ButtonHeight = 32
         ButtonWidth = 32
@@ -9389,11 +9391,11 @@ object MainForm: TMainForm
       AutoSize = True
       Caption = 'Partition'
       ClientHeight = 32
-      ClientWidth = 739
+      ClientWidth = 735
       object PartitionToolBar: TToolBar
         Left = 0
         Top = 0
-        Width = 739
+        Width = 735
         AutoSize = True
         ButtonHeight = 32
         ButtonWidth = 32
@@ -9456,11 +9458,11 @@ object MainForm: TMainForm
       AutoSize = True
       Caption = 'Tools'
       ClientHeight = 32
-      ClientWidth = 739
+      ClientWidth = 735
       object ToolsToolBar: TToolBar
         Left = 0
         Top = 0
-        Width = 739
+        Width = 735
         AutoSize = True
         ButtonHeight = 32
         ButtonWidth = 32

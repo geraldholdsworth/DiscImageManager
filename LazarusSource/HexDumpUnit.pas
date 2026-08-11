@@ -112,6 +112,9 @@ type
   procedure DisplaySpriteFile;
   procedure SpriteOutputResize(Sender: TObject);
 {$ENDIF}
+{$IFDEF DIMCONSOLE}
+  constructor Create;
+{$ENDIF}
  private
   basiclength     : Cardinal;
 {$IFNDEF DIMCONSOLE}
@@ -233,8 +236,14 @@ procedure THexDumpForm.FormCreate(Sender: TObject);
 begin
  formwidth:=Width;
  formheight:=Height;
+{$ELSE}
+constructor THexDumpForm.Create;
+begin
+ inherited;
+{$ENDIF}
  BasicTxtOutput:=TStringList.Create;
 end;
+{$IFNDEF DIMCONSOLE}
 
 {-------------------------------------------------------------------------------
  User is using the scroll wheel
@@ -829,7 +838,9 @@ var
  detok   : Boolean=False;
  rem     : Boolean=False;
  isbasic : Boolean=False;
+ {$IFNDEF DIMCONSOLE}
  fs      : TStringStream=nil;
+ {$ENDIF}
 const
  // $80 onwards, single token per keyword
  tokens: array[0..127] of String = (
@@ -875,8 +886,10 @@ begin
  begin
   //Clear the output container and write the headers
   BasicTxtOutput.Clear;
+  {$IFNDEF DIMCONSOLE}
   fs:=TStringStream.Create('<html><head><title>Basic Listing</title></head>');
   fs.WriteString('<body style="background-color:#0000FF;color:#FFFFFF">');
+  {$ENDIF}
   //BBC BASIC version
   basicver:=1;
   //Continue until the end of the file
@@ -887,9 +900,11 @@ begin
    begin
     //Line number
     linenum:=buffer[ptr+2]+buffer[ptr+1]<<8;
+    {$IFNDEF DIMCONSOLE}
     linetxt:='<span '+linenumstyle+'>'
             +StringReplace(PadLeft(IntToStr(linenum),5),' ','&nbsp;',[rfReplaceAll])
             +'</span>&nbsp;';
+    {$ENDIF}
     basictxt:=PadLeft(IntToStr(linenum),5);
     {$IFNDEF DIMCONSOLE}if not MainForm.Fguiopen then{$ENDIF}
      basictxt:=cmdBlue+basictxt+cmdNormal;
@@ -990,7 +1005,9 @@ begin
      end;
     end;
     //Add the complete line to the output container
+    {$IFNDEF DIMCONSOLE}
     fs.WriteString(linetxt+'<br>');
+    {$ENDIF}
     BasicTxtOutput.Add(basictxt);
     //And move onto the next line
     inc(ptr,linelen);

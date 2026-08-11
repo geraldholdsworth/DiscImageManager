@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectGroup FileVersion="2">
+    <Targets>
+      <Target FileName="DiscImageManager.lpi">
+        <BuildModes>
+          <Mode Name="Native Debugger"/>
+          <Mode Name="Debug (macOS ARM)"/>
+          <Mode Name="Release macOS 64 bit"/>
+          <Mode Name="Release macOS 32 bit"/>
+          <Mode Name="Release macOS ARM"/>
+          <Mode Name="Release Windows 64 bit"/>
+          <Mode Name="Release Windows 32 bit"/>
+          <Mode Name="Release Linux 64 bit"/>
+          <Mode Name="Release Linux 32 bit"/>
+          <Mode Name="Release Linux ARM 32 bit"/>
+          <Mode Name="Release Linux ARM 64 bit"/>
+        </BuildModes>
+      </Target>
+      <Target FileName="DIMConsole.lpi">
+        <BuildModes>
+          <Mode Name="Default" Compile="True"/>
+          <Mode Name="Debug"/>
+          <Mode Name="Release macOS 64 bit"/>
+          <Mode Name="Release macOS 32 bit"/>
+          <Mode Name="Release macOS ARM"/>
+          <Mode Name="Release Windows 64 bit"/>
+          <Mode Name="Release Windows 32 bit"/>
+          <Mode Name="Release Linux 64 bit"/>
+          <Mode Name="Release Linux 32 bit"/>
+          <Mode Name="Release Linux ARM 32 bit"/>
+          <Mode Name="Release Linux ARM 64 bit"/>
+        </BuildModes>
+      </Target>
+    </Targets>
+  </ProjectGroup>
+</CONFIG>

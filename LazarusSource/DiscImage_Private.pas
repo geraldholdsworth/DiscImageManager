@@ -1055,6 +1055,7 @@ begin
   DOSPartition:=False;
   Partition   :=0;
   Sector      :=0;
+  ParentSector:=0;
   Parent      :=-1;
   BeenRead    :=False;
   Deleted     :=False;
@@ -1457,6 +1458,7 @@ begin
    FDisc[i].Length      :=FDisc[i+1].Length;
    FDisc[i].Partition   :=FDisc[i+1].Partition;
    FDisc[i].Parent      :=FDisc[i+1].Parent;
+   FDisc[i].ParentSector:=FDisc[i+1].ParentSector;
    SetLength(FDisc[i].Entries,Length(FDisc[i+1].Entries));
    if Length(FDisc[i].Entries)>0 then
     for entry:=0 to Length(FDisc[i].Entries)-1 do

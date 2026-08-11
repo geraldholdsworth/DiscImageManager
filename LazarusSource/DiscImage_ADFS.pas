@@ -275,6 +275,7 @@ var
  EndName   : String='';
  dirtitle  : String='';
  pathname  : String='';
+ parentname: String='';
  ptr       : Cardinal=0;
  dircheck  : Cardinal=0;
  numentrys : Cardinal=0;
@@ -287,6 +288,9 @@ var
  offset    : Cardinal=0;
  NameOff   : Cardinal=0;
  amt       : Cardinal=0;
+ parsect   : Cardinal=0;
+ d         : Cardinal=0;
+ e         : Cardinal=0;
  addr      : TFragmentArray=nil;
  StartSeq  : Byte=0;
  EndSeq    : Byte=0;
@@ -309,6 +313,7 @@ begin
  //Update the progress indicator
  UpdateProgress('Reading '+pathname);
  //Store directory name
+ parentname:=root_name;
  if Pos(dir_sep,dirname)>0 then
  begin
   temp:=dirname;
@@ -316,6 +321,7 @@ begin
    temp:=Copy(temp,Pos(dir_sep,temp)+1,Length(temp))
   until Pos(dir_sep,temp)=0;
   Result.Directory:=temp;
+  parentname:=LeftStr(dirname,(Length(dirname)-Length(temp))-1);
  end
  else
   Result.Directory:=dirname;
@@ -336,6 +342,7 @@ begin
  NewDirAtts      :=$00;
  dirchk          :=0;
  namesize        :=$00;
+ parsect         :=$000000;
  dirtitle        :='';
  StartName       :='';
  EndName         :='';
@@ -413,7 +420,8 @@ begin
     dirsize  :=Read32b($0C,dirbuffer);     //Directory size in bytes
     numentrys:=Read32b($10,dirbuffer);     //Number of entries in this directory
     namesize :=Read32b($14,dirbuffer);     //Size of the name heap in bytes
-    dirname  :=ReadString($1C,-NameLen,dirbuffer);//Directory name
+    parsect  :=Read32b($18,dirbuffer);             //Sector address of parent
+    dirname  :=ReadString($1C,-NameLen,dirbuffer); //Directory name
     entrys   :=(($1C+NameLen+1+3)div 4)*4;         //Pointer to entries, from sector
     tail     :=$08;                                //Size of directory tail
     entrysize:=$1C;                                //Size of each entry
@@ -436,6 +444,7 @@ begin
   case FDirType of
    diADFSOldDir:
    begin
+    parsect :=Read24b(tail+$0B,dirbuffer);       //Sector address of parent
     dirtitle:=ReadString(tail+$0E,-19,dirbuffer);//Title of the directory
     EndSeq  :=ReadByte(tail+$2F,dirbuffer);      //End sequence number to match with start
     EndName :=ReadString(tail+$30,-4,dirbuffer); //Hugo or Nick
@@ -443,6 +452,7 @@ begin
    end;
    diADFSNewDir:
    begin
+    parsect :=Read24b(tail+$03,dirbuffer);       //Sector address of parent
     dirtitle:=ReadString(tail+$06,-19,dirbuffer);//Title of the directory
     EndSeq  :=ReadByte(tail+$23,dirbuffer);      //End sequence number to match with start
     EndName :=ReadString(tail+$24,-4,dirbuffer); //Hugo or Nick
@@ -452,12 +462,14 @@ begin
    begin
     EndName :=ReadString(tail+$00,-4,dirbuffer); //Should be oven
     EndSeq  :=ReadByte(tail+$04,dirbuffer);      //End sequence number to match with start
-    dirtitle:=dirname;                        //Does not have a directory title
+    dirtitle:=dirname;                           //Does not have a directory title
     dirchk  :=ReadByte(tail+$07,dirbuffer);      //Directory Check Byte
    end;
   end;
   //Save the directory title
   Result.Title:=dirtitle;
+  //And the parent sector address
+  Result.ParentSector:=parsect;
   //Check for broken directory
   //This can result in having a valid directory structure, but a broken directory
   //ADFS normally refuses to list broken directories, but we will list them anyway,
@@ -479,6 +491,14 @@ begin
   //Not sector aligned
   if sector mod secsize<>0 then
    Result.ErrorCode:=Result.ErrorCode OR $20;
+  //Get the actual sector for the parent directory and compare
+  FileExists(parentname,d,e);
+  if FMap then ptr:=rootfrag else ptr:=root;
+  if d<Length(FDisc) then
+   if e<Length(FDisc[d].Entries) then
+    ptr:=FDisc[d].Entries[e].Sector;
+  if parsect<>ptr then
+   Result.ErrorCode:=Result.ErrorCode OR $80;
   Result.Broken:=Result.ErrorCode<>$00;
   //Check for valid directory
   //We won't try and get the directory structure if it appears that it is invalid
@@ -2311,12 +2331,13 @@ begin
         //Then assign DirRef
         FDisc[dir].Entries[ptr].DirRef:=Length(FDisc)-1;
         //Assign the directory properties
-        FDisc[Length(FDisc)-1].Directory:=FDisc[dir].Entries[ptr].Filename;
-        FDisc[Length(FDisc)-1].Title    :=FDisc[dir].Entries[ptr].Filename;
-        FDisc[Length(FDisc)-1].Broken   :=False;
-        FDisc[Length(FDisc)-1].Parent   :=dir;
-        FDisc[Length(FDisc)-1].Sector   :=FDisc[dir].Entries[ptr].Sector;
-        FDisc[Length(FDisc)-1].BeenRead :=True;
+        FDisc[Length(FDisc)-1].Directory   :=FDisc[dir].Entries[ptr].Filename;
+        FDisc[Length(FDisc)-1].Title       :=FDisc[dir].Entries[ptr].Filename;
+        FDisc[Length(FDisc)-1].Broken      :=False;
+        FDisc[Length(FDisc)-1].Parent      :=dir;
+        FDisc[Length(FDisc)-1].Sector      :=FDisc[dir].Entries[ptr].Sector;
+        FDisc[Length(FDisc)-1].BeenRead    :=True;
+        FDisc[Length(FDisc)-1].ParentSector:=FDisc[dir].Sector;
         SetLength(FDisc[Length(FDisc)-1].Entries,0);
        end;
        //And send the result back to the client
@@ -4231,7 +4252,8 @@ Attempts to fix a broken ADFS directory
 function TDiscImage.FixADFSDirectory(dir,entry: Integer): Boolean;
 var
  len       : Cardinal=0;
- dirref    : Integer=0;
+ sector    : Cardinal=0;
+ dirref    : Integer=-1;
  i         : Integer=0;
  error     : Byte=0;
  tail      : Byte=0;
@@ -4242,44 +4264,46 @@ var
 begin
  Result:=False;
  //Get the directory reference
- if(dir>=0)and(entry>=0) then
-  dirref:=FDisc[dir].Entries[entry].DirRef //Sub directory
- else
-  dirref:=0; //Root
+ if(dir>=0)and(dir<Length(FDisc))then
+  if(entry>=0)and(entry<Length(FDisc[dir].Entries))then
+   dirref:=FDisc[dir].Entries[entry].DirRef; //Sub directory
+ if(dir=-1)and(entry=-1)then dirref:=0; //Root
  //What is the error?
- error:=FDisc[dirref].ErrorCode;
- if error>0 then //Only act if there is an error
+ if(dirref>=0)and(dirref<Length(FDisc))then error:=FDisc[dirref].ErrorCode;
+ //Only act if there is an error (if dirref is -1, then error will be 0)
+ if error>0 then
  begin
   //Where is the directory, and how big?
   len:=0;
   //We need to resolve the actual disc offset and length
-  if(dir>=0)and(entry>=0) then
+  if FMap then
+   if(dir>=0)and(entry>=0)then
+    sector:=FDisc[dir].Entries[entry].Sector
+   else
+    sector:=rootfrag
+  else
+   if(dir>=0)and(entry>=0)then
+    sector:=FDisc[dir].Entries[entry].Sector*$100
+   else
+    sector:=root*$100;
+  if FMap then //New Map
   begin
-   if FMap then //New Map
-   begin
-    //Get the fragments for the directory (should only be one)
-    fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
-    len:=0;
-    //Work out the total length
-    if Length(fragments)>0 then
-     for i:=0 to Length(fragments)-1 do inc(len,fragments[i].Length);
-   end;
-   if not FMap then //Old Map
-   begin
-    SetLength(fragments,1);
-    fragments[0].Offset:=FDisc[dir].Entries[entry].Sector*$100;
-    len:=FDisc[dir].Entries[entry].Length;
-    fragments[0].Length:=len;
-   end;
-  end
-  else //Root
-  begin
-   //As above
-   fragments:=NewDiscAddrToOffset(rootfrag);
+   //Get the fragments for the directory (should only be one)
+   fragments:=NewDiscAddrToOffset(sector);
    len:=0;
    //Work out the total length
    if Length(fragments)>0 then
     for i:=0 to Length(fragments)-1 do inc(len,fragments[i].Length);
+  end;
+  if not FMap then //Old Map
+  begin
+   SetLength(fragments,1);
+   fragments[0].Offset:=sector;
+   if(dir>=0)and(entry>=0)then
+    len:=FDisc[dir].Entries[entry].Length
+   else
+    len:=FDisc[0].Length;
+   fragments[0].Length:=len;
   end;
   if Length(fragments)>0 then
   begin
@@ -4298,27 +4322,32 @@ begin
     and(error AND $02<>$02)then //Only if this is not the reason why it is broken
      Result:=False; //We will assume that if neither are Hugo, then the dir is somewhere else
     if Result then //So we will only fix if we can
-    begin
-     //Start the fixes
-     if (error AND $01=$01) then //StartSeq<>EndSeq
-     begin
+    begin //Start the fixes
+     //StartSeq<>EndSeq
+     if(error AND $01=$01)then
       //Quite simple - just pick up StartSeq and write it to EndSeq
-      if FDirType=diADFSOldDir then WriteByte(ReadByte(0,dircache),(len-tail)+$2F,dircache);
-      if FDirType=diADFSNewDir then WriteByte(ReadByte(0,dircache),(len-tail)+$23,dircache);
-      if FDirType=diADFSBigDir then WriteByte(ReadByte(0,dircache),(len-tail)+$04,dircache);
-     end;
-     if (error AND $02=$02) then //StartName<>EndName (Old/New Dirs)
+      case FDirType of
+       diADFSOldDir: WriteByte(ReadByte(0,dircache),(len-tail)+$2F,dircache);
+       diADFSNewDir: WriteByte(ReadByte(0,dircache),(len-tail)+$23,dircache);
+       diADFSBigDir: WriteByte(ReadByte(0,dircache),(len-tail)+$04,dircache);
+      end;
+     //StartName<>EndName (Old/New Dirs) and StartName/EndName <> 'Hugo'/'Nick'
+     if(error AND $02=$02)
+     or(error AND $40=$40)then
      begin
       //Almost as simple - just re-write what they should be
-      if FDirType=diADFSOldDir then StartName:='Hugo';
-      if FDirType=diADFSNewDir then StartName:='Nick';
+      case FDirType of
+       diADFSOldDir: StartName:='Hugo';
+       diADFSNewDir: StartName:='Nick';
+      end;
       for i:=1 to 4 do
       begin
        WriteByte(Ord(StartName[i]),i,dircache);        //Header
        WriteByte(Ord(StartName[i]),(len-6)+i,dircache);//Tail
       end;
      end;
-     if (error AND $04=$04) then //StartName<>'SBPr' or EndName<>'oven' (Big)
+     //StartName<>'SBPr' or EndName<>'oven' (Big)
+     if(error AND $04=$04)then
      begin
       //The same as previously, except start and end do not match
       StartName:='SBPr';
@@ -4329,6 +4358,33 @@ begin
        WriteByte(Ord(EndName[i])  ,(len-tail)+(i-1),dircache);//Tail
       end;
      end;
+     // error AND $08 fixed below
+     //Other reason
+     if(error AND $10=$10)then
+     begin
+      //
+     end;
+     //Broken directory due to the directory not being sector aligned
+     if(error AND $20=$20)then
+     begin
+      //
+     end;
+     // error AND $40 fixed above
+     //Parent address is incorrect
+     if(error AND $80=$80)then
+      //Root
+      if(dir=-1)and(entry=-1)then
+       case FDirType of
+        diADFSOldDir: Write24b(root,(len-tail)+$0B,dircache);//Old Directory
+        diADFSNewDir: Write24b(root,(len-tail)+$03,dircache);//New Directory
+        diADFSBigDir: Write32b(rootfrag,$18,dircache);       //Big Directory
+       end
+      else //Not root
+       case FDirType of
+        diADFSOldDir: Write24b(FDisc[dir].Sector,(len-tail)+$0B,dircache);//Old Directory
+        diADFSNewDir: Write24b(FDisc[dir].Sector,(len-tail)+$03,dircache);//New Directory
+        diADFSBigDir: Write32b(FDisc[dir].Sector,$18,dircache);           //Big Directory
+       end;
      //Bit 3 indicates invalid checksum - but we'll update anyway
      //The above changes could alter it
      if FDirType=diADFSOldDir then //Old - can be zero
