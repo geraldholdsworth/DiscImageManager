@@ -2477,4 +2477,5 @@ begin
  Result.Add('Free Space: '+IntToStr(free_space[side])+' bytes');
  Result.Add('Boot Map Location: 0x'+IntToHex(afshead,8));
  Result.Add('Disc Name: '+disc_name[side]);
+ Result.Add('Interleave Method: '+FInts[Finterleave-1]);
 end;

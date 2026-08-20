@@ -644,7 +644,7 @@ type
 {$ENDIF}
    //Application Title
    ApplicationTitle   = 'Disc Image Manager';
-   ApplicationVersion = '1.50.2';
+   ApplicationVersion = '1.50.3';
    //Current platform and architecture (compile time directive)
    TargetOS  = {$I %FPCTARGETOS%};
    TargetCPU = {$I %FPCTARGETCPU%};
@@ -7909,7 +7909,7 @@ begin
  FTDialogue.BorderStyle:=bsDialog;
  FTDialogue.BorderWidth:=0;
  FTDialogue.Caption:='RISC OS Filetypes';
- FTDialogue.Color:=$ECECEC;
+ FTDialogue.Color:=clDefault;
  FTDialogue.Visible:=False;
  FTDialogue.Width:=Round((64*5)*(Screen.PixelsPerInch/DesignedDPI));
  FTDialogue.Position:=poMainFormCenter;

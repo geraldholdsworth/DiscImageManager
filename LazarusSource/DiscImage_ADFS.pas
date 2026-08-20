@@ -4987,6 +4987,9 @@ begin
   Result.Add(temp);
   Result.Add('Disc Size: '+IntToStr(disc_size[0])+' bytes');
   Result.Add('Disc Name: '+disc_name[0]);
+  if(FFormat=diAcornADFS<<4+2)
+  or(FFormat=diAcornADFS<<4+$E)then
+   Result.Add('Interleave Method: '+FInts[Finterleave-1]);
   Result.Add('Root Address: 0x'+IntToHex(root<<8,8));
  end;
  Result.Add('Boot Map Location: 0x'+IntToHex(bootmap,8));

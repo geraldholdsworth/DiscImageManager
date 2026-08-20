@@ -1876,6 +1876,8 @@ begin
    Finterleave:=NewMethod;
    for index:=0 to Length(buffer) do
     WriteByte(buffer[index],index);
+   //Mark as success
+   Result:=True;
   end;
 end;
 

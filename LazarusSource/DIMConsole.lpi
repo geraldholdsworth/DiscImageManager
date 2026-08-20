@@ -17,6 +17,7 @@
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
       <MinorVersionNr Value="50"/>
+      <RevisionNr Value="3"/>
       <Language Value="0809"/>
     </VersionInfo>
     <BuildModes>

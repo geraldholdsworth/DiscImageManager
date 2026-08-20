@@ -6,7 +6,6 @@ object MainForm: TMainForm
   AllowDropFiles = True
   ClientHeight = 599
   ClientWidth = 745
-  Color = 15527148
   Constraints.MinHeight = 500
   Constraints.MinWidth = 664
   Font.Color = clBlack
@@ -4301,7 +4300,6 @@ object MainForm: TMainForm
     Top = 66
     Width = 385
     Align = alClient
-    BevelColor = 15527148
     ClientHeight = 515
     ClientWidth = 385
     ParentBackground = False
@@ -4500,7 +4498,6 @@ object MainForm: TMainForm
     Top = 66
     Width = 355
     Align = alRight
-    BevelColor = 15527148
     ClientHeight = 515
     ClientWidth = 355
     Constraints.MinWidth = 200
@@ -4670,9 +4667,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 35
       ClientWidth = 353
-      Color = 15527148
       ParentBackground = False
-      ParentColor = False
       TabOrder = 4
       OnPaint = FileInfoPanelPaint
       object lb_FileType: TLabel
@@ -4683,6 +4678,7 @@ object MainForm: TMainForm
         Align = alTop
         Alignment = taCenter
         Caption = 'Filetype'
+        Color = 15527148
         Font.Color = clBlack
         Font.Name = 'Courier New'
         Font.Style = [fsBold]
@@ -4766,9 +4762,7 @@ object MainForm: TMainForm
       BevelOuter = bvNone
       ClientHeight = 34
       ClientWidth = 353
-      Color = 15527148
       ParentBackground = False
-      ParentColor = False
       TabOrder = 6
       OnPaint = FileInfoPanelPaint
       object ExecAddrLabel: TLabel
@@ -4984,7 +4978,7 @@ object MainForm: TMainForm
         ParentFont = False
         TabOrder = 0
         BorderStyle = bsNone
-        Color = 15527148
+        ParentColor = True
         TrailingSeparator = False
         TextForNullDate = 'NULL'
         LeadingZeros = True
@@ -9204,12 +9198,11 @@ object MainForm: TMainForm
     Height = 66
     Top = 0
     Width = 745
-    ActivePage = ImageToolBarPage
+    ActivePage = ToolsToolBarPage
     Align = alTop
     AutoSize = True
-    Font.Color = clBlack
     ParentFont = False
-    TabIndex = 0
+    TabIndex = 3
     TabOrder = 5
     object ImageToolBarPage: TTabSheet
       AutoSize = True

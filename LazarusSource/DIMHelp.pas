@@ -181,3 +181,12 @@ Help : array of String = (
 '',
 'type <file> <filetype>',
 ' Updates the filetype for <filename> to be <filetype>, which must be a valid hex number. Filename can contain wildcards.');
+BrokenCodes: array of String = (
+'0x01 :Start and end sequence number not matching',
+'0x02 :Start and end identity name not matching or incorrect (old/new directory)',
+'0x04 :Start and end identity being incorrect (big directory)',
+'0x08 :Incorrect cyclic redundancy check',
+'0x10 :Start/end identity not "Hugo", "Nick" or "SBPr"/"oven"',
+'0x20 :Not sector aligned',
+'0x40 :Start or end do match but are not "Hugo" or "Nick"',
+'0x80 :Parent Sector incorrect');

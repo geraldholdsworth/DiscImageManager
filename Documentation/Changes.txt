@@ -1110,12 +1110,14 @@ New or improved features
 * Added CLI command "fixdirs" to run the ADFS broken directory repair.
 * The CLI "cat" command now reports broken ADFS directories.
 * The CLI "help" command now accepts a parameter "brokencodes", which lists the error codes for ADFS Broken Directories.
+* The interleave type for ADFS L and Acorn FS are now shown in the image report.
 
 Bug fixes
 * New map ADFS sometimes did not write the free space map correctly when deleting files.
 * Creating a new ADFS directory did not set the "BeenRead" flag which then sometimes resulted in spurious blank directories being created.
 * Fixing ADFS Broken Directories did not act on an Old Map root directory.
 * Listing a Basic file in CLI only crashed the application.
+* Changing the interleave method under CLI reported that it failed, even when it was a success.
 
 Platform History
 ----------------

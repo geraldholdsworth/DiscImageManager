@@ -973,20 +973,21 @@ begin
     end;
    end
    else
-    if Command[1]='brokencodes' then
-    begin
-     WriteLn(cmdBlue+cmdBold+'ADFS Broken Directory Codes'+cmdNormal);
-     WriteLn(cmdRed+cmdBold +'0x01 '+cmdNormal+'Start and end sequence number not matching');
-     WriteLn(cmdRed+cmdBold +'0x02 '+cmdNormal+'Start and end identity name not matching or incorrect (old/new directory)');
-     WriteLn(cmdRed+cmdBold +'0x04 '+cmdNormal+'Start and end identity being incorrect (big directory)');
-     WriteLn(cmdRed+cmdBold +'0x08 '+cmdNormal+'Incorrect cyclic redundancy check');
-     WriteLn(cmdRed+cmdBold +'0x10 '+cmdNormal+'Other reason');
-     WriteLn(cmdRed+cmdBold +'0x20 '+cmdNormal+'Not sector aligned');
-     WriteLn(cmdRed+cmdBold +'0x40 '+cmdNormal+'Start or end do match but are not "Hugo" or "Nick"');
-     WriteLn(cmdRed+cmdBold +'0x80 '+cmdNormal+'Parent Sector incorrect');
-     WriteLn(cmdGreen+'Codes can be any combination of the above, summed together.'+cmdNormal);
-    end
-    else WriteLn(cmdRed+'No help found.'+cmdNormal);
+    case Command[1] of
+    'brokencodes': //ADFS Broken Directory Error Codes -------------------------
+     begin
+      WriteLn(cmdBlue+cmdBold+'ADFS Broken Directory Codes'+cmdNormal);
+      for Index:=0 to Length(BrokenCodes)-1 do
+      begin
+       temp:=cmdRed+cmdBold+ReplaceStr(BrokenCodes[Index],':',cmdNormal);
+       WriteLn(WrapText(temp,ConsoleWidth));
+      end;
+      WriteLn(WrapText(cmdGreen
+             +'Codes can be any combination of the above, summed together.'
+             +cmdNormal,ConsoleWidth));
+     end;
+    else WriteLn(cmdRed+'No help found for '+Command[1]+'.'+cmdNormal);
+    end;
   //Open command +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   'insert':
    if Confirm then
@@ -1054,7 +1055,9 @@ begin
        else
         HexDump[0].btnSaveTextClick(nil);
       end
-      else WriteLn(cmdRed+'Failed to extract file.'+cmdNormal);
+      else
+       if not Fguiopen then
+        WriteLn(cmdRed+'Failed to extract file.'+cmdNormal);
       //Free up the container
       HexDump[0].Free;
       SetLength(HexDump,0);

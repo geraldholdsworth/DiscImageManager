@@ -62,13 +62,18 @@ Add new entry to the array
 -------------------------------------------------------------------------------}
 function TDIHelper.Add(Index: Integer=-1;Image: TDiscImage=nil): Integer;
 var
- I: Integer;
+ I: Integer=0;
 begin
  //If no index has been specified, then find an empty slot
  if(Index<0)or(Index>=Self.Count)then
  begin
   Index:=-1;
-  if Self.Count>0 then for I:=0 to Self.Count-1 do if Self[I]=nil then Index:=I;
+  I    :=0;
+  while(I<Self.Count)and(Index=-1)do
+  begin
+   if Self[I]=nil then Index:=I;
+   inc(I);
+  end;
  end;
  //Still no index, add one to the end
  if Index<0 then

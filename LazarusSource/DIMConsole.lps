@@ -25,19 +25,19 @@
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="2"/>
-        <TopLine Value="3282"/>
-        <CursorPos X="15" Y="3291"/>
+        <TopLine Value="3235"/>
+        <CursorPos X="12" Y="3291"/>
         <UsageCount Value="110"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="MainUnit_Console.pas"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="8"/>
         <TopLine Value="1038"/>
-        <CursorPos X="64" Y="1072"/>
+        <CursorPos X="12" Y="1072"/>
         <UsageCount Value="110"/>
         <Loaded Value="True"/>
       </Unit>
@@ -89,7 +89,7 @@
         <Filename Value="DiscImage_Published.pas"/>
         <EditorIndex Value="6"/>
         <TopLine Value="824"/>
-        <CursorPos X="66" Y="840"/>
+        <CursorPos X="9" Y="840"/>
         <UsageCount Value="87"/>
         <Loaded Value="True"/>
       </Unit>
