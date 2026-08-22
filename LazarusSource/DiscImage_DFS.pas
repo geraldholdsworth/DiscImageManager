@@ -253,16 +253,16 @@ begin
  begin
   SetLength(FDisc,2);
   SetLength(bootoption,2);
-  SetLength(disc_size,2);
-  SetLength(disc_name,2);
+  SetLength(FPartitions,2);
+//  SetLength(disc_name,2);
   //SetLength(FPartitions,2);
  end
  else                       //Single sided image
  begin
   SetLength(FDisc,1);
   SetLength(bootoption,1);
-  SetLength(free_space,1);
-  SetLength(disc_name,1);
+  SetLength(FPartitions,1);
+  //SetLength(disc_name,1);
   //SetLength(FPartitions,1);
  end;
  //Used by MMB. For DFS, this should be 0
@@ -276,7 +276,7 @@ begin
    inc(t,ReadByte(ConvertDFSSector($305,s))div 8);
   SetLength(FDisc[s-mmbdisc].Entries,t);
   //Directory name - as DFS only has $, this will be the drive number + '$'
-  FDisc[s-mmbdisc].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
+  FDisc[s-mmbdisc].Directory:=':'+IntToStr(s*2)+FPartitions[0].DirSep+FPartitions[0].RootName;
   FDisc[s-mmbdisc].Partition:=s;
   FDisc[s-mmbdisc].BeenRead :=True;
   //Get the disc title(s)
@@ -284,17 +284,17 @@ begin
                           +ReadString(ConvertDFSSector($100,s),-4);
   RemoveSpaces(FDisc[s-mmbdisc].Title);
   RemoveControl(FDisc[s-mmbdisc].Title);
-  disc_name[s]:=FDisc[s-mmbdisc].Title;
+  FPartitions[s].Name:=FDisc[s-mmbdisc].Title;
   //Master sequence number
   FDisc[s-mmbdisc].Sequence :=ReadByte(ConvertDFSSector($104,s));
   //Boot Option
   if GetMajorFormatNumber=diAcornDFS then
    bootoption[s]:=(ReadByte(ConvertDFSSector($106,s))AND$30)>>4;
   //Disc Size
-  disc_size[s]:=(ReadByte(ConvertDFSSector($107,s))
-              +((ReadByte(ConvertDFSSector($106,s))AND$03)<<8))*$100;
+  FPartitions[s].TotalSize:=(ReadByte(ConvertDFSSector($107,s))
+                           +((ReadByte(ConvertDFSSector($106,s))AND$03)<<8))*$100;
   //Zero length disc size?
-  if disc_size[s]=0 then disc_size[s]:=$32000;//Default size of 200K
+  if FPartitions[s].TotalSize=0 then FPartitions[s].TotalSize:=$32000;//Default size of 200K
   //Read the catalogue
   for f:=1 to t do
   begin
@@ -316,13 +316,13 @@ begin
    FDisc[s-mmbdisc].Entries[f-1].Filename:=temp;
    //Get the directory character
    temp:=chr(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$7F);
-   if temp=' 'then temp:=root_name; //Acorn Atom DOS root is ' '
+   if temp=' 'then temp:=FPartitions[0].RootName; //Acorn Atom DOS root is ' '
    //If the directory is not root, add it to the filename
-   if temp<>root_name then
-    FDisc[s-mmbdisc].Entries[f-1].Filename:=temp+dir_sep
+   if temp<>FPartitions[0].RootName then
+    FDisc[s-mmbdisc].Entries[f-1].Filename:=temp+FPartitions[0].DirSep
                                       +FDisc[s-mmbdisc].Entries[f-1].Filename;
    //Make up a parent directory pathname so this can be found
-   FDisc[s-mmbdisc].Entries[f-1].Parent:=':'+IntToStr(s*2)+dir_sep+root_name;
+   FDisc[s-mmbdisc].Entries[f-1].Parent:=':'+IntToStr(s*2)+FPartitions[0].DirSep+FPartitions[0].RootName;
    //Is it locked? This is actually the top bit of the final filename character
    locked:=(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$80)>>7;
    if locked=1 then
@@ -353,10 +353,10 @@ begin
   //Next side
   if(FFormat AND $1=1)then inc(s) else s:=2+mmbdisc;
   {FPartitions[s-mmbdisc].Directories:=Result;
-  FPartitions[s-mmbdisc].DirSep:=dir_sep;
+  FPartitions[s-mmbdisc].DirSep:=FPartitions[0].DirSep;
   FPartitions[s-mmbdisc].Format:=diAcornDFS;
-  FPartitions[s-mmbdisc].Title:=disc_name[s];
-  FPartitions[s-mmbdisc].RootName:=root_name;}
+  FPartitions[s-mmbdisc].Title:=FPartitions[s].Name;
+  FPartitions[s-mmbdisc].RootName:=FPartitions[0].RootName;}
  until s=2+mmbdisc;
  //Free Space Map (not MMB)
  if GetMajorFormatNumber=diAcornDFS then DFSFreeSpaceMap;
@@ -378,20 +378,20 @@ begin
  if (FFormat AND $1)=1 then //Double sided image
  begin
   SetLength(free_space_map,2);
-  SetLength(free_space,2);
+  //SetLength(FPartitions,2);
  end
  else                       //Single sided image
  begin
   SetLength(free_space_map,1);
-  SetLength(free_space,1);
+  //SetLength(FPartitions,1);
  end;
  for s:=0 to Length(free_space_map)-1 do
  begin
   //Directory size
-  free_space[s]:=$200;
-  if IsWatford(s) then inc(free_space[s],$200); //Watford DFS
+  FPartitions[s].FreeSpace:=$200;
+  if IsWatford(s) then inc(FPartitions[s].FreeSpace,$200); //Watford DFS
   //Free Space Map
-  SetLength(free_space_map[s],disc_size[s]DIV$A00); //Number of tracks
+  SetLength(free_space_map[s],FPartitions[s].TotalSize DIV$A00); //Number of tracks
   for f:=0 to Length(free_space_map[s])-1 do
   begin
    SetLength(free_space_map[s,f],10); //Number of sectors per track
@@ -409,8 +409,8 @@ begin
   if Length(FDisc[s].Entries)>0 then
    for e:=0 to Length(FDisc[s].Entries)-1 do
    begin
-    inc(free_space[s],(FDisc[s].Entries[e].Length div $100)*$100);
-    if FDisc[s].Entries[e].Length mod $100>0 then inc(free_space[s],$100);
+    inc(FPartitions[s].FreeSpace,(FDisc[s].Entries[e].Length div $100)*$100);
+    if FDisc[s].Entries[e].Length mod $100>0 then inc(FPartitions[s].FreeSpace,$100);
     //Add it to the free space map
     c:=FDisc[s].Entries[e].Length div $100;
     if FDisc[s].Entries[e].Length mod $100>0 then inc(c);
@@ -423,7 +423,7 @@ begin
         free_space_map[s,(FDisc[s].Entries[e].Sector+fs) div 10,
                          (FDisc[s].Entries[e].Sector+fs) mod 10]:=$FF;
    end;
-  free_space[s]:=disc_size[s]-free_space[s];
+  FPartitions[s].FreeSpace:=FPartitions[s].TotalSize-FPartitions[s].FreeSpace;
  end;
 end;
 
@@ -462,11 +462,11 @@ begin
  file_details.Side:=file_details.Side MOD 2;
  if file_details.Side>Length(FDisc)-1 then file_details.Side:=0;
  //Overwrite the parent
- file_details.Parent:=':'+IntToStr(file_details.Side*2)+dir_sep+root_name;
+ file_details.Parent:=':'+IntToStr(file_details.Side*2)+FPartitions[0].DirSep+FPartitions[0].RootName;
  //Check that the filename is valid
  file_details.Filename:=ValidateDFSFilename(file_details.Filename);
  //Make sure the file does not already exist
- if not(FileExists(file_details.Parent+dir_sep+file_details.Filename,ptr))then
+ if not(FileExists(file_details.Parent+FPartitions[0].DirSep+file_details.Filename,ptr))then
  begin
   Result:=-4;//Catalogue full
   //Can the catalogue be extended?
@@ -557,11 +557,11 @@ begin
    filename[i]:=chr(ord(filename[i])+32);
  end;
  //Ensure that the root has not been included
- if  (filename[1]=root_name)
- and (filename[2]=dir_sep) then
+ if  (filename[1]=FPartitions[0].RootName)
+ and (filename[2]=FPartitions[0].DirSep) then
   filename:=Copy(filename,3,Length(filename));
  //Is it not too long, including any directory specifier?
- if (filename[2]=dir_sep) then
+ if (filename[2]=FPartitions[0].DirSep) then
   filename:=Copy(filename,1,9)
  else
   filename:=Copy(filename,1,7);
@@ -606,9 +606,9 @@ begin
   //Filename
   fn:=FDisc[side].Entries[i].Filename;
   //Directory specifier
-  dn:=root_name; //Default will be root
+  dn:=FPartitions[0].RootName; //Default will be root
   //Is there a directory specifier in the filename?
-  if fn[2]=dir_sep then
+  if fn[2]=FPartitions[0].DirSep then
   begin
    //Yes update the specifier
    dn:=fn[1];
@@ -665,9 +665,9 @@ begin
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Make sure the new filename does not already exist
-  if(not FileExists(GetParent(dir)+dir_sep+newfilename,ptr))
+  if(not FileExists(GetParent(dir)+FPartitions[0].DirSep+newfilename,ptr))
   // or the user is just changing case
-  or(LowerCase(GetParent(dir)+dir_sep+newfilename)=LowerCase(oldfilename))then
+  or(LowerCase(GetParent(dir)+FPartitions[0].DirSep+newfilename)=LowerCase(oldfilename))then
   begin
    //Change the entry
    FDisc[dir].Entries[entry].Filename:=newfilename;
@@ -753,20 +753,20 @@ begin
   SetLength(FDisc,2);
   FDSD:=True;
   SetLength(bootoption,2);
-  SetLength(disc_size,2);
-  disc_size[1]:=0;
-  SetLength(free_space,2);
-  free_space[1]:=0;
-  SetLength(disc_name,2);
+  SetLength(FPartitions,2);
+  FPartitions[1].TotalSize:=0;
+//  SetLength(free_space,2);
+  FPartitions[1].FreeSpace:=0;
+//  SetLength(disc_name,2);
  end
  else                       //Single sided image
  begin
   SetLength(FDisc,1);
   FDSD:=False;
   SetLength(bootoption,1);
-  SetLength(disc_size,1);
-  SetLength(free_space,1);
-  SetLength(disc_name,1);
+  SetLength(FPartitions,1);
+//  SetLength(free_space,1);
+//  SetLength(disc_name,1);
  end;
  //Setup the data area
  SetDataLength($200*(minor+1)); // $200 for the header, per side. $400 for Watford
@@ -779,10 +779,10 @@ begin
   //Number of entries on disc side
   SetLength(FDisc[s].Entries,0);
   //Directory name - as DFS only has $, this will be the drive number + '$'
-  FDisc[s].Directory:=':'+IntToStr(s*2)+dir_sep+root_name;
+  FDisc[s].Directory:=':'+IntToStr(s*2)+FPartitions[0].DirSep+FPartitions[0].RootName;
   //Get the disc title(s)
   FDisc[s].Title:=Fdisctitle;
-  disc_name[s]:=FDisc[s].Title;
+  FPartitions[s].Name:=FDisc[s].Title;
   FDisc[s].BeenRead:=True;
   //Disc Size
   side_size:=0;
@@ -791,10 +791,10 @@ begin
   //Initialise the disc
   WriteByte(side_size div $100,ConvertDFSSector($106,s));
   WriteByte(side_size mod $100,ConvertDFSSector($107,s));
-  inc(disc_size[s],side_size*$100);
+  inc(FPartitions[s].TotalSize,side_size*$100);
   //Increase the data length, if needed
   if FDSD then
-   SetDataLength(disc_size[0]+disc_size[1]);
+   SetDataLength(FPartitions[0].TotalSize+FPartitions[1].TotalSize);
   //Disc Title
   UpdateDFSDiscTitle(Fdisctitle,s);
   //Watford ID
@@ -805,7 +805,7 @@ begin
    WriteByte(side_size mod $100,ConvertDFSSector($307,s));
   end;
   //Directory size
-  inc(free_space[s],$200);
+  inc(FPartitions[s].FreeSpace,$200);
   //Next side
   if(FFormat AND$1=1)then inc(s)else s:=2;
  until s=2;
@@ -832,8 +832,8 @@ begin
   FDisc[side].Title:=title;
   //Set the disc_name for both sides
   if Length(FDisc)>1 then
-   disc_name[1]:=FDisc[1].Title;
-  disc_name[0]:=FDisc[0].Title;
+   FPartitions[1].Name:=FDisc[1].Title;
+  FPartitions[0].Name:=FDisc[0].Title;
  end;
  //Update the data
  for c:=0 to 11 do
@@ -1105,13 +1105,13 @@ begin
  Result:=TStringList.Create;
  if FDSD then Result.Add('Double Sided') else Result.Add('Single Sided');
  side:=0;
- while side<Length(disc_size) do
+ while side<Length(FPartitions) do
  begin
   if not CSV then Result.Add('');
   Result.Add('Side '+IntToStr(side));
   if not CSV then Result.Add('------');
-  Result.Add('Disc Size: '+IntToStr(disc_size[side])+' bytes');
-  Result.Add('Free Space: '+IntToStr(free_space[side])+' bytes');
+  Result.Add('Disc Size: '+IntToStr(FPartitions[side].TotalSize)+' bytes');
+  Result.Add('Free Space: '+IntToStr(FPartitions[side].FreeSpace)+' bytes');
   temp:=IntToStr(bootoption[side]);
   case bootoption[side] of
    0: temp:='None';
@@ -1120,7 +1120,7 @@ begin
    3: temp:='Exec';
   end;
   Result.Add('Boot Option: '+temp);
-  Result.Add('Disc Name: '+disc_name[side]);
+  Result.Add('Disc Name: '+FPartitions[side].Name);
   Result.Add('Tracks: '+IntToStr(Length(free_space_map[side])));
   inc(side)
  end;

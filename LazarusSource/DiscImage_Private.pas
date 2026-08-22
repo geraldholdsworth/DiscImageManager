@@ -26,10 +26,6 @@ begin
  afsroot_size  :=$0000;
  dosroot_size  :=$0000;
  disc_id       :=$0000;
- SetLength(disc_size,1);
- disc_size[0]  :=$0000;
- SetLength(free_space,1);
- free_space[0] :=$0000;
  FFormat       :=diInvalidImg;
  FISOFormat    :=diInvalidImg;
  secspertrack  :=$10;
@@ -44,11 +40,7 @@ begin
  FHasDirs      :=False;
  share_size    :=$00;
  big_flag      :=$00;
- SetLength(disc_name,1);
- disc_name[0]  :='';
  emuheader     :=$0000;
- dir_sep       :='.';
- root_name     :='$';
  imagefilename :='';
  doshead       :=0;
  doshead2      :=0;
@@ -61,51 +53,22 @@ begin
  DOSResSecs    :=0;
  cluster_size  :=0;
  DOSBlocks     :=0;
- SetLength(free_space_map,0);
+ SetLength(free_space_map,0);//to be depreciated - replaced by FPartitions[x].FreeSpaceMap
  Fupdating     :=False;
  Fcopyright    :='';
  Fversion      :='';
  SetLength(FBitmapIndex,0);
  FBitmapIndexValid:=False;
-end;
-
-{-------------------------------------------------------------------------------
-Reset the partition to match the global variables
--------------------------------------------------------------------------------}
-procedure TDiscImage.AddPartition;
-var
- part: Integer;
-begin
- part:=Length(FPartitions);
- SetLength(FPartitions,part+1);
- FPartitions[part].Directory:=FDisc;
- FPartitions[part].Title:=disc_name[part];
-// FPartitions[part].RootTitle:=
- FPartitions[part].RootName:=root_name;
- FPartitions[part].DirSep:=dir_sep;
-// FPartitions[part].HeaderAddr:=
-// FPartitions[part].FSMAddr
-{   FreeSpaceMap    : array of TTrack;  //The free space map
-   DOSVolInRoot    : Boolean;          //Volume name is stored in the root (DOS)
-   RootAddress,                        //Offset of the root
-   SectorSize,                         //Sector Size
-   DOSalloc,                           //Allocation Unit (DOS Plus)
-   Version,                            //Format version
-   Root_size,                          //Size of the root directory
-   DOSBlocks,                          //Size of the DOS partition in blocks
-   DOSCluster_size : Cardinal;         //Size of a DOS cluster
-   FreeSpace,                          //Amount of free space in bytes
-   PartitionSize   : QWord;            //Size of the partition in bytes
-   Format,                             //Major format of this partition
-   DOSFATSize,                         //Size of DOS Plus FAT in blocks
-   DOSResSecs      : Word;             //Number of reserved blocks
-   SecsPerTrack,                       //Number of sectors per track
-   Heads,                              //Number of heads (Acorn ADFS New)
-   Density,                            //Density (Acorn ADFS New)
-   DOSFATType,                         //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
-   DOSNumFATs,                         //Number of FATs in a DOS Plus image
-   AmigaMapType    : Byte;             //OFS/FFS/PFS/OFS
-}
+ SetLength(FPartitions,1);
+ FPartitions[0].RootRef   :=0;
+ FPartitions[0].DirSep    :='.';
+ FPartitions[0].Format    :=diInvalidImg;
+ FPartitions[0].FreeSpace :=$0000;
+ FPartitions[0].TotalSize :=$0000;
+ FPartitions[0].RootName  :='$';
+ FPartitions[0].Name      :='';
+ FPartitions[0].BootOption:=0;
+ SetLength(FPartitions[0].FreeSpaceMap,0);
 end;
 
 {-------------------------------------------------------------------------------

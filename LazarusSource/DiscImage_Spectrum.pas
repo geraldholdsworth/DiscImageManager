@@ -22,11 +22,12 @@ begin
    if FFormat<>diInvalidImg then
    begin
     //Set the disc size
-    disc_size[0]:=GetDataLength;
+    FPartitions[0].TotalSize:=GetDataLength;
     //Set the directory separator
-    dir_sep:='/';
+    FPartitions[0].DirSep:='/';
     //and the root name
-    root_name:='DF';
+    FPartitions[0].RootName:='DF';
+    FPartitions[1].RootName:=FPartitions[0].RootName;
    end;
   end;
  end;
@@ -151,20 +152,20 @@ begin
   if FDSKImage.DataAreas=0 then FDSKImage.DataAreas:=FDSKImage.Sides;
   //Calculate the total number of blocks
   FDSKImage.NumBlocks:=(FDSKImage.Capacity div FDSKImage.DataAreas)div$400;
-  SetLength(FDisc     ,FDSKImage.DataAreas);
-  SetLength(disc_size ,FDSKImage.DataAreas);
+  SetLength(FDisc      ,FDSKImage.DataAreas);
+  SetLength(FPartitions,FDSKImage.DataAreas);
   //Set the disc sizes for each area (side)
   if FDSKImage.DataAreas=2 then
   begin
-   disc_size[0]:=GetDataLength div 2;
-   disc_size[1]:=GetDataLength div 2;
+   FPartitions[0].TotalSize:=GetDataLength div 2;
+   FPartitions[1].TotalSize:=GetDataLength div 2;
   end;
   //And the free space
-  SetLength(free_space,FDSKImage.DataAreas);
+//  SetLength(free_space,FDSKImage.DataAreas);
   for Index:=0 to FDSKImage.DataAreas-1 do
-   free_space[Index]:=disc_size[Index];
+   FPartitions[Index].FreeSpace:=FPartitions[Index].TotalSize;
   //Intialise the disc name, per area (which will be blank)
-  SetLength(disc_name ,FDSKImage.DataAreas);
+//  SetLength(disc_name ,FDSKImage.DataAreas);
   //Create each root
   for Index:=0 to FDSKImage.DataAreas-1 do
   begin
@@ -242,7 +243,7 @@ begin
      FDisc[LSide].Entries[Index1].UserNumber:=ReadByte(Ptr);
      //Filename
      FDisc[LSide].Entries[Index1].Filename  :=Temp.Filename;
-     FDisc[LSide].Entries[Index1].Parent    :=root_name+IntToStr(LSide)+':';
+     FDisc[LSide].Entries[Index1].Parent    :=FPartitions[0].RootName+IntToStr(LSide)+':';
      //Read only flag
      ReadOnly  :=(ReadByte(Ptr+$9)AND$80)=$80;
      //Hidden flag
@@ -267,7 +268,7 @@ begin
      if not Deleted then
      begin
       inc(FDSKImage.Used,ReadByte(Ptr+$F)*$80);
-      dec(free_space[LSide],ReadByte(Ptr+$F)*$80);
+      dec(FPartitions[LSide].FreeSpace,ReadByte(Ptr+$F)*$80);
      end;
      //Read in the clusters
      Index:=$10;

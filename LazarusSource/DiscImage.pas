@@ -280,17 +280,6 @@ type
    Partition   : Cardinal;          //Which partition (side) is this on?
    Parent      : Integer;           //What is the TDir reference of the parent (-1 if none)
   end;
-  {ADFS Broken Directory ErrorCode:
-  bit  Meaning
-  0    Broken directory due to the start and end sequence number not matching
-  1    Broken directory due to the start and end identity name not matching or incorrect (old/new directory)
-  2    Broken directory due to the start and end identity being incorrect (big directory)
-  3    Broken directory due to incorrect cyclic redundancy check
-  4    Other reason
-  5    Broken directory due to the directory not being sector aligned
-  6    The start or end do match but are not ‘Hugo’ or ‘Nick’
-  7    Parent Sector incorrect
-  }
   //For use with ISO images
   TISOVolDes = record
    VDType      : Byte;
@@ -340,7 +329,6 @@ type
   end;
   //For use with DSK images
   TDSKImage = record
-//   Creator    : String;
    Reserved   : array[0..1] of Integer;
    NumTracks  : Word;
    Sides      : Byte;
@@ -352,35 +340,17 @@ type
   end;
   //Collection of directories
   TDisc         = array of TDir;
-  //Partitions
+  //Partitions - this is used to keep track of each partition details
   TPartition    = record               //Details about the partition
-   Directory       : TDisc;            //All the directories
-   Title,                              //Title of the partition
-   RootTitle,                          //Title of the root directory
-   RootName        : String;           //Root name ($, A:, C:, DF0, DH0, etc.)
+   RootRef         : Integer;          //Directory reference of the root
    DirSep          : Char;             //Directory separator
-   HeaderAddr,                         //Offset(s) of the header(s)
-   FSMAddr         : array of Cardinal;//Offset(s) of the FSM/Map/Bitmap/FAT(s)
-   FreeSpaceMap    : array of TTrack;  //The free space map
-   DOSVolInRoot    : Boolean;          //Volume name is stored in the root (DOS)
-   RootAddress,                        //Offset of the root
-   SectorSize,                         //Sector Size
-   DOSalloc,                           //Allocation Unit (DOS Plus)
-   Version,                            //Format version
-   Root_size,                          //Size of the root directory
-   DOSBlocks,                          //Size of the DOS partition in blocks
-   DOSCluster_size : Cardinal;         //Size of a DOS cluster
-   FreeSpace,                          //Amount of free space in bytes
-   PartitionSize   : QWord;            //Size of the partition in bytes
-   Format,                             //Major format of this partition
-   DOSFATSize,                         //Size of DOS Plus FAT in blocks
-   DOSResSecs      : Word;             //Number of reserved blocks
-   SecsPerTrack,                       //Number of sectors per track
-   Heads,                              //Number of heads (Acorn ADFS New)
-   Density,                            //Density (Acorn ADFS New)
-   DOSFATType,                         //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
-   DOSNumFATs,                         //Number of FATs in a DOS Plus image
-   AmigaMapType    : Byte;             //OFS/FFS/PFS/OFS
+   Format          : Word;             //Format of this partition, can be different to the format of the container
+   FreeSpace       : QWord;            //Amount of free space in bytes
+   TotalSize       : QWord;            //Size of the partition in bytes
+   Name            : String;           //Partition Title
+   RootName        : String;           //Name of the root
+   FreeSpaceMap    : TSide;            //Free Space Map - might need to be TTrack
+   BootOption      : Byte;             //Boot option
   end;
   //Partitions
   TPartitions   = array of TPartition;
@@ -409,7 +379,7 @@ type
   TProgressProc = procedure(Fupdate: String) of Object;
  private
   FDisc         : TDisc;        //Container for the entire catalogue
-  FPartitions   : TPartitions;  //Container for the entire catalogue (partitioned)
+  FPartitions   : TPartitions;  //Partition details
   Fdata         : TDIByteArray; //Container for the image to be loaded into
   {$IFDEF CPU64}
   //Streamed (read-only) backend - used when the image is too large for RAM
@@ -488,16 +458,11 @@ type
   FCreator,
   Fcopyright,
   Fversion,
-  root_name,                    //Root title
   dosrootname,                  //DOS Plus root name
   FLoadError,                   //Reason the last load failed (e.g. too large)
   imagefilename,                //Filename of the disc image
   FFilename     : String;       //Copy of above, but doesn't get wiped
-  dir_sep       : Char;         //Directory Separator
   free_space_map: TSide;        //Free Space Map
-  disc_size,                    //Disc size per partition
-  free_space    : array of QWord;//Free space per partition
-  disc_name     : array of String;//Disc title(s)
   bootoption    : TDIByteArray; //Boot Option(s)
   FilesData     : array of TDIByteArray;//All the data for CFS or Spark files
   FProgress     : TProgressProc;//Used for feedback
@@ -514,7 +479,6 @@ type
   Frfscopyright : String;       //Copyright string for ROM FS
   //Private methods
   procedure ResetVariables;
-  procedure AddPartition;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function ReadString(ptr,term: Integer;var buffer: TDIByteArray;
                                        control: Boolean=True): String; overload;
@@ -1038,6 +1002,7 @@ type
   procedure CreateRootInf(filename: String; dir: Integer);
   function DeleteFile(filename: String): Boolean;
   function DeleteFile(entry: Cardinal): Boolean; overload;
+  function DirSep(partition: Byte=0): Char;
   function DiscSize(partition: QWord):QWord;
   procedure EndUpdate;
   function ExtractFile(filename:String;var buffer:TDIByteArray;
@@ -1063,7 +1028,6 @@ type
   function FormatHDD(major:Word;harddrivesize:Cardinal;ide,newmap:Boolean;
                               dirtype:Byte;addheader:Boolean):Boolean; overload;
   function FreeSpace(partition: QWord):QWord;
-  function GetDirSep(partition: Byte): Char;
   function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function GetFileMD5(filename: String;entry:Cardinal=0): String;
   function GetFileType(filetype: String): Integer;
@@ -1092,6 +1056,7 @@ type
   function RenameFile(oldfilename: String;var newfilename: String): Integer;
   function RenameFile(entry: Cardinal;var newfilename: String):Integer;overload;
   function RetitleDirectory(var filename,newtitle: String): Boolean;
+  function RootName(part: Integer=0): String;
   function SaveFilter(var FilterIndex: Integer;thisformat: Integer=-1):String;
   function SaveToFile(filename: String;uncompress: Boolean=False): Boolean;
   function SeparatePartition(side: Cardinal;filename: String=''): Boolean;
@@ -1149,7 +1114,6 @@ type
   property DirectoryCapable:    Boolean       read FHasDirs;
   property DirectoryType:       Byte          read FDirType;
   property DirectoryTypeString: String        read DirTypeToString;
-  property DirSep:              Char          read dir_sep;
   property Disc:                TDisc         read FDisc;
   property DOSPlusRoot:         Cardinal      read Fdosroot;
   property DOSPresent:          Boolean       read FDOSPresent;
@@ -1180,7 +1144,6 @@ type
   property ProgressIndicator:   TProgressProc write FProgress;
   property RAWData:             TDIByteArray  read Fdata;
   property RootAddress:         Cardinal      read GetRootAddress;
-  property RootName:            String        read root_name;
   property ScanSubDirs:         Boolean       read FScanSubDirs
                                               write FScanSubDirs;
   {$IFDEF CPU64}

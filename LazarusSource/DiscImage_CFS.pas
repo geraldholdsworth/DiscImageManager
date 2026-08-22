@@ -23,7 +23,7 @@ begin
    begin
     FFormat:=diAcornUEF<<4;
     //Set the disc size to the length of the uncompressed data
-    disc_size[0]:=GetDataLength;
+    FPartitions[0].TotalSize:=GetDataLength;
    end;
   end;
 end;
@@ -57,8 +57,8 @@ begin
 { SetLength(Result,1);
  ResetDir(Result[0]);
  //Set the root directory name
- root_name:='tape';
- Result[0].Directory:=root_name;}
+ FPartitions[0].RootName:='tape';
+ Result[0].Directory:=FPartitions[0].RootName;}
 // baud:=1200;
  //Starting position is after the magic string
  pos:=$0C;
@@ -72,7 +72,7 @@ begin
  lastblock:=0;
  firstblck:=False;
  //Loop through until we run out of bytes
- while pos<disc_size[0] do
+ while pos<FPartitions[0].TotalSize do
  begin
   //Read in the chunk ID
   chunkid :=Read16b(pos);
@@ -399,9 +399,10 @@ begin
  SetLength(FDisc,1);
  ResetDir(FDisc[0]);
  //Set the root directory name
- root_name:='tape';
- FDisc[0].Directory:=root_name;
+ FPartitions[0].RootName:='tape';
+ FDisc[0].Directory:=FPartitions[0].RootName;
  FDisc[0].BeenRead:=True;
+// FPartitions[1].RootName:=root_name;
  //Set the format
  FFormat:=diAcornUEF<<4;
  //Set the filename
@@ -590,7 +591,7 @@ begin
   //Copy from the buffer into the data array
   SetLength(FilesData[Result],Length(buffer));
   for i:=0 to Length(buffer)-1 do FilesData[Result][i]:=buffer[i];
-  inc(disc_size[0],Length(buffer));
+  inc(FPartitions[0].TotalSize,Length(buffer));
  end;
  if Length(buffer)=0 then Result:=-8; //Nothing to write
 end;

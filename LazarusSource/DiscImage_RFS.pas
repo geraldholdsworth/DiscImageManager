@@ -55,7 +55,7 @@ begin
    begin
     FFormat:=diAcornRFS<<4;
     //Set the disc size to the length of the uncompressed data
-    disc_size[0]:=GetDataLength;
+    FPartitions[0].TotalSize:=GetDataLength;
    end;
   end;
 end;
@@ -126,21 +126,22 @@ begin
  SetLength(FDisc,1);
  ResetDir(FDisc[0]);
  //Set the root directory name
- root_name:='ROM';
- FDisc[0].Directory:=root_name;
+ FPartitions[0].RootName:='ROM';
+// FPartitions[1].RootName:=root_name;
+ FDisc[0].Directory:=FPartitions[0].RootName;
  FDisc[0].BeenRead:=True;
  //Set the filename
  imagefilename:='Untitled.'+FormatExt;
  //Free space
- free_space[0]:=16384-disc_size[0];
+ FPartitions[0].FreeSpace:=16384-FPartitions[0].TotalSize;
  //Read in the header information
  //Title
- SetLength(disc_name,1);
- disc_name[0]:=ReadString($9,$00);
+// SetLength(disc_name,1);
+ FPartitions[0].Name:=ReadString($9,$00);
  //Copyright (pointed to by offset in $7 +1)
  Fcopyright:=ReadString(ReadByte($7)+1,$00);
  //Version String (offset $9+Length(title)+1)
- Fversion:=ReadString($9+Length(disc_name[0])+1,$00);
+ Fversion:=ReadString($9+Length(FPartitions[0].Name)+1,$00);
  //We found the first valid block in the ID process
  pos:=root;
  //Keep track of which file we are on
@@ -151,9 +152,9 @@ begin
  lastblock:=0;
  firstblck:=False;
  //Where the next file is located
- nextfile:=disc_size[0];
+ nextfile:=FPartitions[0].TotalSize;
  //Loop through until we run out of bytes
- while(pos<disc_size[0])or(ReadByte(pos)=$2B)do
+ while(pos<FPartitions[0].TotalSize)or(ReadByte(pos)=$2B)do
  begin
   //Was the last data block seen the last block of the file?
   if IsBitSet(blockst,7) then
@@ -316,16 +317,16 @@ begin
  SetLength(FDisc,1);
  ResetDir(FDisc[0]);
  //Set the root directory name
- root_name:='ROM';
- FDisc[0].Directory:=root_name;
+ FPartitions[0].RootName:='ROM';
+ FDisc[0].Directory:=FPartitions[0].RootName;
  FDisc[0].BeenRead:=True;
  //Set the format
  FFormat:=diAcornRFS<<4;
  //Set the filename
  imagefilename:='Untitled.'+FormatExt;
  //Set up the arrays
- SetLength(disc_size,1);
- SetLength(free_space,1);
+ SetLength(FPartitions,1);
+ //SetLength(free_space,1);
  //Setup the data area (16K)
  SetDataLength(ROMFSSize);
  //Write the ROM FS header
@@ -340,9 +341,9 @@ begin
  inc(ptr,Length(BlkFile));
  //No more files
  WriteByte($2B,ptr);
- disc_size[0]:=ptr+1;
- SetDataLength(disc_size[0]);
- free_space[0]:=16384-disc_size[0];
+ FPartitions[0].TotalSize:=ptr+1;
+ SetDataLength(FPartitions[0].TotalSize);
+ FPartitions[0].FreeSpace:=16384-FPartitions[0].TotalSize;
  //Read it back in again
  Result:=ReadRFSImage;
 end;
@@ -486,7 +487,7 @@ begin
  //Add the actual file data
  inc(filelen,Length(buffer));
  //Is there something to add to, and enough space?
- if(Length(FDisc)=1)and(free_space[0]>=filelen)then
+ if(Length(FDisc)=1)and(FPartitions[0].FreeSpace>=filelen)then
  begin
   //Increase the entries
   SetLength(FDisc[0].Entries,Length(FDisc[0].Entries)+1);
@@ -510,10 +511,10 @@ begin
   FDisc[0].Entries[Result].Parent  :=FDisc[0].Directory;//Parent
   FDisc[0].Entries[Result].DirRef  :=-1;//Not a directory
   //Update the disc size and reduce the free space
-  inc(disc_size[0],filelen);
-  free_space[0]:=16384-disc_size[0];
+  inc(FPartitions[0].TotalSize,filelen);
+  FPartitions[0].FreeSpace:=16384-FPartitions[0].TotalSize;
   //Increase the data area
-  SetDataLength(disc_size[0]);
+  SetDataLength(FPartitions[0].TotalSize);
   //Add the file to the data
   ptr:=root;
   //Where to put this file
@@ -528,7 +529,7 @@ begin
   if insert>=-1 then
   begin
    //Move the data
-   for j:=disc_size[0]-1 downto FDisc[0].Entries[insert+1].Sector+filelen do
+   for j:=FPartitions[0].TotalSize-1 downto FDisc[0].Entries[insert+1].Sector+filelen do
     WriteByte(ReadByte(j-filelen),j);
    //Re-adjust the pointers
    RFSReAdjustPointers(FDisc[0].Entries[insert+1].Sector+filelen,filelen);
@@ -592,7 +593,7 @@ begin
    //Move file pointer on
    inc(fileptr,len);
   until fileptr>=Length(buffer);
-  WriteByte($2B,disc_size[0]-1);
+  WriteByte($2B,FPartitions[0].TotalSize-1);
  end;
 end;
 
@@ -618,11 +619,11 @@ begin
   eofpos:=Read32b(filepos+Length(Lfile)+$F)-$8000; //Where the next file is
   diff:=eofpos-filepos; //And the amount we need to adjust addresses by
   //Move the later files down
-  for i:=eofpos to disc_size[0]-1 do WriteByte(ReadByte(i),i-diff);
+  for i:=eofpos to FPartitions[0].TotalSize-1 do WriteByte(ReadByte(i),i-diff);
   //Reduce the data length
-  SetDataLength(disc_size[0]-diff);
-  disc_size[0]:=GetDataLength;
-  free_space[0]:=16384-disc_size[0];
+  SetDataLength(FPartitions[0].TotalSize-diff);
+  FPartitions[0].TotalSize:=GetDataLength;
+  FPartitions[0].FreeSpace:=16384-FPartitions[0].TotalSize;
   //Re-adjust the EOF pointers in all block headers
   RFSReAdjustPointers(filepos,-diff);
   //Remove from the internal array
@@ -651,7 +652,7 @@ begin
  //Block length (for repeaters, we'll default to 256 bytes)
  len:=$100;
  //Keep going until we hit the End of ROM marker, or run out of image
- while(ReadByte(filepos)<>$2B)and(filepos<disc_size[0])do
+ while(ReadByte(filepos)<>$2B)and(filepos<FPartitions[0].TotalSize)do
  begin
   //Read the first byte
   H:=ReadByte(filepos);
@@ -675,7 +676,7 @@ begin
   //Block repeater
   if H=$23 then inc(filepos,len+3);
   //Not recognised, so jump out of the loop and procedure
-  if(H<>$23)and(H<>$2A)and(H<>$2B)then filepos:=disc_size[0];
+  if(H<>$23)and(H<>$2A)and(H<>$2B)then filepos:=FPartitions[0].TotalSize;
  end;
 end;
 
@@ -783,12 +784,12 @@ var
 begin
  Result:=False;
  //Only proceed if something has changed
- if(title<>disc_name[0])  or(title<>'')
+ if(title<>FPartitions[0].Name)  or(title<>'')
  or(copyright<>Fcopyright)or(copyright<>'')
  or(version<>Fversion)    or(version<>'')then
  begin
   //What is the difference in size?
-  diff:=(Length(title)-Length(disc_name[0]))
+  diff:=(Length(title)-Length(FPartitions[0].Name))
        +(Length(copyright)-Length(Fcopyright))
        +(Length(version)-Length(Fversion));
   //Copy the image to our store
@@ -822,7 +823,7 @@ Set the RFS Version String
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateRFSVersion(version: String): Boolean;
 begin
- Result:=UpdateRFSHeader(disc_name[0],Fcopyright,version);
+ Result:=UpdateRFSHeader(FPartitions[0].Name,Fcopyright,version);
 end;
 
 {-------------------------------------------------------------------------------
@@ -830,5 +831,5 @@ Set the RFS Title String
 -------------------------------------------------------------------------------}
 function TDiscImage.UpdateRFSCopyright(copyright: String): Boolean;
 begin
- Result:=UpdateRFSHeader(disc_name[0],copyright,Fversion);
+ Result:=UpdateRFSHeader(FPartitions[0].Name,copyright,Fversion);
 end;

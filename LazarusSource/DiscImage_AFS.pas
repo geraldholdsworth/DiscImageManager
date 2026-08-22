@@ -137,21 +137,20 @@ begin
    UpdateProgress('Reading Acorn FS partition');
    //Size of the disc
    if FFormat=diAcornFS<<4+1 then //Level 2
-    disc_size[0]:=Read16b(afshead+$14)*2*secsize; //Only gives number of sectors for 1 side
+    FPartitions[0].TotalSize:=Read16b(afshead+$14)*2*secsize; //Only gives number of sectors for 1 side
    if FFormat=diAcornFS<<4+2 then //Level 3
-    disc_size[0]:=Read24b(afshead+$16)*secsize;
+    FPartitions[0].TotalSize:=Read24b(afshead+$16)*secsize;
    i:=0;
    if GetMajorFormatNumber=diAcornADFS then //Level 3/ADFS Hybrid
    begin
-    SetLength(disc_size,2);
-    SetLength(free_space,2);
-    SetLength(disc_name,2);
-    disc_size[1]:=(Read16b(afshead+$16)*secsize)-disc_size[0];
+    SetLength(FPartitions,2);
+//    SetLength(disc_name,2);
+    FPartitions[1].TotalSize:=(Read16b(afshead+$16)*secsize)-FPartitions[0].TotalSize;
     i:=1;
    end;
    //Disc title
-   disc_name[i]:=ReadString(afshead+4,-16);
-   RemoveSpaces(disc_name[i]); //Minus trailing spaces
+   FPartitions[i].Name:=ReadString(afshead+4,-16);
+   RemoveSpaces(FPartitions[i].Name); //Minus trailing spaces
    //Where is the AFS root?
    if FFormat=diAcornFS<<4+1 then
     allocmap:=Read24b(afshead+$16)*secsize //Level 2
@@ -167,6 +166,8 @@ begin
    //Start the chain by reading the root
    if GetMajorFormatNumber=diAcornADFS then startdir:=afsrootname else startdir:='$';
    FDisc[d]:=ReadAFSDirectory(startdir,allocmap);
+   FPartitions[i].RootRef:=d; //Root reference id for the AFS root 
+   FPartitions[1].RootName:=afsrootname;
    //Add the root as a visited directory
    SetLength(visited,1);
    visited[0]:=allocmap div secsize;
@@ -190,7 +191,7 @@ begin
         //And now read it in
         if FScanSubDirs then
          FDisc[Length(FDisc)-1]:=ReadAFSDirectory(GetParent(d)
-                                                 +dir_sep
+                                                 +FPartitions[0].DirSep
                                                  +FDisc[d].Entries[e].Filename,
                                                  FDisc[d].Entries[e].Sector*secsize);
         FDisc[Length(FDisc)-1].Parent:=d;
@@ -526,13 +527,13 @@ begin
   //Level 3
   if FFormat=diAcornFS<<4+2 then
   begin
-   Ldiscsize:=disc_size[0];     //Look at the entire image
+   Ldiscsize:=FPartitions[0].TotalSize;     //Look at the entire image
    afsstart:=0;                 //But not below here, which is ADFS header
   end
   else
   begin //Hybrids - AFS will take up the second 'side'
-   Ldiscsize:=disc_size[1];     //Only look at the AFS part of the image
-   afsstart:=disc_size[0];      //And not below here, which is the ADFS partition
+   Ldiscsize:=FPartitions[1].TotalSize;     //Only look at the AFS part of the image
+   afsstart:=FPartitions[0].TotalSize;      //And not below here, which is the ADFS partition
   end;
   if sector*secsize>=afsstart then //Ensure it is in our 'area'
   begin
@@ -586,9 +587,9 @@ begin
  if(GetMajorFormatNumber=diAcornADFS)or(FFormat=diAcornFS<<4+2)then
   spt:=Read16b(afshead+$1A) else spt:=secspertrack;
  //Initialise the free space
- free_space[part]:=disc_size[part];
+ Fpartitions[part].FreeSpace:=FPartitions[part].TotalSize;
  //Set up the array
- tracks:=Ceil((disc_size[part]div secsize)/spt);
+ tracks:=Ceil((FPartitions[part].TotalSize div secsize)/spt);
  SetLength(free_space_map[part],tracks);
  for entry:=0 to Length(free_space_map[part])-1 do //Sectors per track
  begin
@@ -607,7 +608,7 @@ begin
     if t<tracks then //Make sure it is within range
     begin
      free_space_map[part,t,s]:=$FF-fragments[index].Zone;
-     dec(free_space[part],secsize); //Decrease the free space
+     dec(FPartitions[part].FreeSpace,secsize); //Decrease the free space
     end;
    end;
    //Decrease the total free space
@@ -644,7 +645,7 @@ begin
   index   :=Read24b(afshead+$1E)*secsize;
   if index=allocmap then index:=Read24b(afshead+$1B)*secsize;
   //Now find the free sectors
-  for entry:=0 to (disc_size[0]div secsize)-1 do
+  for entry:=0 to (FPartitions[0].TotalSize div secsize)-1 do
   begin
    //Read the status of this sector
    status:=ReadByte(allocmap+6+(entry*2));
@@ -679,13 +680,13 @@ begin
   //Level 3
   if FFormat=diAcornFS<<4+2 then
   begin
-   Ldiscsize:=disc_size[0];     //Look at the entire image
+   Ldiscsize:=FPartitions[0].TotalSize;     //Look at the entire image
    afsstart:=0;                 //But not below here, which is ADFS header
   end
   else
   begin //Hybrids - AFS will take up the second 'side'
-   Ldiscsize:=disc_size[1];     //Only look at the AFS part of the image
-   afsstart:=disc_size[0];      //And not below here, which is the ADFS partition
+   Ldiscsize:=FPartitions[1].TotalSize;     //Only look at the AFS part of the image
+   afsstart:=FPartitions[0].TotalSize;      //And not below here, which is the ADFS partition
   end;
   //Read the size of the bitmap
   szofbmp:=ReadByte(afshead+$1C)*secsize;
@@ -810,7 +811,7 @@ begin
   //The above array will have offsets relative to the start of the AFS partition
   if GetMajorFormatNumber=diAcornADFS then
    for index:=0 to Length(FSM)-1 do
-    inc(FSM[index].Offset,disc_size[0]); //So add the ADFS size to the offset
+    inc(FSM[index].Offset,FPartitions[0].TotalSize); //So add the ADFS size to the offset
   //Level 3 includes a 256 byte object header
   if((FFormat=diAcornFS<<4+2)or(GetMajorFormatNumber=diAcornADFS))
   and(addheader)then inc(size,$100);
@@ -1006,7 +1007,7 @@ begin
  begin
   allocmap :=GetAllocationMap;
   //The reported map size at afshead+$21 is not always accurate
-  mapsize  :=(disc_size[0]div secsize)*2+5;//The size of the map
+  mapsize  :=(FPartitions[0].TotalSize div secsize)*2+5;//The size of the map
   //Work out and set the number of free sectors and pointer to first free
   freesecs:=0;      //Counter for number of free sectors
   firstfree:=$FFFF; //Dummy start
@@ -1071,10 +1072,10 @@ begin
    harddrivesize:=$07FFFFFF;//Temporary upper limit is 128MB-1
 {  if(afslevel=3)and(harddrivesize>$1FFFFFFF)then
    harddrivesize:=$1FFFFFFF;//Max size for a L3 (and ADFS Old Map) is 512MB-1}
-  disc_size[0]:=harddrivesize;
-  SetDataLength(disc_size[0]);
+  FPartitions[0].TotalSize:=harddrivesize;
+  SetDataLength(FPartitions[0].TotalSize);
   //Fill with zeros
-  for index:=0 to disc_size[0]-1 do Fdata[index]:=0;
+  for index:=0 to FPartitions[0].TotalSize-1 do Fdata[index]:=0;
   //Set the boot option
   SetLength(bootoption,1);
   bootoption[0]:=0;
@@ -1359,7 +1360,7 @@ begin
  ResetDirEntry(newfile);
  Result:=-3; //Directory already exists
  if dirname='$' then ok:=True
- else ok:=not FileExists(parent+dir_sep+dirname,dir,entry);
+ else ok:=not FileExists(parent+FPartitions[0].DirSep+dirname,dir,entry);
  if ok then
  begin
   Result:=-5; //Unknown error
@@ -1647,8 +1648,8 @@ begin
  end;
  ok:=True;
  //Does one already exist?
- if FileExists(newentry.Parent+dir_sep+newentry.Filename,ptr) then
-  ok:=DeleteAFSFile(newentry.Parent+dir_sep+newentry.Filename);
+ if FileExists(newentry.Parent+FPartitions[0].DirSep+newentry.Filename,ptr) then
+  ok:=DeleteAFSFile(newentry.Parent+FPartitions[0].DirSep+newentry.Filename);
  //Write the file
  if ok then Result:=WriteAFSFile(newentry,buffer);
 end;
@@ -1670,8 +1671,8 @@ begin
  //Start with a blank array
  Result:=nil;
  //Get the full pathname for the password file
- if GetMajorFormatNumber=diAcornADFS then pwordfile:=afsrootname+dir_sep+'Passwords'
- else pwordfile:=FDisc[0].Directory+dir_sep+'Passwords';
+ if GetMajorFormatNumber=diAcornADFS then pwordfile:=afsrootname+FPartitions[0].DirSep+'Passwords'
+ else pwordfile:=FDisc[0].Directory+FPartitions[0].DirSep+'Passwords';
  //Make sure it exists
  if FileExists(pwordfile,dir,entry) then
   if ExtractAFSFile(pwordfile,buffer) then //And extract it
@@ -1737,7 +1738,7 @@ begin
  if file_details.Filename<>'$' then
   file_details.Filename:=ValidateADFSFilename(file_details.Filename);
  //First make sure it doesn't exist already
- if not FileExists(file_details.Parent+dir_sep+file_details.Filename,pdir,entry)then
+ if not FileExists(file_details.Parent+FPartitions[0].DirSep+file_details.Filename,pdir,entry)then
   //Get the directory where we are adding it to, and make sure it exists
   if FileExists(file_details.Parent,pdir,entry) then
   begin
@@ -1768,7 +1769,7 @@ begin
    //Set the length
    file_details.Length:=Length(buffer);
    //Will if fit on the disc?
-   if free_space[partition]>file_details.Length then
+   if FPartitions[partition].FreeSpace>file_details.Length then
    begin
     Result:=-9;//Cannot extend directory
     //Look to see if the directory needs expanding, before we add
@@ -1954,9 +1955,9 @@ begin
  begin
   Result:=-3;//New name already exists
   //Check that the new name does not already exist
-  if(not FileExists(GetParent(dir)+dir_sep+newname,ptr))
+  if(not FileExists(GetParent(dir)+FPartitions[0].DirSep+newname,ptr))
   // or the user is just changing case
-  or(LowerCase(GetParent(dir)+dir_sep+newname)=LowerCase(oldname))then
+  or(LowerCase(GetParent(dir)+FPartitions[0].DirSep+newname)=LowerCase(oldname))then
   begin
    Result:=-1;//Unknown error
    //Just update the entry
@@ -2122,7 +2123,7 @@ var
 begin
  Result:=False;
  //Make sure the file exists, and is not the root
- if(filename<>root_name)or(filename<>afsrootname)then
+ if(filename<>FPartitions[0].RootName)or(filename<>afsrootname)then
   if FileExists(filename,dir,entry) then
   begin
    success:=True;
@@ -2138,7 +2139,7 @@ begin
     //Recursively delete the contents
     while(Length(FDisc[FDisc[dir].Entries[entry].DirRef].Entries)>0)
       and(success)do
-     success:=DeleteAFSFile(filename+dir_sep
+     success:=DeleteAFSFile(filename+FPartitions[0].DirSep
                   +FDisc[FDisc[dir].Entries[entry].DirRef].Entries[0].Filename);
    end;
    //Remove the entry from the directory
@@ -2291,7 +2292,7 @@ begin
     //Alter for the new parent
     direntry.Parent:=directory;
     //Does the filename already exist in the new location?
-    if not FileExists(directory+Dir_Sep+direntry.Filename,ptr) then
+    if not FileExists(directory+FPartitions[0].DirSep+direntry.Filename,ptr) then
     begin
      //Insert into the new directory
      Result:=InsertAFSEntry(ddir,direntry);
@@ -2381,7 +2382,8 @@ begin
  //Make sure it is not overlength
  title:=LeftStr(title,16);
  //And update the internal variable
- if GetMajorFormatNumber=diAcornADFS then disc_name[1]:=title else disc_name[0]:=title;
+ if GetMajorFormatNumber=diAcornADFS then
+  FPartitions[1].Name:=title else FPartitions[0].Name:=title;
  //Write to the image header
  WriteString(title,afshead+4,16,32);
  //And the copy
@@ -2432,14 +2434,13 @@ begin
    Write24b(afshead div secsize,$F6);
    Write24b(afshead2 div secsize,$1F6);
    //Update our disc sizes
-   disc_size[0]:=fsst;
-   SetLength(disc_size,2);
-   disc_size[1]:=size;
-   SetLength(free_space,2);
+   FPartitions[0].TotalSize:=fsst;
+   SetLength(FPartitions,2);
+   FPartitions[1].TotalSize:=size;
    //Clear the partition of any left over data
    for index:=afshead to GetDataLength-1 do WriteByte(0,index);
    //Create the partition
-   WriteAFSPartition(disc_name[0],GetDataLength);
+   WriteAFSPartition(FPartitions[0].Name,GetDataLength);
    //Sort out the FSM
    ConsolidateADFSFreeSpaceMap;
    //Now we re-ID and re-read the data
@@ -2473,9 +2474,9 @@ begin
  Result.Add('Sectors per Track: '+IntToStr(secspertrack));
  Result.Add('Root Address: 0x'+IntToHex(Fafsroot,8));
  Result.Add('Root Size: '+IntToStr(afsroot_size)+' bytes');
- Result.Add('Disc Size: '+IntToStr(disc_size[side])+' bytes');
- Result.Add('Free Space: '+IntToStr(free_space[side])+' bytes');
+ Result.Add('Disc Size: '+IntToStr(FPartitions[side].TotalSize)+' bytes');
+ Result.Add('Free Space: '+IntToStr(FPartitions[side].FreeSpace)+' bytes');
  Result.Add('Boot Map Location: 0x'+IntToHex(afshead,8));
- Result.Add('Disc Name: '+disc_name[side]);
+ Result.Add('Disc Name: '+FPartitions[side].Name);
  Result.Add('Interleave Method: '+FInts[Finterleave-1]);
 end;

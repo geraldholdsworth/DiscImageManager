@@ -98,11 +98,11 @@ begin
       end;
      end;
      //Set the disc size
-     disc_size[0]:=root*secsize*2;
+     FPartitions[0].TotalSize:=root*secsize*2;
      //Set the directory separator
-     dir_sep:='/';
+     FPartitions[0].DirSep:='/';
      //and the root name
-     root_name:='DF0:';
+     FPartitions[0].RootName:='DF0:';
      //More checks to ensure we have the root
      if (Checksum1<>Checksum2)
      or (Read32b(root*secsize+$000,True)<>$02)
@@ -134,15 +134,16 @@ begin
   //Total number of sectors will be double where the root is
   Lsectors  :=root*2;
   //Disc size
-  disc_size[0]:=Cardinal(Lsectors)*secsize;
+  FPartitions[0].TotalSize:=Cardinal(Lsectors)*secsize;
   //Disc name
-  disc_name[0]:=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
+  FPartitions[0].Name:=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
   //Create an entry for the root
   SetLength(FDisc,1);
   //Blank the values
   ResetDir(FDisc[0]);
   //We'll start by reading the root
-  FDisc[0]:=ReadAmigaDir(root_name,root);
+  FDisc[0]:=ReadAmigaDir(FPartitions[0].RootName,root);
+  //FPartitions[0].RootName:=root_name;
   //Now iterate through the entries and find the sub-directories
   d:=0;
   repeat
@@ -161,7 +162,7 @@ begin
        SetLength(FDisc,Length(FDisc)+1);
        //Read in the contents of the directory
        if FScanSubDirs then
-        FDisc[Length(FDisc)-1]:=ReadAmigaDir(GetParent(d)+dir_sep
+        FDisc[Length(FDisc)-1]:=ReadAmigaDir(GetParent(d)+FPartitions[0].DirSep
                                           +FDisc[d].Entries[ptr].Filename,
                                            FDisc[d].Entries[ptr].Sector);
        FDisc[Length(FDisc)-1].Parent:=d;
@@ -361,7 +362,7 @@ begin
  ValidateAmigaFile(file_details.Filename);
  Result:=-3; //File already exists
  //Ensure that the file does not alredy exist
- if not FileExists(file_details.Parent+dir_sep+file_details.Filename,dir,entry) then
+ if not FileExists(file_details.Parent+FPartitions[0].DirSep+file_details.Filename,dir,entry) then
  begin
   Result:=-6; //Destination directory does not exist
   //Ensure that the parent exists
@@ -369,7 +370,7 @@ begin
   begin
    Result:=-2; //Image full
    //Get the parent address
-   if file_details.Parent=root_name then
+   if file_details.Parent=FPartitions[0].RootName then
    begin
     paraddr:=root;
     dir:=0;
@@ -524,7 +525,7 @@ begin
  ValidateAmigaFile(dirname);
  Result:=-6; //Destination directory does not exist
  //Ensure that the directory does not alredy exist
- if not FileExists(parent+dir_sep+dirname,dir,entry) then
+ if not FileExists(parent+FPartitions[0].DirSep+dirname,dir,entry) then
  begin
   Result:=-3; //Directory already exists
   //Ensure that the parent exists
@@ -532,7 +533,7 @@ begin
   begin
    Result:=-2; //Image full
    //Get the parent address
-   if parent=root_name then
+   if parent=FPartitions[0].RootName then
    begin
     paraddr:=root;
     dir:=0;
@@ -772,7 +773,7 @@ begin
   //Get the parent directory path
   dirname:=GetParent(dir);
   //Make sure it does not already exist
-  if not FileExists(dirname+dir_sep+newfilename,ref) then
+  if not FileExists(dirname+FPartitions[0].DirSep+newfilename,ref) then
   begin
    Result:=-1;
    sector:=FDisc[dir].Entries[entry].Sector;
@@ -810,7 +811,7 @@ var
  fsm      : TDIByteArray=nil;
 begin
  Result:=False;
- if filename=root_name then exit(False);
+ if filename=FPartitions[0].RootName then exit(False);
  //Does the file exist?
  if FileExists(filename,dir,entry) then
  begin
@@ -825,7 +826,7 @@ begin
    success:=True;
    //Recusively delete the contents.
    while(Length(FDisc[dirref].Entries)>0)and(success)do
-    success:=DeleteAmigaFile(filename+dir_sep+FDisc[dirref].Entries[0].Filename);
+    success:=DeleteAmigaFile(filename+FPartitions[0].DirSep+FDisc[dirref].Entries[0].Filename);
   end;
   //Remove the entry from the chain
   if AmigaRemoveFromChain(Copy(filename,Length(GetParent(dir))+2),
@@ -896,7 +897,7 @@ begin
  //And update the checksum
  Write32b(AmigaChecksum(root*secsize),root*secsize+$14,True);
  //Update the local copy
- disc_name[0]:=title;
+ FPartitions[0].Name:=title;
 end;
 
 {-------------------------------------------------------------------------------
@@ -915,7 +916,7 @@ begin
  Result:=-6; //Destination does not exist
  if FileExists(directory,ddir,dentry) then
  begin
-  if directory=root_name then ddir:=0
+  if directory=FPartitions[0].RootName then ddir:=0
   else ddir:=FDisc[ddir].Entries[dentry].DirRef;
   if ddir>=Length(FDisc) then exit(-12);
   Result:=-11; //Source does not exist
@@ -971,10 +972,10 @@ var
 begin
  //UpdateProgress('Reading Free Space Map');
  //Set up the variables
- free_space[0]:=0;
+ FPartitions[0].FreeSpace:=0;
  secspertrack:=22;//Not used anywhere else
  SetLength(free_space_map,1);
- SetLength(free_space_map[0],disc_size[0]div(secsize*secspertrack));
+ SetLength(free_space_map[0],FPartitions[0].TotalSize div(secsize*secspertrack));
  for c:=0 to Length(free_space_map[0])-1 do
  begin
   //Number of sectors per track
@@ -985,7 +986,7 @@ begin
  //Set the first two sectors as system
  free_space_map[0,0,0]:=$FE;
  free_space_map[0,0,1]:=$FE;
- AmigaFillFreeSpaceMap(disc_size[0]-1,$00);
+ AmigaFillFreeSpaceMap(FPartitions[0].TotalSize-1,$00);
  //Read in the Free Space Map
  fsmlist:=AmigaReadBitmap(buffer);
  //Did we get anything? Mark off the systems areas on our copy
@@ -995,7 +996,7 @@ begin
  //Mark out the rest of our copy of the FSM
  if Length(buffer)>0 then
  begin
-  inc(free_space[0],secsize*2);//Take account of the boot block
+  inc(FPartitions[0].FreeSpace,secsize*2);//Take account of the boot block
   //So, start at the beginning
   hashptr:=0;
   //And get each 32 bit word
@@ -1009,7 +1010,7 @@ begin
     begin
      //Calculate where on the disc this will be
      discaddr:=secsize*(2+(hashptr*8)+bit);
-     inc(free_space[0],secsize);//Set, so is free
+     inc(FPartitions[0].FreeSpace,secsize);//Set, so is free
      AmigaFillFreeSpaceMap(discaddr,$00);
     end;
    inc(hashptr,4);
@@ -1178,8 +1179,8 @@ begin
   end;
  end;
  //Adjust the buffer length to match the disc size
- if Length(fsm)>Ceil((disc_size[0]div secsize)/32)*4 then
-  SetLength(fsm,Ceil((disc_size[0]div secsize)/32)*4);
+ if Length(fsm)>Ceil((FPartitions[0].TotalSize div secsize)/32)*4 then
+  SetLength(fsm,Ceil((FPartitions[0].TotalSize div secsize)/32)*4);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1214,7 +1215,7 @@ begin
  //Initialise the return variable
  SetLength(Result,0);
  //Is there actually enough space?
- if free_space[0]>=filelen then
+ if FPartitions[0].FreeSpace>=filelen then
  begin
   //Get the FSM
   fsmlist:=AmigaReadBitmap(fsm);
@@ -1438,7 +1439,7 @@ begin
  end;
  Result.Add('Density: '+temp);
  Result.Add('Root Address: 0x'+IntToHex(root,8));
- Result.Add('Disc Size: '+IntToStr(disc_size[0])+' bytes');
- Result.Add('Free Space: '+IntToStr(free_space[0])+' bytes');
- Result.Add('Disc Name: '+disc_name[0]);
+ Result.Add('Disc Size: '+IntToStr(FPartitions[0].TotalSize)+' bytes');
+ Result.Add('Free Space: '+IntToStr(FPartitions[0].FreeSpace)+' bytes');
+ Result.Add('Disc Name: '+FPartitions[0].Name);
 end;

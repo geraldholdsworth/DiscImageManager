@@ -92,7 +92,7 @@ begin
   begin
    //Create the text
    line:=results[i].Parent
-        +MainForm.Image.GetDirSep(results[i].Side)+results[i].Filename;
+        +MainForm.Image.DirSep(results[i].Side)+results[i].Filename;
    //Remove any top bit set characters
    RemoveTopBit(line);
    //And list the result

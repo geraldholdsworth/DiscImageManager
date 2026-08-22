@@ -105,7 +105,7 @@ begin
   end;
  end;
  //Disc size (total uncompressed size)
- disc_size[0]:=SparkFile.UncompressedSize;
+ FPartitions[0].TotalSize:=SparkFile.UncompressedSize;
  //Return a result
  Result:=Length(FDisc)>0;
  FHasDirs:=Result;
@@ -153,8 +153,8 @@ begin
  SetLength(FDisc,1);
  ResetDir(FDisc[0]);
  //Set the root directory name
- root_name:='$';
- FDisc[0].Directory:=root_name;
+ FPartitions[0].RootName:='$';
+ FDisc[0].Directory:=FPartitions[0].RootName;
  FDisc[0].BeenRead:=True;
  //Set the format
  FFormat:=diSpark<<4;
@@ -258,7 +258,7 @@ begin
   if FileExists(dest,ddir,dentry) then //And the destination exists
   begin
    //As we are just renaming, tag the filename onto the end of the destination
-   dest:=dest+dir_sep+FDisc[sdir].Entries[sentry].Filename;
+   dest:=dest+FPartitions[0].DirSep+FDisc[sdir].Entries[sentry].Filename;
    //Swap the directory separators for both
    SparkFile.SwapDirSep(filename);
    SparkFile.SwapDirSep(dest);
@@ -316,7 +316,7 @@ begin
  //Start with a negative result
  Result:=-3;//File already exists
  //First make sure it doesn't exist already
- if not FileExists(file_details.Parent+dir_sep+file_details.Filename,dir,entry)then
+ if not FileExists(file_details.Parent+FPartitions[0].DirSep+file_details.Filename,dir,entry)then
   //Get the directory where we are adding it to, and make sure it exists
   if FileExists(file_details.Parent,dir,entry)then
   begin
@@ -417,7 +417,7 @@ begin
     //Write the file
     SparkFile.WriteFile(filetozip,buffer);
     //Update the used space
-    disc_size[0]:=SparkFile.UncompressedSize;
+    FPartitions[0].TotalSize:=SparkFile.UncompressedSize;
    end else Result:=0;
   end else Result:=-6; //Directory does not exist
 end;
@@ -435,7 +435,7 @@ begin
  //Does the file exist?
  if FileExists(filename,dir,entry) then
   //And the proposed filename not exist?
-  if not FileExists(GetParent(dir)+dir_sep+newfilename,ptr) then
+  if not FileExists(GetParent(dir)+FPartitions[0].DirSep+newfilename,ptr) then
   begin
    //Swap the directory separators
    SparkFile.SwapDirSep(filename);
@@ -451,7 +451,7 @@ begin
     FDisc[FDisc[dir].Entries[entry].DirRef].Directory:=newfilename;
    end;
    //Add the path for the proposed filename
-   newfilename:=GetParent(dir)+dir_sep+newfilename;
+   newfilename:=GetParent(dir)+FPartitions[0].DirSep+newfilename;
    //And swap the separators
    SparkFile.SwapDirSep(newfilename);
    //Is it a directory?

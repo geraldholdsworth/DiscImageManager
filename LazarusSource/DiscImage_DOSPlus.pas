@@ -32,11 +32,11 @@ begin
     Fdosroot:=root;
     dosroot_size:=root_size;
     //Set the disc size
-    disc_size[0]:=GetDataLength;
+    FPartitions[0].TotalSize:=GetDataLength;
     //And cluster size
     cluster_size:=$400;
     dosalloc:=1;
-    DOSBlocks:=disc_size[0]div cluster_size;
+    DOSBlocks:=FPartitions[0].TotalSize div cluster_size;
     //FAT Size and type
     DOSFATSize:=1; //This is one less than the actual size
     NumFATs:=1;
@@ -53,7 +53,7 @@ begin
    if IDDOSPartition($0000) then
    begin
     //ReadDOSHeader;
-    disc_size[0]:=DOSBlocks*cluster_size;
+    FPartitions[0].TotalSize:=DOSBlocks*cluster_size;
     //Set the format
     FFormat:=diDOSPlus<<4;
     //And update it with the appropriate FAT
@@ -115,18 +115,18 @@ begin
  if((GetMajorFormatNumber=diAcornADFS)and(FDOSPresent))
  or(GetMajorFormatNumber=diDOSPlus)then //Or a straight DOS Plus?
  begin
-  if GetMajorFormatNumber=diDOSPlus then dir_sep:='\';
+  if GetMajorFormatNumber=diDOSPlus then FPartitions[0].DirSep:='\';
   //ADFS Hybrid?
   if GetMajorFormatNumber=diAcornADFS then
   begin
    part:=1;
    //Set up the second partition
-   SetLength(disc_size,2);
-   SetLength(free_space,2);
-   SetLength(disc_name,2);
+   SetLength(FPartitions,2);
+//   SetLength(free_space,2);
+//   SetLength(disc_name,2);
    if FFormat AND $F<>$F then //Not for hard disc partitions
    begin
-    doshead   :=disc_size[0];
+    doshead   :=FPartitions[0].TotalSize;
     //Set the DOS root parameters
     dosmap:=doshead;
     dosmap2:=doshead;
@@ -138,35 +138,37 @@ begin
     DOSFATSize:=1; //This is one less than the actual size
     NumFATs:=1;    //Number of FATs present
     FATType:=diFAT12;//FAT type
-    disc_size[1]:=GetDataLength-disc_size[0]; //Partition size
-    DOSBlocks:=disc_size[1]div cluster_size; //Number of blocks on disc
+    FPartitions[1].TotalSize:=GetDataLength-FPartitions[0].TotalSize; //Partition size
+    DOSBlocks:=FPartitions[1].TotalSize div cluster_size; //Number of blocks on disc
     Fdosroot:=doshead+((NumFATs*DOSFATSize)+1)*cluster_size; //Where the root is
    end;
    if FFormat AND $F=$F then //Hard disc partition - will have a DOS Header
    begin
     //doshead:=disc_size[0]; //Where the DOS header is
     //ReadDOSHeader; //Read the DOS Header
-    disc_size[1]:=DOSBlocks*cluster_size;//Disc size in bytes
+    FPartitions[1].TotalSize:=DOSBlocks*cluster_size;//Disc size in bytes
    end;
    i:=1;
   end;
   //Update the progress indicator
   UpdateProgress('Reading DOS Plus partition');
   //Read the volume title
-  disc_name[i]:='';
+  FPartitions[i].Name:='';
   //Volume name in the header for DOS Version 29
   if DOSVersion=$29 then
-   if FATType=diFAT32 then disc_name[i]:=ReadString(doshead+$47,-11)
-   else disc_name[i]:=ReadString(doshead+$2B,-11);
+   if FATType=diFAT32 then FPartitions[i].Name:=ReadString(doshead+$47,-11)
+   else FPartitions[i].Name:=ReadString(doshead+$2B,-11);
   //Remove the spaces
-  RemoveSpaces(disc_name[i]);
+  RemoveSpaces(FPartitions[i].Name);
   //Add a new entry
   d:=Length(FDisc);
   SetLength(FDisc,d+1);
   //Start the chain by reading the root
   if FFormat=diAcornADFS<<4+$F then dosrootname:='C:' else dosrootname:='A:';
+  FPartitions[d].RootName:=dosrootname;
   //Read the root
   FDisc[d]:=ReadDOSDirectory(dosrootname,Fdosroot,lenctr);
+  FPartitions[d].RootRef:=d;
   //Now go through the root's entries and read them in
   repeat
    if Length(FDisc[d].Entries)>0 then
@@ -180,7 +182,7 @@ begin
        //And now read it in
        if FScanSubDirs then
         FDisc[Length(FDisc)-1]:=ReadDOSDirectory(GetParent(d)
-                                                +GetDirSep(part)
+                                                +DirSep(part)
                                                 +FDisc[d].Entries[e].Filename,
                                                 FDisc[d].Entries[e].Sector,
                                                 lenctr);
@@ -311,9 +313,9 @@ begin
  //ADFS hybrid?
  if GetMajorFormatNumber=diAcornADFS then side:=1 else side:=0;
  //Directory name
- index:=Pos(GetDirSep(side),dirname);
- while Pos(GetDirSep(side),dirname,index+1)>index do
-  index:=Pos(GetDirSep(side),dirname,index+1);
+ index:=Pos(DirSep(side),dirname);
+ while Pos(DirSep(side),dirname,index+1)>index do
+  index:=Pos(DirSep(side),dirname,index+1);
  if index>0 then
   Result.Directory:=Copy(dirname,index+1)
  else
@@ -350,8 +352,8 @@ begin
    volname:=ReadString(Fdosroot,-11,buffer);
    FDOSVolInRoot:=True;//Volume name is in the root flag
    //Has it already been set?
-   if disc_name[Length(disc_name)-1]='' then
-    disc_name[Length(disc_name)-1]:=volname;//If no, then set it
+   if FPartitions[Length(FPartitions)-1].Name='' then
+    FPartitions[Length(FPartitions)-1].Name:=volname;//If no, then set it
   end;
   //Long filename will have attr as $F.
   if(status<>$E5)and(status<>$00)and(attr=$F)then
@@ -790,9 +792,9 @@ begin
   part:=1;
  end;
  //Initialise the free space
- free_space[part]:=disc_size[part];
+ FPartitions[part].FreeSpace:=FPartitions[part].TotalSize;
  //Set up the array
- tracks:=Ceil((disc_size[part]div cluster_size)/spt);
+ tracks:=Ceil((FPartitions[part].TotalSize div cluster_size)/spt);
  SetLength(free_space_map[part],tracks);
  for entry:=0 to Length(free_space_map[part])-1 do //Sectors per track
  begin
@@ -812,7 +814,7 @@ begin
      if s<Length(free_space_map[part,t]) then
      begin
       free_space_map[part,t,s]:=$FF-fragments[index].Zone;
-      dec(free_space[part],cluster_size); //Decrease the free space
+      dec(FPartitions[part].FreeSpace,cluster_size); //Decrease the free space
      end;
    end;
   end;
@@ -907,9 +909,9 @@ begin
  begin
   Result:=-3; //New filename already exists
   //Check that the proposed new name does not exist
-  if(not FileExists(GetParent(dir)+GetDirSep(side)+newname,ptr))
+  if(not FileExists(GetParent(dir)+DirSep(side)+newname,ptr))
   // or the user is just changing case
-  or(LowerCase(GetParent(dir)+GetDirSep(side)+newname)=LowerCase(oldname))then
+  or(LowerCase(GetParent(dir)+DirSep(side)+newname)=LowerCase(oldname))then
   begin
    Result:=-1; //Unknown error
    //Change the name
@@ -1069,11 +1071,11 @@ begin
   if(isroot)and(FATType<>diFAT32)then
   begin
    //Get the volume name...but for which partition?
-   if(dir>0)and(Length(disc_name)>1)then
+   if(dir>0)and(Length(FPartitions)>1)then
     side:=1  //ADFS/DOS Hybrid
    else
     side:=0; //DOS only partition
-   temp:=disc_name[side];
+   temp:=FPartitions[side].Name;
    //Read the directory into a temporary buffer
    SetLength(buffer,dosroot_size);
    ReadDiscData(addr,dosroot_size,side,0,buffer);
@@ -1377,7 +1379,7 @@ begin
  and((GetMajorFormatNumber=diAcornADFS)or(FFormat=diDOSPlus))then //ADFS partition or DOS Plus
   file_details.Filename:=ValidateDOSFilename(file_details.Filename);
  //First make sure it doesn't exist already
- if not FileExists(file_details.Parent+GetDirSep(partition)+file_details.Filename,pdir,entry)then
+ if not FileExists(file_details.Parent+DirSep(partition)+file_details.Filename,pdir,entry)then
   //Get the directory where we are adding it to, and make sure it exists
   if FileExists(file_details.Parent,pdir,entry) then
   begin
@@ -1402,7 +1404,7 @@ begin
    //Set the length
    file_details.Length:=Length(buffer);
    //Will if fit on the disc?
-   if free_space[partition]>file_details.Length then
+   if FPartitions[partition].FreeSpace>file_details.Length then
    begin
     Result:=-7; //Map (directory) full
     //Is there enough space in the directory?
@@ -1484,7 +1486,7 @@ begin
  Result:=-3; //Directory already exists
  //Make sure that the directory does not already exists
  if dirname=dosrootname then ok:=True
- else ok:=not FileExists(parent+GetDirSep(side)+dirname,dir,entry);
+ else ok:=not FileExists(parent+DirSep(side)+dirname,dir,entry);
  if ok then
  begin
   Result:=-5; //Unknown error
@@ -1564,7 +1566,7 @@ begin
     if not FDisc[index].BeenRead then ReadDirectory(filename);
     //Recursively delete the contents
     while(Length(FDisc[index].Entries)>0)and(success)do
-     success:=DeleteDOSFile(filename+GetDirSep(side)+FDisc[index].Entries[0].Filename);
+     success:=DeleteDOSFile(filename+DirSep(side)+FDisc[index].Entries[0].Filename);
    end;
    //Remove the entry from the directory
    if success then
@@ -1630,21 +1632,21 @@ var
  ptr  : Byte=0;
 begin
  //Need to workout which partition
- if Length(disc_name)>1 then
+ if Length(FPartitions)>1 then
   side:=1  //ADFS/DOS Hybrid
  else
   side:=0; //DOS only partition
  //Update the local copy, truncating to the maximum length
- disc_name[side]:=LeftStr(title,11);
+ FPartitions[side].Name:=LeftStr(title,11);
  //Update the root
  if FDOSVolInRoot then UpdateDOSDirectory(dosrootname);
  //Is there a volume title in the header?
  if DOSVersion=$29 then
  begin
   if FATType<>diFAT32 then ptr:=$2B else ptr:=$47;
-  WriteString(disc_name[side],doshead+ptr,11,32);
+  WriteString(FPartitions[side].Name,doshead+ptr,11,32);
   //Update the copy (FAT32)
-  if FATType=diFAT32 then WriteString(disc_name[side],doshead2+ptr,11,32);
+  if FATType=diFAT32 then WriteString(FPartitions[side].Name,doshead2+ptr,11,32);
  end;
  Result:=True;
 end;
@@ -1686,7 +1688,7 @@ begin
  //Only for adding DOS partition to 8 bit ADFS
  if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
  begin
-  if disc_size[0]=$A0000 then size:=$9F000; //640K 'L' has 4K of ADFS
+  if FPartitions[0].TotalSize=$A0000 then size:=$9F000; //640K 'L' has 4K of ADFS
   fsed:=GetADFSMaxLength(False);
   //Is there enough free space?
   if fsed>=size then
@@ -1697,13 +1699,13 @@ begin
    fsptr:=GetADFSMaxLength(True);
    Write24b(Read24b($100+fsptr)-(size div secsize),$100+fsptr); //Just adjust the length
    //Adjust the disc size for 640K
-   if disc_size[0]=$A0000 then WriteByte($A0,$FC);
+   if FPartitions[0].TotalSize=$A0000 then WriteByte($A0,$FC);
    //Update our disc sizes
-   disc_size[0]:=fsst;
-   SetLength(disc_size,2);
-   disc_size[1]:=size;
-   SetLength(free_space,2);
-   doshead   :=disc_size[0];
+   FPartitions[0].TotalSize:=fsst;
+   SetLength(FPartitions,2);
+   FPartitions[1].TotalSize:=size;
+//   SetLength(free_space,2);
+   doshead   :=FPartitions[0].TotalSize;
    //Set the DOS root parameters
    dosmap:=doshead;
    dosmap2:=doshead;
@@ -1715,7 +1717,7 @@ begin
    DOSFATSize:=1; //This is one less than the actual size
    NumFATs:=1;    //Number of FATs present
    FATType:=diFAT12;//FAT type
-   DOSBlocks:=disc_size[1]div cluster_size; //Number of blocks on disc
+   DOSBlocks:=FPartitions[1].TotalSize div cluster_size; //Number of blocks on disc
    Fdosroot:=doshead+((NumFATs*DOSFATSize)+1)*cluster_size; //Where the root is
    //Clear the partition of any left over data
    for index:=doshead to GetDataLength-1 do WriteByte(0,index);
@@ -1766,7 +1768,7 @@ begin
  SetDataLength(0);
  //Reset the format (it'll get set later when we ID and Read the new image)
  FFormat:=diInvalidImg;
- disc_size[0]:=size;
+ FPartitions[0].TotalSize:=size;
  SetDataLength(size);
  //Empty the area
  UpdateProgress('Formatting...');
@@ -2074,7 +2076,7 @@ begin
     //Alter for the new parent
     direntry.Parent:=directory;
     //Does the filename already exist in the new location?
-    if not FileExists(directory+Dir_Sep+direntry.Filename,ptr) then
+    if not FileExists(directory+FPartitions[0].DirSep+direntry.Filename,ptr) then
     begin
      //Insert into the new directory
      Result:=InsertDOSEntry(ddir,direntry);
@@ -2110,8 +2112,8 @@ begin
    exit;
   end;
   //If this includes the path, then remove the path
-  while Pos(dir_sep,LFN)>0 do
-   LFN:=Copy(LFN,Pos(dir_sep,LFN)+1);
+  while Pos(FPartitions[0].DirSep,LFN)>0 do
+   LFN:=Copy(LFN,Pos(FPartitions[0].DirSep,LFN)+1);
   //Now validate the filename
   LFN:=ValidateDOSFilename(LFN,True);
   //Any extension?
@@ -2141,7 +2143,7 @@ begin
    //'n' can be 1 to 999999
    n:='1';
    LFN:=BuildDOSFilename(LeftStr(Result,7-Length(n))+'~'+n,ext);
-   while(FileExists(path+dir_sep+LFN,dir,entry,True))
+   while(FileExists(path+FPartitions[0].DirSep+LFN,dir,entry,True))
      and(StrToInt(n)<1000000)and(LFN<>SFN)do
    begin
     n:=IntToStr(StrToInt(n)+1);
@@ -2183,8 +2185,8 @@ begin
  Result.Add('Sectors per Track: '+IntToStr(secspertrack));
  Result.Add('Root Address: 0x'+IntToHex(Fdosroot,8));
  Result.Add('Root Size: '+IntToStr(dosroot_size)+' bytes');
- Result.Add('Disc Size: '+IntToStr(disc_size[side])+' bytes');
- Result.Add('Free Space: '+IntToStr(free_space[side])+' bytes');
+ Result.Add('Disc Size: '+IntToStr(FPartitions[side].TotalSize)+' bytes');
+ Result.Add('Free Space: '+IntToStr(FPartitions[side].FreeSpace)+' bytes');
  Result.Add('Boot Map Location: 0x'+IntToHex(doshead,8));
  Result.Add('FAT Location: 0x'+IntToHex(dosmap,8));
  Result.Add('FAT Size: '+IntToStr(DOSFATSize*secsize)+' bytes');
@@ -2193,5 +2195,5 @@ begin
  Result.Add('Allocation Unit: '+IntToStr(dosalloc)+' blocks');
  Result.Add('Number of Blocks: '+IntToStr(DOSblocks));
  Result.Add('Reserved Sectors: '+IntToStr(DOSResSecs));
- Result.Add('Disc Name: '+disc_name[side]);
+ Result.Add('Disc Name: '+FPartitions[side].Name);
 end;

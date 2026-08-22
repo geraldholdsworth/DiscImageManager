@@ -101,7 +101,7 @@ const
    temp:=thisfile
   else
    temp:=Image.GetParent(Fcurrdir)
-        +Image.GetDirSep(Image.Disc[Fcurrdir].Partition)
+        +Image.DirSep(Image.Disc[Fcurrdir].Partition)
         +thisfile;
   //Does it exist?
   Result:=Image.FileExists(temp,dir,entry);
@@ -164,7 +164,7 @@ const
   Result:='';
   if Lfile.Parent<>'' then
    Result:=Lfile.Parent
-        +Image.GetDirSep(Image.Disc[Fcurrdir].Partition);
+        +Image.DirSep(Image.Disc[Fcurrdir].Partition);
   Result:=Result+Lfile.Filename;
  end;
 //Main procedure definition starts here
@@ -677,7 +677,7 @@ begin
      begin
       //Try in the local directory
       temp:=Image.GetParent(Fcurrdir)
-           +Image.GetDirSep(Image.Disc[Fcurrdir].Partition)
+           +Image.DirSep(Image.Disc[Fcurrdir].Partition)
            +Command[Index];
       ok:=Image.FileExists(temp,dir,entry);
       //Nothing, so try fully qualified path
@@ -720,12 +720,12 @@ begin
       else
        temp:=Image.GetParent(0)+Copy(temp,2);
      //Are there more parent specifiers?
-     Lparent:=Image.GetDirSep(Image.Disc[Fcurrdir].Partition)+'^';
+     Lparent:=Image.DirSep(Image.Disc[Fcurrdir].Partition)+'^';
      while Pos(Lparent,temp)>1 do
      begin
       ptr:=Pos(Lparent,temp)-1;
       while(ptr>1)
-        and(temp[ptr]<>Image.GetDirSep(Image.Disc[Fcurrdir].Partition))do
+        and(temp[ptr]<>Image.DirSep(Image.Disc[Fcurrdir].Partition))do
        dec(ptr);
       if ptr>1 then
        temp:=LeftStr(temp,ptr-1)+Copy(temp,Pos(Lparent,temp)+Length(Lparent));

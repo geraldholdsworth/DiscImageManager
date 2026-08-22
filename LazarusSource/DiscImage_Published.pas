@@ -607,12 +607,12 @@ begin
  //Get the length of data to be written
  count:=file_details.Length;
  //Only write a file if there is actually any data to be written
- if(count>0)and((Length(free_space)>0)or(GetMajorFormatNumber=diSpark))then
+ if(count>0)and((Length(FPartitions)>0)or(GetMajorFormatNumber=diSpark))then
  begin
   if GetMajorFormatNumber<>diSpark then
-   file_details.Side:=file_details.Side mod Length(free_space);
+   file_details.Side:=file_details.Side mod Length(FPartitions);
   //Can only write a file that will fit on the disc, or CFS
-  if(count<=free_space[file_details.Side])
+  if(count<=FPartitions[file_details.Side].FreeSpace)
   or(GetMajorFormatNumber=diAcornUEF)
   or(GetMajorFormatNumber=diSpark)then
    case GetMajorFormatNumber of
@@ -729,9 +729,9 @@ begin
  //Blank filename, so quit
  if Length(filename)=0 then exit;
  //For the root, we'll just return a default value
- if(filename=root_name)
- or((GetMajorFormatNumber=diAcornDFS)and(filename.EndsWith(root_name)))
- or((GetMajorFormatNumber=diSinclair)and(filename.StartsWith(root_name))
+ if(filename=FPartitions[0].RootName)
+ or((GetMajorFormatNumber=diAcornDFS)and(filename.EndsWith(FPartitions[0].RootName)))
+ or((GetMajorFormatNumber=diSinclair)and(filename.StartsWith(FPartitions[0].RootName))
   and(Length(filename)=4))then
  begin
   dir   :=$FFFF;
@@ -774,28 +774,28 @@ begin
    and(LeftStr(filename,Length(dosrootname))=dosrootname)then//Is this on a DOS Partition of an ADFS?
     Path:=filename.Split('\')
    else
-    Path:=filename.Split(dir_sep);
+    Path:=filename.Split(FPartitions[0].DirSep);
   end;
   if GetMajorFormatNumber=diAcornDFS then //With DFS, we need the initial root name, including the '.'
   begin
    //So should only be 2 entries
    SetLength(Path,2);
    //But supplied filename may not contain the root
-   if Pos(root_name+dir_sep,filename)>0 then
+   if Pos(FPartitions[0].RootName+FPartitions[0].DirSep,filename)>0 then
    begin
     //Root name
-    Path[0]:=Copy(filename,0,Pos(root_name+dir_sep,filename));
+    Path[0]:=Copy(filename,0,Pos(FPartitions[0].RootName+FPartitions[0].DirSep,filename));
     //And filename
-    Path[1]:=Copy(filename,Pos(root_name+dir_sep,filename)
-                          +Length(root_name)+Length(dir_sep),Length(filename));
+    Path[1]:=Copy(filename,Pos(FPartitions[0].RootName+FPartitions[0].DirSep,filename)
+                          +Length(FPartitions[0].RootName)+Length(FPartitions[0].DirSep),Length(filename));
    end
    else
    begin
     //If it doesn't, we will assume the root of side 0
     Path[0]:=FDisc[0].Directory;
     //And make the second entry the filename, after the '.', if it has one
-    if Pos(dir_sep,filename)>0 then
-     Path[1]:=Copy(filename,Pos(dir_sep,filename)+Length(dir_sep))
+    if Pos(FPartitions[0].DirSep,filename)>0 then
+     Path[1]:=Copy(filename,Pos(FPartitions[0].DirSep,filename)+Length(FPartitions[0].DirSep))
     else
      Path[1]:=filename;
    end;
@@ -805,17 +805,17 @@ begin
    //So should only be 2 entries
    SetLength(Path,2);
    //But supplied filename may not contain the root
-   if Pos(root_name+dir_sep,filename)>0 then
+   if Pos(FPartitions[0].RootName+FPartitions[0].DirSep,filename)>0 then
    begin
     //Root name
-    Path[0]:=Copy(filename,0,Pos(root_name+dir_sep,filename));
+    Path[0]:=Copy(filename,0,Pos(FPartitions[0].RootName+FPartitions[0].DirSep,filename));
     //And filename
-    Path[1]:=Copy(filename,Pos(root_name+dir_sep,filename)
-                          +Length(root_name)+Length(dir_sep),Length(filename));
+    Path[1]:=Copy(filename,Pos(FPartitions[0].RootName+FPartitions[0].DirSep,filename)
+                          +Length(FPartitions[0].RootName)+Length(FPartitions[0].DirSep),Length(filename));
    end
    else
    begin
-    Path[0]:=root_name;
+    Path[0]:=FPartitions[0].RootName;
     Path[1]:=filename;
    end;
   end;
@@ -948,12 +948,13 @@ var
  i   : Cardinal=0;
 begin
  Result:=False;
- if(count=0)or(Length(disc_size)=0)then exit;
+ if(count=0)or(Length(FPartitions)=0)then exit;
  //Make sure the numbers fit
  if start+count<=Length(buffer) then
  begin
   //Sometimes the image file is smaller than the actual disc size
-  if GetDataLength<disc_size[side]then SetDataLength(disc_size[side]);
+  if GetDataLength<FPartitions[side].TotalSize then
+   SetDataLength(FPartitions[side].TotalSize);
   if GetMajorFormatNumber<>diAcornDFS then //not DFS
   begin
    //Ensure that the entire block will fit into the available space
@@ -1018,11 +1019,11 @@ begin
   search.Filename:=Copy(search.Filename,2);
  end;
  //Has the complete path been included in the Filename?
- if(Pos(GetDirSep(0),search.Filename)>0)
- or(Pos(GetDirSep(1),search.Filename)>0)then
+ if(Pos(DirSep(0),search.Filename)>0)
+ or(Pos(DirSep(1),search.Filename)>0)then
  begin
-  if Pos(GetDirSep(0),search.Filename)>0 then Ldirsep:=GetDirSep(0)
-  else if Pos(GetDirSep(1),search.Filename)>0 then Ldirsep:=GetDirSep(1);
+  if Pos(DirSep(0),search.Filename)>0 then Ldirsep:=DirSep(0)
+  else if Pos(DirSep(1),search.Filename)>0 then Ldirsep:=DirSep(1);
   //Split filename into parent and filename
   if FFormat<>diAcornDFS then //Not DFS
   begin
@@ -1265,9 +1266,9 @@ begin
    begin
     Result:=-5;//Unknown error
     //Is there a file of the same name at the new location?
-    if FileExists(directory+dir_sep+file_details.Filename,ptr) then
+    if FileExists(directory+FPartitions[0].DirSep+file_details.Filename,ptr) then
      //Delete the old one
-     DeleteFile(directory+dir_sep+file_details.Filename);
+     DeleteFile(directory+FPartitions[0].DirSep+file_details.Filename);
     //Set up the filedetails
     file_details.Parent:=directory;
     if GetMajorFormatNumber=diAcornDFS then //DFS
@@ -1283,7 +1284,7 @@ begin
   begin
    Result:=-10; //Can't move or copy to the same directory
    //Is there already a file/directory of that name at the destination?
-   if not FileExists(directory+dir_sep+newfilename,ptr) then
+   if not FileExists(directory+FPartitions[0].DirSep+newfilename,ptr) then
    begin
     //First, create a new directory at the destination
     Result:=CreateDirectory(newfilename,directory,FDisc[dir].Entries[entry].Attributes);
@@ -1293,12 +1294,12 @@ begin
      //Then iterate through each entry and copy them using recursion
      d:=FDisc[dir].Entries[entry].DirRef; //Get the directory reference
      //Work out the new parent path for the files
-     newparent:=directory+dir_sep+newfilename;
+     newparent:=directory+FPartitions[0].DirSep+newfilename;
      //Copy the files
      if Length(FDisc[d].Entries)>0 then
       for e:=0 to Length(FDisc[d].Entries)-1 do
       begin
-       tempfn:=GetParent(d)+dir_sep+FDisc[d].Entries[e].Filename;
+       tempfn:=GetParent(d)+FPartitions[0].DirSep+FDisc[d].Entries[e].Filename;
        CopyFile(tempfn,newparent);
       end;
     end;
@@ -1324,7 +1325,7 @@ Set the attributes for a file
 function TDiscImage.UpdateAttributes(filename,attributes: String;entry:Cardinal=0):Boolean;
 begin
  Result:=False;
- if(filename<>root_name)and(filename<>afsrootname)then
+ if(filename<>FPartitions[0].RootName)and(filename<>afsrootname)then
  begin
   //Validate the attributes
   ValidateAttributes(attributes);
@@ -1631,8 +1632,8 @@ begin
  end;
  if len=0 then exit; //Unsupported
  //Extract the filename
- while Pos(GetDirSep(part),filename)>0 do
-  filename:=Copy(filename,Pos(GetDirSep(part),filename)+1);
+ while Pos(DirSep(part),filename)>0 do
+  filename:=Copy(filename,Pos(DirSep(part),filename)+1);
  //CFS files can have multiple files with the same name
  if GetMajorFormatNumber=diAcornUEF then
  begin
@@ -1640,7 +1641,7 @@ begin
   exit;
  end;
  //Validate it
- if FileExists(parent+GetDirSep(part)+filename,ptr) then
+ if FileExists(parent+DirSep(part)+filename,ptr) then
  begin
   newfn:=filename;
   ctr:=0;
@@ -1648,7 +1649,7 @@ begin
    inc(ctr);
    while Length(newfn+IntToStr(ctr))>len do
     newfn:=LeftStr(newfn,Length(newfn)-1);
-  until(not FileExists(parent+GetDirSep(part)+newfn+IntToStr(ctr),ptr))or(ctr=0);
+  until(not FileExists(parent+DirSep(part)+newfn+IntToStr(ctr),ptr))or(ctr=0);
   if ctr>0 then
   begin
    filename:=newfn+IntToStr(ctr);
@@ -1663,7 +1664,7 @@ Returns the disc size for a partition
 function TDiscImage.DiscSize(partition: QWord):QWord;
 begin
  Result:=0;
- if partition<Length(disc_size) then Result:=disc_size[partition];
+ if partition<Length(FPartitions) then Result:=FPartitions[partition].TotalSize;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1672,7 +1673,7 @@ Returns the free space for a partition
 function TDiscImage.FreeSpace(partition: QWord):QWord;
 begin
  Result:=0;
- if partition<Length(free_space) then Result:=free_space[partition];
+ if partition<Length(FPartitions) then Result:=FPartitions[partition].FreeSpace;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1681,7 +1682,7 @@ Returns the disc name for a partition
 function TDiscImage.Title(partition: Cardinal):String;
 begin
  Result:='';
- if partition<Length(disc_name) then Result:=disc_name[partition];
+ if partition<Length(FPartitions) then Result:=FPartitions[partition].Name;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1714,7 +1715,7 @@ var
  Ldirsep: Char='.';
 begin
  Result:='';
- if(dir>=0)and(dir<Length(FDisc))then Ldirsep:=GetDirSep(FDisc[dir].Partition);
+ if(dir>=0)and(dir<Length(FDisc))then Ldirsep:=DirSep(FDisc[dir].Partition);
  if dir<Length(FDisc)then
   while dir<>-1 do
   begin
@@ -1884,13 +1885,22 @@ end;
 {-------------------------------------------------------------------------------
 Return the directory separator for the specified partition
 -------------------------------------------------------------------------------}
-function TDiscImage.GetDirSep(partition: Byte): Char;
+function TDiscImage.DirSep(partition: Byte=0): Char;
 begin
- Result:=dir_sep;
+ Result:=FPartitions[0].DirSep;
  if partition=1 then
  begin
   if FDOSPresent then Result:='\';
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Reset the partition to match the global variables
+-------------------------------------------------------------------------------}
+function TDiscImage.RootName(part: Integer=0): String;
+begin
+ if part<Length(FPartitions) then Result:=FPartitions[part].RootName
+                             else Result:=FPartitions[0].RootName;
 end;
 
 {-------------------------------------------------------------------------------
@@ -2134,7 +2144,7 @@ begin
              +IntToHex(DateTimeToAFS(FDisc[dir].Entries[entry].TimeStamp),4);
     //CRC
     inffile:=inffile+' CRC32='+GetFileCRC(GetParent(dir)+
-                               GetDirSep(FDisc[dir].Partition)+
+                               DirSep(FDisc[dir].Partition)+
                                FDisc[dir].Entries[entry].Filename,
                                entry);
     //Timestamp (for RISC OS and DOS compatibility)

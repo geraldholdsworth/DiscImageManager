@@ -92,19 +92,20 @@ begin
   secsize      :=ISOVolDes[Lvdnum].BlckSize;
   root         :=ISOVolDes[Lvdnum].RootOffset;
   root_size    :=ISOVolDes[Lvdnum].RootLength;
-  root_name    :='D:';
-  dir_sep      :='/';
-  disc_size[0] :=GetDataLength;
-  disc_name[0] :=ISOVolDes[Lvdnum].VolumeID;
+  FPartitions[0].RootName    :='D:';
+  FPartitions[0].DirSep      :='/';
+  FPartitions[0].TotalSize   :=GetDataLength;
+  FPartitions[0].Name        :=ISOVolDes[Lvdnum].VolumeID;
+//  FPartitions[0].RootName    :=root_name;
   FISOFormat   :=diISO;
   //Calculate the free space left
-  free_space[0]:=disc_size[0]                  //Total size
-                -root_size                     //Size of the root
-                -(10*secsize)                 //The initial 32KB
-                -(Length(ISOVolDes)*secsize); //All the Volume Descriptors
+  FPartitions[0].FreeSpace:=FPartitions[0].TotalSize                  //Total size
+                           -root_size                     //Size of the root
+                           -(10*secsize)                 //The initial 32KB
+                           -(Length(ISOVolDes)*secsize); //All the Volume Descriptors
   //Make allowances for all the path tables
   for index:=0 to Length(ISOVolDes)-1 do
-   dec(free_space[0],Length(ISOVolDes[index].PathTbl)*secsize);
+   dec(FPartitions[0].FreeSpace,Length(ISOVolDes[index].PathTbl)*secsize);
   //Adjust the format
   inc(FFormat,ISOVolDes[Lvdnum].Joilet);
   //Mark out the system areas in the FSM
@@ -113,7 +114,7 @@ begin
   ISOReadPathTable(Lvdnum,pth2use);
   //And finally read in the directories
   ISOReadDirectories(Lvdnum);
-  dir_sep:='/';
+  FPartitions[0].DirSep:='/';
  end;
 end;
 
@@ -303,7 +304,7 @@ begin
  while(FDisc[dir].Parent<>-1)and(FDisc[dir].Parent<>dir)do
  begin
   dir:=FDisc[dir].Parent;
-  Result:=FDisc[dir].Directory+dir_sep+Result;
+  Result:=FDisc[dir].Directory+FPartitions[0].DirSep+Result;
  end;
 end;
 
@@ -359,7 +360,7 @@ begin
     //Length of root is in the volume descriptor
     FDisc[index].Length   :=root_size;
     //Give the root a default name
-    FDisc[index].Directory:=root_name;
+    FDisc[index].Directory:=FPartitions[0].RootName;
    end;
    //Not the root, and not a blank directory entry - create an entry in the parent
    if (FDisc[index].Parent<>index)
@@ -474,7 +475,7 @@ begin
       FDisc[FDisc[index].Entries[nument].DirRef].Length:=
                                    FDisc[index].Entries[nument].Length;
      //Adjust the free space counter (whole blocks)
-     dec(free_space[0],((FDisc[index].Entries[nument].Length-1) div secsize)*secsize);
+     dec(FPartitions[0].FreeSpace,((FDisc[index].Entries[nument].Length-1) div secsize)*secsize);
      //DateTime Stamp at $12 (this may get overwritten if RISC OS fields are present)
      FDisc[index].Entries[nument].TimeStamp:=
                                             ISOGetDirDateTime(offset+ptr+$12);

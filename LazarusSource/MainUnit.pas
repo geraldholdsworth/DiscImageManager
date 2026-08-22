@@ -644,7 +644,7 @@ type
 {$ENDIF}
    //Application Title
    ApplicationTitle   = 'Disc Image Manager';
-   ApplicationVersion = '1.50.3';
+   ApplicationVersion = '1.50.4';
    //Current platform and architecture (compile time directive)
    TargetOS  = {$I %FPCTARGETOS%};
    TargetCPU = {$I %FPCTARGETCPU%};
@@ -1687,7 +1687,7 @@ begin
   if(Length(Image.Disc[dir].Entries)=0)or(entry=-1)then
    Result:=Image.Disc[dir].Directory
   else
-   Result:=Image.GetParent(dir)+Image.GetDirSep(Image.Disc[dir].Partition)
+   Result:=Image.GetParent(dir)+Image.DirSep(Image.Disc[dir].Partition)
           +Image.Disc[dir].Entries[entry].Filename;
 end;
 
@@ -1800,7 +1800,7 @@ begin
     {$IFNDEF DIMCONSOLE}if not Fguiopen then{$ENDIF}
      Write('Extracting '
            +Image.Disc[s].Entries[c].Parent
-           +Image.GetDirSep(Image.Disc[s].Partition)
+           +Image.DirSep(Image.Disc[s].Partition)
            +Image.Disc[s].Entries[c].Filename+' ');
     DownLoadFile(s,c,path+windowsfilename);
    end;
@@ -2588,7 +2588,7 @@ begin
     begin
      //Does the password file exist on the root?
      if Image.FileExists(Image.Disc[rt].Directory
-                        +Image.GetDirSep(Image.Disc[rt].Partition)
+                        +Image.DirSep(Image.Disc[rt].Partition)
                         +'Passwords',ptr) then
      begin
       //Yes, so enable the edit button
@@ -2846,7 +2846,7 @@ begin
     //CRC32
     if Image.Disc[dir].Entries[entry].DirRef=-1 then
      lb_CRC32.Caption:=Image.GetFileCRC(temp
-                                       +Image.GetDirSep(Image.Disc[dir].Partition)
+                                       +Image.DirSep(Image.Disc[dir].Partition)
                                        +filename,entry);
     //Parent
     RemoveTopBit(temp);
@@ -3541,7 +3541,7 @@ begin
   while Node.Parent<>nil do
   begin
    if TMyTreeNode(Node).ParentDir>=0 then
-    Ldirsep:=Image.GetDirSep(Image.Disc[TMyTreeNode(Node).ParentDir].Partition)
+    Ldirsep:=Image.DirSep(Image.Disc[TMyTreeNode(Node).ParentDir].Partition)
    else
     Ldirsep:=Image.DirSep;
    Node:=Node.Parent;
@@ -3949,7 +3949,7 @@ begin
         //Set the parent, as this may be different
         newentry.Parent:=NewImage.GetParent(dir);
         UpdateProgress(method+' '+newentry.Parent
-                      +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                      +NewImage.DirSep(NewImage.Disc[dir].Partition)
                       +newentry.Filename);
         //Validate the filename, as it could be different across file systems
         if(newformat<>diAcornDFS)and(newformat<>curformat)then
@@ -3967,7 +3967,7 @@ begin
          and(newentry.Parent<>NewImage.Disc[0].Directory)then
          begin
           index:=Length(newentry.Parent);
-          while(newentry.Parent[index]<>NewImage.GetDirSep(NewImage.Disc[index].Partition))
+          while(newentry.Parent[index]<>NewImage.DirSep(NewImage.Disc[index].Partition))
             and(index>1)do dec(index);
           if index=Length(newentry.Parent) then index:=0;
           newentry.Filename:=newentry.Parent[index+1]+'.'+newentry.Filename;
@@ -4053,7 +4053,7 @@ begin
          begin
           //Read the file in
           if NewImage.ExtractFile(NewImage.GetParent(dir)
-                               +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                               +NewImage.DirSep(NewImage.Disc[dir].Partition)
                                +NewImage.Disc[dir].Entries[entry].Filename,
                                 buffer,entry) then
           begin
@@ -4077,7 +4077,7 @@ begin
           begin
            if Errors then
             ReportError('Failed to read '+NewImage.GetParent(dir)
-                               +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                               +NewImage.DirSep(NewImage.Disc[dir].Partition)
                                +NewImage.Disc[dir].Entries[entry].Filename);
            inc(Result);
           end;
@@ -4124,7 +4124,7 @@ begin
  else newentry.Parent:=NewImage.GetParent(dir);
  if Fguiopen then
   UpdateProgress(method+' '+newentry.Parent
-                +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                +NewImage.DirSep(NewImage.Disc[dir].Partition)
                 +newentry.Filename){$ENDIF};
  //Validate the filename, as it could be different across file systems
  if(newformat<>diAcornDFS)and(newformat<>curformat)then
@@ -4142,7 +4142,7 @@ begin
   and(newentry.Parent<>NewImage.Disc[0].Directory)then
   begin
    index:=Length(newentry.Parent);
-   while(newentry.Parent[index]<>NewImage.GetDirSep(NewImage.Disc[index].Partition))
+   while(newentry.Parent[index]<>NewImage.DirSep(NewImage.Disc[index].Partition))
      and(index>1)do dec(index);
    if index=Length(newentry.Parent) then index:=0;
    newentry.Filename:=newentry.Parent[index+1]+'.'+newentry.Filename;
@@ -4234,7 +4234,7 @@ begin
   begin
    //Read the file in
    if NewImage.ExtractFile(NewImage.GetParent(dir)
-                        +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                        +NewImage.DirSep(NewImage.Disc[dir].Partition)
                         +NewImage.Disc[dir].Entries[entry].Filename,
                          buffer,entry) then
    begin
@@ -4265,7 +4265,7 @@ begin
    begin
     if Errors then
      ReportError('Failed to read '+NewImage.GetParent(dir)
-                        +NewImage.GetDirSep(NewImage.Disc[dir].Partition)
+                        +NewImage.DirSep(NewImage.Disc[dir].Partition)
                         +NewImage.Disc[dir].Entries[entry].Filename);
     inc(Result);
    end;
@@ -4338,7 +4338,7 @@ begin
    if entry<Length(Image.Disc[dir].Entries)then
     //Change the filetype
     if Image.ChangeFileType(Image.GetParent(dir)
-                           +Image.GetDirSep(Image.Disc[dir].Partition)
+                           +Image.DirSep(Image.Disc[dir].Partition)
                            +Image.Disc[dir].Entries[entry].Filename
                            ,IntToHex(ft,3))then
     begin
@@ -4501,7 +4501,7 @@ begin
   if entry<Length(Image.Disc[dir].Entries)then
    if newtimedate<>Image.Disc[dir].Entries[entry].TimeStamp then //And different
     if Image.TimeStampFile(Image.GetParent(dir)
-                          +Image.GetDirSep(Image.Disc[dir].Partition)
+                          +Image.DirSep(Image.Disc[dir].Partition)
                           +Image.Disc[dir].Entries[entry].Filename
                           ,newtimedate) then //So send to the class
     begin
@@ -5201,7 +5201,7 @@ begin
    end;
 {$ENDIF}
    filename:=Image.Disc[root].Entries[0].Parent
-            +Image.GetDirSep(Image.Disc[root].Partition)
+            +Image.DirSep(Image.Disc[root].Partition)
             +Image.Disc[root].Entries[0].Filename;
    UpdateProgress('Preparing '+filename);
 {$IFNDEF DIMCONSOLE}
@@ -5684,11 +5684,11 @@ begin
                +IntToHex(LImage.Disc[dir].Entries[entry].Sector,hexlen)+'",';
          if LCRC32      then
           line:=line+'"0x'+LImage.GetFileCRC(LImage.GetParent(dir)
-                                +LImage.GetDirSep(LImage.Disc[dir].Partition)
+                                +LImage.DirSep(LImage.Disc[dir].Partition)
                                 +LImage.Disc[dir].Entries[entry].Filename)+'",';
          if LMD5        then
           line:=line+'"0x'+LImage.GetFileMD5(LImage.GetParent(dir)
-                                +LImage.GetDirSep(LImage.Disc[dir].Partition)
+                                +LImage.DirSep(LImage.Disc[dir].Partition)
                                 +LImage.Disc[dir].Entries[entry].Filename)+'",';
          line:=LeftStr(line,Length(line)-1);
          WriteLine(F,line);
@@ -5865,12 +5865,12 @@ begin
    if Length(Image.Disc[dir].Entries)>0 then
     for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
      if Image.GetFileCRC(Image.GetParent(dir)
-                        +Image.GetDirSep(Image.Disc[dir].Partition)
+                        +Image.DirSep(Image.Disc[dir].Partition)
                         +Image.Disc[dir].Entries[entry].Filename,entry)='error'
                         then
      begin
       AddLine(Image.GetParent(dir)
-                 +Image.GetDirSep(Image.Disc[dir].Partition)
+                 +Image.DirSep(Image.Disc[dir].Partition)
                  +Image.Disc[dir].Entries[entry].Filename+' could not be read');
       inc(errorcount);
      end;
@@ -5992,7 +5992,7 @@ begin
    if entry<Length(Image.Disc[dir].Entries)then
     //Change the filetype
     if Image.ChangeFileType(Image.GetParent(dir)
-                           +Image.GetDirSep(Image.Disc[dir].Partition)
+                           +Image.DirSep(Image.Disc[dir].Partition)
                            +Image.Disc[dir].Entries[entry].Filename
                            ,ft)then
     begin
@@ -6645,13 +6645,13 @@ begin
         //Update the window title
         if HexDump[i].Caption=GetFilePath(DraggedItem) then
          HexDump[i].Caption:=GetFilePath(Dst)
-                            +Image.GetDirSep(Image.Disc[dir].Partition)
+                            +Image.DirSep(Image.Disc[dir].Partition)
                             +Image.Disc[dir].Entries[entry].Filename;
         //Update the menu item
         if HexDumpMenu.Count>i then
          if HexDumpMenu.Items[i].Caption=GetFilePath(DraggedItem) then
           HexDumpMenu.Items[i].Caption:=GetFilePath(Dst)
-                              +Image.GetDirSep(Image.Disc[dir].Partition)
+                              +Image.DirSep(Image.Disc[dir].Partition)
                               +Image.Disc[dir].Entries[entry].Filename;
        end;
      end;
@@ -7050,7 +7050,7 @@ begin
   while Node.Parent<>nil do
   begin
    Node:=Node.Parent;
-   Result:=Node.Text+Image.GetDirSep(TMyTreeNode(Node).Partition)+Result;
+   Result:=Node.Text+Image.DirSep(TMyTreeNode(Node).Partition)+Result;
   end;
  end;
  WriteToDebug('MainForm.GetFilePath Result: '+Result);
@@ -7214,7 +7214,7 @@ begin
      dir  :=TMyTreeNode(Node).ParentDir;
      //Get the full filename with path
      filename:=Image.GetParent(dir)+
-               Image.GetDirSep(Image.Disc[dir].Partition)+
+               Image.DirSep(Image.Disc[dir].Partition)+
                Image.Disc[dir].Entries[entry].Filename;
      //Load the file
      if Image.ExtractFile(filename,buffer,entry) then
@@ -7296,7 +7296,7 @@ begin
     dir:=TMyTreeNode(Node).ParentDir;
     //Get the full filename with path
     filename:=Image.GetParent(dir)+
-              Image.GetDirSep(Image.Disc[dir].Partition)+
+              Image.DirSep(Image.Disc[dir].Partition)+
               Image.Disc[dir].Entries[entry].Filename;
     //And read in the directory
     index:=Image.ReadDirectory(filename);

@@ -168,14 +168,14 @@ begin
   if (p>32) and (p<>$A0) then temp:=temp+chr(p AND $7F);
  end;
  RemoveControl(temp);
- disc_name[0]:=temp;
+ FPartitions[s].Name:=temp;
  //Size of the disc
  if f=2 then
-  disc_size[0]:=ConvertDxxTS(f,80,40)
+  FPartitions[0].TotalSize:=ConvertDxxTS(f,80,40)
  else
  begin
-  disc_size[0]:=ConvertDxxTS(f,35,17);
-  if FDSD then disc_size[0]:=disc_size[0]*2;
+  FPartitions[0].TotalSize:=ConvertDxxTS(f,35,17);
+  if FDSD then FPartitions[0].TotalSize:=FPartitions[0].TotalSize*2;
  end;
  //Get the location of the directory
  t:=ReadByte(ptr+0);
@@ -186,7 +186,7 @@ begin
  ptr:=ConvertDxxTS(f,t,s);
  amt:=0;
  //Set the root directory name
- FDisc[0].Directory:=root_name;
+ FDisc[0].Directory:=FPartitions[0].RootName;
  FDisc[0].Sector:=root;
  FDisc[0].BeenRead:=True;
  repeat
@@ -198,7 +198,7 @@ begin
    begin
     SetLength(FDisc[0].Entries,amt+1);
     ResetDirEntry(FDisc[0].Entries[amt]);
-    FDisc[0].Entries[amt].Parent:=root_name;
+    FDisc[0].Entries[amt].Parent:=FPartitions[0].RootName;
     //First track/sector of Fdata
     FDisc[0].Entries[amt].Track :=ReadByte(ptr+(c*$20)+3);
     FDisc[0].Entries[amt].Sector:=ReadByte(ptr+(c*$20)+4);
@@ -415,7 +415,7 @@ begin
  ptr :=ConvertDxxTS(f,dirTr ,0); //Get the offset address of the header
  ptr1:=ConvertDxxTS(f,dirTr1,0); //and the BAM for side 1 (D71)
  //Set up the variables
- free_space[0]:=0;
+ FPartitions[0].FreeSpace:=0;
  SetLength(free_space_map,1);
  if f=0 then SetLength(free_space_map[0],35); //35 tracks for D64
  if f=1 then SetLength(free_space_map[0],70); //70 tracks for D71
@@ -447,7 +447,7 @@ begin
   begin
    //First byte is number of free sectors
    if c<>dirTr then //But we'll assume that the directory track is used
-    inc(free_space[0],ReadByte(ptr+c*4)*$100);
+    inc(FPartitions[0].FreeSpace,ReadByte(ptr+c*4)*$100);
    for ch:=0 to 23 do
    begin
     //Next 4 are the free sectors - 1 bit per sector
@@ -463,7 +463,7 @@ begin
    begin 
     //First byte is number of free sectors
     if c+36<>dirTr1 then //But we'll assume that the directory track is used
-     inc(free_space[0],ReadByte(ptr+$DD+c)*$100);
+     inc(FPartitions[0].FreeSpace,ReadByte(ptr+$DD+c)*$100);
     for ch:=0 to 23 do
     begin
      //Next 4 are the free sectors - 1 bit per sector
@@ -484,7 +484,7 @@ begin
    begin
     //First byte is number of free sectors
     if c<>dirTr then //But we'll assume that the directory track is used
-     inc(free_space[0],ReadByte(ptr+$10+c*6)*$100);
+     inc(FPartitions[0].FreeSpace,ReadByte(ptr+$10+c*6)*$100);
     for sec:=0 to 39 do //40 sectors per track
     begin
      //Next 5 are the free sectors - 1 bit per sector
@@ -559,7 +559,7 @@ var
  ptr: Cardinal=0;
  i  : Byte=0;
 begin
- disc_name[0]:=title;
+ FPartitions[0].Name:=title;
  //Get the location of the disc title, less one
  if GetMinorFormatNumber<2 then ptr:=ConvertDxxTS(GetMinorFormatNumber,18,0)+$8F;
  if GetMinorFormatNumber=2 then ptr:=ConvertDxxTS(GetMinorFormatNumber,40,0)+$03;
@@ -651,7 +651,7 @@ begin
  begin
   f:=GetMinorFormatNumber; //Minor format (sub format)
   //Overwrite the parent
-  file_details.Parent:=root_name;
+  file_details.Parent:=FPartitions[0].RootName;
   //Check that the filename is valid
   file_details.Filename:=ValidateDFSFilename(file_details.Filename);
   Result:=-4;//Catalogue full
@@ -661,7 +661,7 @@ begin
   begin
    Result:=-3;//File already exists
    //Make sure the file does not already exist
-   if not(FileExists(file_details.Parent+dir_sep+file_details.Filename,ptr))then
+   if not(FileExists(file_details.Parent+FPartitions[0].DirSep+file_details.Filename,ptr))then
    begin
     Result:=-2;//Disc full
     //How many fragments to split the file into
@@ -674,7 +674,7 @@ begin
     if count mod 254>0 then fragments[frag-1].Length:=count mod 254;
     //Where to put them - fragments are tended to be put around the root(s).
     //So we search backwards, then forwards, then backwards, etc.
-    if count<free_space[0] then //Will it actually fit?
+    if count<FPartitions[0].FreeSpace then //Will it actually fit?
     begin
      track:=18; //Value of this is unimportant, but needs to be set to something
      sector:=0; //Sector to start looking
@@ -1015,9 +1015,9 @@ begin
   entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
   dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Make sure the new filename does not already exist
-  if(not FileExists(GetParent(dir)+dir_sep+newfilename,ptr))
+  if(not FileExists(GetParent(dir)+FPartitions[0].DirSep+newfilename,ptr))
   // or the user is just changing case
-  or(LowerCase(GetParent(dir)+dir_sep+newfilename)=LowerCase(oldfilename))then
+  or(LowerCase(GetParent(dir)+FPartitions[0].DirSep+newfilename)=LowerCase(oldfilename))then
   begin
    //Change the entry
    FDisc[dir].Entries[entry].Filename:=newfilename;
@@ -1103,9 +1103,9 @@ function TDiscImage.CDRReport{(CSV: Boolean)}: TStringList;
 begin
  Result:=TStringList.Create;
  if FDSD then Result.Add('Double Sided') else Result.Add('Single Sided');
- Result.Add('Disc Size: '+IntToStr(disc_size[0])+' bytes');
- Result.Add('Free Space: '+IntToStr(free_space[0])+' bytes');
- Result.Add('Disc Name: '+disc_name[0]);
+ Result.Add('Disc Size: '+IntToStr(FPartitions[0].TotalSize)+' bytes');
+ Result.Add('Free Space: '+IntToStr(FPartitions[0].FreeSpace)+' bytes');
+ Result.Add('Disc Name: '+FPartitions[0].Name);
  Result.Add('Root Address: 0x'+IntToHex(root,8));
  Result.Add('Tracks: '+IntToStr(Length(free_space_map[0])));
 end;

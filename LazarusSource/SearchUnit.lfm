@@ -12,7 +12,7 @@ object SearchForm: TSearchForm
   Font.Color = clBlack
   Position = poMainFormCenter
   ShowHint = True
-  LCLVersion = '4.2.0.0'
+  LCLVersion = '4.6.0.0'
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow
