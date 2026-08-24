@@ -154,6 +154,11 @@ begin
   FDSKImage.NumBlocks:=(FDSKImage.Capacity div FDSKImage.DataAreas)div$400;
   SetLength(FDisc      ,FDSKImage.DataAreas);
   SetLength(FPartitions,FDSKImage.DataAreas);
+  for Index:=0 to FDSKImage.DataAreas-1 do
+  begin
+   ResetPartition(FPartitions[Index]);
+   FPartitions[1].Format:=diSinclair<<4+1;
+  end;
   //Set the disc sizes for each area (side)
   if FDSKImage.DataAreas=2 then
   begin

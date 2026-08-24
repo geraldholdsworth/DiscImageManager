@@ -122,8 +122,8 @@ begin
    part:=1;
    //Set up the second partition
    SetLength(FPartitions,2);
-//   SetLength(free_space,2);
-//   SetLength(disc_name,2);
+   ResetPartition(FPartitions[1]);
+   FPartitions[1].Format:=diDOSPlus<<4+1;//FAT12
    if FFormat AND $F<>$F then //Not for hard disc partitions
    begin
     doshead   :=FPartitions[0].TotalSize;
@@ -1703,8 +1703,9 @@ begin
    //Update our disc sizes
    FPartitions[0].TotalSize:=fsst;
    SetLength(FPartitions,2);
+   ResetPartition(FPartitions[1]);
+   FPartitions[1].Format   :=diDOSPlus<<4+1;//FAT12
    FPartitions[1].TotalSize:=size;
-//   SetLength(free_space,2);
    doshead   :=FPartitions[0].TotalSize;
    //Set the DOS root parameters
    dosmap:=doshead;

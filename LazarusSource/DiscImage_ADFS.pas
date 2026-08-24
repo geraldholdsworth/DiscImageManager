@@ -2348,6 +2348,8 @@ begin
       UpdateADFSCat(file_details.Parent);
       //Update the free space map
       ADFSFreeSpaceMap;
+      //Rebuild the Bitmap lookup table
+      BuildADFSBitmapIndex;
      end
      else //Did not write OK
       if(FDirType=diADFSBigDir)and(extend)then
@@ -2689,7 +2691,9 @@ begin
     WriteByte(ReadByte(bootmap+ptr),bootmap+ptr+nzones*secsize)
   else //Otherwise, restore the original
    for ptr:=0 to (nzones*secsize)-1 do
-    WriteByte(ReadByte(bootmap+ptr+nzones*secsize),bootmap+ptr);;
+    WriteByte(ReadByte(bootmap+ptr+nzones*secsize),bootmap+ptr);
+  //Rebuild the Bitmap lookup table
+  BuildADFSBitmapIndex;
  end;
 end;
 
@@ -2762,7 +2766,8 @@ begin
   end;
  SetLength(buffer,0);
  Result:=-3;//Directory already exists
- if(dirname=FPartitions[0].RootName)OR(parent=FPartitions[0].RootName)then //Creating the root
+ if(dirname=FPartitions[0].RootName)
+ OR(parent=FPartitions[0].RootName)then //Creating the root
   parentaddr:=rootfrag
  else
  begin
@@ -2775,7 +2780,8 @@ begin
   //Validate the name
   dirname:=ValidateADFSFilename(dirname);
  //Make sure it does not already exist
- if(not FileExists(parent+FPartitions[0].DirSep+dirname,ref))OR(dirname=FPartitions[0].RootName)then
+ if(not FileExists(parent+FPartitions[0].DirSep+dirname,ref))
+ OR(dirname=FPartitions[0].RootName)then
  begin
   Result:=-5;//Unknown error
   //Set as 'D' so it gets added as a directory
@@ -3812,6 +3818,8 @@ begin
    for ptr:=0 to (nzones*secsize)-1 do
     WriteByte(ReadByte(bootmap+ptr),bootmap+ptr+nzones*secsize);
   end;
+  //Rebuild the Bitmap lookup table
+  BuildADFSBitmapIndex;
  end;
 end;
 

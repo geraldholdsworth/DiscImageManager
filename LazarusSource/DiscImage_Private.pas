@@ -60,15 +60,7 @@ begin
  SetLength(FBitmapIndex,0);
  FBitmapIndexValid:=False;
  SetLength(FPartitions,1);
- FPartitions[0].RootRef   :=0;
- FPartitions[0].DirSep    :='.';
- FPartitions[0].Format    :=diInvalidImg;
- FPartitions[0].FreeSpace :=$0000;
- FPartitions[0].TotalSize :=$0000;
- FPartitions[0].RootName  :='$';
- FPartitions[0].Name      :='';
- FPartitions[0].BootOption:=0;
- SetLength(FPartitions[0].FreeSpaceMap,0);
+ ResetPartition(FPartitions[0]);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1022,6 +1014,25 @@ begin
   Parent      :=-1;
   BeenRead    :=False;
   Deleted     :=False;
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Reset a TPartition to blank
+-------------------------------------------------------------------------------}
+procedure TDiscImage.ResetPartition(var Entry: TPartition);
+begin
+ with Entry do
+ begin
+  RootRef   :=0;
+  DirSep    :='.';
+  Format    :=diInvalidImg;
+  FreeSpace :=$0000;
+  TotalSize :=$0000;
+  RootName  :='$';
+  Name      :='';
+  BootOption:=0;
+  SetLength(FreeSpaceMap,0);
  end;
 end;
 

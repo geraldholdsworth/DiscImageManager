@@ -254,16 +254,14 @@ begin
   SetLength(FDisc,2);
   SetLength(bootoption,2);
   SetLength(FPartitions,2);
-//  SetLength(disc_name,2);
-  //SetLength(FPartitions,2);
+  ResetPartition(FPartitions[1]);
+  FPartitions[1].Format:=FFormat;
  end
  else                       //Single sided image
  begin
   SetLength(FDisc,1);
   SetLength(bootoption,1);
   SetLength(FPartitions,1);
-  //SetLength(disc_name,1);
-  //SetLength(FPartitions,1);
  end;
  //Used by MMB. For DFS, this should be 0
  if(mmbdisc<0)or(mmbdisc>511)then mmbdisc:=0;
@@ -276,7 +274,10 @@ begin
    inc(t,ReadByte(ConvertDFSSector($305,s))div 8);
   SetLength(FDisc[s-mmbdisc].Entries,t);
   //Directory name - as DFS only has $, this will be the drive number + '$'
-  FDisc[s-mmbdisc].Directory:=':'+IntToStr(s*2)+FPartitions[0].DirSep+FPartitions[0].RootName;
+  FPartitions[s].RootName:='$';
+  FPartitions[s].DirSep  :='.';
+  FPartitions[s].RootRef :=s-mmbdisc;
+  FDisc[s-mmbdisc].Directory:=':'+IntToStr(s*2)+FPartitions[s].DirSep+FPartitions[s].RootName;
   FDisc[s-mmbdisc].Partition:=s;
   FDisc[s-mmbdisc].BeenRead :=True;
   //Get the disc title(s)
@@ -316,13 +317,13 @@ begin
    FDisc[s-mmbdisc].Entries[f-1].Filename:=temp;
    //Get the directory character
    temp:=chr(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$7F);
-   if temp=' 'then temp:=FPartitions[0].RootName; //Acorn Atom DOS root is ' '
+   if temp=' 'then temp:=FPartitions[s].RootName; //Acorn Atom DOS root is ' '
    //If the directory is not root, add it to the filename
-   if temp<>FPartitions[0].RootName then
-    FDisc[s-mmbdisc].Entries[f-1].Filename:=temp+FPartitions[0].DirSep
+   if temp<>FPartitions[s].RootName then
+    FDisc[s-mmbdisc].Entries[f-1].Filename:=temp+FPartitions[s].DirSep
                                       +FDisc[s-mmbdisc].Entries[f-1].Filename;
    //Make up a parent directory pathname so this can be found
-   FDisc[s-mmbdisc].Entries[f-1].Parent:=':'+IntToStr(s*2)+FPartitions[0].DirSep+FPartitions[0].RootName;
+   FDisc[s-mmbdisc].Entries[f-1].Parent:=':'+IntToStr(s*2)+FPartitions[s].DirSep+FPartitions[s].RootName;
    //Is it locked? This is actually the top bit of the final filename character
    locked:=(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$80)>>7;
    if locked=1 then
@@ -378,12 +379,10 @@ begin
  if (FFormat AND $1)=1 then //Double sided image
  begin
   SetLength(free_space_map,2);
-  //SetLength(FPartitions,2);
  end
  else                       //Single sided image
  begin
   SetLength(free_space_map,1);
-  //SetLength(FPartitions,1);
  end;
  for s:=0 to Length(free_space_map)-1 do
  begin
@@ -754,10 +753,8 @@ begin
   FDSD:=True;
   SetLength(bootoption,2);
   SetLength(FPartitions,2);
-  FPartitions[1].TotalSize:=0;
-//  SetLength(free_space,2);
-  FPartitions[1].FreeSpace:=0;
-//  SetLength(disc_name,2);
+  ResetPartition(FPartitions[1]);
+  FPartitions[1].Format:=FFormat;
  end
  else                       //Single sided image
  begin
@@ -765,8 +762,6 @@ begin
   FDSD:=False;
   SetLength(bootoption,1);
   SetLength(FPartitions,1);
-//  SetLength(free_space,1);
-//  SetLength(disc_name,1);
  end;
  //Setup the data area
  SetDataLength($200*(minor+1)); // $200 for the header, per side. $400 for Watford
@@ -779,7 +774,7 @@ begin
   //Number of entries on disc side
   SetLength(FDisc[s].Entries,0);
   //Directory name - as DFS only has $, this will be the drive number + '$'
-  FDisc[s].Directory:=':'+IntToStr(s*2)+FPartitions[0].DirSep+FPartitions[0].RootName;
+  FDisc[s].Directory:=':'+IntToStr(s*2)+FPartitions[s].DirSep+FPartitions[s].RootName;
   //Get the disc title(s)
   FDisc[s].Title:=Fdisctitle;
   FPartitions[s].Name:=FDisc[s].Title;

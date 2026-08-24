@@ -50,6 +50,7 @@ const
  Configs : array of array[0..2] of String = (
  ('AddImpliedAttributes' ,'B','Add Implied Attributes for DFS/CFS/RFS'),
  ('ADFS_L_Interleave'    ,'I','0=Automatic; 1=Sequential; 2=Interleave; 3=Multiplex'),
+ ('Append_Filetype'      ,'B','Append filetype to exported files'),
 // ('ConsoleWidth'         ,'I','Console width in characters'),
  ('Create_DSC'           ,'B','Create *.dsc file with hard drives'),
  ('CreateINF'            ,'B','Create a *.inf file when extracting'),
@@ -411,143 +412,146 @@ begin
     if Length(Command)>1 then
     begin
      if(LowerCase(Command[1])='all') then catopt:=1; //Entire image
-     if(LowerCase(Command[1])='dir') then catopt:=2; //List the directories
-     if(LowerCase(Command[1])='root')then catopt:=3; //List the roots
+     if(LowerCase(Command[1])='dir') then catopt:=2; //List the directories (inc roots)
+     if(LowerCase(Command[1])='root')then catopt:=3; //List the roots only
      if(LowerCase(Command[1])='os')  then catopt:=4; //Current host OS directory
     end;
-    //Current dir, entire image, directories and roots
-    if(catopt<4)and(Image.FormatNumber<>diInvalidImg)then
-    begin
-     //Default option - just catalogue the current directory
-     opt:=Fcurrdir;
-     ptr:=Fcurrdir;
-     //Entire image, directories and roots
-     if catopt>0 then
-     begin
-      opt:=0;
-      ptr:=Length(Image.Disc)-1;
-     end;
-     for Lcurrdir:=opt to ptr do
-     begin
-      //List the catalogue
-      if catopt<2 then
+    //Act on the option
+    case catopt of
+     0,1,2://Current dir, entire image, directories and roots
+      if Image.FormatNumber<>diInvalidImg then
       begin
-       WriteLn(cmdBlue+StringOfChar('-',80)+cmdNormal);
-       WriteLn(cmdBold+'Catalogue listing for directory '
-               +Image.GetParent(Lcurrdir));
-       Write(PadRight(Image.Disc[Lcurrdir].Title,40));
-       WriteLn('Option: '+IntToStr(Image.BootOpt[Image.Disc[Lcurrdir].Partition])
-              +' ('
-              +UpperCase(Options[Image.BootOpt[Image.Disc[Lcurrdir].Partition]])
-              +')');
-       Write(PadRight('Number of entries: '
-                     +IntToStr(Length(Image.Disc[Lcurrdir].Entries)),40));
-       if (Image.Disc[Lcurrdir].Broken)
-       and(Image.MajorFormatNumber=diAcornADFS)then
-        WriteLn(cmdRed
-               +'Broken (0x'
-               +IntToHex(Image.Disc[Lcurrdir].ErrorCode,2)+')')
-       else WriteLn();
-       WriteLn(cmdNormal);
-       if Length(Image.Disc[Lcurrdir].Entries)>0 then
-        for Index:=0 to Length(Image.Disc[Lcurrdir].Entries)-1 do
-        begin
-         //Filename
-         Write(PadRight(Image.Disc[Lcurrdir].Entries[Index].Filename,10));
-         //Attributes
-         Write(' ('+Image.Disc[Lcurrdir].Entries[Index].Attributes+')');
-         //Files
-         if Image.Disc[Lcurrdir].Entries[Index].DirRef=-1 then
-         begin
-          //Filetype - ADFS, Spark only
-          if  (Image.Disc[Lcurrdir].Entries[Index].FileType<>'')
-          and((Image.MajorFormatNumber=diAcornADFS)
-          or  (Image.MajorFormatNumber=diSpark))then
-           Write(' '+Image.Disc[Lcurrdir].Entries[Index].FileType);
-          //Timestamp - ADFS, Spark, FileStore, Amiga and DOS only
-          if  (Image.Disc[Lcurrdir].Entries[Index].TimeStamp>0)
-          and((Image.MajorFormatNumber=diAcornADFS)
-          or  (Image.MajorFormatNumber=diSpark)
-          or  (Image.MajorFormatNumber=diAcornFS)
-          or  (Image.MajorFormatNumber=diAmiga)
-          or  (Image.MajorFormatNumber=diDOSPlus))then
-           Write(' '+FormatDateTime(TimeDateFormat,
-                                 Image.Disc[Lcurrdir].Entries[Index].TimeStamp));
-          if(Image.Disc[Lcurrdir].Entries[Index].TimeStamp=0)
-          or(Image.MajorFormatNumber=diAcornFS)then
-          begin
-           //Load address
-           Write(' '+IntToHex(Image.Disc[Lcurrdir].Entries[Index].LoadAddr,8));
-           //Execution address
-           Write(' '+IntToHex(Image.Disc[Lcurrdir].Entries[Index].ExecAddr,8));
-          end;
-          //Length
-          Write(' '+ConvertToKMG(Image.Disc[Lcurrdir].Entries[Index].Length)+
-                ' ('+IntToHex(Image.Disc[Lcurrdir].Entries[Index].Length,8)+')');
-         end
-         else
-          if (Image.MajorFormatNumber=diAcornADFS)
-          and(Image.Disc[Image.Disc[Lcurrdir].Entries[Index].DirRef].Broken)then
-           Write(cmdRed+' Broken'+cmdNormal);
-         //New line
-         WriteLn();
-        end;
-      end;
-      //List only the directories or roots
-      if catopt>1 then
-      begin
-       //Roots have no parent, so will be '-1'
-       Write(cmdBold);
-       if Image.Disc[Lcurrdir].Parent=-1 then Write('Root: ')
-       else if catopt=2 then Write('Directory: ');
-       Write(cmdNormal);
-       if(catopt=2)
-       or((catopt=3)and(Image.Disc[Lcurrdir].Parent=-1))then
-        WriteLn(Image.GetParent(Lcurrdir));
-      end;
-     end;
-    end;
-    //Display a catalogue of the host directory
-    if catopt=4 then
-    begin
-     WriteLn(cmdBold+cmdCyan+GetCurrentDir+cmdNormal);
-     WriteLn(cmdBlue+StringOfChar('-',80)+cmdNormal);
-     // if we have found a file...
-     If FindFirst('*',faAnyFile and faDirectory,searchlist)=0 then
-     begin
-      repeat
-       // we do stuff with the file entry we found
-       with searchlist do
+       //Default option - just catalogue the current directory
+       opt:=Fcurrdir;
+       ptr:=Fcurrdir;
+       //Entire image, directories and roots
+       if catopt>0 then
        begin
-        //Enhance the text for directories and hidden entries
-        If(Attr and faDirectory)= faDirectory then Write(cmdBold);
-        If((Attr and faHidden)  = faHidden)
-        or(Name[1]='.')                       then Write(cmdGreen);
-        //Print the details, padding with spaces and spread across lines if longer than 38
-        temp:=Name;
-        while Length(temp)>38 do
-        begin
-         WriteLn(LeftStr(temp,38));
-         temp:=RightStr(temp,Length(temp)-38);
-        end;
-        Write(LeftStr(temp+StringOfChar(' ',38),38),' ');
-        Write(Size:13,' ');
-        Write(FormatDateTime('hh:mm:ss dd"/"mm"/"yyyy',TimeStamp));
-        //Print the attributes, including directory or hidden
-        Write(' (');
-        If(Attr and faDirectory)= faDirectory then Write('D') else Write('-');
-        If(Attr and faReadOnly) = faReadOnly  then Write('R') else Write('-');
-        If((Attr and faHidden)  = faHidden)
-        or(Name[1]='.')                       then Write('H') else Write('-');
-        If(Attr and faSysFile)  = faSysFile   then Write('S') else Write('-');
-        If(Attr and faArchive)  = faArchive   then Write('A') else Write('-');
-        //End the line and return to normal text
-        WriteLn(')'+cmdNormal);
+        opt:=0;
+        ptr:=Length(Image.Disc)-1;
        end;
-      until FindNext(searchlist)<>0;
+       for Lcurrdir:=opt to ptr do
+       begin
+        //List the catalogue
+        if catopt<2 then
+        begin
+         WriteLn(cmdBlue+StringOfChar('-',80)+cmdNormal);
+         WriteLn(cmdBold+'Catalogue listing for directory '
+                 +Image.GetParent(Lcurrdir));
+         Write(PadRight(Image.Disc[Lcurrdir].Title,40));
+         WriteLn('Option: '+IntToStr(Image.BootOpt[Image.Disc[Lcurrdir].Partition])
+                +' ('
+                +UpperCase(Options[Image.BootOpt[Image.Disc[Lcurrdir].Partition]])
+                +')');
+         Write(PadRight('Number of entries: '
+                       +IntToStr(Length(Image.Disc[Lcurrdir].Entries)),40));
+         if (Image.Disc[Lcurrdir].Broken)
+         and(Image.MajorFormatNumber=diAcornADFS)then
+          WriteLn(cmdRed
+                 +'Broken (0x'
+                 +IntToHex(Image.Disc[Lcurrdir].ErrorCode,2)+')')
+         else WriteLn();
+         WriteLn(cmdNormal);
+         if Length(Image.Disc[Lcurrdir].Entries)>0 then
+          for Index:=0 to Length(Image.Disc[Lcurrdir].Entries)-1 do
+          begin
+           //Filename
+           Write(PadRight(Image.Disc[Lcurrdir].Entries[Index].Filename,10));
+           //Attributes
+           Write(' ('+Image.Disc[Lcurrdir].Entries[Index].Attributes+')');
+           //Files
+           if Image.Disc[Lcurrdir].Entries[Index].DirRef=-1 then
+           begin
+            //Filetype - ADFS, Spark only
+            if  (Image.Disc[Lcurrdir].Entries[Index].FileType<>'')
+            and((Image.MajorFormatNumber=diAcornADFS)
+            or  (Image.MajorFormatNumber=diSpark))then
+             Write(' '+Image.Disc[Lcurrdir].Entries[Index].FileType);
+            //Timestamp - ADFS, Spark, FileStore, Amiga and DOS only
+            if  (Image.Disc[Lcurrdir].Entries[Index].TimeStamp>0)
+            and((Image.MajorFormatNumber=diAcornADFS)
+            or  (Image.MajorFormatNumber=diSpark)
+            or  (Image.MajorFormatNumber=diAcornFS)
+            or  (Image.MajorFormatNumber=diAmiga)
+            or  (Image.MajorFormatNumber=diDOSPlus))then
+             Write(' '+FormatDateTime(TimeDateFormat,
+                                   Image.Disc[Lcurrdir].Entries[Index].TimeStamp));
+            if(Image.Disc[Lcurrdir].Entries[Index].TimeStamp=0)
+            or(Image.MajorFormatNumber=diAcornFS)then
+            begin
+             //Load address
+             Write(' '+IntToHex(Image.Disc[Lcurrdir].Entries[Index].LoadAddr,8));
+             //Execution address
+             Write(' '+IntToHex(Image.Disc[Lcurrdir].Entries[Index].ExecAddr,8));
+            end;
+            //Length
+            Write(' '+ConvertToKMG(Image.Disc[Lcurrdir].Entries[Index].Length)+
+                  ' ('+IntToHex(Image.Disc[Lcurrdir].Entries[Index].Length,8)+')');
+           end
+           else
+            if (Image.MajorFormatNumber=diAcornADFS)
+            and(Image.Disc[Image.Disc[Lcurrdir].Entries[Index].DirRef].Broken)then
+             Write(cmdRed+' Broken'+cmdNormal);
+           //New line
+           WriteLn();
+          end;
+        end;
+        //List only the directories or roots
+        if catopt>1 then
+        begin
+         //Roots have no parent, so will be '-1'
+         Write(cmdBold);
+         if Image.Disc[Lcurrdir].Parent=-1 then Write('Root: ')
+                                           else Write('Directory: ');
+         WriteLn(cmdNormal+Image.GetParent(Lcurrdir));
+        end;
+       end;
+      end;
+    3: //Just the roots
+     if Image.FormatNumber<>diInvalidImg then
+      for Index:=0 to Length(Image.Partitions)-1 do
+       WriteLn(cmdBold+'Root: '+cmdNormal+Image.Partitions[Index].RootName);
+    4: //Display a catalogue of the host directory
+     begin
+      WriteLn(cmdBold+cmdCyan+GetCurrentDir+cmdNormal);
+      WriteLn(cmdBlue+StringOfChar('-',80)+cmdNormal);
+      // if we have found a file...
+      If FindFirst('*',faAnyFile and faDirectory,searchlist)=0 then
+      begin
+       repeat
+        // we do stuff with the file entry we found
+        with searchlist do
+        begin
+         //Enhance the text for directories and hidden entries
+         If(Attr and faDirectory)= faDirectory then Write(cmdBold);
+         If((Attr and faHidden)  = faHidden)
+         or(Name[1]='.')                       then Write(cmdGreen);
+         //Print the details, padding with spaces and spread across lines if longer than 38
+         temp:=Name;
+         while Length(temp)>38 do
+         begin
+          WriteLn(LeftStr(temp,38));
+          temp:=RightStr(temp,Length(temp)-38);
+         end;
+         Write(LeftStr(temp+StringOfChar(' ',38),38),' ');
+         Write(Size:13,' ');
+         Write(FormatDateTime('hh:mm:ss dd"/"mm"/"yyyy',TimeStamp));
+         //Print the attributes, including directory or hidden
+         Write(' (');
+         If(Attr and faDirectory)= faDirectory then Write('D') else Write('-');
+         If(Attr and faReadOnly) = faReadOnly  then Write('R') else Write('-');
+         If((Attr and faHidden)  = faHidden)
+         or(Name[1]='.')                       then Write('H') else Write('-');
+         If(Attr and faSysFile)  = faSysFile   then Write('S') else Write('-');
+         If(Attr and faArchive)  = faArchive   then Write('A') else Write('-');
+         //End the line and return to normal text
+         WriteLn(')'+cmdNormal);
+        end;
+       until FindNext(searchlist)<>0;
+      end;
+      // we are done with file list
+      FindClose(searchlist);
      end;
-     // we are done with file list
-     FindClose(searchlist);
     end;
     //No image loaded
     if(catopt<4)and(Image.FormatNumber=diInvalidImg)then error:=1;
@@ -605,8 +609,22 @@ begin
         end;
        'S' : DIMReg.SetRegValS(Configs[Index,0],Command[2]);
       end;
-    end;
-    if ok then WriteLn('Configuration option set.')
+     end;
+    if ok then
+    begin
+     WriteLn('Configuration option set.');
+     //Update the image with the latest settings
+     Image.InterleaveMethod    :=DIMReg.GetRegValI('ADFS_L_Interleave',0);
+     Image.SparkAsFS           :=DIMReg.GetRegValB('Spark_Is_FS',True);
+     Image.AddImpliedAttributes:=DIMReg.GetRegValB('AddImpliedAttributes',True);
+     Image.AllowDFSZeroSectors :=DIMReg.GetRegValB('DFS_Zero_Sectors',False);
+     Image.DFSBeyondEdge       :=DIMReg.GetRegValB('DFS_Beyond_Edge',False);
+     Image.DFSAllowBlanks      :=DIMReg.GetRegValB('DFS_Allow_Blanks',False);
+     Image.ScanSubDirs         :=DIMReg.GetRegValB('Scan_SubDirs',True);
+     Image.OpenDOSPartitions   :=DIMReg.GetRegValB('Open_DOS',True);
+     Image.CreateDSC           :=DIMReg.GetRegValB('Create_DSC',False);
+     Image.AppendFiletype      :=DIMReg.GetRegValB('Append_Filetype',True);
+    end
     else WriteLn(cmdRed+'Invalid configuration option.'+cmdNormal);
    end else
    //Not enough parameters, so list the config options or current settings
@@ -708,7 +726,7 @@ begin
     else error:=2//Nothing has been passed
    else error:=1;//No image
   //Change directory +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  'dir':  //Selecting the root results in '$ does not exist'
+  'dir': //Currently does not deal with multi-partitions where the root names are the same
    if Image.FormatNumber<>diInvalidImg then
     if Length(Command)>1 then
     begin
@@ -718,7 +736,7 @@ begin
       if Image.Disc[Fcurrdir].Parent>=0 then
        temp:=Image.GetParent(Image.Disc[Fcurrdir].Parent)+Copy(temp,2)
       else
-       temp:=Image.GetParent(0)+Copy(temp,2);
+       temp:=Image.GetParent(Image.Partitions[Image.Disc[Fcurrdir].Partition].RootRef)+Copy(temp,2);
      //Are there more parent specifiers?
      Lparent:=Image.DirSep(Image.Disc[Fcurrdir].Partition)+'^';
      while Pos(Lparent,temp)>1 do
@@ -735,11 +753,15 @@ begin
      //Found, so make sure that dir and entry are within bounds
      if ValidFile(temp) then
      begin
+      //Must be a root - find the correct partition
       if dir>=Length(Image.Disc) then
-      begin
-       Fcurrdir:=0; //Root
-       ok:=True;
-      end;
+       for Index:=0 to Length(Image.Partitions)-1 do
+        if Image.Partitions[Image.Disc[Index].Partition].RootName=temp then
+        begin
+         Fcurrdir:=Image.Partitions[Image.Disc[Index].Partition].RootRef;
+         ok:=True;
+        end;
+      //Sub directory
       if dir<Length(Image.Disc) then
        if entry<Length(Image.Disc[dir].Entries) then
         if Image.Disc[dir].Entries[entry].DirRef>=0 then
@@ -747,8 +769,16 @@ begin
          Fcurrdir:=Image.Disc[dir].Entries[entry].DirRef;
          ok:=True;
         end
-        else WriteLn(cmdRed+''''+temp+''' is a file.'+cmdNormal)
-       else Fcurrdir:=dir;
+        else WriteLn(cmdRed+''''+temp+''' is a file.'+cmdNormal);
+      //Must be a root - so select the root on the current partition
+      if entry>Length(Image.Disc) then
+      begin
+       if dir<Length(Image.Disc) then
+        Fcurrdir:=dir
+       else
+        Fcurrdir:=Image.Partitions[Image.Disc[Fcurrdir].Partition].RootRef;
+       ok:=True;
+      end;
      end;
      //Are we on DFS and we have a drive specifier?
      if Image.MajorFormatNumber=diAcornDFS then
@@ -1000,6 +1030,7 @@ begin
        WriteLn(cmdBold+Image.FormatString+cmdNormal+' image inserted OK.');
        Fcurrdir:=0;
        ReportFreeSpace;
+       WriteLn(cmdBold+'Partitions: '+cmdNormal+IntToStr(Length(Image.Partitions)));
        HasChanged:=False;
       end
       else WriteLn(cmdRed+'Image not read.'+cmdNormal);
@@ -1089,7 +1120,7 @@ begin
      format:=UpperCase(Command[1]);
      if Length(Command)>2 then format:=format+UpperCase(Command[2]);
      //Create ADFS HDD
-     if UpperCase(format)='ADFSHDD' then
+     if format='ADFSHDD' then
      begin
       newmap:=False; //Default
       dirtype:=0; //Default
@@ -1119,7 +1150,7 @@ begin
       known:=True;
      end;
      //Create AFS HDD
-     if UpperCase(Command[1])='AFS' then
+     if format='AFS' then
       if Length(Command)>3 then
       begin
        //Get the image size
@@ -1137,7 +1168,7 @@ begin
                            True,False,dirtype,False);
        known:=True;
       end else error:=2;
-     if UpperCase(format)='DOSHDD' then //Create DOS HDD
+     if format='DOSHDD' then //Create DOS HDD
       if Length(Command)>3 then
       begin
        //Get the image size
@@ -1153,7 +1184,7 @@ begin
                            harddrivesize*1024,True,False,dirtype,False);
        known:=True;
       end else error:=2;
-     if UpperCase(format)='AMIGAHDD' then //Create Amiga HDD
+     if format='AMIGAHDD' then //Create Amiga HDD
       if Length(Command)>3 then
       begin
        //Get the image size
@@ -1187,6 +1218,18 @@ begin
       if known then WriteLn(cmdRed+'Failed to create image.'+cmdNormal)
       else WriteLn(cmdRed+'Unknown format.'+cmdNormal)
     end else error:=2;
+  //Change the current partition +++++++++++++++++++++++++++++++++++++++++++++++
+  'partition':
+   if Image.FormatNumber<>diInvalidImg then
+    //Has a side/partition been specified?
+    if Length(Command)>1 then
+    begin
+     ptr:=StrToIntDef(Command[1],0);
+     if ptr>=Length(Image.Partitions) then ptr:=0;
+     Fcurrdir:=Image.Partitions[ptr].RootRef;
+     WriteLn(cmdGreen+'Partition '+IntToStr(ptr)+' selected.'+cmdNormal);
+    end else error:=2
+   else error:=1;
   //Change the disc boot option ++++++++++++++++++++++++++++++++++++++++++++++++
   'opt':
    if Image.FormatNumber<>diInvalidImg then

@@ -1101,7 +1101,7 @@ Bug fixes
 * Date/Time stamps in ADFS were not being handled correctly. They now match the behaviour of RISC OS ADFS.
 * In the CLI, when selecting the root using "dir ^", it would incorrectly report that it could not be found, but selected it anyway.
 
-1.50.2
+1.50.4
 -------------------
 New or improved features
 * There are now two binaries: a GUI/CLI combo and a CLI only.
@@ -1111,6 +1111,9 @@ New or improved features
 * The CLI "cat" command now reports broken ADFS directories.
 * The CLI "help" command now accepts a parameter "brokencodes", which lists the error codes for ADFS Broken Directories.
 * The interleave type for ADFS L and Acorn FS are now shown in the image report.
+* Backend code - added partition references for when multi-partitions are implemented.
+* Added new CLI command "partition <partition>" do select a specific partition in a multi-partition image.
+* Added new configuration setting for appending the filetype after the file when exporting files from an image.
 
 Bug fixes
 * New map ADFS sometimes did not write the free space map correctly when deleting files.
@@ -1118,6 +1121,9 @@ Bug fixes
 * Fixing ADFS Broken Directories did not act on an Old Map root directory.
 * Listing a Basic file in CLI only crashed the application.
 * Changing the interleave method under CLI reported that it failed, even when it was a success.
+* The CLI "dir ^" command, on a second or subsequent partition, would select the root on the primary partition.
+* Some configuration settings were not getting implemented right away after being set.
+* A bug was introduced in 1.50 where when a change was made to an ADFS New Map free space map (writing or deleting a file or directory), it appeared to fail. However, saving and reloading the image confirmed that the change did indeed happen.
 
 Platform History
 ----------------

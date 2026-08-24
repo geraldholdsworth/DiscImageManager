@@ -10,7 +10,7 @@ object SettingsForm: TSettingsForm
   ClientWidth = 448
   Color = 15527148
   Position = poMainFormCenter
-  LCLVersion = '4.2.0.0'
+  LCLVersion = '4.6.0.0'
   OnCreate = FormCreate
   OnPaint = FormPaint
   OnShow = FormShow

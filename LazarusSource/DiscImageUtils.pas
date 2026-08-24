@@ -363,7 +363,7 @@ end;
 {-------------------------------------------------------------------------------
 Convert a attribute byte into a string
 -------------------------------------------------------------------------------}
-function GetAttributes(attr: String;format: Byte):String;
+function GetAttributes(attr: String;format: Word):String;
 var
  attr1 : String='';
  attr2 : Byte=0;

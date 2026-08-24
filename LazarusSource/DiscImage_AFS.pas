@@ -144,7 +144,8 @@ begin
    if GetMajorFormatNumber=diAcornADFS then //Level 3/ADFS Hybrid
    begin
     SetLength(FPartitions,2);
-//    SetLength(disc_name,2);
+    ResetPartition(FPartitions[1]);
+    FPartitions[1].Format   :=diAcornFS<<4+2;
     FPartitions[1].TotalSize:=(Read16b(afshead+$16)*secsize)-FPartitions[0].TotalSize;
     i:=1;
    end;
@@ -2436,6 +2437,8 @@ begin
    //Update our disc sizes
    FPartitions[0].TotalSize:=fsst;
    SetLength(FPartitions,2);
+   ResetPartition(FPartitions[1]);
+   FPartitions[1].Format   :=diAcornFS<<4+2;
    FPartitions[1].TotalSize:=size;
    //Clear the partition of any left over data
    for index:=afshead to GetDataLength-1 do WriteByte(0,index);

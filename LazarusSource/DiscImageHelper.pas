@@ -23,6 +23,8 @@ Boston, MA 02110-1335, USA.
 
 {$modeswitch TypeHelpers}
 
+{ ************ This is not used, and has never been tested ************ }
+
 interface
 
 uses

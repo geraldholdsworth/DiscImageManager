@@ -1,7 +1,7 @@
 unit DiscImage;
 
 {
-TDiscImage class V1.50 and TSpark class V1.06
+TDiscImage class V1.51 and TSpark class V1.06
 Manages retro disc images, presenting a list of files and directories to the
 parent application. Will also extract files and write new files. Almost a complete
 filing system in itself. Compatible with Acorn DFS, Acorn ADFS, UEF, Commodore
@@ -110,7 +110,6 @@ type
     function AsString: String;
     procedure ValidateName(var name: String);
   end;
-
  //General purpose procedures - globally accessible
  procedure ResetDirEntry(var Entry: TDirEntry);
  procedure RemoveTopBit(var title: String);
@@ -122,7 +121,7 @@ type
  function IsBitSet(v,b: Integer): Boolean;
  procedure ParseInf(output: TObject; line: String);
  function FilenameToASCII(s: String): String;
- function GetAttributes(attr: String;format: Byte): String;
+ function GetAttributes(attr: String;format: Word): String;
  function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
  function DateTimeToAFS(timedate: TDateTime): Word;
  function AFSToDateTime(date: Word):TDateTime;
@@ -133,6 +132,7 @@ type
  function CreateXML(name: String): TXMLDocument;
  //Some constants
  const
+  //Major formats are 12 bits, with the minor format being the bottom 4 bits
   diAcornDFS   = $000;
   diAcornADFS  = $001;
   diCommodore  = $002;
@@ -146,7 +146,7 @@ type
   diDOSPlus    = $00A;
   diAcornRFS   = $00B;
   diISO        = $00C;
-  diInvalidImg = $00FF; //Needs to be changed to $FFFF
+  diInvalidImg = $FFFF;//This doesn't have a minor format, so this is 16 bit
   diADFSOldMap = $00;
   diADFSNewMap = $01;
   diAmigaOFS   = $02;
@@ -382,7 +382,7 @@ type
   FPartitions   : TPartitions;  //Partition details
   Fdata         : TDIByteArray; //Container for the image to be loaded into
   {$IFDEF CPU64}
-  //Streamed (read-only) backend - used when the image is too large for RAM
+  //Streamed (read-only) backend - used when the image is too large for RAM - 64 bit CPU only
   FStreamed     : Boolean;      //True when the image is served from the file on demand
   FBackStream   : TFileStream;  //Backing file, kept open for the image lifetime
   FBackSize     : Int64;        //Authoritative image length when streamed
@@ -406,6 +406,7 @@ type
   FScanSubDirs,                 //Scan sub directories on opening (ADFS/Amiga/DOS/Spark)
   FOpenDOSPart,                 //Open DOS Partitions on ADFS
   FcreateDSC,                   //Create *.dsc files with ADFS hard drives
+  FAppendFiletype,              //Append the filetype to files when exporting
   FDOSUseSFN,                   //Use short filenames, even if there are long filenames (DOS)
   FHasDirs      : Boolean;      //Format is directory capable
   secsize,                      //Sector Size
@@ -416,7 +417,7 @@ type
   rootfrag,                     //Root indirect address (Acorn ADFS New)
   Fafsroot,                     //Root address of the AFS root partition
   Fdosroot,                     //Root address of the DOS Plus root partition
-  afshead,                      //Address of the AFS header             
+  afshead,                      //Address of the AFS header
   afshead2,                     //Address of the AFS header copy
   doshead,                      //Address of the DOS Plus header, if exists
   doshead2,                     //Address of the backup DOS header, if exists (FAT32)
@@ -568,6 +569,7 @@ type
   {$ENDIF}
   function ROR13(v: Cardinal): Cardinal;
   procedure ResetDir(var Entry: TDir);
+  procedure ResetPartition(var Entry: TPartition);
   function MapFlagToByte: Byte;
   function MapTypeToString: String;
   function DirTypeToString: String;
@@ -1091,6 +1093,8 @@ type
   property AFSRoot:             Cardinal      read Fafsroot;
   property AllowDFSZeroSectors: Boolean       read FDFSzerosecs
                                               write FDFSzerosecs;
+  property AppendFileType:      Boolean       read FAppendFiletype
+                                              write FAppendFiletype;
   property Copyright:           String        read Fcopyright;
   property DFSBeyondEdge:       Boolean       read FDFSBeyondEdge
                                               write FDFSBeyondEdge;

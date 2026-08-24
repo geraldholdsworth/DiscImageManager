@@ -36,7 +36,7 @@ uses
   {$IFNDEF DIMCONSOLE}Graphics,Controls,Forms,Dialogs,StdCtrls,ExtCtrls,Buttons,
   ComCtrls,Menus,DateUtils,ImgList,Clipbrd,FPImage,IntfGraphics,
   ActnList,GraphType,DateTimePicker,Types,RFSDetailUnit,{$ENDIF}
-  GJHCustomComponents,fpjson,DiscImageHelper;
+  GJHCustomComponents,fpjson{,DiscImageHelper};
 
 type
  //We need a custom TTreeNode, as we want to tag on some extra information
@@ -511,6 +511,8 @@ type
    FOpenDOS            :Boolean;
    //Create *.dsc files with ADFS hard drives
    FCreateDSC          :Boolean;
+   //Append filetypes to files upon exporting
+   FAppendFileType     :Boolean;
    //Produce a log file for debugging
    Fdebug              :Boolean;
    //View options (what is visible)
@@ -1859,6 +1861,8 @@ begin
  Image.OpenDOSPartitions   :=FOpenDOS;
  //Create *.dsc files with ADFS hard drives
  Image.CreateDSC           :=FCreateDSC;
+ //Append filetype to files being exported
+ Image.AppendFileType      :=FAppendFileType;
  //Add implied attributes to DFS/CFS/RFS
  Image.AddImpliedAttributes:=AddImpliedAttributes;
  //Load the image and create the catalogue
@@ -3428,6 +3432,8 @@ begin
  //Create *.dsc files with ADFS Hard Drives
  FCreateDSC                :=DIMReg.GetRegValB('Create_DSC',False);
  Image.CreateDSC           :=FCreateDSC;
+ //Append filetype upon exporting files
+ FAppendFileType           :=DIMReg.GetRegValB('Append_Filetype',True);
  //View menu options
  ViewOptions               :=DIMReg.GetRegValI('View_Options',$FFFF);
  //Toolbar order - this doesn't work currently
@@ -3658,6 +3664,7 @@ begin
  NewImage.DFSAllowBlanks      :=FDFSAllowBlank;
  NewImage.ScanSubDirs         :=True;
  NewImage.CreateDSC           :=FCreateDSC;
+ NewImage.AppendFiletype      :=FAppendFileType;
  NewImage.AddImpliedAttributes:=AddImpliedAttributes;
  //Extract any *.inf files, except for DOS
  SetLength(ListOfFile,0);
@@ -5761,6 +5768,7 @@ begin
  SettingsForm.ScanSubDirs.Ticked           :=FScanSubDirs;
  SettingsForm.OpenDOS.Ticked               :=FOpenDOS;
  SettingsForm.CreateDSC.Ticked             :=FCreateDSC;
+ SettingsForm.AddFiletype.Ticked           :=FAppendFileType;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
@@ -5788,6 +5796,7 @@ begin
   FScanSubDirs        :=SettingsForm.ScanSubDirs.Ticked;
   FOpenDOS            :=SettingsForm.OpenDOS.Ticked;
   FCreateDSC          :=SettingsForm.CreateDSC.Ticked;
+  FAppendFileType     :=SettingsForm.AddFiletype.Ticked;
   //Save the settings
   SaveConfigSettings;
   //Change the control style, if necessary
@@ -5904,7 +5913,7 @@ begin
  DIMReg.SetRegValI('WindowStyle',         Fstyling);
  DIMReg.SetRegValI('ADFS_L_Interleave',   ADFSInterleave);
  DIMReg.SetRegValB('CreateINF',           DoCreateINF);
- DIMReg.GetRegValB('AddImpliedAttributes',AddImpliedAttributes);
+ DIMReg.SetRegValB('AddImpliedAttributes',AddImpliedAttributes);
  DIMReg.SetRegValB('Debug_Mode',          Fdebug);
  DIMReg.SetRegValB('DFS_Zero_Sectors',    FDFSZeroSecs);
  DIMReg.SetRegValB('DFS_Beyond_Edge',     FDFSBeyondEdge);
@@ -5912,7 +5921,18 @@ begin
  DIMReg.SetRegValB('Scan_SubDirs',        FScanSubDirs);
  DIMReg.SetRegValB('Open_DOS',            FOpenDOS);
  DIMReg.SetRegValB('Create_DSC',          FCreateDSC);
+ DIMReg.SetRegValB('Append_Filetype',     FAppendFileType);
  DIMReg.SetRegValB('UEF_Compress',        FUEFCompress);
+ Image.InterleaveMethod    :=ADFSInterleave;
+ Image.SparkAsFS           :=SparkIsFS;
+ Image.AllowDFSZeroSectors :=FDFSZeroSecs;
+ Image.DFSBeyondEdge       :=FDFSBeyondEdge;
+ Image.DFSAllowBlanks      :=FDFSAllowBlank;
+ Image.ScanSubDirs         :=FScanSubDirs;
+ Image.OpenDOSPartitions   :=FOpenDOS;
+ Image.CreateDSC           :=FCreateDSC;
+ Image.AppendFiletype      :=FAppendFileType;
+ Image.AddImpliedAttributes:=AddImpliedAttributes;
 end;
 
 {------------------------------------------------------------------------------}

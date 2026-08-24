@@ -127,7 +127,6 @@ begin
  ResetDir(FDisc[0]);
  //Set the root directory name
  FPartitions[0].RootName:='ROM';
-// FPartitions[1].RootName:=root_name;
  FDisc[0].Directory:=FPartitions[0].RootName;
  FDisc[0].BeenRead:=True;
  //Set the filename
@@ -326,7 +325,6 @@ begin
  imagefilename:='Untitled.'+FormatExt;
  //Set up the arrays
  SetLength(FPartitions,1);
- //SetLength(free_space,1);
  //Setup the data area (16K)
  SetDataLength(ROMFSSize);
  //Write the ROM FS header

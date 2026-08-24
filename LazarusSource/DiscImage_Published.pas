@@ -9,7 +9,6 @@ begin
  //This just sets all the global and public variables to zero, or blank.
  ResetVariables;
  SetDataLength(0);
-// SetLength(Fpartitions,0);
  //ADFS Interleaving option
  FForceInter          :=0;
  {$IFDEF CPU64}
@@ -276,6 +275,7 @@ begin
  end;
  //Return a true or false result
  Result:=FFormat<>diInvalidImg;
+ FPartitions[0].Format:=FFormat;
 end;
 
 {-------------------------------------------------------------------------------
@@ -729,16 +729,17 @@ begin
  //Blank filename, so quit
  if Length(filename)=0 then exit;
  //For the root, we'll just return a default value
- if(filename=FPartitions[0].RootName)
- or((GetMajorFormatNumber=diAcornDFS)and(filename.EndsWith(FPartitions[0].RootName)))
- or((GetMajorFormatNumber=diSinclair)and(filename.StartsWith(FPartitions[0].RootName))
-  and(Length(filename)=4))then
- begin
-  dir   :=$FFFF;
-  entry :=$FFFF;
-  Result:=True;
-  exit;
- end;
+ for i:=0 to Length(FPartitions)-1 do
+  if(filename=FPartitions[i].RootName)
+  or((GetMajorFormatNumber=diAcornDFS)and(filename.EndsWith(FPartitions[i].RootName)))
+  or((GetMajorFormatNumber=diSinclair)and(filename.StartsWith(FPartitions[i].RootName))
+   and(Length(filename)=4))then
+  begin
+   dir   :=$FFFF;
+   entry :=$FFFF;
+   Result:=True;
+   exit;
+  end;
  //AFS or DOS Root
  if(UpperCase(filename)=UpperCase(afsrootname))
  or(UpperCase(filename)=UpperCase(dosrootname))then
@@ -2051,25 +2052,26 @@ begin
    //Replace any non-valid characters
    ValidateWinFilename(Result);
    //Add the filetype to the end, if any (but not directories)
-   if (FDisc[dir].Entries[entry].ShortFileType<>'')
-   and(FDisc[dir].Entries[entry].DirRef=-1) then
-   begin
-    if(GetMajorFormatNumber=diAcornDFS)
-    or(GetMajorFormatNumber=diAcornADFS)
-    or(GetMajorFormatNumber=diAcornFS)
-    or(GetMajorFormatNumber=diSpark)
-    or(FISOFormat=diAcornADFS)then extsep:=','; //DFS, ADFS and AFS
-    if(GetMajorFormatNumber=diCommodore)                //Commodore
-    or(GetMajorFormatNumber=diAmiga)
-    or(FISOFormat=diAmiga)then extsep:='.';   //Amiga
-    //Remove any spurious spaces
-    Result:=Trim(Result);
-    //Create the new extension
-    Lext  :=extsep+FDisc[dir].Entries[entry].ShortFileType;
-    //Add it to the end, if it is different to what is there
-    if LowerCase(RightStr(Result,Length(Lext)))<>LowerCase(Lext) then
-     Result:=Result+Lext;
-   end;
+   if FAppendFiletype then
+    if (FDisc[dir].Entries[entry].ShortFileType<>'')
+    and(FDisc[dir].Entries[entry].DirRef=-1) then
+    begin
+     if(GetMajorFormatNumber=diAcornDFS)
+     or(GetMajorFormatNumber=diAcornADFS)
+     or(GetMajorFormatNumber=diAcornFS)
+     or(GetMajorFormatNumber=diSpark)
+     or(FISOFormat=diAcornADFS)then extsep:=',';         //DFS, ADFS and AFS
+     if(GetMajorFormatNumber=diCommodore)                //Commodore
+     or(GetMajorFormatNumber=diAmiga)
+     or(FISOFormat=diAmiga)then extsep:='.';             //Amiga
+     //Remove any spurious spaces
+     Result:=Trim(Result);
+     //Create the new extension
+     Lext  :=extsep+FDisc[dir].Entries[entry].ShortFileType;
+     //Add it to the end, if it is different to what is there
+     if LowerCase(RightStr(Result,Length(Lext)))<>LowerCase(Lext) then
+      Result:=Result+Lext;
+    end;
   end;
 end;
 
