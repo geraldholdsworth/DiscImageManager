@@ -8,7 +8,8 @@
       <Unit>
         <Filename Value="DIMConsole.lpr"/>
         <IsPartOfProject Value="True"/>
-        <CursorPos X="2" Y="27"/>
+        <IsVisibleTab Value="True"/>
+        <CursorPos Y="41"/>
         <UsageCount Value="220"/>
         <Loaded Value="True"/>
       </Unit>
@@ -25,7 +26,6 @@
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="2"/>
         <TopLine Value="3235"/>
         <CursorPos X="5" Y="3291"/>
@@ -116,10 +116,6 @@
       <Define0 Value="DIMCONSOLE"/>
     </OtherDefines>
     <JumpHistory HistoryIndex="29">
-      <Position>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="1062" Column="19" TopLine="1038"/>
-      </Position>
       <Position>
         <Filename Value="DiscImage_ADFS.pas"/>
         <Caret Line="1180" Column="20" TopLine="1141"/>
@@ -234,6 +230,10 @@
       <Position>
         <Filename Value="HexDumpUnit.pas"/>
         <Caret Line="246" Column="21" TopLine="212"/>
+      </Position>
+      <Position>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="3291" Column="5" TopLine="3235"/>
       </Position>
     </JumpHistory>
     <RunParams>

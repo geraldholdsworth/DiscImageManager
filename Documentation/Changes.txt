@@ -1101,7 +1101,7 @@ Bug fixes
 * Date/Time stamps in ADFS were not being handled correctly. They now match the behaviour of RISC OS ADFS.
 * In the CLI, when selecting the root using "dir ^", it would incorrectly report that it could not be found, but selected it anyway.
 
-1.50.4
+1.50.5
 -------------------
 New or improved features
 * There are now two binaries: a GUI/CLI combo and a CLI only.
@@ -1124,6 +1124,8 @@ Bug fixes
 * The CLI "dir ^" command, on a second or subsequent partition, would select the root on the primary partition.
 * Some configuration settings were not getting implemented right away after being set.
 * A bug was introduced in 1.50 where when a change was made to an ADFS New Map free space map (writing or deleting a file or directory), it appeared to fail. However, saving and reloading the image confirmed that the change did indeed happen.
+* When importing files from a ADFS to DFS, the pathname was extended with an extra drive specifier which resulted in the item not being imported and the error "Directory not found" being reported.
+* Adding files to a directory did not update the number of item count in the item details panel.
 
 Platform History
 ----------------

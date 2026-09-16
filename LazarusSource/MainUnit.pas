@@ -646,7 +646,7 @@ type
 {$ENDIF}
    //Application Title
    ApplicationTitle   = 'Disc Image Manager';
-   ApplicationVersion = '1.50.4';
+   ApplicationVersion = '1.50.5';
    //Current platform and architecture (compile time directive)
    TargetOS  = {$I %FPCTARGETOS%};
    TargetCPU = {$I %FPCTARGETCPU%};
@@ -1517,6 +1517,7 @@ begin
   //Set the DOS Partition flag
   TMyTreeNode(Result).IsDOSPart:=IsDOSPart;
   Tree.Repaint;
+  DirListChange(DirList,ParentNode);
  end;
 end;
 
@@ -1964,7 +1965,11 @@ begin
    AddDirectoryToTree(Node,ImageToUse.Disc[dir].Entries[entry].DirRef,
                       ImageToUse,highdir);
  end;
- if ImageToUse=Image then UpdateImageInfo(ImageToUse.Disc[dir].Partition);
+ if ImageToUse=Image then
+ begin
+  UpdateImageInfo(ImageToUse.Disc[dir].Partition);
+  DirListChange(DirList,CurrDir);
+ end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -4190,14 +4195,17 @@ begin
    newentry.Attributes:=newentry.Attributes+'R';
  end;
  //Convert the parent name to the new path system
- newentry.Parent:=StringReplace(newentry.Parent
-                               ,NewImage.DirSep
-                               ,Image.DirSep
-                               ,[rfReplaceAll,rfIgnoreCase]);
- newentry.Parent:=StringReplace(newentry.Parent
-                               ,NewImage.RootName
-                               ,rootname
-                               ,[rfReplaceAll,rfIgnoreCase]);
+ if NewImage.DirSep<>Image.DirSep then //Directory separator (only if different)
+  newentry.Parent:=StringReplace(newentry.Parent
+                                ,NewImage.DirSep
+                                ,Image.DirSep
+                                ,[rfReplaceAll,rfIgnoreCase]);
+ if (Pos(NewImage.RootName,rootname)=0)
+ and(Pos(rootname,NewImage.RootName)=0)then //Root name
+  newentry.Parent:=StringReplace(newentry.Parent
+                                ,NewImage.RootName
+                                ,rootname
+                                ,[rfReplaceAll,rfIgnoreCase]);
  ok:=True;
 {$IFNDEF DIMCONSOLE}
  if Fguiopen then
