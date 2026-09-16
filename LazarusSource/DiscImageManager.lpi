@@ -22,9 +22,9 @@
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
       <MinorVersionNr Value="50"/>
-      <RevisionNr Value="3"/>
+      <RevisionNr Value="6"/>
       <Language Value="0809"/>
-      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.50.3"/>
+      <StringTable CompanyName="GJH Software" FileDescription="Disc Image Manager for Acorn and Commodore disc formats" ProductName="Disc Image Manager" ProductVersion="1.50.6"/>
     </VersionInfo>
     <BuildModes Count="11">
       <Item1 Name="Native Debugger" Default="True"/>
@@ -125,9 +125,6 @@
               </Win32>
             </Options>
           </Linking>
-          <Other>
-            <CustomOptions Value="-XR/Library/Developer/CommandLineTools/SDKs/MacOSX10.13.sdk/"/>
-          </Other>
         </CompilerOptions>
       </Item4>
       <Item5 Name="Release macOS ARM">

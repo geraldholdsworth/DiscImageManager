@@ -127,8 +127,7 @@
             </Options>
           </Linking>
           <Other>
-            <CustomOptions Value="-XR/Library/Developer/CommandLineTools/SDKs/MacOSX10.13.sdk/
--dDIMCONSOLE"/>
+            <CustomOptions Value="-dDIMCONSOLE"/>
             <OtherDefines Count="1">
               <Define0 Value="DIMCONSOLE"/>
             </OtherDefines>
@@ -166,8 +165,7 @@
             <CompilerMessages>
               <IgnoredMessages idx5094="True" idx5091="True" idx5060="True" idx5057="True" idx4081="True" idx4080="True" idx4079="True" idx4035="True"/>
             </CompilerMessages>
-            <CustomOptions Value="-XR/Library/Developer/CommandLineTools/SDKs/MacOSX11.1.sdk/
--dDIMCONSOLE"/>
+            <CustomOptions Value="-dDIMCONSOLE"/>
             <OtherDefines Count="1">
               <Define0 Value="DIMCONSOLE"/>
             </OtherDefines>

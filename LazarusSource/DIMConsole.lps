@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectSession>
     <Version Value="12"/>
-    <ManyBuildModesSelection Value="&quot;Release macOS 32 bit&quot;,&quot;Release macOS ARM&quot;"/>
+    <ManyBuildModesSelection Value="&quot;Release macOS 64 bit&quot;,&quot;Release macOS 32 bit&quot;,&quot;Release macOS ARM&quot;,&quot;Release Windows 64 bit&quot;,&quot;Release Windows 32 bit&quot;,&quot;Release Linux 64 bit&quot;,&quot;Release Linux 32 bit&quot;,&quot;Release Linux ARM 32 bit&quot;,&quot;Release Linux ARM 64 bit&quot;"/>
     <BuildModes Active="Default"/>
     <Units>
       <Unit>
