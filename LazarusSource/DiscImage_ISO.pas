@@ -90,8 +90,8 @@ begin
   ISOGetVDAndPathToUse(Lvdnum,pth2use);
   //Set the variables
   secsize      :=ISOVolDes[Lvdnum].BlckSize;
-  root         :=ISOVolDes[Lvdnum].RootOffset;
-  root_size    :=ISOVolDes[Lvdnum].RootLength;
+  FPartitions[0].RootAddress         :=ISOVolDes[Lvdnum].RootOffset;
+  FPartitions[0].RootSize    :=ISOVolDes[Lvdnum].RootLength;
   FPartitions[0].RootName    :='D:';
   FPartitions[0].DirSep      :='/';
   FPartitions[0].TotalSize   :=GetDataLength;
@@ -100,7 +100,7 @@ begin
   FISOFormat   :=diISO;
   //Calculate the free space left
   FPartitions[0].FreeSpace:=FPartitions[0].TotalSize                  //Total size
-                           -root_size                     //Size of the root
+                           -FPartitions[0].RootSize                     //Size of the root
                            -(10*secsize)                 //The initial 32KB
                            -(Length(ISOVolDes)*secsize); //All the Volume Descriptors
   //Make allowances for all the path tables
@@ -358,7 +358,7 @@ begin
    if index=0 then
    begin
     //Length of root is in the volume descriptor
-    FDisc[index].Length   :=root_size;
+    FDisc[index].Length   :=FPartitions[0].RootSize;
     //Give the root a default name
     FDisc[index].Directory:=FPartitions[0].RootName;
    end;

@@ -25,7 +25,7 @@ var
  dirtype      : Byte=0;
  known        : Boolean=False;
  ok           : Boolean=False;
- newmap       : Boolean=False;
+ newmap       : TMap=diUndefinedMap;
  searchlist   : TSearchRec;
  Files        : TSearchResults;
  OSFiles      : array of searchresult;
@@ -1122,18 +1122,18 @@ begin
      //Create ADFS HDD
      if format='ADFSHDD' then
      begin
-      newmap:=False; //Default
+      newmap:=diADFSOldMap; //Default
       dirtype:=0; //Default
       harddrivesize:=20*1024*1024; //20MB default size
       if Length(Command)>3 then
        if Length(Command[3])>3 then
        begin
-        if UpperCase(Command[3][1])='N' then newmap:=True;
+        if UpperCase(Command[3][1])='N' then newmap:=diADFSNewMap;
         if UpperCase(Command[3][2])='N' then dirtype:=1;//New dir
         if UpperCase(Command[3][2])='B' then dirtype:=2;//Big dir
-        if(newmap)and(dirtype=0)then
+        if(newmap=diADFSNewMap)and(dirtype=0)then
          dirtype:=1; //Can't have old dir on new map
-        if(not newmap)and(dirtype=2)then
+        if(newmap=diADFSOldMap)and(dirtype=2)then
          dirtype:=1; //Can't have big dir on old map
         //Get the image size
         harddrivesize:=GetDriveSize(Command[3]);
@@ -1142,7 +1142,7 @@ begin
          harddrivesize:=20*1024*1024;  //20MB min
         if harddrivesize>1000*1024*1024 then
          harddrivesize:=1000*1024*1024;//1000MB max
-        if(not newmap)and(harddrivesize>512*1024*1024)then
+        if(newmap=diADFSOldMap)and(harddrivesize>512*1024*1024)then
          harddrivesize:=512*1024*1024; //512MB max for old map
        end;
       //OK, now create it
@@ -1165,7 +1165,7 @@ begin
        //Create it
        ok:=Image.FormatHDD(diAcornFS,
                            harddrivesize*1024,
-                           True,False,dirtype,False);
+                           True,diADFSOldMap,dirtype,False);
        known:=True;
       end else error:=2;
      if format='DOSHDD' then //Create DOS HDD
@@ -1181,7 +1181,7 @@ begin
        if harddrivesize>1024*1024 then harddrivesize:=512*1024;
        //Create it
        ok:=Image.FormatHDD(diDOSPlus,
-                           harddrivesize*1024,True,False,dirtype,False);
+                           harddrivesize*1024,True,diADFSOldMap,dirtype,False);
        known:=True;
       end else error:=2;
      if format='AMIGAHDD' then //Create Amiga HDD
@@ -1194,7 +1194,7 @@ begin
        //But not too big
        if harddrivesize>1024*1024 then harddrivesize:=512*1024;
        //Create it
-       ok:=Image.FormatHDD(diAmiga,harddrivesize*1024,True,False,0,False);
+       ok:=Image.FormatHDD(diAmiga,harddrivesize*1024,True,diADFSOldMap,0,False);
        known:=True;
       end else error:=2;
      if Pos(format,DiscFormats)>0 then //Create other

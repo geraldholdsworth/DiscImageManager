@@ -37,16 +37,16 @@ begin
     //Checks are successful, now find out which type of disc: S/M/L/D
     Result:=True;
     //FFormat:=$1F; //Default to ADFS Hard drive
-    FMap:=False;  //Set to old map
-    FDirType:=diADFSOldDir;  //Set to old directory
+    FPartitions[0].Map:=diADFSOldMap;  //Set to old map
+    FPartitions[0].DirType:=diADFSOldDir;  //Set to old directory
     //Check where the root is.
     if (Read24b($6D6)=$000002) //Address of the root ($200 for old dir)
     and(ReadByte($200)=ReadByte($6FA)) then //Directory check bytes
-     FDirType:=diADFSOldDir; //old map, old directory - either S, M or L
+     FPartitions[0].DirType:=diADFSOldDir; //old map, old directory - either S, M or L
     if (Read24b($BDA)=$000004) //Address of the root ($400 for new dir)
     and(ReadByte($400)=ReadByte($BFA)) then //Directory check bytes
     begin
-     FDirType:=diADFSNewDir; //So, old map, new directory must be ADFS D
+     FPartitions[0].DirType:=diADFSNewDir; //So, old map, new directory must be ADFS D
      FFormat:=diAcornADFS<<4+$03;
     end;
     FPartitions[0].TotalSize:=Read24b($0FC)*$100;
@@ -142,7 +142,7 @@ begin
    end;
    if not Result then
    begin
-    FMap:=True;         //Assume New Map for now
+    FPartitions[0].Map:=diADFSNewMap;         //Assume New Map for now
     ctr:=0;
     dr_ptr:=$0000;
     repeat
@@ -163,9 +163,9 @@ begin
       nzones    :=ReadByte(dr_ptr+$09)
                  +ReadByte(dr_ptr+$2A)*$100;  //nzones is 2 bytes, for E+ and F+
       zone_spare:=Read16b(dr_ptr+$0A);        //Zone spare bits
-      rootfrag  :=Read32b(dr_ptr+$0C);        //Indirect address of root
-      root_size :=Read32b(dr_ptr+$30);        //Size of root (big dir only)
-      if root_size=0 then root_size:=$800;    //Not big map
+      FPartitions[0].RootFragment  :=Read32b(dr_ptr+$0C);        //Indirect address of root
+      FPartitions[0].RootSize :=Read32b(dr_ptr+$30);        //Size of root (big dir only)
+      if FPartitions[0].RootSize=0 then FPartitions[0].RootSize:=$800;    //Not big map
      end;
      //If there are more than 2 zones, we need the disc record size in bits
      if nzones>2 then
@@ -222,32 +222,32 @@ begin
     //Check for type of directory, and change the format if necessary
     if FFormat<>diInvalidImg then
     begin
-     FDirType:=diADFSNewDir; //New Directory
+     FPartitions[0].DirType:=diADFSNewDir; //New Directory
      //Determine if it is a '+' format by reading the version flag
      if ReadByte(dr_ptr+$2C)>0 then
      begin
       if FFormat<>diAcornADFS<<4+$0F then inc(FFormat);
-      FDirType:=diADFSBigDir;
+      FPartitions[0].DirType:=diADFSBigDir;
      end;
      //Root address for old map
-     if FDirType=diADFSOldDir then
+     if FPartitions[0].DirType=diADFSOldDir then
      begin
-      root:=$200;
-      root_size:=1280;
+      FPartitions[0].RootAddress:=$200;
+      FPartitions[0].RootSize:=1280;
      end;
-     if(FDirType=diADFSNewDir)and(not FMap)then
+     if(FPartitions[0].DirType=diADFSNewDir)and(FPartitions[0].Map=diADFSOldMap)then
      begin
-      root:=$400;
-      root_size:=2048;
+      FPartitions[0].RootAddress:=$400;
+      FPartitions[0].RootSize:=2048;
      end;
     end;
    end;
    //Check for DOS partition on ADFS Hard drives
    if(FFormat=diAcornADFS<<4+$F)and(not FAFSPresent)and(not FDOSPresent)
-   and(FDirType=diADFSOldDir)and(FOpenDOSPart)then
+   and(FPartitions[0].DirType=diADFSOldDir)and(FOpenDOSPart)then
    begin
     //Start at the root
-    ctr:=root;
+    ctr:=FPartitions[0].RootAddress;
     ds:=GetDataLength;
     while(ctr<=ds)and(not FDOSPresent)do
     begin
@@ -260,14 +260,18 @@ begin
   end;
   //Return a true or false
   Result:=GetMajorFormatNumber=diAcornADFS;
-  if Result then FPartitions[0].RootName:='$';
+  if Result then
+  begin
+   FPartitions[0].RootName:='$';
+   FPartitions[0].Format  :=FFormat;
+  end;
  end;
 end;
 
 {-------------------------------------------------------------------------------
 Read ADFS Directory
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadADFSDir(dirname: String; sector: Cardinal): TDir;
+function TDiscImage.ReadADFSDir(dirname: String; sector: Cardinal; p: Integer=0): TDir;
 var
  Entry     : TDirEntry=();
  temp      : String='';
@@ -301,6 +305,7 @@ var
  endofentry: Boolean=False;
  dirbuffer : TDIByteArray=nil;
 begin
+ if p>=Length(FPartitions) then exit;
  SetLength(dirbuffer,0);
  RemoveControl(dirname);
  //This is only here to stop the hints that Result isn't intialised
@@ -313,13 +318,13 @@ begin
  //Update the progress indicator
  UpdateProgress('Reading '+pathname);
  //Store directory name
- parentname:=FPartitions[0].RootName;
- if Pos(FPartitions[0].DirSep,dirname)>0 then
+ parentname:=FPartitions[p].RootName;
+ if Pos(FPartitions[p].DirSep,dirname)>0 then
  begin
   temp:=dirname;
   repeat
-   temp:=Copy(temp,Pos(FPartitions[0].DirSep,temp)+1,Length(temp))
-  until Pos(FPartitions[0].DirSep,temp)=0;
+   temp:=Copy(temp,Pos(FPartitions[p].DirSep,temp)+1,Length(temp))
+  until Pos(FPartitions[p].DirSep,temp)=0;
   Result.Directory:=temp;
   parentname:=LeftStr(dirname,(Length(dirname)-Length(temp))-1);
  end
@@ -348,19 +353,20 @@ begin
  EndName         :='';
  SetLength(addr,0);
  //Get the offset address
- if FMap then
+ if FPartitions[p].Map=diADFSNewMap then
  begin
   //New Map, so the sector will be an internal disc address
-  if dirname=FPartitions[0].RootName then //root address
+  if dirname=FPartitions[p].RootName then //root address
   begin
-   if rootfrag=sector then addr:=NewDiscAddrToOffset(rootfrag)
+   if FPartitions[p].RootFragment=sector then
+    addr:=NewDiscAddrToOffset(FPartitions[p].RootFragment)
    else
    begin
     SetLength(addr,1);
     addr[0].Offset:=sector;
-    addr[0].Length:=root_size;
+    addr[0].Length:=FPartitions[p].RootSize;
    end;
-   Result.Sector:=rootfrag;
+   Result.Sector:=FPartitions[p].RootFragment;
    dirsize:=addr[0].Length;
   end
   else                      //other object address
@@ -368,9 +374,9 @@ begin
   //We need the total length of the big directory
   if Length(addr)>0 then
   begin
-   if FDirType=diADFSOldDir then dirsize:=1280;
-   if FDirType=diADFSNewDir then dirsize:=2048;
-   if FDirType=diADFSBigDir then
+   if FPartitions[p].DirType=diADFSOldDir then dirsize:=1280;
+   if FPartitions[p].DirType=diADFSNewDir then dirsize:=2048;
+   if FPartitions[p].DirType=diADFSBigDir then
     for amt:=0 to Length(addr)-1 do inc(dirsize,addr[amt].Length);
   end;
  end
@@ -381,8 +387,8 @@ begin
   //Is Old Map, so offset is just the sector * $100
   addr[0].Offset:=sector*$100;
   //Length - old and new type directories are fixed length
-  if FDirType=diADFSOldDir then addr[0].Length:=1280;
-  if FDirType=diADFSNewDir then addr[0].Length:=2048;
+  if FPartitions[p].DirType=diADFSOldDir then addr[0].Length:=1280;
+  if FPartitions[p].DirType=diADFSNewDir then addr[0].Length:=2048;
   //But big type directories the length varies - we worked this out above
   dirsize:=addr[0].Length;
  end;
@@ -392,18 +398,18 @@ begin
  begin
   sector:=0;
   //Read in the directory header
-  case FDirType of
+  case FPartitions[p].DirType of
    diADFSOldDir,diADFSNewDir: //Old and New Directory
    begin
     StartSeq :=ReadByte(0,dirbuffer);        //Start Sequence Number to match with end
     StartName:=ReadString(1,-4,dirbuffer); //Hugo or Nick
-    if FDirType=diADFSOldDir then //Old Directory
+    if FPartitions[p].DirType=diADFSOldDir then //Old Directory
     begin
      numentrys:=47;                     //Number of entries per directory
      dirsize  :=1280;                   //Directory size in bytes
      tail     :=$35;                    //Size of directory tail
     end;
-    if FDirType=diADFSNewDir then //New Directory
+    if FPartitions[p].DirType=diADFSNewDir then //New Directory
     begin
      numentrys:=77;                     //Number of entries per directory
      dirsize  :=2048;                   //Directory size in bytes
@@ -429,7 +435,7 @@ begin
    end;
   end;
   //Get the directory identifier of the root - we'll then match this in subsequent dirs
-  if dirname=FPartitions[0].RootName then
+  if dirname=FPartitions[p].RootName then
   begin
    FDirID:=0; //Invalid
    if StartName='Hugo' then FDirID:=1;
@@ -441,7 +447,7 @@ begin
   //And mark it on the Free Space Map
   for amt:=0 to dirsize do ADFSFillFreeSpaceMap(amt,diFSMDir);
   //Not all of the tail is read in
-  case FDirType of
+  case FPartitions[p].DirType of
    diADFSOldDir:
    begin
     parsect :=Read24b(tail+$0B,dirbuffer);       //Sector address of parent
@@ -478,7 +484,7 @@ begin
   //Start and End sequence numbers do not match
   if EndSeq<>StartSeq then
    Result.ErrorCode:=Result.ErrorCode OR $01;
-  if FDirType<diADFSBigDir then
+  if FPartitions[p].DirType<diADFSBigDir then
    if StartName<>EndName then//Start and End names do not match (Hugo or Nick)
     Result.ErrorCode:=Result.ErrorCode OR $02
    else //Start and End names are not valid for Old or New Directories
@@ -486,14 +492,15 @@ begin
    or((EndName<>'Hugo')and(EndName<>'Nick'))then
     Result.ErrorCode:=Result.ErrorCode OR $40;
   //Start and End names are not valid for Big Directories
-  if(FDirType=diADFSBigDir)and((StartName<>'SBPr') or (EndName<>'oven'))then
+  if(FPartitions[p].DirType=diADFSBigDir)and((StartName<>'SBPr') or (EndName<>'oven'))then
    Result.ErrorCode:=Result.ErrorCode OR $04;
   //Not sector aligned
   if sector mod secsize<>0 then
    Result.ErrorCode:=Result.ErrorCode OR $20;
   //Get the actual sector for the parent directory and compare
   FileExists(parentname,d,e);
-  if FMap then ptr:=rootfrag else ptr:=root;
+  if FPartitions[p].Map=diADFSNewMap then ptr:=FPartitions[p].RootFragment
+                                     else ptr:=FPartitions[p].RootAddress;
   if d<Length(FDisc) then
    if e<Length(FDisc[d].Entries) then
     ptr:=FDisc[d].Entries[e].Sector;
@@ -504,8 +511,8 @@ begin
   //We won't try and get the directory structure if it appears that it is invalid
   //Could just be that one of the names has got corrupt, but could be much worse
   validdir:=False;
-  if((FDirType<diADFSBigDir)and(StartName=EndName)and((StartName='Hugo')or(StartName='Nick')))
-  or((FDirType=diADFSBigDir)and(StartName='SBPr')and(EndName='oven'))then
+  if((FPartitions[p].DirType<diADFSBigDir)and(StartName=EndName)and((StartName='Hugo')or(StartName='Nick')))
+  or((FPartitions[p].DirType=diADFSBigDir)and(StartName='SBPr')and(EndName='oven'))then
    validdir:=True;
   //Load the entries
   if validdir then
@@ -523,10 +530,11 @@ begin
     //Blank the entries
     ResetDirEntry(Entry);
     //Sometimes the pathname has the root missing
-    if pathname[1]=FPartitions[0].DirSep then pathname:=FPartitions[0].RootName+pathname;
+    if pathname[1]=FPartitions[p].DirSep then
+     pathname:=FPartitions[p].RootName+pathname;
     Entry.Parent:=pathname;
     //Read in the entries
-    case FDirType of
+    case FPartitions[p].DirType of
      diADFSOldDir,diADFSNewDir: //Old and New Directory
       if ReadByte(offset,dirbuffer)<>0 then //0 marks the end of the entries
       begin
@@ -537,7 +545,7 @@ begin
        Entry.Sector   :=Read24b(offset+$16,dirbuffer);  //How to find the file
        temp:='';
        //Old directories - attributes are in the filename's top bit
-       if FDirType=diADFSOldDir then
+       if FPartitions[p].DirType=diADFSOldDir then
        begin
         endofentry:=False;
         if Length(Entry.Filename)>0 then
@@ -564,7 +572,7 @@ begin
           Entry.Attributes:=Entry.Attributes+temp[amt];//Attributes
        end;
        //New directories - attributes are separate, so filenames can have top bit set
-       if FDirType=diADFSNewDir then
+       if FPartitions[p].DirType=diADFSNewDir then
         NewDirAtts   :=ReadByte(offset+$19,dirbuffer);  //Attributes will be disected with Big
       end
       else validentry:=False;
@@ -582,7 +590,7 @@ begin
     end;
     RemoveControl(Entry.Filename);
     //Attributes for New and Big
-    if FDirType>diADFSOldDir then
+    if FPartitions[p].DirType>diADFSOldDir then
     begin
      temp:='';
      for amt:=0 to 5 do
@@ -613,7 +621,8 @@ begin
    end;
    //Now we can run the directory check on DirCheckByte
    //But only for New and Big Directories, optional for old (ignored if zero)
-   if((FDirType=diADFSOldDir)and(dirchk<>0))or(FDirType>diADFSOldDir)then
+   if((FPartitions[p].DirType=diADFSOldDir)and(dirchk<>0))
+   or(FPartitions[p].DirType>diADFSOldDir)then
    begin
     //This value is the check byte.
     dircheck:=CalculateADFSDirCheck(0,dirbuffer);
@@ -657,7 +666,8 @@ begin
  if((Entry.LoadAddr=$FFFFFFFF)and(Entry.ExecAddr=$FFFFFFFF))
  or(Entry.LoadAddr=Entry.ExecAddr)then exit;
  //Only valid for New and Big directories in ADFS or SparkFS
- if((GetMajorFormatNumber=diAcornADFS)and((FDirType=diADFSNewDir)or(FDirType=diADFSBigDir)))
+ if((GetMajorFormatNumber=diAcornADFS)and((FPartitions[0].DirType=diADFSNewDir)
+ or(FPartitions[0].DirType=diADFSBigDir)))
  or(GetMajorFormatNumber=diSpark)
  or(FISOFormat=diAcornADFS)then
   if Entry.LoadAddr>>20=$FFF then //Only if the top 12 bits are set
@@ -704,24 +714,24 @@ var
  numentrys : Cardinal=0;
 begin
  //Set up variables
- if FDirType=diADFSOldDir then  //Old Directory
+ if FPartitions[0].DirType=diADFSOldDir then  //Old Directory
  begin
   dirsize:=1280;
   tail:=dirsize-$35;
  end;
- if FDirType=diADFSNewDir then  //New Directory
+ if FPartitions[0].DirType=diADFSNewDir then  //New Directory
  begin
   dirsize:=2048;
   tail:=dirsize-$29;
  end;
- if FDirType<diADFSBigDir then  //Old or New Directory
+ if FPartitions[0].DirType<diADFSBigDir then  //Old or New Directory
  begin
   //Count the number of entries
   numentrys:=0;
   while ReadByte(sector+$05+numentrys*$1A,buffer)<>0 do inc(numentrys);
   EndOfChk:=numentrys*$1A+$05;
  end;
- if FDirType=diADFSBigDir then  //Big Directory
+ if FPartitions[0].DirType=diADFSBigDir then  //Big Directory
  begin
   //Need to do some more calculation for the end of check figure
   dirsize:=Read32b(sector+$0C,buffer);
@@ -754,7 +764,7 @@ begin
  //Stage 3: The first byte at the beginning of the directory tail is skipped.
  amt:=tail;
  //But not with Big Directories
- if FDirType<diADFSBigDir then inc(amt);
+ if FPartitions[0].DirType<diADFSBigDir then inc(amt);
  //Stage 4: The whole words in the directory tail are accumulated, except the
  //very last word which is excluded as it contains the check byte.
  while amt+3<dirsize-4 do
@@ -765,7 +775,7 @@ begin
  end;
  //Stage 4a: Big Directories also accumulate the final few bytes, but not the
  //final byte
- if FDirType=diADFSBigDir then
+ if FPartitions[0].DirType=diADFSBigDir then
   while amt<dirsize-1 do
   begin
    offset:=ReadByte(sector+amt,buffer);
@@ -802,7 +812,7 @@ var
 begin
  FBitmapIndexValid:=False;
  SetLength(FBitmapIndex,0);
- if not FMap then exit;
+ if FPartitions[0].Map=diADFSOldMap then exit;
  if(idlen=0)or(bpmb=0)or(FPartitions[0].TotalSize=0)then exit;
  SetLength(FBitmapIndex,1<<idlen);
  for zone:=0 to nzones-1 do
@@ -868,18 +878,18 @@ begin
  //Reset the result
  Result:=nil;
  SetLength(Result,0);
- if FMap then //Only works for new maps
+ if FPartitions[0].Map=diADFSNewMap then //Only works for new maps
  begin
-  if(addr=0)or(addr=rootfrag)then //Root
+  if(addr=0)or(addr=FPartitions[0].RootFragment)then //Root
   begin
    //We've been given the address of the root, but we know where this is so no
    //need to calculate it.
    SetLength(Result,1);
    Result[0].Offset:=bootmap+(nzones*secsize*2);
-   case FDirType of
+   case FPartitions[0].DirType of
     diADFSOldDir: Result[0].Length:=$500;
     diADFSNewDir: Result[0].Length:=$800;
-    diADFSBigDir: Result[0].Length:=root_size;
+    diADFSBigDir: Result[0].Length:=FPartitions[0].RootSize;
    end;
   end
   else
@@ -977,7 +987,7 @@ begin
      for i:=0 to Length(Result)-1 do
       Result[i].Offset:=(Result[i].Offset+(sector*secsize));
    //Root indirect address
-   if(addr=rootfrag)and(Length(Result)>1)and(nzones>1)
+   if(addr=FPartitions[0].RootFragment)and(Length(Result)>1)and(nzones>1)
    and(Result[0].Offset=sector*secsize)then
    begin
     for i:=1 to Length(Result) do
@@ -1076,7 +1086,7 @@ function TDiscImage.ReadADFSDisc: Boolean;
   visited  : array of TVisit=nil;
  begin
   //Initialise some variables
-  root   :=$00; //Root address (set to zero so we can id the disc)
+  FPartitions[0].RootAddress   :=$00; //Root address (set to zero so we can id the disc)
   FDisc:=nil;
   Result:=False;
   SetLength(FDisc,0);
@@ -1084,23 +1094,23 @@ function TDiscImage.ReadADFSDisc: Boolean;
   //Read in the header information (that hasn't already been read in during
   //the initial checks
   //ADFS Old Map
-  if not FMap then
+  if FPartitions[0].Map=diADFSOldMap then
   begin
    //Set up boot option
    SetLength(bootoption,1);
    bootoption[0]:=ReadByte($1FD);
    //We already found the root when IDing it as ADFS, so now just confirm
    d:=2;
-   root:=0;
+   FPartitions[0].RootAddress:=0;
    //Root size for old map old directory - assume for now
-   root_size:=$500;
+   FPartitions[0].RootSize:=$500;
    repeat
     if(ReadString((d*$100)+1,-4)='Hugo')
     or(ReadString((d*$100)+1,-4)='Nick')then
-     root:=d;
+     FPartitions[0].RootAddress:=d;
     inc(d);
-   until(d=(FPartitions[0].TotalSize div$100)-1)or(root>0);
-   if root=0 then //Failed to find root, so reset the format
+   until(d=(FPartitions[0].TotalSize div$100)-1)or(FPartitions[0].RootAddress>0);
+   if FPartitions[0].RootAddress=0 then //Failed to find root, so reset the format
    begin
     ResetVariables;
     //Now, let's see if it is an AFS
@@ -1109,7 +1119,7 @@ function TDiscImage.ReadADFSDisc: Boolean;
    else
    begin
     //Set the root size for old map new directory
-    if FDirType=diADFSNewDir then root_size:=$800;
+    if FPartitions[0].DirType=diADFSNewDir then FPartitions[0].RootSize:=$800;
     //Get the two parts of the disc title
     OldName0 :=ReadString($0F7,-5);
     OldName1 :=ReadString($1F6,-5);
@@ -1132,7 +1142,7 @@ function TDiscImage.ReadADFSDisc: Boolean;
    end;
   end;
   //ADFS New Map
-  if FMap then
+  if FPartitions[0].Map=diADFSNewMap then
   begin
    SetLength(bootoption,1);
    //Disc description starts at offset 4 and is 60 bytes long
@@ -1148,7 +1158,7 @@ function TDiscImage.ReadADFSDisc: Boolean;
    lowsector   :=ReadByte(bootmap+$0C);
    nzones      :=ReadByte(bootmap+$0D);
    zone_spare  :=Read16b(bootmap+$0E);
-   rootfrag    :=Read32b(bootmap+$10);
+   FPartitions[0].RootFragment    :=Read32b(bootmap+$10);
    FPartitions[0].TotalSize:=Read32b(bootmap+$14);
    disc_id     :=Read16b(bootmap+$18);
    FPartitions[0].Name:=ReadString(bootmap+$1A,-10);
@@ -1160,14 +1170,14 @@ function TDiscImage.ReadADFSDisc: Boolean;
    big_flag    :=ReadByte(bootmap+$2D);
    nzones      :=nzones+ReadByte(bootmap+$2E)*$100;
    format_vers :=Read32b(bootmap+$30);
-   root_size   :=Read32b(bootmap+$34);
-   if root_size=0 then root_size:=$800;
+   FPartitions[0].RootSize   :=Read32b(bootmap+$34);
+   if FPartitions[0].RootSize=0 then FPartitions[0].RootSize:=$800;
    //Build the bitmap index for O(1) fragment lookups during directory traversal
    BuildADFSBitmapIndex;
    //The root does not always follow the map
-   addr:=NewDiscAddrToOffset(rootfrag);
+   addr:=NewDiscAddrToOffset(FPartitions[0].RootFragment);
    //So, find it - first reset it
-   root:=0;
+   FPartitions[0].RootAddress:=0;
    if Length(addr)>0 then
    begin
     //The above method removes the initial system fragment, if present
@@ -1176,26 +1186,26 @@ function TDiscImage.ReadADFSDisc: Boolean;
      i:=0;
      while i<=Length(addr)-1 do
      begin
-      if addr[i].Length=nzones*secsize*2+root_size then
-       root:=addr[i].Offset;
+      if addr[i].Length=nzones*secsize*2+FPartitions[0].RootSize then
+       FPartitions[0].RootAddress:=addr[i].Offset;
       inc(i);
      end;
     end
-    else root:=addr[0].Offset;
+    else FPartitions[0].RootAddress:=addr[0].Offset;
     //This failed to find it, so 'guess' - we'll assume it is after the bootmap
-    if root=0 then
+    if FPartitions[0].RootAddress=0 then
      for d:=Length(addr)-1 downto 0 do
-      if addr[d].Offset>bootmap then root:=addr[d].Offset;
+      if addr[d].Offset>bootmap then FPartitions[0].RootAddress:=addr[d].Offset;
    end;
    //Failed to find, so resort to where we expect to find it
-   if root=0 then root:=bootmap+(nzones*secsize*2);
+   if FPartitions[0].RootAddress=0 then FPartitions[0].RootAddress:=bootmap+(nzones*secsize*2);
    //Update the Format, now we know the disc size
    if FPartitions[0].TotalSize>1638400 then FFormat:=diAcornADFS<<4+$0F;
    //Make the disc title easier to work with
    RemoveSpaces(FPartitions[0].Name); //Remove spaces
    RemoveTopBit(FPartitions[0].Name); //Remove top-bit set characters
   end;
-  if root>$00 then //If root is still $00, then we have failed to id the disc
+  if FPartitions[0].RootAddress>$00 then //If root is still $00, then we have failed to id the disc
   begin
    //Create an entry for the root
    SetLength(FDisc,1);
@@ -1204,12 +1214,12 @@ function TDiscImage.ReadADFSDisc: Boolean;
    //Calculate the Free Space Map
    ADFSFreeSpaceMap;
    //Read the root
-   FDisc[0]:=ReadADFSDir(FPartitions[0].RootName,root);
+   FDisc[0]:=ReadADFSDir(FPartitions[0].RootName,FPartitions[0].RootAddress);
    //Now iterate through the entries and find the sub-directories
    d:=0;
    //Add the root as a visited directory
    SetLength(visited,1);
-   visited[0].Sector:=root;
+   visited[0].Sector:=FPartitions[0].RootAddress;
    visited[0].Name:=FPartitions[0].RootName;
    repeat
     //If there are actually any entries
@@ -1311,7 +1321,7 @@ begin
     for c:=0 to Length(free_space_map[0])-1 do
     begin
      //Number of sectors per track
-     if FMap then
+     if FPartitions[0].Map=diADFSNewMap then
       SetLength(free_space_map[0,c],(secspertrack*secsize)DIV bpmb)
      else
       SetLength(free_space_map[0,c],secspertrack{*(secsize div $100)});
@@ -1323,7 +1333,7 @@ begin
 //   UpdateProgress('Reading ADFS Free Space Map..');
   end;
   //Old Map (ADFS S,M,L, and D)
-  if not FMap then
+  if FPartitions[0].Map=diADFSOldMap then
   begin
    //We'll add in the directories
    if Length(FDisc)>0 then
@@ -1333,7 +1343,7 @@ begin
        if FDisc[d].Entries[p].DirRef<>-1 then
         for f:=0 to FDisc[d].Entries[p].Length-1 do
          ADFSFillFreeSpaceMap(FDisc[d].Entries[p].Sector*$100+f,diFSMDir);
-   ptr:=(root*$100)+root_size; //Pointer to the first free space area
+   ptr:=(FPartitions[0].RootAddress*$100)+FPartitions[0].RootSize; //Pointer to the first free space area
    //Set the system area on the FSM
    for address:=0 to ptr-1 do
     ADFSFillFreeSpaceMap(address,diFSMSystem);
@@ -1361,7 +1371,7 @@ begin
    end;
   end;
   //New Map (ADFS E,E+,F,F+)
-  if FMap then
+  if FPartitions[0].Map=diADFSNewMap then
   begin
    //Get the free fragments
    fsfragments:=ADFSGetFreeFragments;
@@ -1415,7 +1425,7 @@ var
  t: Cardinal=0;
  s: Cardinal=0;
 begin
- if not FMap then
+ if FPartitions[0].Map=diADFSOldMap then
  begin
   //Track
   t:=address div (secspertrack*secsize);
@@ -1426,7 +1436,7 @@ begin
    s:=address div secsize;
  end;
  //New Map
- If FMap then
+ If FPartitions[0].Map=diADFSNewMap then
  begin
   //Track of where we are looking
   t:=address DIV (secspertrack*secsize);
@@ -1481,28 +1491,28 @@ begin
  //Setup the variables
  if minor<4 then  //Old maps (S, M, L and D)
  begin
-  FMap:=False;
+  FPartitions[0].Map:=diADFSOldMap;
   if minor<3 then //ADFS S, M and L
   begin
-   FDirType:=diADFSOldDir;    //Old Directory
+   FPartitions[0].DirType:=diADFSOldDir;    //Old Directory
    secspertrack:=16;          //Sectors Per Track
    secsize:=256;              //Sector size
   end;
   if minor=3 then //ADFS D
-   FDirType:=diADFSNewDir;    //New Directory
+   FPartitions[0].DirType:=diADFSNewDir;    //New Directory
  end;
  if minor>3 then //New maps (E, E+, F, and F+)
  begin
-  FMap:=True;
+  FPartitions[0].Map:=diADFSNewMap;
   secsize:=1024;
   heads:=2;
   idlen:=$F;
   skew:=1;
-  root_size:=$800;
+  FPartitions[0].RootSize:=$800;
   //New Directory : E and F
-  if (minor=4) OR (minor=6) then FDirType:=diADFSNewDir;
+  if (minor=4) OR (minor=6) then FPartitions[0].DirType:=diADFSNewDir;
   //Big Directory : E+ and F+
-  if (minor=5) OR (minor=7) then FDirType:=diADFSBigDir;
+  if (minor=5) OR (minor=7) then FPartitions[0].DirType:=diADFSBigDir;
   //E and E+
   if (minor=4) OR (minor=5) then
   begin
@@ -1511,10 +1521,10 @@ begin
    density:=2;
    bpmb:=1<<7;
    zone_spare:=$520;
-   if FDirType=diADFSNewDir then
-    rootfrag:=$00000203
+   if FPartitions[0].DirType=diADFSNewDir then
+    FPartitions[0].RootFragment:=$00000203
    else
-    rootfrag:=$00000301;
+    FPartitions[0].RootFragment:=$00000301;
   end;
   //F and F+
   if (minor=6) OR (minor=7) then
@@ -1524,14 +1534,14 @@ begin
    density:=4;
    bpmb:=1<<6;
    zone_spare:=$640;
-   if FDirType=diADFSNewDir then   //root
-    rootfrag:=$00000209
+   if FPartitions[0].DirType=diADFSNewDir then   //root
+    FPartitions[0].RootFragment:=$00000209
    else
-    rootfrag:=$00033801;
+    FPartitions[0].RootFragment:=$00033801;
   end;
   big_flag:=0;
   format_vers:=0;
-  if FDirType=diADFSBigDir then format_vers:=1;
+  if FPartitions[0].DirType=diADFSBigDir then format_vers:=1;
  end;
  //Fill with zeros
  for t:=0 to FPartitions[0].TotalSize-1 do WriteByte(0,t);
@@ -1540,14 +1550,14 @@ begin
  bootoption[0]:=0;
  SetLength(free_space_map,1); //Free Space Map
  //Write the map
- if not FMap then //Old Map
+ if FPartitions[0].Map=diADFSOldMap then //Old Map
   FormatOldMapADFS(Fdisctitle);
- if FMap then //New Map
+ if FPartitions[0].Map=diADFSNewMap then //New Map
   FormatNewMapADFS(Fdisctitle,False);
  //Set the Directory Identifier
- if FDirType=diADFSOldDir then FDirID:=1;
- if FDirType=diADFSNewDir then FDirID:=2;
- if FDirType=diADFSBigDir then FDirID:=3;
+ if FPartitions[0].DirType=diADFSOldDir then FDirID:=1;
+ if FPartitions[0].DirType=diADFSNewDir then FDirID:=2;
+ if FPartitions[0].DirType=diADFSBigDir then FDirID:=3;
  //Now write the root
  dirid:='$';
  att:='DLR';
@@ -1563,27 +1573,27 @@ procedure TDiscImage.FormatOldMapADFS(disctitle: String);
 var
  t: Byte=0;
 begin
- if FDirType=diADFSOldDir then
+ if FPartitions[0].DirType=diADFSOldDir then
  begin
   secspertrack:=16;          //Sectors Per Track
   secsize:=256;              //Sector size
-  root:=$200;                //Where the root is
+  FPartitions[0].RootAddress:=$200;                //Where the root is
   heads:=1;                  //Number of heads
   if FFormat=diAcornADFS<<4+$02 then heads:=2;
-  root_size:=$500;           //Size of the root
+  FPartitions[0].RootSize:=$500;           //Size of the root
  end;
- if FDirType=diADFSNewDir then
+ if FPartitions[0].DirType=diADFSNewDir then
  begin
   secspertrack:=5;           //Sectors Per Track
   secsize:=1024;             //Sector size
-  root:=$400;                //Where the root is
+  FPartitions[0].RootAddress:=$400;                //Where the root is
   heads:=2;                  //Number of heads
-  root_size:=$800;           //Size of the root
+  FPartitions[0].RootSize:=$800;           //Size of the root
  end;
  nzones:=1;                   //Number of zones (not required for old map)
- rootfrag:=root div $100;
+ FPartitions[0].RootFragment:=FPartitions[0].RootAddress div $100;
  //Old map FreeStart
- Write24b((root+root_size)div$100,$000);
+ Write24b((FPartitions[0].RootAddress+FPartitions[0].RootSize)div$100,$000);
  //Disc title
  for t:=0 to 9 do
  begin
@@ -1595,7 +1605,7 @@ begin
  //Checksum
  WriteByte(ByteCheckSum($0000,$100,False),$0FF);
  //Old map FreeLen
- Write24b((FPartitions[0].TotalSize-(root+root_size))div$100,$100);
+ Write24b((FPartitions[0].TotalSize-(FPartitions[0].RootAddress+FPartitions[0].RootSize))div$100,$100);
  //Disc ID
  Write24b($4077,$1FB); //Random 16 bit number
  //Old map FreeEnd
@@ -1645,7 +1655,7 @@ begin
    end;
    //Parking Cylinder
    t:=FPartitions[0].TotalSize div(secspertrack*heads*secsize);
-   if FDirType=diADFSBigDir then
+   if FPartitions[0].DirType=diADFSBigDir then
     Write32b(secspertrack*heads*(t-1),$DBC)
    else
     Write32b(secsize*secspertrack*heads*(t-1),$DBC);
@@ -1661,12 +1671,12 @@ begin
   WriteByte(lowsector,$DC8); //lowsector
   WriteByte(nzones,$DC9);
   Write16b(zone_spare,$DCA);//zone_spare
-  Write32b(rootfrag,$DCC);
+  Write32b(FPartitions[0].RootFragment,$DCC);
   Write32b(FPartitions[0].TotalSize,$DD0);
-  if FDirType=diADFSBigDir then
+  if FPartitions[0].DirType=diADFSBigDir then
   begin
    Write32b($00000001,$DEC); //format version (+)
-   Write32b(root_size,$DF0); //Root size (+)
+   Write32b(FPartitions[0].RootSize,$DF0); //Root size (+)
   end;
   WriteByte(ByteCheckSum($C00,$200,True),$DFF);  //Checksum
   bootmap:=((nzones div 2)*(8*secsize-zone_spare)-480)*bpmb; //Middle of the disc
@@ -1705,11 +1715,11 @@ begin
  WriteByte(lowsector,bootmap+4+$08);      //lowsector
  WriteByte(nzones mod $100,bootmap+4+$09);//nzones lsb
  Write16b(zone_spare,bootmap+4+$0A);      //zone_spare
- Write32b(rootfrag,bootmap+4+$0C);        //root
+ Write32b(FPartitions[0].RootFragment,bootmap+4+$0C);        //root
  Write32b(FPartitions[0].TotalSize,bootmap+4+$10);       //disc_size
  Write16b($8DC5,bootmap+4+$14);           //disc_id
  for t:=0 to 9 do WriteByte(Ord(disctitle[t+1]),bootmap+4+$16+t); //Disc title
- if FDirType=diADFSBigDir then // '+' only attributes
+ if FPartitions[0].DirType=diADFSBigDir then // '+' only attributes
  begin
   Write32b($20158318,bootmap+4+$20);      //disctype
   Write32b(FPartitions[0].TotalSize>>32,bootmap+4+$24);  //High word of disc size
@@ -1717,7 +1727,7 @@ begin
   WriteByte(big_flag,bootmap+4+$29);      //big flag
   WriteByte(nzones>>8,bootmap+4+$2A);     //nzones msb
   Write32b(format_vers,bootmap+4+$2C);    //format version
-  Write32b(root_size,bootmap+4+$30);      //root size
+  Write32b(FPartitions[0].RootSize,bootmap+4+$30);      //root size
  end
  else // non '+' only attributes
   Write32b($20158C78,bootmap+4+$20);      //disctype
@@ -1740,21 +1750,21 @@ begin
   frags[0].Zone:=0;
  end;
  //Is root a part of this, then increase the second fragment
- if rootfrag>>8=2 then
-  inc(frags[Length(frags)-1].Length,root_size);
+ if FPartitions[0].RootFragment>>8=2 then
+  inc(frags[Length(frags)-1].Length,FPartitions[0].RootSize);
  //Write the fragments
  filelen:=0;
  for t:=0 to Length(frags)-1 do inc(filelen,frags[t].Length);
  ADFSAllocateFreeSpace(filelen,$2,frags);
  //Create the fragments for the root
- if rootfrag>>8<>2 then
+ if FPartitions[0].RootFragment>>8<>2 then
  begin
   SetLength(frags,1);
   frags[0].Offset:=bootmap+secsize*nzones*2;
-  frags[0].Length:=root_size;
+  frags[0].Length:=FPartitions[0].RootSize;
   frags[0].Zone:=nzones div 2;
   //Write the fragment
-  ADFSAllocateFreeSpace(root_size,rootfrag>>8,frags);
+  ADFSAllocateFreeSpace(FPartitions[0].RootSize,FPartitions[0].RootFragment>>8,frags);
  end;
  //Zone checks for all zones
  for t:=0 to nzones-1 do
@@ -1763,14 +1773,14 @@ begin
  //Next create a copy of everything
  for t:=0 to (nzones*secsize)-1 do
   WriteByte(ReadByte(bootmap+t),bootmap+(nzones*secsize)+t);
- root:=bootmap+nzones*secsize*2;
+ FPartitions[0].RootAddress:=bootmap+nzones*secsize*2;
 end;
 
 {-------------------------------------------------------------------------------
 Create ADFS blank hard disc image
 -------------------------------------------------------------------------------}
-function TDiscImage.FormatADFSHDD(harddrivesize: Cardinal; newmap: Boolean;
-                                dirtype: Byte; ide,addheader: Boolean): Boolean;
+function TDiscImage.FormatADFSHDD(harddrivesize: Cardinal; newmap: TMap;
+                                dirtype: TDirType; ide,addheader: Boolean): Boolean;
 var
  bigmap       : Boolean=False;
  ok           : Boolean=False;
@@ -1789,12 +1799,12 @@ begin
  Result:=False;
  if dirtype=diADFSBigDir then bigmap:=True;
  //Old or new map?
- dirtype:=dirtype mod 3;//Can only be 0, 1 or 2
- if dirtype=0 then newmap:=False; //Old directory only on old map
- if(not newmap)and(harddrivesize>512*1024*1024)then
+// dirtype:=dirtype mod 3;//Can only be 0, 1 or 2
+ if dirtype=diADFSOldDir then newmap:=diADFSOldMap; //Old directory only on old map
+ if(newmap=diADFSOldMap)and(harddrivesize>512*1024*1024)then
   harddrivesize:=512*1024*1024; //512MB max on old map
  //Work out the parameters based on the drive size
- if newmap then //But only for new map
+ if newmap=diADFSNewMap then //But only for new map
   ok:=ADFSGetHardDriveParams(harddrivesize,bigmap,ide,Lidlen,Lzone_spare,
                              Lnzones,Llog2bpmb,Lroot,Llog2secsize,Llowsec)
  else
@@ -1809,8 +1819,8 @@ begin
   //Set the format
   FFormat:=diAcornADFS<<4+$0F;
   //Set the map and directory
-  FMap:=newmap;
-  FDirType:=dirtype;
+  FPartitions[0].Map:=newmap;
+  FPartitions[0].DirType:=dirtype;
   //Set the filename
   imagefilename:='Untitled.'+FormatExt;
   //Setup the data area
@@ -1824,15 +1834,15 @@ begin
   SetLength(free_space_map,1); //Free Space Map
   FPartitions[0].TotalSize:=harddrivesize;    //Disc Size
   //Set up old map
-  if not FMap then FormatOldMapADFS(Fdisctitle);
+  if FPartitions[0].Map=diADFSOldMap then FormatOldMapADFS(Fdisctitle);
   //Set up new map
-  if FMap then
+  if FPartitions[0].Map=diADFSNewMap then
   begin
    idlen:=Lidlen;
    zone_spare:=Lzone_spare;
    nzones:=Lnzones;
    bpmb:=1<<Llog2bpmb;
-   rootfrag:=Lroot;
+   FPartitions[0].RootFragment:=Lroot;
    secsize:=1<<Llog2secsize;
    if ide then
    begin
@@ -1847,8 +1857,8 @@ begin
    density:=0;
    skew:=0;
    lowsector:=Llowsec;
-   root_size:=$800;
-   if FDirType=2 then
+   FPartitions[0].RootSize:=$800;
+   if FPartitions[0].DirType=diADFSBigDir then
    begin
     format_vers:=1;
     big_flag:=0;
@@ -1857,9 +1867,9 @@ begin
    FormatNewMapADFS(Fdisctitle,ide);
   end;
   //Set the Directory Identifier
-  if FDirType=diADFSOldDir then FDirID:=1;
-  if FDirType=diADFSNewDir then FDirID:=2;
-  if FDirType=diADFSBigDir then FDirID:=3;
+  if FPartitions[0].DirType=diADFSOldDir then FDirID:=1;
+  if FPartitions[0].DirType=diADFSNewDir then FDirID:=2;
+  if FPartitions[0].DirType=diADFSBigDir then FDirID:=3;
   //Now write the root
   dirid:=FPartitions[0].RootName;
   att:='DLR';
@@ -1893,7 +1903,7 @@ begin
   for t:=Length(title) to 10 do
    title:=title+' ';
  //Now update the map
- if not FMap then //Old Map
+ if FPartitions[0].Map=diADFSOldMap then //Old Map
  begin
   for t:=1 to 10 do //Still need to make sure only 10 characters are saved
   begin
@@ -1909,7 +1919,7 @@ begin
   //Checksum on second sector
   WriteByte(ByteCheckSum($0100,$100,False),$1FF);
  end;
- if FMap then //New Map
+ if FPartitions[0].Map=diADFSNewMap then //New Map
  begin
   //Disc name is held at $16 of the disc record, after $4 bytes zone header
   for t:=1 to 10 do
@@ -1931,14 +1941,14 @@ begin
  //Set the internal variable
  bootoption[0]:=option;
  //Now update the map
- if not FMap then //Old Map
+ if FPartitions[0].Map=diADFSOldMap then //Old Map
  begin
   //Boot option is at $1FD
   WriteByte(option,$1FD);
   //Checksum
   WriteByte(ByteCheckSum($0100,$100,False),$1FF);
  end;
- if FMap then //New Map
+ if FPartitions[0].Map=diADFSNewMap then //New Map
  begin
   //Boot option is at offset $07 of the disc record, after the $4 zone header
   WriteByte(option,bootmap+$07+$04);
@@ -2133,11 +2143,12 @@ begin
  Result:=-3;//File already exists
  success:=False;
  //Validate the proposed filename
- if not((file_details.Filename=FPartitions[0].RootName)and(FDirType=diADFSBigDir))then
+ if not((file_details.Filename=FPartitions[0].RootName)
+    and(FPartitions[0].DirType=diADFSBigDir))then
   file_details.Filename:=ValidateADFSFilename(file_details.Filename);
  //First make sure it doesn't exist already
  if(not FileExists(file_details.Parent+FPartitions[0].DirSep+file_details.Filename,dir,entry))
- or((file_details.Filename=FPartitions[0].RootName)and(FDirType=diADFSBigDir))then
+ or((file_details.Filename=FPartitions[0].RootName)and(FPartitions[0].DirType=diADFSBigDir))then
   //Get the directory where we are adding it to, and make sure it exists
   if(FileExists(file_details.Parent,dir,entry))
   OR(file_details.Parent=FPartitions[0].RootName)then
@@ -2152,7 +2163,7 @@ begin
     //Has it been read in?
     if not FDisc[dir].BeenRead then ReadDirectory(file_details.Parent);
     //Big Dir - Verify directory is big enough or if it needs extending and moved.
-    if(FDirType=diADFSBigDir)and(extend)then //This will extend/contract the directory
+    if(FPartitions[0].DirType=diADFSBigDir)and(extend)then //This will extend/contract the directory
      if not ExtendADFSBigDir(dir,Length(file_details.Filename),True) then
      begin
       Result:=-9; //Cannot extend
@@ -2167,9 +2178,9 @@ begin
    //Make sure it will actually fit on the disc
    if FPartitions[0].FreeSpace>=safilelen then
     //And make sure we can extend the catalogue
-    if((FDirType=diADFSOldDir)and(l<47)
-    OR (FDirType=diADFSNewDir)and(l<77)
-    OR (FDirType=diADFSBigDir))then
+    if((FPartitions[0].DirType=diADFSOldDir)and(l<47)
+    OR (FPartitions[0].DirType=diADFSNewDir)and(l<77)
+    OR (FPartitions[0].DirType=diADFSBigDir))then
     begin
      Result:=-7; //Map full
      //Set some flags
@@ -2178,7 +2189,7 @@ begin
      dest:=FPartitions[0].TotalSize;
      sharedbyte:=$00; //Clear this to indicate we're not reusing
      //Find a big enough space
-     if (FMap)
+     if (FPartitions[0].Map=diADFSNewMap)
      and(Pos('D',file_details.Attributes)=0)
      and(file_details.filename<>FPartitions[0].RootName)
      and(file_details.Length<((idlen+1)*bpmb)-secsize)then
@@ -2230,7 +2241,7 @@ begin
      spacefound:=Length(fragments)>0;
      //Need to set up some variables for old map
      if spacefound then
-      if not FMap then
+      if FPartitions[0].Map=diADFSOldMap then
       begin
        file_details.Sector:=fragments[0].Offset div $100;
        freeptr:=fragid;
@@ -2252,12 +2263,12 @@ begin
      begin
       //Update the checksum, if it is a directory
       if(Pos('D',file_details.Attributes)>0)then
-       if FDirType>diADFSOldDir then //New/Big Directory (Old Dir has zero for checksum)
+       if FPartitions[0].DirType>diADFSOldDir then //New/Big Directory (Old Dir has zero for checksum)
         WriteByte(CalculateADFSDirCheck(dest),dest+(file_details.Length-1));
       //Now update the free space map
-      if not FMap then //Old map
+      if FPartitions[0].Map=diADFSOldMap then //Old map
        ADFSAllocateFreeSpace(file_details.Length,freeptr);
-      if FMap then     //New map
+      if FPartitions[0].Map=diADFSNewMap then     //New map
       begin
        //Can this fragment be shared, if not already?
        if (sharedbyte=$00)
@@ -2265,7 +2276,7 @@ begin
        and(file_details.Length<(idlen+1)*bpmb)
        and(fragments[0].Length-file_details.Length>secsize)then sharedbyte:=$01;
        //Unless it's Big Map and is a directory (not shared because they grow)
-       if(FDirType=diADFSBigDir)
+       if(FPartitions[0].DirType=diADFSBigDir)
        and(Pos('D',file_details.Attributes)>0)
        and(file_details.filename<>FPartitions[0].RootName)then sharedbyte:=$00;
        //Make note of the fragment ID
@@ -2287,7 +2298,7 @@ begin
        //Filetype and Timestamp for Arthur and RISC OS ADFS
        if (FDisc[dir].Entries[ptr].LoadAddr=0)
        and(FDisc[dir].Entries[ptr].ExecAddr=0)
-       and(FDirType>diADFSOldDir)then //New and Big directories
+       and(FPartitions[0].DirType>diADFSOldDir)then //New and Big directories
        begin
         FDisc[dir].Entries[ptr].LoadAddr:=$FFF00000;
         //Set the filetype, if not already set
@@ -2352,7 +2363,7 @@ begin
       BuildADFSBitmapIndex;
      end
      else //Did not write OK
-      if(FDirType=diADFSBigDir)and(extend)then
+      if(FPartitions[0].DirType=diADFSBigDir)and(extend)then
        //Contract the directory, if needed
        if ExtendADFSBigDir(dir,0,False) then
        begin
@@ -2386,7 +2397,7 @@ begin
  //Work out the "sector aligned file length"
  safilelen:=ADFSSectorAlignLength(filelen,False);//Ceil(filelen/secsize)*secsize;
  //Find some free space
- if not FMap then //Old map
+ if FPartitions[0].Map=diADFSOldMap then //Old map
  begin
   ptr:=ReadByte($1FE); //Number of free space entries
   //Find a space equal to the size of the file
@@ -2408,7 +2419,7 @@ begin
   end else fragid:=0; //Reset freeptr
  end;
  //New map
- if FMap then
+ if FPartitions[0].Map=diADFSNewMap then
  begin
   idperzone:=((secsize*8)-zone_spare)div(idlen+1); //Max IDs per zone
   //Get the free space fragments
@@ -2518,7 +2529,7 @@ var
  safilelen : Cardinal=0;
 begin
  Result:=False;
- if not FMap then //Old map
+ if FPartitions[0].Map=diADFSOldMap then //Old map
  begin
   //Work out the "sector aligned file length"
   safilelen:=ADFSSectorAlignLength(filelen,False);//Ceil(filelen/secsize)*secsize;
@@ -2581,7 +2592,7 @@ var
 begin
  Result:=False;
  freelen:=idlen;
- if FMap then //New map
+ if FPartitions[0].Map=diADFSNewMap then //New map
  begin
   Result:=True;
   //Recalculate the file length to be bpmb-aligned
@@ -2768,7 +2779,7 @@ begin
  Result:=-3;//Directory already exists
  if(dirname=FPartitions[0].RootName)
  OR(parent=FPartitions[0].RootName)then //Creating the root
-  parentaddr:=rootfrag
+  parentaddr:=FPartitions[0].RootFragment
  else
  begin
   FileExists(parent,dir,entry);
@@ -2786,7 +2797,7 @@ begin
   Result:=-5;//Unknown error
   //Set as 'D' so it gets added as a directory
   if Pos('D',attributes)=0 then attributes:='D'+attributes;
-  if FDirType=diADFSOldDir then //Old Directory
+  if FPartitions[0].DirType=diADFSOldDir then //Old Directory
   begin
    dirtail:=$4CB;
    SetLength(buffer,$500);
@@ -2818,7 +2829,7 @@ begin
     buffer[dirtail+$0D+t]:=c;
    end;
   end;
-  if FDirType=diADFSNewDir then //New Directory
+  if FPartitions[0].DirType=diADFSNewDir then //New Directory
   begin
    dirtail:=$7D7;
    SetLength(buffer,$800);
@@ -2850,7 +2861,7 @@ begin
     buffer[dirtail+$05+t]:=c;
    end;
   end;
-  if FDirType=diADFSBigDir then //Big Directory
+  if FPartitions[0].DirType=diADFSBigDir then //Big Directory
   begin
    dirtail:=$7F8;
    SetLength(buffer,$800);
@@ -2887,9 +2898,9 @@ begin
   if dirname=FPartitions[0].RootName then //Root - used when formatting an image
   begin
    for t:=0 to Length(buffer)-1 do
-    WriteByte(buffer[t],root+t);
+    WriteByte(buffer[t],FPartitions[0].RootAddress+t);
    //Directory Checkbyte
-   WriteByte(CalculateADFSDirCheck(root),root+(root_size-1));
+   WriteByte(CalculateADFSDirCheck(FPartitions[0].RootAddress),FPartitions[0].RootAddress+(FPartitions[0].RootSize-1));
    Result:=0;
   end
   else //Other directories
@@ -2948,8 +2959,8 @@ begin
   if directory=FPartitions[0].RootName then
   begin
    dir  :=0;
-   if FMap then diraddr:=rootfrag
-   else diraddr:=root;
+   if FPartitions[0].Map=diADFSNewMap then diraddr:=FPartitions[0].RootFragment
+                                      else diraddr:=FPartitions[0].RootAddress;
   end
   else
   begin
@@ -2959,13 +2970,13 @@ begin
    if not FDisc[dir].BeenRead then ReadDirectory(directory);
   end;
   //Make the sector address a disc address
-  if not FMap then
+  if FPartitions[0].Map=diADFSOldMap then
   begin //Old map
    //Create a fragment array
    SetLength(fragments,1);
    fragments[0].Offset:=diraddr*$100; //Once the above line is removed, add the *$100 here
-   if FDirType=diADFSOldDir then fragments[0].Length:=$500;
-   if FDirType=diADFSNewDir then fragments[0].Length:=$800;
+   if FPartitions[0].DirType=diADFSOldDir then fragments[0].Length:=$500;
+   if FPartitions[0].DirType=diADFSNewDir then fragments[0].Length:=$800;
    dirlen:=fragments[0].Length;
   end
   else //New map
@@ -2988,8 +2999,8 @@ begin
     c:=$00;
     if i<Length(temp) then c:=Ord(temp[i+1]);
     //Write the byte - Old and New only
-    if FDirType=diADFSOldDir then WriteByte(c AND$7F,$4CB+$0E+i,dirbuffer);
-    if FDirType=diADFSNewDir then WriteByte(c       ,$7D7+$06+i,dirbuffer);
+    if FPartitions[0].DirType=diADFSOldDir then WriteByte(c AND$7F,$4CB+$0E+i,dirbuffer);
+    if FPartitions[0].DirType=diADFSNewDir then WriteByte(c       ,$7D7+$06+i,dirbuffer);
    end;
    //Update the directory name
    if newname<>'' then
@@ -3001,18 +3012,18 @@ begin
      c:=$00;
      if i<Length(newname) then c:=Ord(newname[i+1]);
      //Write the byte - Old and New only
-     if FDirType=diADFSOldDir then WriteByte(c AND$7F,$4CB+$01+i,dirbuffer);
-     if FDirType=diADFSNewDir then WriteByte(c       ,$7D7+$19+i,dirbuffer);
+     if FPartitions[0].DirType=diADFSOldDir then WriteByte(c AND$7F,$4CB+$01+i,dirbuffer);
+     if FPartitions[0].DirType=diADFSNewDir then WriteByte(c       ,$7D7+$19+i,dirbuffer);
     end;
    end;
    //Clear the directory
    c:=0;
-   if FDirType=diADFSOldDir then c:=47;
-   if FDirType=diADFSNewDir then c:=77;
+   if FPartitions[0].DirType=diADFSOldDir then c:=47;
+   if FPartitions[0].DirType=diADFSNewDir then c:=77;
    if c>0 then //Old and New type only
     for i:=0 to c-1 do
      for ref:=0 to $19 do WriteByte($00,$05+ref+i*$1A,dirbuffer);
-   if FDirType=diADFSBigDir then //Big type
+   if FPartitions[0].DirType=diADFSBigDir then //Big type
    begin
     //Get the size of the header, with padding
     head:=Read32b($08,dirbuffer)+$1C+1; //Size
@@ -3025,7 +3036,7 @@ begin
    end;
    //Heap pointer for Big Directories
    heapctr:=0;
-   if FDirType=diADFSBigDir then //Write the number of entries for big directory
+   if FPartitions[0].DirType=diADFSBigDir then //Write the number of entries for big directory
     Write32b(Length(FDisc[dir].Entries),$10,dirbuffer);
    //Go through each entry and add it
    if Length(FDisc[dir].Entries)>0 then
@@ -3038,7 +3049,8 @@ begin
      for i:=0 to 5 do
       if Pos(newattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
        inc(a,1<<i);
-     if FDirType<diADFSBigDir then //Old and New only
+     if(FPartitions[0].DirType=diADFSOldDir)
+     or(FPartitions[0].DirType=diADFSNewDir)then //Old and New only
      begin
       for i:=0 to 9 do
       begin
@@ -3046,7 +3058,7 @@ begin
        c:=$00;
        if i<Length(temp) then c:=Ord(temp[i+1]);
        //Add the attributes
-       if FDirType=diADFSOldDir then //Old directory only
+       if FPartitions[0].DirType=diADFSOldDir then //Old directory only
         if Pos(oldattr[i+1],FDisc[dir].Entries[ref].Attributes)>0 then
          c:=c+$80;
        //Write the byte
@@ -3060,13 +3072,13 @@ begin
       Write32b(FDisc[dir].Entries[ref].Length  ,$05+$12+ref*$1A,dirbuffer);
       //Sector
       Write24b(FDisc[dir].Entries[ref].Sector  ,$05+$16+ref*$1A,dirbuffer);
-      if FDirType=diADFSOldDir then
+      if FPartitions[0].DirType=diADFSOldDir then
        //This is what appears in brackets after the file - old directory
        WriteByte(00                             ,$05+$19+ref*$1A,dirbuffer)
       else //New directory - attributes
        WriteByte(a                              ,$05+$19+ref*$1A,dirbuffer);
      end;
-     if FDirType=diADFSBigDir then //Big only
+     if FPartitions[0].DirType=diADFSBigDir then //Big only
      begin
       //Load Address
       Write32b(FDisc[dir].Entries[ref].LoadAddr        ,head+$00+ref*$1C,dirbuffer);
@@ -3098,14 +3110,14 @@ begin
       inc(heapctr,((Length(temp)+3)div 4)*4);
      end;
     end;
-   If FDirType=diADFSBigDir then
+   If FPartitions[0].DirType=diADFSBigDir then
     Write32b(heapctr,$14,dirbuffer); //BigDirNamesSize
    //Update the checksum
-   if FDirType=diADFSOldDir then //Old - can be zero
+   if FPartitions[0].DirType=diADFSOldDir then //Old - can be zero
     WriteByte($00,$4FF,dirbuffer);
-   if FDirType=diADFSNewDir then //New
+   if FPartitions[0].DirType=diADFSNewDir then //New
     WriteByte(CalculateADFSDirCheck($0,dirbuffer),$7FF,dirbuffer);
-   if FDirType=diADFSBigDir then //Big
+   if FPartitions[0].DirType=diADFSBigDir then //Big
     WriteByte(CalculateADFSDirCheck($0,dirbuffer),Read32b($0C,dirbuffer)-1,dirbuffer);
    //Write the directory back out to the image
    WriteFragmentedData(fragments,dirbuffer);
@@ -3164,18 +3176,18 @@ begin
  for i:=1 to Length(filename) do
  begin
   //Remove top-bit set characters
-  if FDirType=diADFSOldDir then filename[i]:=chr(ord(filename[i])AND$7F);
+  if FPartitions[0].DirType=diADFSOldDir then filename[i]:=chr(ord(filename[i])AND$7F);
   //and remove control codes
   if ord(filename[i])<32 then
    filename[i]:=chr(ord(filename[i])+32);
  end;
  //Is it not too long
- if FDirType<diADFSBigDir then
+ if FPartitions[0].DirType<diADFSBigDir then
   filename:=Copy(filename,1,10);
  //Remove any forbidden characters
  for i:=1 to Length(filename) do
-  if((FDirType<diADFSBigDir)AND(Pos(filename[i],illegalOld)>0))
-  OR((FDirType=diADFSBigDir)AND(Pos(filename[i],illegalBig)>0))then
+  if((FPartitions[0].DirType<diADFSBigDir)AND(Pos(filename[i],illegalOld)>0))
+  OR((FPartitions[0].DirType=diADFSBigDir)AND(Pos(filename[i],illegalBig)>0))then
    filename[i]:='_';
  Result:=filename;
 end;
@@ -3190,7 +3202,7 @@ var
 begin
  Result:=False;                           
  //ADFS Big Directories do not have titles
- if FDirType=diADFSBigDir then exit;
+ if FPartitions[0].DirType=diADFSBigDir then exit;
  //Check that the file exists, or is the root
  if(FileExists(filename,dir,entry))OR(filename=FPartitions[0].RootName)then
  begin
@@ -3259,7 +3271,7 @@ begin
    //Get the difference in lengths
    space:=Length(FDisc[dir].Entries[entry].Filename)-Length(newfilename);
    //Big Dir - Verify directory is big enough or if it needs extending and moved.
-   if FDirType=diADFSBigDir then
+   if FPartitions[0].DirType=diADFSBigDir then
     if not ExtendADFSBigDir(dir,space,False) then
     begin
      Result:=-4; //Cannot extend
@@ -3326,7 +3338,7 @@ var
  linklen : Byte=0;
  changed : Boolean=False;
 begin
- if not FMap then //Old map only
+ if FPartitions[0].Map=diADFSOldMap then //Old map only
  begin
   SetLength(fslinks,0);
   //Just make sure the current FS Map is in order, not fragmented and FreeEnd is correct
@@ -3406,7 +3418,7 @@ begin
   WriteByte(ByteCheckSum($0000,$100,False),$0FF);
   WriteByte(ByteCheckSum($0100,$100,False),$1FF);
  end;
- if FMap then //New Map
+ if FPartitions[0].Map=diADFSNewMap then //New Map
  begin
   //Flag to mark if anything changed
   changed:=False;
@@ -3498,7 +3510,7 @@ var
  dirlen    : Cardinal=0;
 begin
  //Only for new map
- if FMap then
+ if FPartitions[0].Map=diADFSNewMap then
  begin
   //Get the array of fragments (as offsets from the start of the bootmap)
   //This array is only used to keep track of the fragments.
@@ -3570,10 +3582,12 @@ begin
    exit;
   end;
  //Check that the file exists
- if(FileExists(filename,dir,entry))or((filename=FPartitions[0].RootName)and(FDirType=diADFSBigDir))then
+ if(FileExists(filename,dir,entry))or((filename=FPartitions[0].RootName)
+ and(FPartitions[0].DirType=diADFSBigDir))then
  begin
   //If we are deleting the root (usually only when extending/contracting)
-  if(filename=FPartitions[0].RootName)and(FDirType=diADFSBigDir)then
+  if(filename=FPartitions[0].RootName)
+  and(FPartitions[0].DirType=diADFSBigDir)then
   begin
    entry:=$FFFF;
    dir  :=$FFFF;
@@ -3626,12 +3640,12 @@ begin
     UpdateADFSCat(fileparent);
    end;
    if filename=FPartitions[0].RootName then
-    addr:=rootfrag;//Read32b(bootmap+$0C+4); //ID of the root
+    addr:=FPartitions[0].RootFragment;//Read32b(bootmap+$0C+4); //ID of the root
    //Add to the free space map
-   if not FMap then ADFSDeAllocateFreeSpace(addr,len); //Old map
-   if     FMap then ADFSDeAllocateFreeSpace(addr);     //New Map
+   if FPartitions[0].Map=diADFSOldMap then ADFSDeAllocateFreeSpace(addr,len); //Old map
+   if FPartitions[0].Map=diADFSNewMap then ADFSDeAllocateFreeSpace(addr);     //New Map
    //Big Dir - Verify if directory needs reduced.
-   if(FDirType=diADFSBigDir)and(extend)then ExtendADFSBigDir(dir,0,False);
+   if(FPartitions[0].DirType=diADFSBigDir)and(extend)then ExtendADFSBigDir(dir,0,False);
    //Tidy up the free space map, as we may have missed something
    ConsolidateADFSFreeSpaceMap;
    //Update the free space map
@@ -3652,7 +3666,7 @@ var
  fl      : Cardinal=0;
  i       : Cardinal=0;
 begin
- if not FMap then //Old map
+ if FPartitions[0].Map=diADFSOldMap then //Old map
  begin
   FreeEnd:=ReadByte($1FE); //FSM pointer
   //Go through each pointer and length and see if we can add to it
@@ -3717,7 +3731,7 @@ var
  delfsm     : Boolean=False;
  lastzone   : Integer=0;
 begin
- if FMap then //New Map
+ if FPartitions[0].Map=diADFSNewMap then //New Map
  begin
   //Check to see if it is OK to delete the FSM fragment
   delfsm:=True;
@@ -3856,13 +3870,13 @@ begin
  begin
   filelen:=FDisc[dir].Entries[entry].Length;
   //Get the starting position
-  if not FMap then //Old Map
+  if FPartitions[0].Map=diADFSOldMap then //Old Map
   begin
    SetLength(fragments,1);
    fragments[0].Offset:=FDisc[dir].Entries[entry].Sector*$100;
    fragments[0].Length:=filelen;
   end;
-  if FMap then //New Map
+  if FPartitions[0].Map=diADFSNewMap then //New Map
    //Get the fragment offsets of the file
    fragments:=NewDiscAddrToOffset(FDisc[dir].Entries[entry].Sector);
   Result:=ExtractFragmentedData(fragments,filelen,buffer);
@@ -3954,7 +3968,7 @@ begin
     begin
      Result:=-5;//Unknown error
      //Extend the destination directory (Big Dir)
-     if FDirType=diADFSBigDir then
+     if FPartitions[0].DirType=diADFSBigDir then
       if not ExtendADFSBigDir(ddir,Length(direntry.Filename),True) then
       begin
        Result:=-9; //Cannot extend
@@ -3969,7 +3983,7 @@ begin
      //And update the original parent
      UpdateADFSCat(sparent);
      //Contract the source directory (Big Dir)
-     if FDirType=diADFSBigDir then ExtendADFSBigDir(sdir,0,False);
+     if FPartitions[0].DirType=diADFSBigDir then ExtendADFSBigDir(sdir,0,False);
     end;
    end;
   end;
@@ -3998,7 +4012,7 @@ begin
  //Are we adding an extra entry?
  if add then inc(space,$1C+4); //Data after hdr ($1C) + before tail ($04)
  //Make sure it we are using big directories
- if FDirType=diADFSBigDir then
+ if FPartitions[0].DirType=diADFSBigDir then
  begin
   //we need to find out the directory indirect address. Therefore we need to
   //know what the parent is.
@@ -4013,7 +4027,7 @@ begin
   e:=parent MOD $10000; //Bottom 16 bits
   //We now know where, on the disc, the directory is
   if parent=$FFFFFFFF then //If it is the root, then just get the root address
-   addr:=root
+   addr:=FPartitions[0].RootAddress
   else
   begin //Otherwise get the fragments, so we can get the address
    addr:=FDisc[d].Entries[e].Sector;
@@ -4066,7 +4080,7 @@ begin
  if(dir<>$FFFF)and(entry<>$FFFF)then //Not the root
   fragid:=FDisc[dir].Entries[entry].Sector
  else //Root
-  fragid:=rootfrag;
+  fragid:=FPartitions[0].RootFragment;
  //Get the directory size from the header
  fragments:=NewDiscAddrToOffset(fragid);
  SetLength(newfragments,0);
@@ -4285,17 +4299,17 @@ begin
   //Where is the directory, and how big?
   len:=0;
   //We need to resolve the actual disc offset and length
-  if FMap then
+  if FPartitions[0].Map=diADFSNewMap then
    if(dir>=0)and(entry>=0)then
     sector:=FDisc[dir].Entries[entry].Sector
    else
-    sector:=rootfrag
+    sector:=FPartitions[0].RootFragment
   else
    if(dir>=0)and(entry>=0)then
     sector:=FDisc[dir].Entries[entry].Sector*$100
    else
-    sector:=root*$100;
-  if FMap then //New Map
+    sector:=FPartitions[0].RootAddress*$100;
+  if FPartitions[0].Map=diADFSNewMap then //New Map
   begin
    //Get the fragments for the directory (should only be one)
    fragments:=NewDiscAddrToOffset(sector);
@@ -4304,7 +4318,7 @@ begin
    if Length(fragments)>0 then
     for i:=0 to Length(fragments)-1 do inc(len,fragments[i].Length);
   end;
-  if not FMap then //Old Map
+  if FPartitions[0].Map=diADFSOldMap then //Old Map
   begin
    SetLength(fragments,1);
    fragments[0].Offset:=sector;
@@ -4320,12 +4334,12 @@ begin
    if ExtractFragmentedData(fragments,len,dircache) then
    begin
     //Tail length
-    if FDirType=diADFSOldDir then tail:=$35;
-    if FDirType=diADFSNewDir then tail:=$29;
-    if FDirType=diADFSBigDir then tail:=$08;
+    if FPartitions[0].DirType=diADFSOldDir then tail:=$35;
+    if FPartitions[0].DirType=diADFSNewDir then tail:=$29;
+    if FPartitions[0].DirType=diADFSBigDir then tail:=$08;
     //First basic check to see if the directory structure is where it should be
     Result:=True; //This can happen for interleaved images
-    if(FDirType=diADFSOldDir)and(Length(FDisc[dirref].Entries)=0)
+    if(FPartitions[0].DirType=diADFSOldDir)and(Length(FDisc[dirref].Entries)=0)
     and(ReadString(1,-4,dircache)<>'Hugo')
     and(ReadString((len-6),-4,dircache)<>'Hugo')
     and(error AND $02<>$02)then //Only if this is not the reason why it is broken
@@ -4335,7 +4349,7 @@ begin
      //StartSeq<>EndSeq
      if(error AND $01=$01)then
       //Quite simple - just pick up StartSeq and write it to EndSeq
-      case FDirType of
+      case FPartitions[0].DirType of
        diADFSOldDir: WriteByte(ReadByte(0,dircache),(len-tail)+$2F,dircache);
        diADFSNewDir: WriteByte(ReadByte(0,dircache),(len-tail)+$23,dircache);
        diADFSBigDir: WriteByte(ReadByte(0,dircache),(len-tail)+$04,dircache);
@@ -4345,7 +4359,7 @@ begin
      or(error AND $40=$40)then
      begin
       //Almost as simple - just re-write what they should be
-      case FDirType of
+      case FPartitions[0].DirType of
        diADFSOldDir: StartName:='Hugo';
        diADFSNewDir: StartName:='Nick';
       end;
@@ -4383,20 +4397,20 @@ begin
      if(error AND $80=$80)then
       //Root
       if(dir=-1)and(entry=-1)then
-       case FDirType of
-        diADFSOldDir: Write24b(root,(len-tail)+$0B,dircache);//Old Directory
-        diADFSNewDir: Write24b(root,(len-tail)+$03,dircache);//New Directory
-        diADFSBigDir: Write32b(rootfrag,$18,dircache);       //Big Directory
+       case FPartitions[0].DirType of
+        diADFSOldDir: Write24b(FPartitions[0].RootAddress,(len-tail)+$0B,dircache);//Old Directory
+        diADFSNewDir: Write24b(FPartitions[0].RootAddress,(len-tail)+$03,dircache);//New Directory
+        diADFSBigDir: Write32b(FPartitions[0].RootFragment,$18,dircache);       //Big Directory
        end
       else //Not root
-       case FDirType of
+       case FPartitions[0].DirType of
         diADFSOldDir: Write24b(FDisc[dir].Sector,(len-tail)+$0B,dircache);//Old Directory
         diADFSNewDir: Write24b(FDisc[dir].Sector,(len-tail)+$03,dircache);//New Directory
         diADFSBigDir: Write32b(FDisc[dir].Sector,$18,dircache);           //Big Directory
        end;
      //Bit 3 indicates invalid checksum - but we'll update anyway
      //The above changes could alter it
-     if FDirType=diADFSOldDir then //Old - can be zero
+     if FPartitions[0].DirType=diADFSOldDir then //Old - can be zero
       WriteByte($00,$4FF,dircache)
      else               //New
       WriteByte(CalculateADFSDirCheck(0,dircache),len-1,dircache);
@@ -4899,7 +4913,9 @@ var
 begin
  Result:=0;
  //Only for adding AFS partition to 8 bit ADFS
- if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if (GetMajorFormatNumber=diAcornADFS)
+ and(FPartitions[0].Map=diADFSOldMap)
+ and(FPartitions[0].DirType=diADFSOldDir)then
  begin
   //Is there enough space? Must be contiguous at the end
   fsptr:=ReadByte($1FE); //Pointer to next free space entry
@@ -4938,11 +4954,11 @@ var
  Zone   : Integer=0;
 begin
  Result:=TStringList.Create;
- if FMap then
+ if FPartitions[0].Map=diADFSNewMap then
  begin
   temp:='New Map';
-  if FDirType=diADFSNewDir then temp:=temp+' New Directory';
-  if FDirType=diADFSBigDir then temp:=temp+' Big Directory';
+  if FPartitions[0].DirType=diADFSNewDir then temp:=temp+' New Directory';
+  if FPartitions[0].DirType=diADFSBigDir then temp:=temp+' Big Directory';
   Result.Add(temp);
   if not CSV then Result.Add('');
   Result.Add('Disc Record');
@@ -4974,33 +4990,33 @@ begin
   Result.Add('Low Sector: '+IntToStr(lowsector));
   Result.Add('Number of Zones: '+IntToStr(nzones));
   Result.Add('Zone Spare Bits: '+IntToStr(zone_spare)+' bits');
-  Result.Add('Root Indirect Address: 0x'+IntToHex(rootfrag,8));
+  Result.Add('Root Indirect Address: 0x'+IntToHex(FPartitions[0].RootFragment,8));
   Result.Add('Disc Size: '+IntToStr(FPartitions[0].TotalSize)+' bytes');
   Result.Add('Disc ID: 0x'+IntToHex(disc_id,4));
   Result.Add('Disc Name: '+FPartitions[0].Name);
   Result.Add('Disc Type: 0x'+IntToHex(disctype,4));
-  if FDirType=diADFSBigDir then
+  if FPartitions[0].DirType=diADFSBigDir then
   begin
    Result.Add('Share Size: 0x'+IntToHex(share_size,4));
    Result.Add('Big Flag: '+IntToStr(big_flag));
    Result.Add('Format Version: '+IntToStr(format_vers));
-   Result.Add('Root Size: '+IntToStr(root_size)+' bytes');
+   Result.Add('Root Size: '+IntToStr(FPartitions[0].RootSize)+' bytes');
   end;
   if not CSV then Result.Add('');
-  Result.Add('Root Address: 0x'+IntToHex(root,8));
+  Result.Add('Root Address: 0x'+IntToHex(FPartitions[0].RootAddress,8));
  end
  else
  begin
   temp:='Old Map';
-  if FDirType=diADFSNewDir then temp:=temp+' New Directory';
-  if FDirType=diADFSOldDir then temp:=temp+' Old Directory';
+  if FPartitions[0].DirType=diADFSNewDir then temp:=temp+' New Directory';
+  if FPartitions[0].DirType=diADFSOldDir then temp:=temp+' Old Directory';
   Result.Add(temp);
   Result.Add('Disc Size: '+IntToStr(FPartitions[0].TotalSize)+' bytes');
   Result.Add('Disc Name: '+FPartitions[0].Name);
   if(FFormat=diAcornADFS<<4+2)
   or(FFormat=diAcornADFS<<4+$E)then
    Result.Add('Interleave Method: '+FInts[Finterleave-1]);
-  Result.Add('Root Address: 0x'+IntToHex(root<<8,8));
+  Result.Add('Root Address: 0x'+IntToHex(FPartitions[0].RootAddress<<8,8));
  end;
  Result.Add('Boot Map Location: 0x'+IntToHex(bootmap,8));
  Result.Add('Free Space: '+IntToStr(FPartitions[0].FreeSpace)+' bytes');
@@ -5012,7 +5028,7 @@ begin
  temp     :='Disc Address';
  if CSV then temp:='"'+temp+'","' else temp:=temp+'  ';
  temp:=temp+'Length';
- if FMap then
+ if FPartitions[0].Map=diADFSNewMap then
  begin
   if CSV then temp:=temp+'","' else temp:=temp+'        ';
   temp:=temp+'Map Address';

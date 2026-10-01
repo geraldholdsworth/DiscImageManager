@@ -8,7 +8,6 @@
       <Unit>
         <Filename Value="DIMConsole.lpr"/>
         <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
         <CursorPos Y="41"/>
         <UsageCount Value="220"/>
         <Loaded Value="True"/>
@@ -16,8 +15,7 @@
       <Unit>
         <Filename Value="ConsoleAppUnit.pas"/>
         <EditorIndex Value="10"/>
-        <TopLine Value="40"/>
-        <CursorPos X="26" Y="71"/>
+        <TopLine Value="208"/>
         <UsageCount Value="110"/>
         <Loaded Value="True"/>
       </Unit>
@@ -26,9 +24,10 @@
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="2"/>
-        <TopLine Value="3235"/>
-        <CursorPos X="5" Y="3291"/>
+        <TopLine Value="621"/>
+        <CursorPos X="32" Y="649"/>
         <UsageCount Value="110"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -36,7 +35,6 @@
       <Unit>
         <Filename Value="MainUnit_Console.pas"/>
         <EditorIndex Value="8"/>
-        <TopLine Value="1038"/>
         <CursorPos X="12" Y="1072"/>
         <UsageCount Value="110"/>
         <Loaded Value="True"/>
@@ -66,7 +64,7 @@
         <EditorIndex Value="9"/>
         <TopLine Value="44"/>
         <CursorPos X="32" Y="65"/>
-        <UsageCount Value="89"/>
+        <UsageCount Value="90"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -74,7 +72,7 @@
         <EditorIndex Value="3"/>
         <TopLine Value="2299"/>
         <CursorPos X="13" Y="2310"/>
-        <UsageCount Value="88"/>
+        <UsageCount Value="89"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -82,7 +80,7 @@
         <EditorIndex Value="4"/>
         <TopLine Value="1034"/>
         <CursorPos X="18" Y="1049"/>
-        <UsageCount Value="87"/>
+        <UsageCount Value="88"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -90,7 +88,7 @@
         <EditorIndex Value="6"/>
         <TopLine Value="824"/>
         <CursorPos X="9" Y="840"/>
-        <UsageCount Value="87"/>
+        <UsageCount Value="88"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -98,7 +96,7 @@
         <EditorIndex Value="5"/>
         <TopLine Value="1425"/>
         <CursorPos X="38" Y="1463"/>
-        <UsageCount Value="65"/>
+        <UsageCount Value="66"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -115,19 +113,7 @@
     <OtherDefines Count="1">
       <Define0 Value="DIMCONSOLE"/>
     </OtherDefines>
-    <JumpHistory HistoryIndex="29">
-      <Position>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="1180" Column="20" TopLine="1141"/>
-      </Position>
-      <Position>
-        <Filename Value="DiscImage_ADFS.pas"/>
-        <Caret Line="1214" Column="25" TopLine="1175"/>
-      </Position>
-      <Position>
-        <Filename Value="DiscImage_Private.pas"/>
-        <Caret Line="9" Column="22"/>
-      </Position>
+    <JumpHistory HistoryIndex="28">
       <Position>
         <Filename Value="DiscImage_Private.pas"/>
         <Caret Line="1465" Column="18" TopLine="1425"/>
@@ -234,6 +220,14 @@
       <Position>
         <Filename Value="MainUnit.pas"/>
         <Caret Line="3291" Column="5" TopLine="3235"/>
+      </Position>
+      <Position>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="3291" Column="5" TopLine="2666"/>
+      </Position>
+      <Position>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="374" Column="18" TopLine="361"/>
       </Position>
     </JumpHistory>
     <RunParams>

@@ -27,10 +27,10 @@ begin
     secsize:=256;
     doshead:=0;
     //Set root address and root size
-    root:=$800;
-    root_size:=$C0*$20;
-    Fdosroot:=root;
-    dosroot_size:=root_size;
+    FPartitions[0].RootAddress:=$800;
+    FPartitions[0].RootSize:=$C0*$20;
+    Fdosroot:=FPartitions[0].RootAddress;
+    dosroot_size:=FPartitions[0].RootSize;
     //Set the disc size
     FPartitions[0].TotalSize:=GetDataLength;
     //And cluster size
@@ -45,7 +45,7 @@ begin
     dosmap:=doshead;
     dosmap2:=doshead;
     //Attribute of the first entry of the root will indicate the volume name (bit 3)
-    if ReadByte(root+$B)<>$8 then FFormat:=diInvalidImg;
+    if ReadByte(FPartitions[0].RootAddress+$B)<>$8 then FFormat:=diInvalidImg;
    end;
   end;
   //Normal DOS disc (i.e. has a header)?
@@ -1686,7 +1686,9 @@ begin
  Result:=False;
  if size<9*secsize then exit; //Minimum size is 9 sectors
  //Only for adding DOS partition to 8 bit ADFS
- if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if (GetMajorFormatNumber=diAcornADFS)
+ and(FPartitions[0].Map=diADFSOldMap)
+ and(FPartitions[0].DirType=diADFSOldDir)then
  begin
   if FPartitions[0].TotalSize=$A0000 then size:=$9F000; //640K 'L' has 4K of ADFS
   fsed:=GetADFSMaxLength(False);

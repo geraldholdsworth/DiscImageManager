@@ -117,10 +117,10 @@ type
  public
   harddrivesize : Cardinal;
   ok,
-  newmap,
   addheader,
   ide           : Boolean;
-  dirtype,
+  newmap        : TMap;
+  dirtype       : TDirType;
   fat           : Byte;
   SystemOptions,
   DFSOptions,
@@ -286,7 +286,8 @@ begin
    if SystemOptions[1].Ticked then //ADFS Specific
    begin
     //New or old map
-    newmap:=HardDriveForm.cb_NewMap.Ticked;
+    if HardDriveForm.cb_NewMap.Ticked then newmap:=diADFSNewMap
+                                      else newmap:=diADFSOldMap;
     //Directory type
     dirtype:=diADFSOldDir;
     if HardDriveForm.rb_NewDir.Ticked then dirtype:=diADFSNewDir;

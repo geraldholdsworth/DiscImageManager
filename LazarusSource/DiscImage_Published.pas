@@ -264,7 +264,6 @@ begin
   if not ID_Sinclair then //Sinclair/Amstrad
   if not ID_CFS      then //Acorn CFS
   if not ID_RFS      then //Acorn RFS
-  if not ID_MMB      then //MMFS
   if not ID_Spark    then //Spark archive
   if not ID_ISO      then //ISO Image
   if not ID_DFS      then //Acorn DFS
@@ -299,7 +298,6 @@ begin
   diAmiga    : ReadAmigaDisc;          //Amiga
   diAcornUEF : ReadUEFFile;            //Acorn CFS
   diAcornRFS : ReadRFSImage;           //Acorn ROM FS
-  diMMFS     : ReadMMBDisc;            //MMFS
   diSpark    : ReadSparkArchive;       //Spark archive
   diDOSPlus  : ReadDOSPartition;       //DOS Plus
   diISO      : ReadISOImage;           //ISO
@@ -521,20 +519,18 @@ begin
  if not Result then ResetVariables;
 end;
 function TDiscimage.FormatHDD(major: Word;harddrivesize: Cardinal;
-                                                        dirtype: Byte): Boolean;
+                                                    dirtype: Byte): Boolean;
 begin
  Result:=False;
  //Make sure the numbers are within bounds
  major :=major AND $FFF;
- case major of
-  diAcornFS  : Result:=FormatAFS(harddrivesize,dirtype);//Create Acorn FS
-  diDOSPlus  : Result:=FormatDOS(harddrivesize,dirtype);//Create DOS HDD
- end;
+ if major=diAcornFS then Result:=FormatAFS(harddrivesize,dirtype);//Create Acorn FS
+ if major=diDOSPlus then Result:=FormatDOS(harddrivesize,dirtype);//Create DOS HDD
  //We've failed to create something, so reset everything
  if not Result then ResetVariables;
 end;
-function TDiscimage.FormatHDD(major: Word;harddrivesize: Cardinal;
-                 ide,newmap: Boolean;dirtype: Byte;addheader: Boolean): Boolean;
+function TDiscimage.FormatHDD(major: Word;harddrivesize: Cardinal;ide:Boolean;
+                        newmap: TMap;dirtype: Byte;addheader: Boolean): Boolean;
 begin
  Result:=False;
  //Make sure the numbers are within bounds
@@ -542,6 +538,17 @@ begin
  case major of //First three are just repeats of above, so we'll call the above
   diAcornFS  : Result:=FormatHDD(major,harddrivesize,dirtype);//Create Acorn FS
   diDOSPlus  : Result:=FormatHDD(major,harddrivesize,dirtype);//Create DOS HDD
+ end;
+ //We've failed to create something, so reset everything
+ if not Result then ResetVariables;
+end;
+function TDiscimage.FormatHDD(major: Word;harddrivesize: Cardinal;ide:Boolean;
+                        newmap: TMap;dirtype: TDirType;addheader: Boolean): Boolean;
+begin
+ Result:=False;
+ //Make sure the numbers are within bounds
+ major :=major AND $FFF;
+ case major of //First three are just repeats of above, so we'll call the above
   diAmiga    : Result:=FormatHDD(major,harddrivesize);        //Create Amiga HDD
   diAcornADFS: Result:=FormatADFSHDD(harddrivesize,
                                      newmap,
@@ -1357,7 +1364,7 @@ begin
  //Get the valid attributes for the current format
  case GetMajorFormatNumber of
   diAcornDFS : attr:='L';
-  diAcornADFS: if Fdirtype=diADFSOldDir then
+  diAcornADFS: if FPartitions[0].DirType=diADFSOldDir then
                 attr:=ADFSOldAttributes else
                 attr:=ADFSNewAttributes;
   diCommodore: attr:='LC';
@@ -1610,7 +1617,7 @@ begin
   diAcornDFS : len:=7;
   diAcornADFS:
   begin
-   case FDirType of
+   case FPartitions[0].DirType of
     diADFSOldDir,
     diADFSNewDir : len:=10;
     diADFSBigDir : len:=255;
@@ -1818,7 +1825,9 @@ function TDiscImage.GetMaxLength: Cardinal;
 begin
  Result:=0;
  //Only 8 bit ADFS
- if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if (GetMajorFormatNumber=diAcornADFS)
+ and(FPartitions[0].Map=diADFSOldMap)
+ and(FPartitions[0].DirType=diADFSOldDir)then
   Result:=GetADFSMaxLength(False);
 end;
 
@@ -1829,7 +1838,9 @@ function TDiscImage.AddPartition(size: Cardinal;format: Byte): Boolean;
 begin
  Result:=False;
  //Only for adding AFS or DOS Plus partition to 8 bit ADFS
- if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if (GetMajorFormatNumber=diAcornADFS)
+ and(FPartitions[0].Map=diADFSOldMap)
+ and(FPartitions[0].DirType=diADFSOldDir)then
   case format of
    0: Result:=AddAFSPartition(size); //Add AFS partition
    1: Result:=AddDOSPartition(size); //Add DOS Plus partition

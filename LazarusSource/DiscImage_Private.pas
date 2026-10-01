@@ -7,8 +7,7 @@ procedure TDiscImage.ResetVariables;
 begin
  //Default values
  SetLength(FDisc,0);
-// FDSD          :=False;
- FMap          :=False;
+ FDSD          :=False;
  FBootBlock    :=True;
  FAFSPresent   :=False;
  FDOSPresent   :=False;
@@ -16,13 +15,11 @@ begin
  secsize       :=$0100;
  bpmb          :=$0000;
  nzones        :=$0000;
- root          :=$0000;
  Fafsroot      :=$0000;
  Fdosroot      :=$0000;
  bootmap       :=$0000;
  zone_spare    :=$0000;
  format_vers   :=$0000;
- root_size     :=$0000;
  afsroot_size  :=$0000;
  dosroot_size  :=$0000;
  disc_id       :=$0000;
@@ -36,7 +33,6 @@ begin
  SetLength(bootoption,0);
  lowsector     :=$00;
  disctype      :=$00;
- FDirType      :=diUnknownDir;
  FHasDirs      :=False;
  share_size    :=$00;
  big_flag      :=$00;
@@ -212,6 +208,11 @@ function TDiscImage.GetMajorFormatNumber: Word;
 begin
  Result:=FFormat>>4;
 end;
+function TDiscImage.GetMajorFormatNumber(part: Cardinal): Word;
+begin
+ if part>=Length(FPartitions)then part:=0;
+ Result:=FPartitions[part].Format>>4;
+end;
 
 {-------------------------------------------------------------------------------
 Get the minor format number
@@ -220,13 +221,22 @@ function TDiscImage.GetMinorFormatNumber: Byte;
 begin
  Result:=FFormat mod $10;
 end;
+function TDiscImage.GetMinorFormatNumber(part: Cardinal): Byte;
+begin
+ if part>=Length(FPartitions)then part:=0;
+ Result:=FPartitions[part].Format mod$10;
+end;
 
 {-------------------------------------------------------------------------------
 Get the double sided flag
 -------------------------------------------------------------------------------}
 function TDiscImage.GetDoubleSided: Boolean;
 begin
- Result:=(FFormat>>4=diAcornDFS)AND(FFormat AND 1=1);
+ //DFS: There will be multiple partitions
+ //C64: Minor format will not be a 1541
+ Result:=((GetMajorFormatNumber=diAcornDFS) AND(Length(FPartitions)=2))
+       or((GetMajorFormatNumber=diCommodore)AND(GetMinorFormatNumber<>0)and(GetMinorFormatNumber<>3))
+       or((GetMajorFormatNumber=diSinclair) AND(FDSD));
 end;
 
 {-------------------------------------------------------------------------------
@@ -1024,36 +1034,22 @@ procedure TDiscImage.ResetPartition(var Entry: TPartition);
 begin
  with Entry do
  begin
-  RootRef   :=0;
-  DirSep    :='.';
-  Format    :=diInvalidImg;
-  FreeSpace :=$0000;
-  TotalSize :=$0000;
-  RootName  :='$';
-  Name      :='';
-  BootOption:=0;
+  RootRef     :=0;
+  RootName    :='$';
+  RootAddress :=0;
+  RootFragment:=0;
+  RootSize    :=0;
+  DirSep      :='.';
+  Format      :=diInvalidImg;
+  FreeSpace   :=$0000;
+  TotalSize   :=$0000;
+  RootName    :='$';
+  Name        :='';
+  BootOption  :=0;
+  Map         :=diUndefinedMap;
+  DirType     :=diUnknownDir;
   SetLength(FreeSpaceMap,0);
  end;
-end;
-
-{-------------------------------------------------------------------------------
-Convert the Map flag to Map Type
--------------------------------------------------------------------------------}
-function TDiscImage.MapFlagToByte: Byte;
-begin
- Result:=diUnknownDir;          //Default value for non-ADFS
- if GetMajorFormatNumber=diAcornADFS then //Is it ADFS?
- begin
-  Result:=diADFSOldMap;              // ADFS Old Map
-  if FMap then Result:=diADFSNewMap; // ADFS New Map
- end;
- if GetMajorFormatNumber=diAmiga then     //Is it Amiga?
- begin
-  Result:=diAmigaOFS;                // AmigaDOS OFS
-  if FMap then Result:=diAmigaFFS;   // AmigaDOS FFS
- end;
- if GetMajorFormatNumber=diDOSPlus then   //Is it DOS
-  Result:=FATType;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1061,25 +1057,26 @@ Convert the Map flag to String
 -------------------------------------------------------------------------------}
 function TDiscImage.MapTypeToString: String;
 begin
+ Result:=MapTypeToString(0);
+end;
+function TDiscImage.MapTypeToString(part: Cardinal): String;
+begin
  Result:='';
- //ADFS and AmigaDOS
- if(GetMajorFormatNumber=diAcornADFS)or(GetMajorFormatNumber=diAmiga)then
- begin
-  case MapFlagToByte of
-   diADFSOldMap: Result:='ADFS Old Map';
-   diADFSNewMap: Result:='ADFS New Map';
-   diAmigaOFS  : Result:='AmigaDOS OFS';
-   diAmigaFFS  : Result:='AmigaDOS FFS';
-  end;
- end;
- if GetMajorFormatNumber=diDOSPlus then
- begin
-  case FATType of
-   diFAT12 : Result:='FAT12';
-   diFAT16 : Result:='FAT16';
-   diFAT32 : Result:='FAT32';
-  end;
- end;
+ if part<Length(FPartitions) then
+  if GetMajorFormatNumber(part)<>diDOSPlus then
+   case FPartitions[part].Map of
+    diADFSOldMap : Result:='ADFS Old Map';
+    diADFSNewMap : Result:='ADFS New Map';
+    diAmigaOFS   : Result:='AmigaDOS OFS';
+    diAmigaFFS   : Result:='AmigaDOS FFS';
+   end
+   else
+   case FATType of
+    diMaster512  : Result:='DOS+';
+    diFAT12      : Result:='FAT12';
+    diFAT16      : Result:='FAT16';
+    diFAT32      : Result:='FAT32';
+   end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -1087,8 +1084,13 @@ Convert the Directory Type to String
 -------------------------------------------------------------------------------}
 function TDiscImage.DirTypeToString: String;
 begin
+ Result:=DirTypeToString(0);
+end;
+function TDiscImage.DirTypeToString(part: Cardinal): String;
+begin
  Result:='';
- case FDirType of
+ if part>=Length(FPartitions) then part:=0;
+ case FPartitions[part].DirType of
   diADFSOldDir: Result:='ADFS Old Directory';
   diADFSNewDir: Result:='ADFS New Directory';
   diADFSBigDir: Result:='ADFS Big Directory';
@@ -1216,11 +1218,13 @@ end;
 {-------------------------------------------------------------------------------
 Return the root address, depending on format
 -------------------------------------------------------------------------------}
-function TDiscImage.GetRootAddress: Cardinal;
+function TDiscImage.GetRootAddress(part: Cardinal=0): Cardinal;
 begin
- Result:=root;
- if GetMajorFormatNumber=diAcornADFS then //New map will return the fragment ID
-  if FMap then Result:=rootfrag;
+ if part>Length(FPartitions) then part:=0;
+ Result:=FPartitions[part].RootAddress;
+ if GetMajorFormatNumber(part)=diAcornADFS then //New map will return the fragment ID
+  if FPartitions[part].Map=diADFSNewMap then
+   Result:=FPartitions[part].RootFragment;
 end;
 
 {-------------------------------------------------------------------------------

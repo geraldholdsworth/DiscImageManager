@@ -94,7 +94,7 @@ function CheckConsole: Boolean;
   Result:=(StartUp.dwFlags AND 1)<>1;
  {$ENDIF}
  {$IFDEF Linux}
-  Result:=fpReadLink('/proc/'+fpGetppid.ToString+'/exe')<>'';
+  Result:=False;//fpReadLink('/proc/'+fpGetppid.ToString+'/exe')<>'';
  {$ENDIF}
  {$IFDEF Darwin}
   Result:=NSProcessInfo.ProcessInfo.environment.objectForKey(NSStr('XPC_SERVICE_NAME')).UTF8String='0';

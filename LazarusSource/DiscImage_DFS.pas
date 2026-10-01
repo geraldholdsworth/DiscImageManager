@@ -10,8 +10,10 @@ var
  t0  : Integer=0;
  t1  : Integer=0;
  chk : Boolean=False;
+ ok  : Boolean=False;
  sec : Cardinal=0;
  temp: String='';
+ LDSD: Boolean=False;
 begin
  if FFormat=diInvalidImg then
  begin
@@ -37,37 +39,38 @@ begin
    //Above checks have passed
    if chk then
    begin
-    FDSD:=True; //Double sided flag
+    LDSD:=True; //Double sided flag
     if not FDFSZeroSecs then
     begin
      //Check the entire first two sectors - if they are all zero assume ssd
      c:=0;
      for i:=0 to $FE do if ReadByte($0A00+i)=0 then inc(c);
-     if(c=$FF)and(ReadByte($0AFF)=0)then FDSD:=False;
-     if FDSD then
+     if(c=$FF)and(ReadByte($0AFF)=0)then ok:=True else ok:=False;
+     if ok then
      begin
+      c:=0;
       for i:=0 to $FE do if ReadByte($B00+i)=0 then inc(c);
-      if(c=$FF)and(ReadByte($0BFF)=0)then FDSD:=False;
+      if(c=$FF)and(ReadByte($0BFF)=0)then LDSD:=False;
      end;
     end;
     //Offset 0x0A01 should have 9 bytes >31
     c:=0;
     for i:=0 to 8 do
      if(ReadByte($0A01+i)>31)or(ReadByte($0A01+i)=0)then inc(c);
-    if c<>9 then FDSD:=False;
+    if c<>9 then LDSD:=False;
     //Offset 0x0B00 should have 4 bytes >31
     c:=0;
     for i:=0 to 3 do
      if(ReadByte($0B00+i)>31)or(ReadByte($0B00+i)=0)then inc(c);
-    if c<>4 then FDSD:=False;
+    if c<>4 then LDSD:=False;
     //Offset 0x0B05 should have bits 0,1 and 2 clear
-    if(ReadByte($0B05)AND$7)<>0 then FDSD:=False;
+    if(ReadByte($0B05)AND$7)<>0 then LDSD:=False;
     //Offset 0x0B06 should have bits 2,3,6 and 7 clear
-    if(ReadByte($0B06)AND$CC)<>0 then FDSD:=False;
+    if(ReadByte($0B06)AND$CC)<>0 then LDSD:=False;
     //Number of sectors, side 0
     t0:=ReadByte($0107)+((ReadByte($0106)AND$3)<<8);
     //DS tests passed, get the number of sectors, side 1
-    if FDSD then
+    if LDSD then
      t1:=ReadByte($0B07)+((ReadByte($0B06)AND$3)<<8)
     else
      t1:=t0;
@@ -75,7 +78,7 @@ begin
     if(t1=0)and(not FDFSzerosecs)then
     begin
      //So mark as so
-     FDSD:=False;
+     LDSD:=False;
      //This needs to be set to something other that 0, otherwise it'll fail to
      //ID as a DFS. Actually, DFS does accept zero length disc sizes, but
      //everything we have checked so far is for zeros.
@@ -83,9 +86,9 @@ begin
     end;
     //Zero number of sectors, and we're allowing these, so let's look at the extension
     if(t1=0)and(FDFSzerosecs)then //If it is '.SSD' then it is single sided
-     if UpperCase(RightStr(FFilename,4))='.SSD' then FDSD:=False;
+     if UpperCase(RightStr(FFilename,4))='.SSD' then LDSD:=False;
     //Set the initial format
-    if FDSD then
+    if LDSD then
      FFormat:=diAcornDFS<<4+1
     else
      FFormat:=diAcornDFS<<4;
@@ -120,7 +123,7 @@ begin
       WriteByte((t0>>8AND$3)OR(ReadByte($106)AND$FC),$106);
      end;
      //Side 2
-     if(FDSD)and(ReadByte($B05)>>3>0)then
+     if(LDSD)and(ReadByte($B05)>>3>0)then
      begin
       if t1=0 then t1:=$320; //Assume 200K disc
       for i:=0 to (ReadByte($B05)>>3)-1 do
@@ -130,7 +133,7 @@ begin
        //And add the length to it
        inc(sec,Read16b($B08+4+i*8)+((ReadByte($B08+6+i*8)AND$30)<<12));
        //If the end of the file is over the end of the disc, fail it as a double
-       if(sec>t1<<8)and(not FDFSBeyondEdge)then FDSD:=False;
+       if(sec>t1<<8)and(not FDFSBeyondEdge)then LDSD:=False;
        if(sec>t1<<8)and(FDFSBeyondEdge)    then sec:=(t1+$FF)>>8; //Or fix it
        //Check for blank filenames
        if not FDFSAllowBlank then
@@ -138,7 +141,7 @@ begin
         temp:=ReadString($A08+(i*8),-7);
         RemoveTopBit(temp); //Attributes are in the top bit
         RemoveSpaces(temp); //Remove extraneous spaces
-        if temp='' then FDSD:=False;
+        if temp='' then LDSD:=False;
        end;
       end;
       WriteByte(t1 AND$FF,$A07); //Temporary fix
@@ -165,7 +168,7 @@ begin
      if GetMajorFormatNumber=diAcornDFS then
       t0:=1;//Set side 1 to Watford
     //Now we check side 2
-    if FDSD then
+    if LDSD then
     begin
      //Offset 0x0C00 should have 8 bytes of 0xAA
      c:=0;
@@ -179,7 +182,7 @@ begin
        t1:=1;//Set side 1 to Watford
     end;
     //Determine the format
-    if not FDSD then //Single sided
+    if not LDSD then //Single sided
     begin
      if t0=0 then FFormat:=diAcornDFS<<4+0; //Acorn SSD
      if t0=1 then FFormat:=diAcornDFS<<4+2; //Watford SSD
@@ -196,9 +199,11 @@ begin
       if t1=0 then FFormat:=diAcornDFS<<4+7; //Watford/Acorn DSD
       if t1=1 then FFormat:=diAcornDFS<<4+3; //Watford DSD
      end;
+     SetLength(FPartitions,2);
+     ResetPartition(FPartitions[1]);
+     FPartitions[1].Format:=FFormat;
     end;
-    //Set the Double Sided flag
-    //FDSD:=dbl;
+    FPartitions[0].Format:=FFormat;
    end;
   end;
  end;
@@ -214,7 +219,7 @@ var
  offset: Integer=0;
 begin
  //For an single sided disc, this is just the address
- if not FDSD then
+ if Length(FPartitions)=1 then
   Result:=address
  //Otherwise, needs a bit of jiggery pokery, as the sides are interleaved
  else
@@ -225,18 +230,12 @@ begin
   //On Acorn DFS discs, there are 10 sectors per track
   Result:=(((sector MOD 10)+(20*(sector DIV 10))+(10*side))*$100)+offset;
  end;
- //MMB
- if GetMajorFormatNumber=diMMFS then
- begin
-  if(side<0)or(side>511)then side:=0;
-  Result:=Result+side*$32000+$2000;
- end;
 end;
 
 {-------------------------------------------------------------------------------
 Read Acorn DFS Disc
 -------------------------------------------------------------------------------}
-function TDiscImage.ReadDFSDisc(mmbdisc:Integer=-1): Boolean;
+function TDiscImage.ReadDFSDisc: Boolean;
 var
  s      : Integer=0;
  t      : Integer=0;
@@ -249,45 +248,31 @@ begin
  Result:=False;
  FDisc:=nil;
  //Determine how many sides
- if FDSD then //Double sided image
- begin
-  SetLength(FDisc,2);
-  SetLength(bootoption,2);
-  SetLength(FPartitions,2);
-  ResetPartition(FPartitions[1]);
-  FPartitions[1].Format:=FFormat;
- end
- else                       //Single sided image
- begin
-  SetLength(FDisc,1);
-  SetLength(bootoption,1);
-  SetLength(FPartitions,1);
- end;
- //Used by MMB. For DFS, this should be 0
- if(mmbdisc<0)or(mmbdisc>511)then mmbdisc:=0;
- s:=mmbdisc;
+ SetLength(FDisc,Length(FPartitions));
+ SetLength(bootoption,Length(FPartitions));
+ s:=0;
  repeat
-  ResetDir(FDisc[s-mmbdisc]);
+  ResetDir(FDisc[s]);
   //Number of entries on disc side
   t:=ReadByte(ConvertDFSSector($105,s)) div 8;
   if(GetMinorFormatNumber>$1)and(GetMinorFormatNumber<$4)then //Extra files on Watford DFS
    inc(t,ReadByte(ConvertDFSSector($305,s))div 8);
-  SetLength(FDisc[s-mmbdisc].Entries,t);
+  SetLength(FDisc[s].Entries,t);
   //Directory name - as DFS only has $, this will be the drive number + '$'
   FPartitions[s].RootName:='$';
   FPartitions[s].DirSep  :='.';
-  FPartitions[s].RootRef :=s-mmbdisc;
-  FDisc[s-mmbdisc].Directory:=':'+IntToStr(s*2)+FPartitions[s].DirSep+FPartitions[s].RootName;
-  FDisc[s-mmbdisc].Partition:=s;
-  FDisc[s-mmbdisc].BeenRead :=True;
+  FPartitions[s].RootRef :=s;
+  FDisc[s].Directory:=':'+IntToStr(s*2)+FPartitions[s].DirSep+FPartitions[s].RootName;
+  FDisc[s].Partition:=s;
+  FDisc[s].BeenRead :=True;
   //Get the disc title(s)
-  FDisc[s-mmbdisc].Title:=ReadString(ConvertDFSSector($000,s),-8)
+  FDisc[s].Title:=ReadString(ConvertDFSSector($000,s),-8)
                           +ReadString(ConvertDFSSector($100,s),-4);
-  RemoveSpaces(FDisc[s-mmbdisc].Title);
-  RemoveControl(FDisc[s-mmbdisc].Title);
-  FPartitions[s].Name:=FDisc[s-mmbdisc].Title;
+  RemoveSpaces(FDisc[s].Title);
+  RemoveControl(FDisc[s].Title);
+  FPartitions[s].Name:=FDisc[s].Title;
   //Master sequence number
-  FDisc[s-mmbdisc].Sequence :=ReadByte(ConvertDFSSector($104,s));
+  FDisc[s].Sequence :=ReadByte(ConvertDFSSector($104,s));
   //Boot Option
   if GetMajorFormatNumber=diAcornDFS then
    bootoption[s]:=(ReadByte(ConvertDFSSector($106,s))AND$30)>>4;
@@ -300,7 +285,7 @@ begin
   for f:=1 to t do
   begin
    //Reset the variables
-   ResetDirEntry(FDisc[s-mmbdisc].Entries[f-1]);
+   ResetDirEntry(FDisc[s].Entries[f-1]);
    //Is it a Watford, and are we in the Watford area?
    diroff:=$000;
    ptr:=f;
@@ -314,51 +299,44 @@ begin
    temp:=ReadString(ConvertDFSSector(diroff+($08*ptr),s),-7);
    RemoveTopBit(temp); //Attributes are in the top bit
    RemoveSpaces(temp); //Remove extraneous spaces
-   FDisc[s-mmbdisc].Entries[f-1].Filename:=temp;
+   FDisc[s].Entries[f-1].Filename:=temp;
    //Get the directory character
    temp:=chr(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$7F);
    if temp=' 'then temp:=FPartitions[s].RootName; //Acorn Atom DOS root is ' '
    //If the directory is not root, add it to the filename
    if temp<>FPartitions[s].RootName then
-    FDisc[s-mmbdisc].Entries[f-1].Filename:=temp+FPartitions[s].DirSep
-                                      +FDisc[s-mmbdisc].Entries[f-1].Filename;
+    FDisc[s].Entries[f-1].Filename:=temp+FPartitions[s].DirSep
+                                      +FDisc[s].Entries[f-1].Filename;
    //Make up a parent directory pathname so this can be found
-   FDisc[s-mmbdisc].Entries[f-1].Parent:=':'+IntToStr(s*2)+FPartitions[s].DirSep+FPartitions[s].RootName;
+   FDisc[s].Entries[f-1].Parent:=':'+IntToStr(s*2)+FPartitions[s].DirSep+FPartitions[s].RootName;
    //Is it locked? This is actually the top bit of the final filename character
    locked:=(ReadByte(ConvertDFSSector(diroff+($08*ptr)+7,s))AND$80)>>7;
-   if locked=1 then
-    FDisc[s-mmbdisc].Entries[f-1].Attributes:='L'
-   else
-    FDisc[s-mmbdisc].Entries[f-1].Attributes:='';
+   if locked=1 then FDisc[s].Entries[f-1].Attributes:='L'
+               else FDisc[s].Entries[f-1].Attributes:='';
    //Load address - need to multiply bits 16/17 by $55 to expand it to 8 bits
-   FDisc[s-mmbdisc].Entries[f-1].LoadAddr:=
+   FDisc[s].Entries[f-1].LoadAddr:=
       (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$0C)<<14)*$55)
         +Read16b( ConvertDFSSector(diroff+$100+($08*ptr),s));
    //Execution address - need to multiply bits 16/17 by $55 to expand it to 8 bits
-   FDisc[s-mmbdisc].Entries[f-1].ExecAddr:=
+   FDisc[s].Entries[f-1].ExecAddr:=
       (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$C0)<<10)*$55)
       +  Read16b( ConvertDFSSector(diroff+$102+($08*ptr),s));
    //Length
-   FDisc[s-mmbdisc].Entries[f-1].Length:=
+   FDisc[s].Entries[f-1].Length:=
       (((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$30)<<12))
       +  Read16b( ConvertDFSSector(diroff+$104+($08*ptr),s));
    //Sector of start of data
-   FDisc[s-mmbdisc].Entries[f-1].Sector:=
+   FDisc[s].Entries[f-1].Sector:=
        ((ReadByte(ConvertDFSSector(diroff+$106+($08*ptr),s))AND$03)<<8)
         +ReadByte(ConvertDFSSector(diroff+$107+($08*ptr),s));
    //Which side it is on
-   FDisc[s-mmbdisc].Entries[f-1].Side:=s;
+   FDisc[s].Entries[f-1].Side:=s;
    //Not a directory - not used in DFS
-   FDisc[s-mmbdisc].Entries[f-1].DirRef:=-1;
+   FDisc[s].Entries[f-1].DirRef:=-1;
   end;
   //Next side
-  if(FFormat AND $1=1)then inc(s) else s:=2+mmbdisc;
-  {FPartitions[s-mmbdisc].Directories:=Result;
-  FPartitions[s-mmbdisc].DirSep:=FPartitions[0].DirSep;
-  FPartitions[s-mmbdisc].Format:=diAcornDFS;
-  FPartitions[s-mmbdisc].Title:=FPartitions[s].Name;
-  FPartitions[s-mmbdisc].RootName:=FPartitions[0].RootName;}
- until s=2+mmbdisc;
+  inc(s);
+ until s=Length(FPartitions);
  //Free Space Map (not MMB)
  if GetMajorFormatNumber=diAcornDFS then DFSFreeSpaceMap;
  Result:=Length(FDisc)>0;
@@ -376,14 +354,8 @@ var
  fs: Cardinal=0;
 begin
  //Set up the arrays
- if (FFormat AND $1)=1 then //Double sided image
- begin
-  SetLength(free_space_map,2);
- end
- else                       //Single sided image
- begin
-  SetLength(free_space_map,1);
- end;
+ if (FFormat AND $1)=1 then SetLength(free_space_map,2) //Double sided image
+                       else SetLength(free_space_map,1);//Single sided image
  for s:=0 to Length(free_space_map)-1 do
  begin
   //Directory size
@@ -394,8 +366,7 @@ begin
   for f:=0 to Length(free_space_map[s])-1 do
   begin
    SetLength(free_space_map[s,f],10); //Number of sectors per track
-   for c:=0 to 9 do
-    free_space_map[s,f,c]:=$00;
+   for c:=0 to 9 do free_space_map[s,f,c]:=$00;
   end;
   //First two sectors are used
   free_space_map[s,0,0]:=$FE;
@@ -501,8 +472,8 @@ begin
    end
    else
    begin //First sector for the data, if first entry
-    if not IsWatford(file_details.Side) then pos:=2; //Acorn DFS is sector 2
-    if IsWatford(file_details.Side) then pos:=4; //Watford DFS is sector 4
+    if not IsWatford(file_details.Side)then pos:=2; //Acorn DFS is sector 2
+    if IsWatford(file_details.Side)    then pos:=4; //Watford DFS is sector 4
    end;
    //Add the entry at the insert point
    FDisc[file_details.Side].Entries[filen]:=file_details;
@@ -556,14 +527,12 @@ begin
    filename[i]:=chr(ord(filename[i])+32);
  end;
  //Ensure that the root has not been included
- if  (filename[1]=FPartitions[0].RootName)
- and (filename[2]=FPartitions[0].DirSep) then
+ if (filename[1]=FPartitions[0].RootName)
+ and(filename[2]=FPartitions[0].DirSep)then
   filename:=Copy(filename,3,Length(filename));
  //Is it not too long, including any directory specifier?
- if (filename[2]=FPartitions[0].DirSep) then
-  filename:=Copy(filename,1,9)
- else
-  filename:=Copy(filename,1,7);
+ if filename[2]=FPartitions[0].DirSep then filename:=Copy(filename,1,9)
+                                      else filename:=Copy(filename,1,7);
  //Remove any forbidden characters
  for i:=1 to Length(filename) do
   if Pos(filename[i],illegal)>0 then filename[i]:='_';
@@ -619,28 +588,27 @@ begin
   //Directory specifier
   t:=Ord(dn[1]);
   //Attribute
-  if Pos('L',FDisc[side].Entries[i].Attributes)>0 then
-   t:=t OR $80;
+  if Pos('L',FDisc[side].Entries[i].Attributes)>0 then t:=t OR $80;
   //Write the directory specifier and attribute together
-  WriteByte(t,               ConvertDFSSector(s+7+$08*(c+1),side));
+  WriteByte(t,ConvertDFSSector(s+7+$08*(c+1),side));
   //Load address
   Write16b(FDisc[side].Entries[i].LoadAddr and $FFFF,
-                             ConvertDFSSector(s+$100+$08*(c+1),side));
+           ConvertDFSSector(s+$100+$08*(c+1),side));
   //Execution address
   Write16b(FDisc[side].Entries[i].ExecAddr and $FFFF,
-                             ConvertDFSSector(s+$102+$08*(c+1),side));
+           ConvertDFSSector(s+$102+$08*(c+1),side));
   //Length
   Write16b(FDisc[side].Entries[i].Length   and $FFFF,
-                             ConvertDFSSector(s+$104+$08*(c+1),side));
+           ConvertDFSSector(s+$104+$08*(c+1),side));
   //Start Sector
   WriteByte(FDisc[side].Entries[i].Sector  and $FF,
-                             ConvertDFSSector(s+$107+$08*(c+1),side));
+            ConvertDFSSector(s+$107+$08*(c+1),side));
   //Extra bits for Load,Execution,Length and Start Sector
   t:=((Integer(FDisc[side].Entries[i].Sector)  and   $300)>> 8) //bits 0,1
    OR((Integer(FDisc[side].Entries[i].LoadAddr)and $30000)>>14) //bits 2,3
    OR((Integer(FDisc[side].Entries[i].Length  )and $30000)>>12) //bits 4,5
    OR((Integer(FDisc[side].Entries[i].ExecAddr)and $30000)>>10);//bits 6,7
-  WriteByte(t,               ConvertDFSSector(s+$106+$08*(c+1),side));
+  WriteByte(t,ConvertDFSSector(s+$106+$08*(c+1),side));
  end;
 end;
 
@@ -657,12 +625,9 @@ begin
  //Check that the new name meets the required DFS filename specs
  newfilename:=ValidateDFSFilename(newfilename);
  //Check that the file exists
- if FileExists(oldfilename,ptr) then
+ if FileExists(oldfilename,dir,entry) then
  begin                                    
   Result:=-3;//Destination already exists
-  //FileExists returns a pointer to the file
-  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Make sure the new filename does not already exist
   if(not FileExists(GetParent(dir)+FPartitions[0].DirSep+newfilename,ptr))
   // or the user is just changing case
@@ -689,11 +654,8 @@ var
 begin
  Result:=False;
  //Check that the file exists
- if FileExists(filename,ptr) then
+ if FileExists(filename,dir,entry) then
  begin
-  //FileExists returns a pointer to the file
-  entry:=ptr mod $10000;  //Bottom 16 bits - entry reference
-  dir  :=ptr div $10000;  //Top 16 bits - directory reference
   //Remove the filename from the entries by moving the entries below up one
   for i:=entry+1 to Length(FDisc[dir].Entries)-1 do
    FDisc[dir].Entries[i-1]:=FDisc[dir].Entries[i];
@@ -720,7 +682,7 @@ begin
  if FileExists(filename,dir,entry) then
  begin
   if FDisc[dir].Entries[entry].DirRef<>-1 then attributes:=attributes+'D'
-  else attributes:=ReplaceStr(attributes,'D','');
+                                          else attributes:=ReplaceStr(attributes,'D','');
   //Change the attributes on the local copy
   FDisc[dir].Entries[entry].Attributes:=attributes;
   //Then update the catalogue
@@ -750,7 +712,6 @@ begin
  if (FFormat AND $1)=1 then //Double sided image
  begin
   SetLength(FDisc,2);
-  FDSD:=True;
   SetLength(bootoption,2);
   SetLength(FPartitions,2);
   ResetPartition(FPartitions[1]);
@@ -759,7 +720,6 @@ begin
  else                       //Single sided image
  begin
   SetLength(FDisc,1);
-  FDSD:=False;
   SetLength(bootoption,1);
   SetLength(FPartitions,1);
  end;
@@ -776,9 +736,9 @@ begin
   //Directory name - as DFS only has $, this will be the drive number + '$'
   FDisc[s].Directory:=':'+IntToStr(s*2)+FPartitions[s].DirSep+FPartitions[s].RootName;
   //Get the disc title(s)
-  FDisc[s].Title:=Fdisctitle;
+  FDisc[s].Title     :=Fdisctitle;
   FPartitions[s].Name:=FDisc[s].Title;
-  FDisc[s].BeenRead:=True;
+  FDisc[s].BeenRead  :=True;
   //Disc Size
   side_size:=0;
   if tracks=0 then side_size:=$190; //40T
@@ -788,7 +748,7 @@ begin
   WriteByte(side_size mod $100,ConvertDFSSector($107,s));
   inc(FPartitions[s].TotalSize,side_size*$100);
   //Increase the data length, if needed
-  if FDSD then
+  if Length(FPartitions)=2 then
    SetDataLength(FPartitions[0].TotalSize+FPartitions[1].TotalSize);
   //Disc Title
   UpdateDFSDiscTitle(Fdisctitle,s);
@@ -826,8 +786,7 @@ begin
   //Set the DFS root directory title
   FDisc[side].Title:=title;
   //Set the disc_name for both sides
-  if Length(FDisc)>1 then
-   FPartitions[1].Name:=FDisc[1].Title;
+  if Length(FDisc)>1 then FPartitions[1].Name:=FDisc[1].Title;
   FPartitions[0].Name:=FDisc[0].Title;
  end;
  //Update the data
@@ -881,7 +840,7 @@ begin
   SetLength(buffer,filelen);
   //Work out where it is coming from
   source:=FDisc[dir].Entries[entry].Sector*$100;
-  side:=FDisc[dir].Entries[entry].Side;
+  side  :=FDisc[dir].Entries[entry].Side;
   //Read the data into the buffer
   if filelen>0 then Result:=ReadDiscData(source,filelen,side,0,buffer);
  end;
@@ -898,11 +857,8 @@ var
 begin
  Result:=False;
  //Ensure the file actually exists
- if FileExists(filename,ptr) then
+ if FileExists(filename,dir,entry) then
  begin
-  //Extract the references
-  dir  :=ptr DIV $10000;
-  entry:=ptr MOD $10000;
   //Are they valid?
   if dir<Length(FDisc)then
    if entry<Length(FDisc[dir].Entries)then
@@ -951,7 +907,7 @@ var
  t          : Cardinal=0;
 begin
  Result:=False;
- if not FDSD then
+ if Length(FPartitions)=1 then
  begin
   //Create an blank single sided image
   //Setup the data area
@@ -991,18 +947,18 @@ var
  oldfilename: String='';
 begin
  Result:=False;
- if not FDSD then
+ if Length(FPartitions)=1 then
  begin
   //Take a copy of the class main data area
   FdataCopy:=Fdata;
   //Set the double sided flag, so that the convert sector function works
-  FDSD:=True;
+  SetLength(FPartitions,2);
+  ResetPartition(FPartitions[1]);
   //Set the new buffer to a size big enough to receive
-  side0size:=(ReadByte(ConvertDFSSector($107,0))
-            +(ReadByte(ConvertDFSSector($106,0))AND$3)*$100)*$100;
+  side0size:=(ReadByte($107)
+            +(ReadByte($106)AND$3)*$100)*$100;
   if side0size=0 then side0size:=$32000; //Assume 200K
-  side2size:=(ReadByte(ConvertDFSSector($107,0),buffer)
-            +(ReadByte(ConvertDFSSector($106,0),buffer)AND$3)*$100)*$100;
+  side2size:=(buffer[$107]+(buffer[$106]AND$3)*$100)*$100;
   if side2size=0 then side2size:=$32000; //Assume 200K
   //Work out the total size
   if side0size>=side2size then totsize:=2*side0size else totsize:=2*side2size;
@@ -1010,12 +966,10 @@ begin
   //Merge the data with the current data, but into another buffer
   //Step 1 - copy the current data into the new buffer, interleaving it
   for addr:=0 to side0size-1 do
-   WriteByte(ReadByte(ConvertDFSSector(addr,0))
-            ,ConvertDFSSector(addr,0),NewData);//Does range checking
+   NewData[ConvertDFSSector(addr,0)]:=ReadByte(addr);
   //Step 2 - copy the new data into the new buffer, interleaving it
   for addr:=0 to side2size-1 do
-   WriteByte(ReadByte(ConvertDFSSector(addr,0),buffer)
-            ,ConvertDFSSector(addr,1),NewData);//Does range checking
+   NewData[ConvertDFSSector(addr,1)]:=buffer[addr];
   //Move this buffer into the class main data area
   Fdata:=NewData;
   oldfilename:=imagefilename;
@@ -1037,7 +991,7 @@ function TDiscImage.AddDFSSide(filename: String): Boolean;
 var
  NewImage: TDiscImage;
  F       : TFileStream;
- buffer  : TDIByteArray;
+ buffer  : TDIByteArray=nil;
 begin
  Result:=False;
  buffer:=nil;
@@ -1045,7 +999,7 @@ begin
  if SysUtils.FileExists(filename) then
  begin
   //Only for Acorn DFS
-  if(GetMajorFormatNumber=diAcornDFS)and(not FDSD)then //Single sided images only
+  if(GetMajorFormatNumber=diAcornDFS)and(Length(FPartitions)=1)then //Single sided images only
   begin
    //Pre-load the proposed image
    NewImage:=TDiscImage.Create;
@@ -1098,7 +1052,7 @@ var
  side: Integer=0;
 begin
  Result:=TStringList.Create;
- if FDSD then Result.Add('Double Sided') else Result.Add('Single Sided');
+ if Length(FPartitions)=2 then Result.Add('Double Sided') else Result.Add('Single Sided');
  side:=0;
  while side<Length(FPartitions) do
  begin

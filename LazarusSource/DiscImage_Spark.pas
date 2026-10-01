@@ -17,7 +17,7 @@ begin
    begin
     //Set the format
     FFormat:=diSpark<<4;
-    FDirType:=diADFSNewDir; //Just to fool some of the methods
+    FPartitions[0].DirType:=diADFSNewDir; //Just to fool some of the methods
    end
    else SparkFile.Free; //Otherwise free the instance
    Result:=FFormat<>diInvalidImg; //Return a result
@@ -77,7 +77,7 @@ begin
     else
     begin
      FDisc[ref].Parent:=0;
-     FDisc[ref].Sector:=root;
+     FDisc[ref].Sector:=FPartitions[0].RootAddress;
      FDisc[ref].BeenRead:=True;
     end;
    end;

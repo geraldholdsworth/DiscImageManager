@@ -10,6 +10,7 @@ var
  ctr       : Integer=0;
  temp      : String='';
  look4root : Boolean=False;
+ LDirType  : Byte=0;
 const
  DiscIDs   : array[0..3] of String = ('DOS','PFS','KICK','KICKSUP');
 begin
@@ -29,12 +30,14 @@ begin
    if temp=DiscIDs[ctr] then
    begin
     //Default directory type
-    FDirType :=$00;
+    LDirType :=$00;
     //Get more details from the boot block disc ID
-    FMap    :=IsBitSet(ReadByte($03),0);   //AmigaDOS OFS/FFS
-    FDirType:=(ReadByte($03) AND $4)<<2; //AmigaDOS DIRC
+    //AmigaDOS OFS/FFS
+    if IsBitSet(ReadByte($03),0) then FPartitions[0].Map:=diAmigaFFS
+                                 else FPartitions[0].Map:=diAmigaOFS;
+    LDirType:=(ReadByte($03) AND $4)<<2; //AmigaDOS DIRC
     //Look at the checksum
-    if not FMap then //OFS should have a checksum
+    if FPartitions[0].Map=diAmigaOFS then //OFS should have a checksum
     begin
      Checksum1:=Read32b($4,True);
      //And calculate what it should be (only if non-zero)
@@ -51,62 +54,63 @@ begin
     end;
     if Checksum1=Checksum2 then
     begin
-     inc(FDirType,$10);
+     if LDirType=0 then FPartitions[0].DirType:=diAmigaDir;
+     if LDirType=1 then FPartitions[0].DirType:=diAmigaCache;
      secsize  :=$200;                        //Sector size
      //Set up for a hard disc for now
      FFormat  :=diAmiga<<4+$F;               //Amiga format (hard disc)
      density  :=0;                           //Hard disc
      //Find the root - this will actually be halfway through the disc
-     root:=(GetDataLength div secsize)div 2;
+     FPartitions[0].RootAddress:=(GetDataLength div secsize)div 2;
      look4root:=False;//We're not looking at the moment
      repeat
-      if look4root then inc(root);//Next sector, if we are looking
+      if look4root then inc(FPartitions[0].RootAddress);//Next sector, if we are looking
       //Make sure the checksums are not equal
       Checksum1:=$00;
       Checksum2:=$FF;
       //Find the primary and secondary types for a root block
-      if root*secsize+secsize<GetDataLength then
-       if  (Read32b(root*secsize     ,True)=2)
-       and (Read32b(root*secsize+$1FC,True)=1) then
+      if FPartitions[0].RootAddress*secsize+secsize<GetDataLength then
+       if  (Read32b(FPartitions[0].RootAddress*secsize     ,True)=2)
+       and (Read32b(FPartitions[0].RootAddress*secsize+$1FC,True)=1) then
        begin
         //Rootblock Checksum
-        Checksum1:=Read32b(root*secsize+$14,True);
-        Checksum2:=AmigaChecksum(root*secsize);
+        Checksum1:=Read32b(FPartitions[0].RootAddress*secsize+$14,True);
+        Checksum2:=AmigaChecksum(FPartitions[0].RootAddress*secsize);
        end;
       //If we haven't found the root in the middle
       if(Checksum1<>Checksum2)and(not look4root) then
       begin
        //Start at the beginning and work through
-       root:=1;
+       FPartitions[0].RootAddress:=1;
        look4root:=True;
       end;
       //Carry on until we either find the root, or we reach the end of the code
      until (Checksum1=Checksum2)
-        or (root*secsize+secsize>=GetDataLength);
+        or (FPartitions[0].RootAddress*secsize+secsize>=GetDataLength);
      //Update the format. Anything else is a hard drive (already set)
      if Checksum1=Checksum2 then
      begin
-      if root=$370 then
+      if FPartitions[0].RootAddress=$370 then
       begin
        FFormat  :=diAmiga<<4;                  //Amiga format (DD)
        density  :=2;                           //Double Density
       end;
-      if root=$6E0 then
+      if FPartitions[0].RootAddress=$6E0 then
       begin
        FFormat  :=diAmiga<<4+1;                //Amiga format (HD)
        density  :=4;                           //High Density
       end;
      end;
      //Set the disc size
-     FPartitions[0].TotalSize:=root*secsize*2;
+     FPartitions[0].TotalSize:=FPartitions[0].RootAddress*secsize*2;
      //Set the directory separator
      FPartitions[0].DirSep:='/';
      //and the root name
      FPartitions[0].RootName:='DF0:';
      //More checks to ensure we have the root
      if (Checksum1<>Checksum2)
-     or (Read32b(root*secsize+$000,True)<>$02)
-     or (Read32b(root*secsize+$00C,True)<>$48) then
+     or (Read32b(FPartitions[0].RootAddress*secsize+$000,True)<>$02)
+     or (Read32b(FPartitions[0].RootAddress*secsize+$00C,True)<>$48) then
      //these are, of course, only valid for a floppy image
       ResetVariables;
     end;
@@ -132,17 +136,17 @@ begin
  if FFormat<>diInvalidImg then
  begin
   //Total number of sectors will be double where the root is
-  Lsectors  :=root*2;
+  Lsectors  :=FPartitions[0].RootAddress*2;
   //Disc size
   FPartitions[0].TotalSize:=Cardinal(Lsectors)*secsize;
   //Disc name
-  FPartitions[0].Name:=ReadString(root*secsize+$1B1,-(root*secsize+$1B0));
+  FPartitions[0].Name:=ReadString(FPartitions[0].RootAddress*secsize+$1B1,-(FPartitions[0].RootAddress*secsize+$1B0));
   //Create an entry for the root
   SetLength(FDisc,1);
   //Blank the values
   ResetDir(FDisc[0]);
   //We'll start by reading the root
-  FDisc[0]:=ReadAmigaDir(FPartitions[0].RootName,root);
+  FDisc[0]:=ReadAmigaDir(FPartitions[0].RootName,FPartitions[0].RootAddress);
   //FPartitions[0].RootName:=root_name;
   //Now iterate through the entries and find the sub-directories
   d:=0;
@@ -200,7 +204,7 @@ begin
  if Read32b(offset*secsize+$14,True)=AmigaChecksum(offset*secsize) then
  begin
   //Directory Name
-  if offset=root then
+  if offset=FPartitions[0].RootAddress then
    Result.Directory:=dirname
   else
    Result.Directory:=ReadString(offset*secsize+$1B1,-ReadByte(offset*secsize+$1B0));
@@ -320,7 +324,7 @@ begin
    if filelen<>0 then if dest+len>filelen then len:=filelen-dest;
    //Increase the space required
    if dest+len>Length(buffer) then SetLength(buffer,dest+len);
-   if not FMap then inc(source,$18);//Move to where the data is
+   if FPartitions[0].Map=diAmigaOFS then inc(source,$18);//Move to where the data is
    //Read the data into the buffer
    ReadDiscData(source,len,0,dest,buffer);
    //Move the size pointer on, by the amount read
@@ -372,7 +376,7 @@ begin
    //Get the parent address
    if file_details.Parent=FPartitions[0].RootName then
    begin
-    paraddr:=root;
+    paraddr:=FPartitions[0].RootAddress;
     dir:=0;
    end
    else paraddr:=FDisc[dir].Entries[entry].Sector;
@@ -381,11 +385,11 @@ begin
    //Work out the total number of space, including headers
    filelen:=Length(buffer)+secsize; //At least one header
    //OFS has 24 byte data headers for each block of data
-   if not FMap then inc(filelen,Ceil(Length(buffer)/(secsize-24))*24);
+   if FPartitions[0].Map=diAmigaOFS then inc(filelen,Ceil(Length(buffer)/(secsize-24))*24);
    //One OFS file header has enough space for 72 pointers * $1E8 = $8940 bytes
-   if not FMap then inc(filelen,(Length(buffer)div$8940)*secsize);
+   if FPartitions[0].Map=diAmigaOFS then inc(filelen,(Length(buffer)div$8940)*secsize);
    //One FFS file header has enough space for 72 pointers * $200 = $9000 bytes
-   if FMap then inc(filelen,(Length(buffer)div$9000)*secsize);
+   if FPartitions[0].Map=diAmigaFFS then inc(filelen,(Length(buffer)div$9000)*secsize);
    //Ensure it is an exact multiple of sector size
    filelen:=Ceil(filelen/secsize)*secsize;
    //Find space
@@ -464,7 +468,7 @@ begin
      for index:=0 to Length(header)-1 do header[index]:=0;
      //Prepare block for writing
                                        //Data block (OFS) ++++++++++++++++++++++
-     if not FMap then
+     if FPartitions[0].Map=diAmigaOFS then
      begin
       Write32b(8,0,header,True);                       //Primary Type
       Write32b(hdrblks[0],4,header,True);              //Pointer to file header
@@ -480,7 +484,7 @@ begin
         WriteByte(buffer[index+fragptr*$1E8],$18+index,header);
      end;
                                        //Data block (FFS) ++++++++++++++++++++++
-     if FMap then
+     if FPartitions[0].Map=diAmigaFFS then
       for index:=0 to $1FF do                          //Data
        if index+fragptr*$200<Length(buffer) then
         WriteByte(buffer[index+fragptr*$200],index,header);
@@ -535,7 +539,7 @@ begin
    //Get the parent address
    if parent=FPartitions[0].RootName then
    begin
-    paraddr:=root;
+    paraddr:=FPartitions[0].RootAddress;
     dir:=0;
    end
    else
@@ -681,23 +685,23 @@ begin
  //For sizes > 20MB (i.e. Hard Drives) we'll use FFS
  if size>=20*1024*1024 then WriteByte(1,3);
  //Rootblock
- root:=(size div secsize)div 2;
- Write32b($2,root*secsize,True);            //Primary Type
- Write32b($1,root*secsize+$1FC,True);       //Secondar Type
- Write32b($48,root*secsize+$C,True);        //Hash Table Size
- Write32b($FFFFFFFF,root*secsize+$138,True);//Valid bitmap (-1)
+ FPartitions[0].RootAddress:=(size div secsize)div 2;
+ Write32b($2,FPartitions[0].RootAddress*secsize,True);            //Primary Type
+ Write32b($1,FPartitions[0].RootAddress*secsize+$1FC,True);       //Secondar Type
+ Write32b($48,FPartitions[0].RootAddress*secsize+$C,True);        //Hash Table Size
+ Write32b($FFFFFFFF,FPartitions[0].RootAddress*secsize+$138,True);//Valid bitmap (-1)
  ToAmigaTime(Now,days,mins,ticks);
- Write32b(days,root*secsize+$1A4,True);     //Last access date
- Write32b(days,root*secsize+$1D8,True);     //Last access date
- Write32b(days,root*secsize+$1E4,True);     //Creation date
- Write32b(mins,root*secsize+$1A8,True);     //Last access time
- Write32b(mins,root*secsize+$1DC,True);     //Last access time
- Write32b(mins,root*secsize+$1E8,True);     //Creation time
- Write32b(ticks,root*secsize+$1AC,True);    //Last access time
- Write32b(ticks,root*secsize+$1E0,True);    //Last access time
- Write32b(ticks,root*secsize+$1EC,True);    //Creation time
- WriteByte(Length(Famigadisctitle),root*secsize+$1B0);//Length of disc name
- WriteString(Famigadisctitle,root*secsize+$1B1,30,0); //Disc name
+ Write32b(days,FPartitions[0].RootAddress*secsize+$1A4,True);     //Last access date
+ Write32b(days,FPartitions[0].RootAddress*secsize+$1D8,True);     //Last access date
+ Write32b(days,FPartitions[0].RootAddress*secsize+$1E4,True);     //Creation date
+ Write32b(mins,FPartitions[0].RootAddress*secsize+$1A8,True);     //Last access time
+ Write32b(mins,FPartitions[0].RootAddress*secsize+$1DC,True);     //Last access time
+ Write32b(mins,FPartitions[0].RootAddress*secsize+$1E8,True);     //Creation time
+ Write32b(ticks,FPartitions[0].RootAddress*secsize+$1AC,True);    //Last access time
+ Write32b(ticks,FPartitions[0].RootAddress*secsize+$1E0,True);    //Last access time
+ Write32b(ticks,FPartitions[0].RootAddress*secsize+$1EC,True);    //Creation time
+ WriteByte(Length(Famigadisctitle),FPartitions[0].RootAddress*secsize+$1B0);//Length of disc name
+ WriteString(Famigadisctitle,FPartitions[0].RootAddress*secsize+$1B1,30,0); //Disc name
  //Bitmap block
  bmpsize:=Ceil(((size-secsize*2)div secsize)/8);
  //We'll create it all in a temporary store first
@@ -708,7 +712,7 @@ begin
   for index:=((size-secsize*2)div secsize)+1 to bmpsize*8 do
    AmigaAllocateFSMBlock(index+2,True,fsm);
  //Mark out the used blocks (i.e. Root)
- AmigaAllocateFSMBlock(root,True,fsm);
+ AmigaAllocateFSMBlock(FPartitions[0].RootAddress,True,fsm);
  //Write the FSM to disc
  SetLength(fsmlist,Ceil(bmpsize/$1FC)); //We'll create our pointer list
  if Length(fsmlist)>25 then //And our bitmap extensions list
@@ -718,13 +722,13 @@ begin
   //First entry is after the root
   for index:=1 to Length(fsmlist) do
   begin
-   if index<26 then fsmblock:=root+index          //Less than 25 blocks
-   else fsmblock:=root+index+1+((index-26)div 127)*127;//Make way for the ext blocks
+   if index<26 then fsmblock:=FPartitions[0].RootAddress+index          //Less than 25 blocks
+   else fsmblock:=FPartitions[0].RootAddress+index+1+((index-26)div 127)*127;//Make way for the ext blocks
    //Allocate the space
    AmigaAllocateFSMBlock(fsmblock,True,fsm);
    //Write the markers to the root block and ext blocks
-   if index-1<25 then Write32b(fsmblock,root*secsize+$13C+((index-1)*4),True)
-   else Write32b(fsmblock,(root+26+((index-26)div 127)*127)*secsize+((index-26)*4),True);
+   if index-1<25 then Write32b(fsmblock,FPartitions[0].RootAddress*secsize+$13C+((index-1)*4),True)
+   else Write32b(fsmblock,(FPartitions[0].RootAddress+26+((index-26)div 127)*127)*secsize+((index-26)*4),True);
    //Make a note
    fsmlist[index-1].Offset:=fsmblock;
   end;
@@ -735,13 +739,13 @@ begin
    //Work out the locations and allocate the free space
    for index:=0 to Length(extlist)-1 do
    begin
-    extlist[index].Offset:=root+26+index*127;
+    extlist[index].Offset:=FPartitions[0].RootAddress+26+index*127;
     AmigaAllocateFSMBlock(extlist[index].Offset,True,fsm);
    end;
    //Go through again and write the pointers
    for index:=0 to Length(extlist)-1 do
     //First will be in the rootblock
-    if index=0 then Write32b(extlist[index].Offset,root*secsize+$1A0,True)
+    if index=0 then Write32b(extlist[index].Offset,FPartitions[0].RootAddress*secsize+$1A0,True)
     else //Subsequent at the end of each ext block
      if index+1<Length(extlist)-1 then //Unless it is the last
       Write32b(extlist[index+1].Offset,extlist[index].Offset*secsize+$1FC,True);
@@ -749,7 +753,7 @@ begin
   AmigaWriteBitmap(fsmlist,fsm);
  end;
  //Root checksum
- Write32b(AmigaChecksum(root*secsize),(root*secsize)+$14,True);
+ Write32b(AmigaChecksum(FPartitions[0].RootAddress*secsize),(FPartitions[0].RootAddress*secsize)+$14,True);
 end;
 
 {-------------------------------------------------------------------------------
@@ -891,11 +895,11 @@ begin
  //Ensure that the title is valid
  ValidateAmigaFile(title);
  //Write the length
- WriteByte(Length(title),root*secsize+$1B0);
+ WriteByte(Length(title),FPartitions[0].RootAddress*secsize+$1B0);
  //And now write the title
- WriteString(title,root*secsize+$1B1,30,0);
+ WriteString(title,FPartitions[0].RootAddress*secsize+$1B1,30,0);
  //And update the checksum
- Write32b(AmigaChecksum(root*secsize),root*secsize+$14,True);
+ Write32b(AmigaChecksum(FPartitions[0].RootAddress*secsize),FPartitions[0].RootAddress*secsize+$14,True);
  //Update the local copy
  FPartitions[0].Name:=title;
 end;
@@ -1155,7 +1159,7 @@ begin
  SetLength(fsm,0);
  SetLength(Result,0);
  //Start at where the root pointer is pointing to
- hashptr:=(root*secsize)+$13C;
+ hashptr:=(FPartitions[0].RootAddress*secsize)+$13C;
  //Dummy to make sure the loop fires
  fragptr:=$FFFFFFFF;
  while fragptr<>0 do
@@ -1175,7 +1179,7 @@ begin
    //Move onto the next hash pointer
    inc(hashptr,4);
    //If we reach the end of the root table, move onto the extended block
-   if hashptr=(root*secsize)+$1A0 then hashptr:=Read32b(hashptr,True)*secsize;
+   if hashptr=(FPartitions[0].RootAddress*secsize)+$1A0 then hashptr:=Read32b(hashptr,True)*secsize;
   end;
  end;
  //Adjust the buffer length to match the disc size
@@ -1221,7 +1225,7 @@ begin
   fsmlist:=AmigaReadBitmap(fsm);
   //Find enough blocks for the data
   count:=0;
-  ptr:=root-1;
+  ptr:=FPartitions[0].RootAddress-1;
   direct:=False; //Going down
   while count<filelen do
   begin
@@ -1246,7 +1250,7 @@ begin
    //Hit the start, then change direction
    if ptr=2 then
    begin
-    ptr:=root+1;
+    ptr:=FPartitions[0].RootAddress+1;
     direct:=True;
    end;
   end;
@@ -1304,7 +1308,7 @@ begin
   if Read32b(sector*secsize+$14,True)=AmigaChecksum(sector*secsize) then
   begin
    //Get the source and length of the next set of data
-   if FMap then //FFS
+   if FPartitions[0].Map=diAmigaFFS then //FFS
    begin
     source:=Read32b(sector*secsize+hashptr,True)*secsize;//Source of data
     len:=secsize;//Amount of data
@@ -1424,9 +1428,10 @@ var
  temp: String='';
 begin
  Result:=TStringList.Create;
- if FMap then temp:='Fast File System' else temp:='Original File System';
- if FDirType=diAmigaDir   then temp:=temp+' AmigaDOS Directory';
- if FDirType=diAmigaCache then temp:=temp+' AmigaDOS Directory Cache';
+ if FPartitions[0].Map=diAmigaFFS       then temp:='Fast File System'
+                                        else temp:='Original File System';
+ if FPartitions[0].DirType=diAmigaDir   then temp:=temp+' AmigaDOS Directory';
+ if FPartitions[0].DirType=diAmigaCache then temp:=temp+' AmigaDOS Directory Cache';
  Result.Add(temp);
  Result.Add('Sector Size: '+IntToStr(secsize)+' bytes');
  temp:=IntToStr(density);
@@ -1438,7 +1443,7 @@ begin
   8: temp:='Octal';
  end;
  Result.Add('Density: '+temp);
- Result.Add('Root Address: 0x'+IntToHex(root,8));
+ Result.Add('Root Address: 0x'+IntToHex(FPartitions[0].RootAddress,8));
  Result.Add('Disc Size: '+IntToStr(FPartitions[0].TotalSize)+' bytes');
  Result.Add('Free Space: '+IntToStr(FPartitions[0].FreeSpace)+' bytes');
  Result.Add('Disc Name: '+FPartitions[0].Name);

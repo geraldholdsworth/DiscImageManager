@@ -5,20 +5,20 @@ HTTP/URL Encode a string (percent encoding)
 -------------------------------------------------------------------------------}
 function HTTPEncode(const AStr: String): String;
 const
-  SafeChars: set of Char = ['A'..'Z', 'a'..'z', '0'..'9', '-', '_', '.', '~'];
+ SafeChars: set of Char = ['A'..'Z','a'..'z','0'..'9','-','_','.','~'];
 var
-  I: Integer;
-  Ch: Char;
+ I : Integer=0;
+ Ch: Char=' ';
 begin
-  Result := '';
-  for I := 1 to Length(AStr) do
-  begin
-    Ch := AStr[I];
-    if Ch in SafeChars then
-      Result := Result + Ch
-    else
-      Result := Result + '%' + IntToHex(Ord(Ch), 2);
-  end;
+ Result:='';
+ for I:=1 to Length(AStr) do
+ begin
+  Ch:=AStr[I];
+  if Ch in SafeChars then
+   Result:=Result+Ch
+  else
+   Result:=Result+'%'+IntToHex(Ord(Ch),2);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -26,28 +26,28 @@ HTTP/URL Decode a string (percent decoding)
 -------------------------------------------------------------------------------}
 function HTTPDecode(const AStr: String): String;
 var
-  I: Integer;
-  Ch: Char;
-  HexVal: Integer;
+ I     : Integer=0;
+ Ch    : Char=' ';
+ HexVal: Integer=0;
 begin
-  Result := '';
-  I := 1;
-  while I <= Length(AStr) do
+ Result:='';
+ I:=1;
+ while I<=Length(AStr) do
+ begin
+  Ch:=AStr[I];
+  if(Ch='%')and(I+2<=Length(AStr))then
   begin
-    Ch := AStr[I];
-    if (Ch = '%') and (I + 2 <= Length(AStr)) then
-    begin
-      HexVal := StrToIntDef('$' + Copy(AStr, I + 1, 2), -1);
-      if HexVal >= 0 then
-      begin
-        Result := Result + Chr(HexVal);
-        Inc(I, 3);
-        Continue;
-      end;
-    end;
-    Result := Result + Ch;
-    Inc(I);
+   HexVal:=StrToIntDef('$'+Copy(AStr,I+1,2),-1);
+   if HexVal>=0 then
+   begin
+    Result:=Result+Chr(HexVal);
+    Inc(I,3);
+    Continue;
+   end;
   end;
+  Result:=Result+Ch;
+  Inc(I);
+ end;
 end;
 
 {-------------------------------------------------------------------------------
@@ -73,6 +73,9 @@ begin
   TimeStamp    :=0;
   isDOSPart    :=False;
   Sequence     :=0;
+  UserNumber   :=0;
+  Clusters     :=[];
+  HeaderType   :=diNone;
  end;
 end;
 
@@ -94,8 +97,7 @@ var
  i: Integer=0;
 begin
  //We'll set the top bit on spaces
- for i:=1 to Length(title) do
-  if ord(title[i])=32 then title[i]:=chr(32OR$80);
+ for i:=1 to Length(title) do if ord(title[i])=32 then title[i]:=chr(32OR$80);
  Result:=title;
 end;
 
@@ -148,8 +150,8 @@ begin
  x:=Length(s);
  if x>0 then
  begin
-  while (s[x]=' ') and (x>0) do //Continue while the last character is a space
-   dec(x);       //Move down the string
+  //Continue while the last character is a space
+  while(s[x]=' ')and(x>0)do dec(x);//Move down the string
   s:=Copy(s,1,x);//Finally, remove the spaces
  end;
 end;
@@ -178,9 +180,9 @@ var
  x: Integer=0;
 begin
  Result:=False;
- if (b>=0) and (b<32) then
+ if(b>=0)and(b<32)then
  begin
-  x:=1 shl b;
+  x:=1<<b;
   Result:=((v AND x)=x);
  end;
 end;
@@ -340,9 +342,8 @@ begin
        //Everything else - syntax 2
        ParseField(Index,Field[offset+Index-(start+1)]
                        ,FieldType[offset+Index-(start+1)]);
-      end
-      else                        //Extra field
-       ParseField(Index,'Field '+IntToStr(Index),0);
+      end                         //Extra field
+      else ParseField(Index,'Field '+IntToStr(Index),0);
    end;
   end;
  end;
@@ -355,8 +356,7 @@ function FilenameToASCII(s: String): String;
 var
  i: Integer=0;
 begin
- for i:=1 to Length(s) do
-  if(ord(s[i])<32)or(ord(s[i])>126)then s[i]:='?';
+ for i:=1 to Length(s) do if(ord(s[i])<32)or(ord(s[i])>126)then s[i]:='?';
  Result:=s;
 end;
 
@@ -371,8 +371,8 @@ begin
  {This converts a hex number to attributes. This hex number is different to what
  is used by ADFS internally (and saved to the disc images) but is what is
  returned by OSFILE A=5, or OS_File 5 on RISC OS.}
- attr1:=attr;
- attr2:=$00;
+ attr1 :=attr;
+ attr2 :=$00;
  Result:='';
  //Is it a hex number?
  if IntToHex(StrtoIntDef('$'+attr,0),2)=UpperCase(attr) then
@@ -415,25 +415,22 @@ begin
  begin
   case mask[maskIndex] of
    '#':
-   begin //matches any character
-    Inc(sIndex);
-    Inc(maskIndex);
-   end;
-   '*':
-   begin //matches 0 or more characters, so need to check for next character in mask
-    Inc(maskIndex);
-    if maskIndex>Length(mask) then
-     // * at end matches rest of string
-     Exit;
-    //look for mask character in S
-    while(sIndex<=Length(S))and(S[sIndex]<>mask[maskIndex])do
+    begin //matches any character
      Inc(sIndex);
-    if sIndex>Length(S) then
-    begin //character not found, no match
-     Result:=false;
-     Exit;
+     Inc(maskIndex);
     end;
-   end;
+   '*':
+    begin //matches 0 or more characters, so need to check for next character in mask
+     Inc(maskIndex);
+     if maskIndex>Length(mask) then Exit;// * at end matches rest of string
+     //look for mask character in S
+     while(sIndex<=Length(S))and(S[sIndex]<>mask[maskIndex])do Inc(sIndex);
+     if sIndex>Length(S) then
+     begin //character not found, no match
+      Result:=false;
+      Exit;
+     end;
+    end;
    else
     if S[sIndex]=mask[maskIndex] then
     begin
@@ -501,8 +498,7 @@ const
   illegal = '\/:*?"<>|'#0;
 begin
  if Length(f)>0 then
-  for i:=1 to Length(f) do
-   if Pos(f[i],illegal)>0 then f[i]:=' ';
+  for i:=1 to Length(f) do if Pos(f[i],illegal)>0 then f[i]:=' ';
 end;
 
 {-------------------------------------------------------------------------------
@@ -515,8 +511,7 @@ var
 begin
  Result:=0;
  s:=IntToStr(dec);
- for i:=Length(s) downto 1 do
-  inc(Result,StrToInt(s[i])<<(4*(Length(s)-i)));
+ for i:=Length(s) downto 1 do inc(Result,StrToInt(s[i])<<(4*(Length(s)-i)));
 end;
 
 {-------------------------------------------------------------------------------
@@ -529,8 +524,7 @@ var
 begin
  Result:=0;
  s:=IntToHex(BCD);
- for i:=Length(s) downto 1 do
-  inc(Result,StrToIntDef(s[i],0)*(10**(Length(s)-i)));
+ for i:=Length(s) downto 1 do inc(Result,StrToIntDef(s[i],0)*(10**(Length(s)-i)));
 end;
 
 {-------------------------------------------------------------------------------

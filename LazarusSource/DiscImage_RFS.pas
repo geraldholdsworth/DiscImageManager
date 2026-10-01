@@ -47,7 +47,7 @@ begin
       found:=ValidRFSHeader(i);
      end;
      //Was not a valid block, so no +ve ID...or rememeber for later
-     if not found then Result:=False else root:=i;
+     if not found then Result:=False else FPartitions[0].RootAddress:=i;
     end;
    end;
    //Set the internal format
@@ -142,7 +142,7 @@ begin
  //Version String (offset $9+Length(title)+1)
  Fversion:=ReadString($9+Length(FPartitions[0].Name)+1,$00);
  //We found the first valid block in the ID process
- pos:=root;
+ pos:=FPartitions[0].RootAddress;
  //Keep track of which file we are on
  filenum:=0;
  //The last block's status byte
@@ -262,13 +262,13 @@ begin
   newroot:=oldbase+Length(ROMHDR);
   SetDataLength(ROMFSSize);
   //Copy the data across
-  for i:=0 to ROMFSSize-root do
-   if newroot+i<ROMFSSize then WriteByte(LDisc[root+i],newroot+i);
-  root:=newroot;
+  for i:=0 to ROMFSSize-FPartitions[0].RootAddress do
+   if newroot+i<ROMFSSize then WriteByte(LDisc[FPartitions[0].RootAddress+i],newroot+i);
+  FPartitions[0].RootAddress:=newroot;
  end;
  //Now update all the pointers
- WriteByte((root+$8000)AND$FF,$15+base); //Data address low
- WriteByte((root+$8000)DIV$100,$19+base);//Data address High
+ WriteByte((FPartitions[0].RootAddress+$8000)AND$FF,$15+base); //Data address low
+ WriteByte((FPartitions[0].RootAddress+$8000)DIV$100,$19+base);//Data address High
  invvar:=$807C+(base-Low(ROMHDR));
  invrom:=$807E+(base-Low(ROMHDR));
  baselo:=$8085+(base-Low(ROMHDR));
@@ -331,11 +331,11 @@ begin
  ptr:=WriteRFSHeader(title,copyright,version,binvers);
  inc(ptr,Length(ROMHDR));
  //Write blank file
- for i:=0 to Length(BlkFile)-1 do WriteByte(BlkFile[i],root+i);
+ for i:=0 to Length(BlkFile)-1 do WriteByte(BlkFile[i],FPartitions[0].RootAddress+i);
  //Update the EOF
  WriteByte(ptr+Length(BlkFile)+$8000,ptr+$18);
  //And the Header CRC
- Write16b(GetCRC16(root+1,Length(BlkFile)-3),root+Length(BlkFile)-2);
+ Write16b(GetCRC16(FPartitions[0].RootAddress+1,Length(BlkFile)-3),FPartitions[0].RootAddress+Length(BlkFile)-2);
  inc(ptr,Length(BlkFile));
  //No more files
  WriteByte($2B,ptr);
@@ -388,7 +388,7 @@ begin
  for i:=Low(ROMHDR) to High(ROMHDR) do
   WriteByte(ROMHDR[i],Result+(i-Low(ROMHDR)));
  //Update the root address
- root:=Result+Length(ROMHDR);
+ FPartitions[0].RootAddress:=Result+Length(ROMHDR);
  //Adjust the offsets
  AdjustRFSOffsets(Result); //Return the pointer to the code
 end;
@@ -505,7 +505,7 @@ begin
   FDisc[0].Entries[Result]:=file_details; //Copy the entry across
   //Override some of the settings
   FDisc[0].Entries[Result].Filename:=FilenameToASCII(file_details.Filename);//Filename
-  FDisc[0].Entries[Result].Sector  :=root;  //Where to find it (first block)
+  FDisc[0].Entries[Result].Sector  :=FPartitions[0].RootAddress;  //Where to find it (first block)
   FDisc[0].Entries[Result].Parent  :=FDisc[0].Directory;//Parent
   FDisc[0].Entries[Result].DirRef  :=-1;//Not a directory
   //Update the disc size and reduce the free space
@@ -514,7 +514,7 @@ begin
   //Increase the data area
   SetDataLength(FPartitions[0].TotalSize);
   //Add the file to the data
-  ptr:=root;
+  ptr:=FPartitions[0].RootAddress;
   //Where to put this file
   if Result>0 then
   begin
@@ -794,15 +794,15 @@ begin
   SetLength(LDisc,GetDataLength);
   for i:=0 to GetDataLength-1 do LDisc[i]:=ReadByte(i);
   //Make a note of where the files are
-  oldroot:=root;
+  oldroot:=FPartitions[0].RootAddress;
   SetDataLength(ROMFSSize);
   //Update the header (overwriting the root);
   WriteRFSHeader(title,copyright,version,LDisc[8]);
   //Copy the files back
   for i:=oldroot to ROMFSSize-1 do
-   if root+(i-oldroot)<ROMFSSize then WriteByte(LDisc[i],root+(i-oldroot));
+   if FPartitions[0].RootAddress+(i-oldroot)<ROMFSSize then WriteByte(LDisc[i],FPartitions[0].RootAddress+(i-oldroot));
   //Update the file pointers
-  RFSReAdjustPointers(root,diff);
+  RFSReAdjustPointers(FPartitions[0].RootAddress,diff);
   //Re-read the image in
   Result:=ReadRFSImage;
  end;

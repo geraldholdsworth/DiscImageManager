@@ -47,6 +47,15 @@ type
  TDIByteArray = array of Byte;
 //Type of file header for DSK
  TDSKHeaderType = (diNone,diSOFT968,diPLUS3DOS,diOther);
+//Map or FAT type
+ TMap = (diUndefinedMap,
+         diADFSOldMap,diADFSNewMap,
+         diAmigaOFS,diAmigaFFS{,
+         diMaster512,diFAT12,diFAT16,diFAT32});
+ //Directory Type
+ TDirType = (diUnknownDir,
+             diADFSOldDir,diADFSNewDir,diADFSBigDir,
+             diAmigaDir,diAmigaCache);
 //Define the records to hold the catalogue
  TDirEntry     = record     //Not all fields are used on all formats
   Parent,                   //Complete path for parent directory (ALL)
@@ -111,25 +120,25 @@ type
     procedure ValidateName(var name: String);
   end;
  //General purpose procedures - globally accessible
- procedure ResetDirEntry(var Entry: TDirEntry);
- procedure RemoveTopBit(var title: String);
  function AddTopBit(title:String):String;
+ function AFSToDateTime(date: Word):TDateTime;
  procedure BBCtoWin(var f: String);
- procedure WintoBBC(var f: String);
- procedure RemoveSpaces(var s: String);
- procedure RemoveControl(var s: String);
- function IsBitSet(v,b: Integer): Boolean;
- procedure ParseInf(output: TObject; line: String);
+ function BCDToDec(BCD: Cardinal): Cardinal;
+ function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
+ function CreateXML(name: String): TXMLDocument;
+ function DateTimeToAFS(timedate: TDateTime): Word;
+ function DecToBCD(dec: Cardinal): Cardinal;
  function FilenameToASCII(s: String): String;
  function GetAttributes(attr: String;format: Word): String;
- function CompareString(S, mask: string; case_sensitive: Boolean): Boolean;
- function DateTimeToAFS(timedate: TDateTime): Word;
- function AFSToDateTime(date: Word):TDateTime;
- procedure ValidateWinFilename(var f: String);
- function DecToBCD(dec: Cardinal): Cardinal;
- function BCDToDec(BCD: Cardinal): Cardinal;
+ function IsBitSet(v,b: Integer): Boolean;
+ procedure ParseInf(output: TObject; line: String);
+ procedure RemoveControl(var s: String);
+ procedure RemoveSpaces(var s: String);
+ procedure RemoveTopBit(var title: String);
+ procedure ResetDirEntry(var Entry: TDirEntry);
  procedure ResetFileEntry(var fileentry: TFileEntry);
- function CreateXML(name: String): TXMLDocument;
+ procedure ValidateWinFilename(var f: String);
+ procedure WintoBBC(var f: String);
  //Some constants
  const
   //Major formats are 12 bits, with the minor format being the bottom 4 bits
@@ -147,20 +156,16 @@ type
   diAcornRFS   = $00B;
   diISO        = $00C;
   diInvalidImg = $FFFF;//This doesn't have a minor format, so this is 16 bit
-  diADFSOldMap = $00;
-  diADFSNewMap = $01;
-  diAmigaOFS   = $02;
-  diAmigaFFS   = $03;
-  diMaster512  = $01;
-  diFAT12      = $12;
-  diFAT16      = $16;
-  diFAT32      = $32;
-  diADFSOldDir = $00;
-  diADFSNewDir = $01;
-  diADFSBigDir = $02;
-  diAmigaDir   = $10;
-  diAmigaCache = $11;
-  diUnknownDir = $FF;
+  diMaster512  = $01; //FATType
+  diFAT12      = $12; //FATType
+  diFAT16      = $16; //FATType
+  diFAT32      = $32; //FATType
+{  diADFSOldDir = $00; //FDirType
+  diADFSNewDir = $01; //FDirType
+  diADFSBigDir = $02; //FDirType
+  diAmigaDir   = $10; //FDirType
+  diAmigaCache = $11; //FDirType
+  diUnknownDir = $FF; //FDirType }
   diFSMUnformat= $01;
   diFSMBlank   = $00;
   diFSMDir     = $FD;
@@ -280,6 +285,8 @@ type
    Partition   : Cardinal;          //Which partition (side) is this on?
    Parent      : Integer;           //What is the TDir reference of the parent (-1 if none)
   end;
+  //Collection of directories
+  TDisc         = array of TDir;
   //For use with ISO images
   TISOVolDes = record
    VDType      : Byte;
@@ -338,19 +345,22 @@ type
    DataAreas  : Byte;
    NumBlocks  : Word;
   end;
-  //Collection of directories
-  TDisc         = array of TDir;
   //Partitions - this is used to keep track of each partition details
   TPartition    = record               //Details about the partition
    RootRef         : Integer;          //Directory reference of the root
+   RootName        : String;           //Name of the root
+   RootAddress     : Cardinal;         //Root address (not fragment)
+   RootFragment    : Cardinal;         //Root indirect address (Acorn ADFS New)
+   RootSize        : Cardinal;         //Size of the root
    DirSep          : Char;             //Directory separator
    Format          : Word;             //Format of this partition, can be different to the format of the container
    FreeSpace       : QWord;            //Amount of free space in bytes
    TotalSize       : QWord;            //Size of the partition in bytes
    Name            : String;           //Partition Title
-   RootName        : String;           //Name of the root
    FreeSpaceMap    : TSide;            //Free Space Map - might need to be TTrack
    BootOption      : Byte;             //Boot option
+   Map             : TMap;             //Old/New Map flag (Acorn ADFS) OFS/FFS (Amiga)
+   DirType         : TDirType;         //Directory Type (Acorn ADFS/Amiga)
   end;
   //Partitions
   TPartitions   = array of TPartition;
@@ -392,7 +402,6 @@ type
   FStreamThreshold: Int64;      //Size at/above which images are streamed (0=never)
   {$ENDIF}
   FDSD,                         //Double sided flag (Acorn DFS)
-  FMap,                         //Old/New Map flag (Acorn ADFS) OFS/FFS (Amiga)
   FBootBlock,                   //Is disc an AmigaDOS Kickstart?
   Fupdating,                    //Has BeginUpdate been called?
   FAFSPresent,                  //Is there an AFS partition present? (ADFS)
@@ -413,8 +422,6 @@ type
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   dosalloc,                     //Allocation Unit (DOS Plus)
   nzones,                       //Number of zones (Acorn ADFS New)
-  root,                         //Root address (not fragment)
-  rootfrag,                     //Root indirect address (Acorn ADFS New)
   Fafsroot,                     //Root address of the AFS root partition
   Fdosroot,                     //Root address of the DOS Plus root partition
   afshead,                      //Address of the AFS header
@@ -426,7 +433,6 @@ type
   bootmap,                      //Offset of the map (Acorn ADFS)
   zone_spare,                   //Spare bits between zones (Acorn ADFS New)
   format_vers,                  //Format version (Acorn ADFS New)
-  root_size,                    //Size of the root directory (Acorn ADFS New)
   afsroot_size,                 //Size of the AFS Root directory
   dosroot_size,                 //Size of the DOS Plus Root directory
   cluster_size,                 //Size of a DOS cluster
@@ -450,7 +456,6 @@ type
   skew,                         //Head skew (Acorn ADFS New)
   lowsector,                    //Lowest sector number (Acorn ADFS New)
   disctype,                     //Type of disc
-  FDirType,                     //Directory Type (Acorn ADFS)
   share_size,                   //Share size (Acorn ADFS New)
   big_flag,                     //Big flag (Acorn ADFS New)
   FATType,                      //FAT Type - 12: FAT12, 16: FAT16, 32: FAT32
@@ -478,26 +483,57 @@ type
   Famigadisctitle,              //Amiga has even longer titles
   Frfstitle,                    //ROM FS Header title
   Frfscopyright : String;       //Copyright string for ROM FS
-  //Private methods
+  //Private methods 
+  function FormatToExt: String;
+  function FormatToString: String;
+  function DirTypeToString: String;
+  function DirTypeToString(part: Cardinal): String; overload;
+  function EncodeString(input: String): String;
+  function GeneralChecksum(offset,length,chkloc,start: Cardinal;
+                                                      carry: Boolean): Cardinal;
+  function GetCRC(var buffer: TDIByteArray): String;
+  function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
+  function GetCRC16(start,len: Cardinal): Cardinal; overload;
+  function GetDoubleSided: Boolean;
+  function GetImageCrc: String;
+  function GetMajorFormatNumber: Word;
+  function GetMajorFormatNumber(part: Cardinal): Word; overload;
+  function GetMD5(var buffer: TDIByteArray): String;
+  function GetMinorFormatNumber: Byte;
+  function GetMinorFormatNumber(part: Cardinal): Byte; overload;
+  function GetRootAddress(part: Cardinal=0): Cardinal;
+  function Inflate(filename: String): TDIByteArray;
+  function InterleaveString: String;
+  function ISOFormatToString: String;
+  function MapTypeToString: String;
+  function MapTypeToString(part: Cardinal): String; overload;
+  procedure RemoveDirectory(dirref: Cardinal);
   procedure ResetVariables;
+  procedure ResetDir(var Entry: TDir);
+  procedure ResetPartition(var Entry: TPartition);
+  function ROR13(v: Cardinal): Cardinal;
+  function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
+  procedure SetDefaultAFSDiscTitle(ADiscTitle: String);
+  procedure SetDefaultAmigaDiscTitle(ADiscTitle: String);
+  procedure SetDefaultDiscTitle(ADiscTitle: String);
+  procedure SetDefaultRFSTitle(ADiscTitle: String);
+  procedure SetDefaultRFSCopyRight(ADiscTitle: String);
+  function TimeDateToRISCOS(delphitime: TDateTime): Int64;
+  procedure UpdateDirRef(dirref: Cardinal);
+  procedure UpdateProgress(Fupdate: String);
+  function VolumeSerialNumber: Cardinal;
+  //Read and write routines (32 and 64 bit)
+  function ReadBits(offset,start,length: Cardinal): Cardinal;
   function ReadString(ptr,term: Integer;control: Boolean=True): String;
   function ReadString(ptr,term: Integer;var buffer: TDIByteArray;
                                        control: Boolean=True): String; overload;
   procedure WriteString(str: String;ptr,len: Cardinal;pad: Byte);
   procedure WriteString(str: String;ptr,len: Cardinal;pad: Byte;
                                             var buffer: TDIByteArray); overload;
-  function FormatToString: String;
-  function ISOFormatToString: String;
-  function FormatToExt: String;
-  function GetMajorFormatNumber: Word;
-  function GetMinorFormatNumber: Byte;
-  function GetDoubleSided: Boolean;
-  function ReadBits(offset,start,length: Cardinal): Cardinal;
   procedure WriteBits(value,offset,start,length: Cardinal);
   procedure WriteBits(value,offset,start,length: Cardinal;
                                                 buffer: TDIByteArray); overload;
-  function RISCOSToTimeDate(filedatetime: Int64): TDateTime;
-  function TimeDateToRISCOS(delphitime: TDateTime): Int64;
+  //Read and write routines (64 bit only)
   {$IFDEF CPU64}
   function Read32b(offset: Int64; bigendian: Boolean=False): Cardinal;
   function Read32b(offset: Int64; var buffer: TDIByteArray;
@@ -518,22 +554,6 @@ type
   function SizeOfFile(filename: String): Int64;
   function CountGZipMembers(filename: String): Integer;
   function InflateGZipToFile(srcfile,destfile: String): Boolean;
-  {$ENDIF}
-  {$IFDEF CPU32}
-  function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
-  function Read32b(offset: Cardinal; var buffer: TDIByteArray;
-                                  bigendian: Boolean=False): Cardinal; overload;
-  function Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
-  function Read24b(offset: Cardinal; var buffer: TDIByteArray;
-                                  bigendian: Boolean=False): Cardinal; overload;
-  function Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
-  function Read16b(offset: Cardinal; var buffer: TDIByteArray;
-                                      bigendian: Boolean=False): Word; overload;
-  function ReadByte(offset: Cardinal): Byte;
-  function ReadByte(offset: Cardinal; var buffer: TDIByteArray): Byte; overload;
-  {$ENDIF}
-  procedure RemoveDirectory(dirref: Cardinal);
-  {$IFDEF CPU64}
   function DiscAddrToIntOffset(disc_addr: Int64): Int64;
   procedure Write32b(value:Cardinal;offset: Int64; bigendian: Boolean=False);
   procedure Write32b(value:Cardinal;offset: Int64; var buffer: TDIByteArray;
@@ -550,7 +570,19 @@ type
   function GetDataLength: Int64;
   procedure SetDataLength(newlen: Int64);
   {$ENDIF}
+  //Read and write routines (32 bit only)
   {$IFDEF CPU32}
+  function Read32b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+  function Read32b(offset: Cardinal; var buffer: TDIByteArray;
+                                  bigendian: Boolean=False): Cardinal; overload;
+  function Read24b(offset: Cardinal; bigendian: Boolean=False): Cardinal;
+  function Read24b(offset: Cardinal; var buffer: TDIByteArray;
+                                  bigendian: Boolean=False): Cardinal; overload;
+  function Read16b(offset: Cardinal; bigendian: Boolean=False): Word;
+  function Read16b(offset: Cardinal; var buffer: TDIByteArray;
+                                      bigendian: Boolean=False): Word; overload;
+  function ReadByte(offset: Cardinal): Byte;
+  function ReadByte(offset: Cardinal; var buffer: TDIByteArray): Byte; overload;
   function DiscAddrToIntOffset(disc_addr: Cardinal): Cardinal;
   procedure Write32b(value,offset: Cardinal; bigendian: Boolean=False);
   procedure Write32b(value,offset: Cardinal; var buffer: TDIByteArray;
@@ -567,34 +599,9 @@ type
   function GetDataLength: Cardinal;
   procedure SetDataLength(newlen: Cardinal);
   {$ENDIF}
-  function ROR13(v: Cardinal): Cardinal;
-  procedure ResetDir(var Entry: TDir);
-  procedure ResetPartition(var Entry: TPartition);
-  function MapFlagToByte: Byte;
-  function MapTypeToString: String;
-  function DirTypeToString: String;
-  function GeneralChecksum(offset,length,chkloc,start: Cardinal;
-                                                      carry: Boolean): Cardinal;
-  function GetImageCrc: String;
-  function GetMD5(var buffer: TDIByteArray): String;
-  function GetCRC(var buffer: TDIByteArray): String;
-  function GetCRC16(start,len: Cardinal;var buffer: TDIByteArray): Cardinal;
-  function GetCRC16(start,len: Cardinal): Cardinal; overload;
-  procedure UpdateProgress(Fupdate: String);
-  function GetRootAddress: Cardinal;
-  function Inflate(filename: String): TDIByteArray;
-  function InterleaveString: String;
-  function VolumeSerialNumber: Cardinal;
-  procedure UpdateDirRef(dirref: Cardinal);
-  procedure SetDefaultDiscTitle(ADiscTitle: String);
-  procedure SetDefaultAFSDiscTitle(ADiscTitle: String);
-  procedure SetDefaultAmigaDiscTitle(ADiscTitle: String);
-  procedure SetDefaultRFSTitle(ADiscTitle: String);
-  procedure SetDefaultRFSCopyRight(ADiscTitle: String);
-  function EncodeString(input: String): String;
   //ADFS Routines
   function ID_ADFS: Boolean;
-  function ReadADFSDir(dirname: String; sector: Cardinal): TDir;
+  function ReadADFSDir(dirname: String; sector: Cardinal; p: Integer=0): TDir;
   function GetADFSDirID(Head: Boolean=True): String;
   function CalculateADFSDirCheck(sector: Cardinal): Byte;
   function CalculateADFSDirCheck(sector: Cardinal;
@@ -612,7 +619,7 @@ type
   function FormatADFSFloppy(minor: Byte): Boolean;
   procedure FormatOldMapADFS(disctitle: String);
   procedure FormatNewMapADFS(disctitle: String; ide: Boolean);
-  function FormatADFSHDD(harddrivesize: Cardinal; newmap: Boolean; dirtype:Byte;
+  function FormatADFSHDD(harddrivesize: Cardinal; newmap: TMap; dirtype:TDirType;
                                                ide,addheader: Boolean): Boolean;
   function UpdateADFSDiscTitle(title: String): Boolean;
   function UpdateADFSBootOption(option: Byte): Boolean;
@@ -704,9 +711,9 @@ type
   function UpdateAFSDiscTitle(title: String): Boolean;
   function AddAFSPartition(size: Cardinal): Boolean;
   function AFSReport(CSV: Boolean): TStringList;
-  //DFS Routines
+  //DFS and MMFS Routines
   function ID_DFS: Boolean;
-  function ReadDFSDisc(mmbdisc:Integer=-1): Boolean;
+  function ReadDFSDisc: Boolean;
   procedure DFSFreeSpaceMap;
   function IsWatford(s: Integer): Boolean;
   function ConvertDFSSector(address,side: Integer): Integer;
@@ -847,9 +854,6 @@ type
   function UpdateRFSTitle(title: String): Boolean;    
   function UpdateRFSVersion(version: String): Boolean;
   function UpdateRFSCopyright(copyright: String): Boolean;
-  //MMFS Routines
-  function ID_MMB: Boolean;
-  function ReadMMBDisc: Boolean;
   //Spark Routines
   function ID_Spark: Boolean;
   function ReadSparkArchive: Boolean;
@@ -1026,9 +1030,11 @@ type
                             copyright: String;binvers: Byte): Boolean; overload;
   function FormatHDD(major:Word;harddrivesize:Cardinal):Boolean;
   function FormatHDD(major: Word;harddrivesize: Cardinal;
-                                              dirtype: Byte): Boolean; overload;
-  function FormatHDD(major:Word;harddrivesize:Cardinal;ide,newmap:Boolean;
-                              dirtype:Byte;addheader:Boolean):Boolean; overload;
+                                          dirtype: Byte): Boolean; overload;
+  function FormatHDD(major: Word;harddrivesize:Cardinal;ide:Boolean;newmap:TMap;
+                       dirtype: TDirType;addheader: Boolean): Boolean; overload;
+  function FormatHDD(major: Word;harddrivesize:Cardinal;ide:Boolean;newmap:TMap;
+                       dirtype: Byte;addheader: Boolean): Boolean; overload;
   function FreeSpace(partition: QWord):QWord;
   function GetFileCRC(filename: String;entry:Cardinal=0): String;
   function GetFileMD5(filename: String;entry:Cardinal=0): String;
@@ -1045,14 +1051,6 @@ type
   function MoveFile(filename,directory: String): Integer;
   function MoveFile(source: Cardinal;dest: Integer): Integer; overload;
   function ReadDirectory(dirname: String): Integer;
-  {$IFDEF CPU64}
-  function ReadDiscData(addr,count:Int64;side:Cardinal;offset: Int64;
-                                             var buffer: TDIByteArray): Boolean;
-  {$ENDIF}
-  {$IFDEF CPU32}
-  function ReadDiscData(addr,count,side,offset: Cardinal;
-                                             var buffer: TDIByteArray): Boolean;
-  {$ENDIF}
   procedure ReadImage;
   function ReadPasswordFile: TUserAccounts;
   function RenameFile(oldfilename: String;var newfilename: String): Integer;
@@ -1076,16 +1074,22 @@ type
   function UpdateVersionString(version: String): Boolean;
   procedure ValidateAttributes(var attributes: String);
   function ValidateFilename(parent:String;var filename:String): Boolean;
+  function WriteFile(var file_details: TDirEntry;
+                      var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
+  //Read and write routines (64 bit)
   {$IFDEF CPU64}
+  function ReadDiscData(addr,count:Int64;side:Cardinal;offset: Int64;
+                                             var buffer: TDIByteArray): Boolean;
   function WriteDiscData(addr:Int64;side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
   {$ENDIF}
+  //Read and write routines (32 bit)
   {$IFDEF CPU32}
+  function ReadDiscData(addr,count,side,offset: Cardinal;
+                                             var buffer: TDIByteArray): Boolean;
   function WriteDiscData(addr,side: Cardinal;var buffer: TDIByteArray;
                                     count: Cardinal;start: Cardinal=0): Boolean;
   {$ENDIF}
-  function WriteFile(var file_details: TDirEntry;
-                      var buffer: TDIByteArray;ShowFSM: Boolean=False): Integer;
   //Published properties
   property AddImpliedAttributes:Boolean       read FAddImpliedAttributes
                                               write FAddImpliedAttributes;
@@ -1116,9 +1120,9 @@ type
   property DefaultRFSCopyRight: String        read Frfscopyright
                                               write SetDefaultRFSCopyright;
   property DirectoryCapable:    Boolean       read FHasDirs;
-  property DirectoryType:       Byte          read FDirType;
   property DirectoryTypeString: String        read DirTypeToString;
   property Disc:                TDisc         read FDisc;
+  property DOSFATType:          Byte          read FATType;
   property DOSPlusRoot:         Cardinal      read Fdosroot;
   property DOSPresent:          Boolean       read FDOSPresent;
   property DoubleSided:         Boolean       read GetDoubleSided;
@@ -1138,7 +1142,6 @@ type
   property ISOFormatString:     String        read ISOFormatToString;
   property LoadErrorMessage:    String        read FLoadError;
   property MajorFormatNumber:   Word          read GetMajorFormatNumber;
-  property MapType:             Byte          read MapFlagToByte;
   property MapTypeString:       String        read MapTypeToString;
   property MaxDirectoryEntries: Cardinal      read FMaxDirEnt;
   property MinorFormatNumber:   Byte          read GetMinorFormatNumber;
@@ -1180,7 +1183,6 @@ sub units. This is so each filing system can have it's own methods.}
 {$INCLUDE 'DiscImage_Amiga.pas'}    //Module for Commodore AmigaDOS
 {$INCLUDE 'DiscImage_CFS.pas'}      //Module for Acorn Cassette Filing System (UEF)
 {$INCLUDE 'DiscImage_RFS.pas'}      //Module for Acorn ROM FS
-{$INCLUDE 'DiscImage_MMB.pas'}      //Module for MMFS - to be removed
 {$INCLUDE 'DiscImage_Spark.pas'}    //Module for SparkFS
 {$INCLUDE 'DiscImage_DOSPlus.pas'}  //Module for Acorn DOS Plus
 {$INCLUDE 'DiscImage_ISO.pas'}      //Module for ISO

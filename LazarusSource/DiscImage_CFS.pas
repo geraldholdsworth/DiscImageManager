@@ -24,6 +24,7 @@ begin
     FFormat:=diAcornUEF<<4;
     //Set the disc size to the length of the uncompressed data
     FPartitions[0].TotalSize:=GetDataLength;
+    FPartitions[0].Format   :=FFormat;
    end;
   end;
 end;
@@ -398,8 +399,11 @@ begin
  //Set up the TDisc structure for return
  SetLength(FDisc,1);
  ResetDir(FDisc[0]);
+ SetLength(FPartitions,1);
+ ResetPartition(FPartitions[0]);
  //Set the root directory name
  FPartitions[0].RootName:='tape';
+ FPartitions[0].Format  :=diAcornUEF<<4;
  FDisc[0].Directory:=FPartitions[0].RootName;
  FDisc[0].BeenRead:=True;
 // FPartitions[1].RootName:=root_name;

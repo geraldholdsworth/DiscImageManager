@@ -1114,6 +1114,7 @@ New or improved features
 * Backend code - added partition references for when multi-partitions are implemented.
 * Added new CLI command "partition <partition>" do select a specific partition in a multi-partition image.
 * Added new configuration setting for appending the filetype after the file when exporting files from an image.
+* Overhaul of backend code to utilise the new partition references.
 
 Bug fixes
 * New map ADFS sometimes did not write the free space map correctly when deleting files.
@@ -1126,6 +1127,8 @@ Bug fixes
 * A bug was introduced in 1.50 where when a change was made to an ADFS New Map free space map (writing or deleting a file or directory), it appeared to fail. However, saving and reloading the image confirmed that the change did indeed happen.
 * When importing files from a ADFS to DFS, the pathname was extended with an extra drive specifier which resulted in the item not being imported and the error "Directory not found" being reported.
 * Adding files to a directory did not update the number of item count in the item details panel.
+* IDing a double sided DFS disc where the second side was blank (first sector of the second side full of zeros) was mistakenly IDed as a single sided image.
+* When run in Linux, the application cannot reliably determine if it needs to start as a console or GUI. This now, by default, runs as a GUI application.
 
 Platform History
 ----------------

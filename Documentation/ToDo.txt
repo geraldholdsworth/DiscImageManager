@@ -2,44 +2,51 @@ To Do
 -----
 In no particular order
 
-Bugs
-* Some SS DFS images are IDed as DS images when 'Allow zero sectors' is selected in the preferences. - UNABLE TO REPLICATE
-* Access violation has been reported when creating an ADFS HDD image (default options) on Windows. - UNABLE TO REPLICATE
-
-General - Ideas, currently unlikely to be added
-* Drag and Drop facilities out of the application...currently looking unlikely for cross platform. This will need to be done using 'code-per-platform' directives.
-* Extend drag and drop copy/move to multiple selection.
-* Application to application communications.
-* Copy entire files onto clipboard? And then paste from clipboard? - as Drag and Drop, this will need to be done using 'code-per-platform' directives.
-
-General - Ideas which are maybe possible
+Version 1/2 (GUI)
+-----------------
 * Ask to force overwrite if many files are getting written.
-* Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows. - VERSION 2?
-* Cancel button for progress display?
-* Open multiple images at the same time and allow interaction between them (e.g. copying files from one to another). - VERSION 2
+* Export the contents of an open image to another image, or set of images if the selected format is too small or are more directory entries than the format allows.
+* Cancel button for progress display? - will require code being added to the class.
 * For macOS, change the settings being saved to the registry to being saved in a plist file, or within the application directory itself.
-* Allow for multiple (>2) partitions - i.e. two or more DOS partitions on an ADFS structure, or ADFS/AFS/DOS hybrid. - VERSION 2
 * ADFS: When a DOS image file is added to an ADFS image (and the "Open DOS Partition" setting is set), automatically open as the second partition (if there isn't one already).
-* ADFS: Rebuild the Old Map FS Map by scanning the files and rebuilding from scratch (in the class definition).
+* Hex editor: Editable.
+
+Version 2 (GUI)
+---------------
+* Completely re-written and re-designed GUI.
+* Open multiple images at the same time and allow interaction between them (e.g. copying files from one to another).
+* MMFS Support.
+* Open, display, edit and save Sprite files.
+
+Class definition
+----------------
+* Allow for multiple (>2) partitions - i.e. two or more DOS partitions on an ADFS structure, or ADFS/AFS/DOS hybrid. IN PROGRESS
+* ADFS: Rebuild the Old Map FS Map by scanning the files and rebuilding from scratch.
 * ADFS: Use the above, along with other functions, to create a new function to fix ADFS Old Map images which otherwise won't load.
+* ADFS: Add in support for partitioned hard drive images. IN PROGRESS
 * AFS: AFS0 images do not get created correctly (in particular the free space allocation maps) - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: Add option to new Level 3 images for pre-1988 or post-1988 format - AWAITING MORE INFO ON AFS FORMATS.
 * AFS: When extracting the AFS partition, remove the ADFS partition and re-address all the objects, instead of just blanking out the ADFS part - IN PROGRESS.
 * AFS: Consolidate the JesMap fragments which are concurrent (as per Old Map ADFS).
 * AFS: Expand the reading of objects to include the extended JesMap.
 * AFS/ADFS: Change the size of the ADFS partition.
-* Amiga: Add in support for Rigid Disks (multi-partition hard discs) - NEED TO IMPLEMENT MULTI-PARTITION SUPPORT FIRST...VERSION 2.
+* Amiga: Add in support for Rigid Disks (multi-partition hard discs). IN PROGRESS
 * Amiga: Add in support for Professional File System - AWAITING FORMAT DETAILS AND SAMPLE(S).
 * Amiga: Add in support for Smart File System - AWAITING SAMPLE(S).
-* MMFS: Rewrite/rethink entire MMFS idea - might be more viable once multi-partitions are implemented.
-* DOS: Add in support for partitioned hard drive images - NEED TO IMPLEMENT MULTI_PARTITION SUPPORT FIRST...VERSION 2.
+* DOS: Add in support for partitioned hard drive images. IN PROGRESS
 * CFS and ROM FS: Validate new filename when renaming.
-* Have different TImageList components for each format.
 * Function (and button) to consolidate the free space map for ADFS and AFS (using the functions built into the class).
-* Hex editor: Editable.
-* macOS: Dark mode - PARTIAL: Import image contents still needs to be looked at).
-* Console: add commands: split/join - to add or remove sides/partitions.
 * Move the code for compacting an image from the GUI code to the class code.
 * ISO: Make writeable.
 * ISO: Add in support for other System Use Area tags.
 * DFS: Add in support for HDFS and HADFS.
+Partition support is currently underway, but is a huge undertaking as it affects almost every part of the code.
+
+Extra
+-----
+* Write a backend class for listing BBC BASIC/Text files and remove from the GUI.
+
+Console
+-------
+* Add commands: split/join - to add or remove sides/partitions.
+Disc Image Manager Console will become standalone and, apart from sharing the back-end code, will be a separate entity to version 2 GUI. Both versions will be maintained and the only code sharing will be the back end code ('TDiscImage' Pascal class).

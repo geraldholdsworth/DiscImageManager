@@ -646,7 +646,7 @@ type
 {$ENDIF}
    //Application Title
    ApplicationTitle   = 'Disc Image Manager';
-   ApplicationVersion = '1.50.5';
+   ApplicationVersion = '1.50.6';
    //Current platform and architecture (compile time directive)
    TargetOS  = {$I %FPCTARGETOS%};
    TargetCPU = {$I %FPCTARGETCPU%};
@@ -815,7 +815,7 @@ begin
    if(Image.Disc[thisdir].Parent<0)
    and(importname=Image.Disc[thisdir].Directory) then else WinToBBC(importname);
   //Remove spaces for non-big directories, and ensure is 10 chars or less
-  if Image.DirectoryType<>2 then
+  if Image.Partitions[0].DirType<>diADFSBigDir then
   begin
    importname:=ReplaceStr(importname,' ','_');
    importname:=LeftStr(importname,10);
@@ -985,8 +985,8 @@ begin
    begin
     //Is the current open image suitable
     ok:=True;
-    if((SparkFile.MaxDirEnt>47)and(Image.DirectoryType=diADFSOldDir))//Old dir
-    or((SparkFile.MaxDirEnt>77)and(Image.DirectoryType=diADFSNewDir))//New dir
+    if((SparkFile.MaxDirEnt>47)and(Image.Partitions[0].DirType=diADFSOldDir))//Old dir
+    or((SparkFile.MaxDirEnt>77)and(Image.Partitions[0].DirType=diADFSNewDir))//New dir
     or(Image.MajorFormatNumber<>diAcornADFS)                //Acorn ADFS
     or(SparkFile.UncompressedSize>Image.FreeSpace(0))then //Not enough space
      ok:=AskConfirm('The current open image is not suitable for this archive. '
@@ -1308,7 +1308,7 @@ var
     and(importfilename[2]='/')then
      importfilename[2]:=Image.DirSep;
     //Remove any spaces, unless it is a big directory
-    if Image.DirectoryType<>diADFSBigDir then
+    if Image.Partitions[0].DirType<>diADFSBigDir then
      importfilename:=ReplaceStr(importfilename,' ','_');
    end;
    //Setup the record
@@ -2505,8 +2505,8 @@ begin
  menuSavePartition.Enabled  :=btn_SavePartition.Enabled;
  //Check for 8 bit ADFS or single sided DFS
  btn_AddPartition.Enabled   :=((Image.MajorFormatNumber=diAcornADFS)
-                           and(Image.DirectoryType=diADFSOldDir)
-                           and(Image.MapType=diADFSOldMap)
+                           and(Image.Partitions[0].DirType=diADFSOldDir)
+                           and(Image.Partitions[0].Map=diADFSOldMap)
                            and(not Image.AFSPresent)
                            and(not Image.DOSPresent))
                             or((Image.MajorFormatNumber=diAcornDFS)
@@ -2893,12 +2893,12 @@ begin
     end;
     //Location of object - varies between formats
     //ADFS Old map and Acorn FS - Sector is an offset
-    if(Image.MapType=diADFSOldMap)
+    if(Image.Partitions[0].Map=diADFSOldMap)
     or(Image.MajorFormatNumber=diAcornFS)then
      location:='Sector offset: 0x'
               +IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
     //ADFS New map - Sector is an indirect address (fragment and sector)
-    if Image.MapType=diADFSNewMap then
+    if Image.Partitions[0].Map=diADFSNewMap then
      location:='Indirect address: 0x'
               +IntToHex(Image.Disc[dir].Entries[entry].Sector,8)+' ';
     //DOS Plus - Sector is the starting cluster
@@ -2940,20 +2940,20 @@ begin
     //Location of root - varies between formats
     location:='';
     //ADFS Old map and Acorn File Server - Sector is an offset
-    if(Image.MapType=diADFSOldMap)
+    if(Image.Partitions[0].Map=diADFSOldMap)
     or(Image.MajorFormatNumber=diAcornFS)
-    or((Image.MajorFormatNumber=diDOSPlus)and(Image.MapType<>diFAT32))
+    or((Image.MajorFormatNumber=diDOSPlus)and(Image.DOSFATType<>diFAT32))
     or(Image.Disc[dr].AFSPartition)
     or(Image.Disc[dr].DOSPartition)then
      location:='Sector Offset: 0x'+IntToHex(Image.Disc[dr].Sector,8);
-    if(Image.MajorFormatNumber=diDOSPlus)and(Image.MapType=diFAT32)then
+    if(Image.MajorFormatNumber=diDOSPlus)and(Image.DOSFATType=diFAT32)then
      location:='Starting Cluster: 0x'+IntToHex(Image.Disc[dr].Sector,8);
     //Number of entries in a directory
     ptr:=Length(Image.Disc[dr].Entries);
     lb_length.Caption:=IntToStr(ptr)+' item';
     if ptr<>1 then lb_length.Caption:=lb_length.Caption+'s';
     //ADFS New map - Sector is an indirect address (fragment and sector)
-    if Image.MapType=diADFSNewMap then
+    if Image.Partitions[0].Map=diADFSNewMap then
      location:='Indirect address: 0x'+IntToHex(Image.Disc[dr].Sector,8);
    end;
    //Update the location label
@@ -3077,8 +3077,8 @@ begin
     if(ImageToUse.MajorFormatNumber=diAcornADFS)
     or(ImageToUse.MajorFormatNumber=diSpark)
     or(ImageToUse.ISOFormatNumber=diAcornADFS)then //ADFS, Spark and ISO only
-     if(ImageToUse.DirectoryType=diADFSNewDir)
-     OR(ImageToUse.DirectoryType=diADFSBigDir)
+     if(ImageToUse.Partitions[0].DirType=diADFSNewDir)
+     OR(ImageToUse.Partitions[0].DirType=diADFSBigDir)
      or(ImageToUse.MajorFormatNumber=diISO)then //New or Big (or ISO)
       if Node.Text[1]='!' then
       begin
@@ -3734,7 +3734,8 @@ begin
     if open=$02 then //Add file
     begin
      //Is this 32bit ADFS?
-     if (Image.DirectoryType>0)
+     if((Image.Partitions[0].DirType=diADFSNewDir)
+      or(Image.Partitions[0].DirType=diADFSBigDir))
      and(Image.MajorFormatNumber=diAcornADFS)
      and(not SparkIsFS)then //And Spark is not being treated as a filing system
      begin
@@ -3905,8 +3906,8 @@ begin
   ok:=True;
   //If it is not, ask the user if they wish to continue
   if  ((Image.MajorFormatNumber=diAcornADFS)                     //Check ADFS
-  and(((MaxDirEnt>47)and(Image.DirectoryType=diADFSOldDir))
-    or((MaxDirEnt>77)and(Image.DirectoryType=diADFSNewDir))))
+  and(((MaxDirEnt>47)and(Image.Partitions[0].DirType=diADFSOldDir))
+    or((MaxDirEnt>77)and(Image.Partitions[0].DirType=diADFSNewDir))))
   or  ((Image.MajorFormatNumber=diAcornDFS)and(NumFiles>31))     //Check DFS
   or  ((Image.MajorFormatNumber=diCommodore)and(NumFiles>144))   //Check Commodore
   then
@@ -7724,10 +7725,10 @@ begin
    diAcornADFS:
    begin
     if (Image.MinorFormatNumber<>3)
-    and(Image.MapType=diADFSOldMap) then
+    and(Image.Partitions[0].Map=diADFSOldMap) then
      png:=acornlogo;                //Acorn logo for 8 bit ADFS
     if(Image.MinorFormatNumber=3)
-    or(Image.MapType=diADFSNewMap) then
+    or(Image.Partitions[0].Map=diADFSNewMap) then
      png:=riscoslogo;               //RISC OS logo for 32 bit ADFS
    end;
    diCommodore: png:=commodorelogo; //Commodore logo

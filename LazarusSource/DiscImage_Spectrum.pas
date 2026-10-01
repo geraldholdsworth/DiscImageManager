@@ -6,6 +6,7 @@ Identifies a Spectrum disc
 function TDiscImage.ID_Sinclair: Boolean;
 var
  IDStr: String='';
+ sides: Byte=0;
 begin
  if FFormat=diInvalidImg then
  begin
@@ -18,16 +19,23 @@ begin
    if LeftStr(IDStr,11)='MV - CPCEMU'       then FFormat:=diSinclair<<4+0;
    if LeftStr(IDStr,16)='EXTENDED CPC DSK'  then FFormat:=diSinclair<<4+1;
    //Check for correct number of sides
-   if(ReadByte($31)<>1)and(ReadByte($31)<>2)then FFormat:=diInvalidImg;
+   sides:=ReadByte($31);
+   if(sides<>1)and(sides<>2)then FFormat:=diInvalidImg;
    if FFormat<>diInvalidImg then
    begin
+    SetLength(FPartitions,sides);
     //Set the disc size
     FPartitions[0].TotalSize:=GetDataLength;
     //Set the directory separator
     FPartitions[0].DirSep:='/';
     //and the root name
     FPartitions[0].RootName:='DF';
-    FPartitions[1].RootName:=FPartitions[0].RootName;
+    FPartitions[0].Format:=FFormat;
+    if sides=2 then
+    begin
+     FPartitions[1].RootName:=FPartitions[0].RootName;
+     FPartitions[1].Format  :=FFormat;
+    end;
    end;
   end;
  end;

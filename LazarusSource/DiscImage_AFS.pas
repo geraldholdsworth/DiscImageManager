@@ -2407,7 +2407,9 @@ begin
  Result:=False;
  if size<9*secsize then exit; //Minimum size is 9 sectors
  //Only for adding AFS partition to 8 bit ADFS
- if(GetMajorFormatNumber=diAcornADFS)and(not FMap)and(FDirType=diADFSOldDir)then
+ if (GetMajorFormatNumber=diAcornADFS)
+ and(FPartitions[0].Map=diADFSOldMap)
+ and(FPartitions[0].DirType=diADFSOldDir)then
  begin
   fsed:=GetADFSMaxLength(False);
   //Is there enough free space?
