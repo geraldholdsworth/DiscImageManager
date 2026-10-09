@@ -675,7 +675,7 @@ begin
   begin
    //Update the disc title instead
    if(filename[1]=':')and(filename[3]='.')and(filename[4]='$')then
-    Result:=UpdateDiscTitle(newtitle,StrToIntDef(filename[2],0));
+    Result:=UpdateDiscTitle(newtitle,StrToIntDef(filename[2],0) div 2);
   end;
   diAcornADFS:      //Retitle ADFS directory
     Result:=RetitleADFSDirectory(filename,newtitle);

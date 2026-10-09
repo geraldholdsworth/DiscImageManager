@@ -144,8 +144,8 @@ begin
         if temp='' then LDSD:=False;
        end;
       end;
-      WriteByte(t1 AND$FF,$A07); //Temporary fix
-      WriteByte((t1>>8AND$3)OR(ReadByte($A06)AND$FC),$A06); //Temporary fix
+      WriteByte(t1 AND$FF,$B07); //Temporary fix
+      WriteByte((t1>>8AND$3)OR(ReadByte($B06)AND$FC),$B06); //Temporary fix
      end;
      //If checks have failed, then reset the format
      if not chk then FFormat:=diInvalidImg;
