@@ -3603,6 +3603,8 @@ begin
  //Populate the filename part of the dialogue
  SaveImage.FileName:=filename+'.'+Image.FormatExt;
  SaveImage.DefaultExt:='.'+Image.FormatExt;
+ //Ask before overwriting an existing file
+ SaveImage.Options:=SaveImage.Options+[ofOverwritePrompt];
  //Point it at the same directory from whence it was opened
  SaveImage.InitialDir:=pathname;
  //Show the dialogue
