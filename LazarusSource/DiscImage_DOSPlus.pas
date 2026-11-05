@@ -375,10 +375,11 @@ begin
    begin
     while LFNInd<LFNEnd do
     begin
-     C:=' ';
-     if Read16b(LFNInd+index*32,buffer)<>$FFFF then // $FFFF is end of filename
-      C:=Chr(Read16b(LFNInd+index*32,buffer)); //Read the character in
-     volname:=volname+C; //And add it to this part
+     //$0000 terminates the filename and $FFFF pads the rest of the entry,
+     //so neither of them is part of the name
+     if(Read16b(LFNInd+index*32,buffer)<>$FFFF)
+     and(Read16b(LFNInd+index*32,buffer)<>$0000)then
+      volname:=volname+Chr(Read16b(LFNInd+index*32,buffer)); //Read the character in
      inc(LFNInd,2);
     end;
     //Next part
