@@ -347,9 +347,12 @@ begin
   //Read the attribute byte
   attr:=ReadByte($B+index*32,buffer);
   //Is it the volume name?
-  if(status<>$E5)and(attr AND$8=$8)then
+  //(LFN entries have attr $0F, which also has bit 3 set, so exclude them)
+  if(status<>$E5)and(attr<>$0F)and(attr AND$8=$8)then
   begin
-   volname:=ReadString(Fdosroot,-11,buffer);
+   //Read the label from this entry (offset within the buffer, not on disc)
+   volname:=ReadString(index*32,-11,buffer);
+   RemoveSpaces(volname);
    FDOSVolInRoot:=True;//Volume name is in the root flag
    //Has it already been set?
    if FPartitions[Length(FPartitions)-1].Name='' then
