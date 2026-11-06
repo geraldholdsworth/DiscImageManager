@@ -1,5 +1,8 @@
 # Contributing
 
+## AI
+AI should not be used in this project. Any merge requests involving AI will be rejected.<br>
+
 ## Folder structure
 There are five folders contained in the top level of this repository:<br>
 * Blank Images : as it says, blank disc images. You may place any blank images of any formats not already included here.<br>
@@ -18,4 +21,4 @@ Code is invariably duplicated across these filing system files just to keep it a
 The other files are normal Lazarus units with lfm form definition files. Disc Image Manager version 1 can also be started up in console mode, and this is dealt with by the DiscImageManager.lpr file. There is another file, containing a class, used for the Console Mode - ConsoleAppUnit. When in Console Mode, the code calls routines in MainUnit so, therefore, there is also a MainUnit_Console include file.<br>
 
 ## CLI Version
-There is a console version, in a separate project in this repository. This uses, mostly, the same code as the GUI. However, to tell the compiler to compile this as a console program rather than a GUI application, I have utilised a compiler directive "DIMCONSOLE". If this compiler directive is not defined, then it is for GUI. If it is defined then it is for CLI only. There is also code that is "don't care", i.e. both (shared).
+There is a console version, in a separate project in this repository. This uses, mostly, the same code as the GUI. However, to tell the compiler to compile this as a console program rather than a GUI application, I have utilised a compiler directive "LCL". If this compiler directive is not defined, then it is for GUI. If it is defined then it is for CLI only. There is also code that is "don't care", i.e. both (shared).
