@@ -2117,6 +2117,9 @@ begin
   //If this includes the path, then remove the path
   while Pos(FPartitions[0].DirSep,LFN)>0 do
    LFN:=Copy(LFN,Pos(FPartitions[0].DirSep,LFN)+1);
+  //Strip any leading periods (e.g. '.fseventsd') before looking for the
+  //extension, as Windows does - otherwise the whole name becomes the extension
+  while(Length(LFN)>0)and(LFN[1]='.')do LFN:=Copy(LFN,2);
   //Now validate the filename
   LFN:=ValidateDOSFilename(LFN,True);
   //Any extension?
@@ -2138,7 +2141,7 @@ begin
     if Pos(LFN[index],illegal)=0 then
      Result:=Result+UpperCase(LFN[index]);
   //Strip any leading periods
-  if Length(Result)>0 then while Result[1]='.' do Result:=Copy(Result,2);
+  while(Length(Result)>0)and(Result[1]='.')do Result:=Copy(Result,2);
   //Still have a filename which is too long?
   if Length(Result)>8 then
   begin
