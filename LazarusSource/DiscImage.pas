@@ -377,6 +377,13 @@ type
   end;
   //To collate fragments (ADFS/CDR/Amiga/AFS)
   TFragmentArray= array of TFragment;
+  //A DOS partition found in an MBR partition table (hard disc images)
+  TDOSMBRPart   = record
+   Offset,                      //Where the partition starts in the image
+   Size         : Cardinal;     //Size of the partition, in bytes
+   PType        : Byte;         //Partition type
+   Logical      : Boolean;      //Logical drive inside an extended partition?
+  end;
   {$IFDEF CPU64}
   //A single resident page of the streamed (read-only) backend cache
   TDIPage       = record
@@ -418,6 +425,9 @@ type
   FAppendFiletype,              //Append the filetype to files when exporting
   FDOSUseSFN,                   //Use short filenames, even if there are long filenames (DOS)
   FHasDirs      : Boolean;      //Format is directory capable
+  FDOSVolEntry  : Integer;      //Position of the volume name in the root (DOS)
+  FDOSPartList  : array of TDOSMBRPart;//DOS partitions found in an MBR
+  FDOSPartChoice: Integer;      //Which of those partitions is open
   secsize,                      //Sector Size
   bpmb,                         //Bits Per Map Bit (Acorn ADFS New)
   dosalloc,                     //Allocation Unit (DOS Plus)
@@ -874,6 +884,7 @@ type
   //DOS Plus Routines
   function ID_DOSPlus: Boolean;
   function IDDOSPartition(ctr: Cardinal): Boolean;
+  procedure ScanMBRPartitions;
   procedure ReadDOSPartition;
   function ReadDOSHeader: Boolean;
   function ReadDOSDirectory(dirname: String; addr: Cardinal;
@@ -1153,6 +1164,13 @@ type
   property RootAddress:         Cardinal      read GetRootAddress;
   property ScanSubDirs:         Boolean       read FScanSubDirs
                                               write FScanSubDirs;
+  property DOSUseSFN:           Boolean       read FDOSUseSFN
+                                              write FDOSUseSFN;
+  function RemoveDOSLongFilenames: Boolean;
+  function DOSPartitionCount: Integer;
+  function DOSPartitionDescription(index: Integer): String;
+  function SelectDOSPartition(index: Integer): Boolean;
+  property DOSPartition:        Integer       read FDOSPartChoice;
   {$IFDEF CPU64}
   property Streamed:            Boolean       read FStreamed;
   property StreamThreshold:     Int64         read FStreamThreshold

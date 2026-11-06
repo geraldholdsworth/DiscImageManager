@@ -12,6 +12,7 @@ begin
  FAFSPresent   :=False;
  FDOSPresent   :=False;
  FDOSVolInRoot :=False;
+ FDOSVolEntry  :=-1;
  secsize       :=$0100;
  bpmb          :=$0000;
  nzones        :=$0000;
@@ -740,8 +741,8 @@ begin
    Fdata[offset]:=value; //Write the byte
  end
  else
-  //Will it go beyond the size of the array?
-  if(offset>=0)and(offset<Length(Fdata))then
+  //Will it go beyond the size of the buffer?
+  if(offset>=0)and(offset<Length(buffer))then
    buffer[offset]:=value; //Write the byte
 end;
 

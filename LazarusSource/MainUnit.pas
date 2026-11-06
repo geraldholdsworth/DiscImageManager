@@ -430,11 +430,15 @@ type
   function ImportFiles(NewImage: TDiscImage;Dialogue: Boolean=True;
                                                 Errors: Boolean=True): Integer;
 {$ENDIF}
+  function MapImportPath(path: String): String;
   function ImportFile(NewImage: TDiscImage;dir,entry: Integer;
           method: String='Importing';rootname: String='$';Errors: Boolean=True): Integer;
 {$IFNDEF DIMCONSOLE}
   function IntToStrComma(size: Int64): String;
   procedure OpenImage(filename: String);
+  function OfferMacFileRemoval: Boolean;
+  function ChooseDOSPartition(always: Boolean): Boolean;
+  procedure SelectDOSPartitionClick(Sender: TObject);
 {$ENDIF}
   procedure ParseCommand(var Command: TStringArray);
 {$IFNDEF DIMCONSOLE}
@@ -509,10 +513,14 @@ type
    FScanSubDirs        :Boolean;
    //Open DOS Partitions on ADFS
    FOpenDOS            :Boolean;
+   //Only use short filenames on DOS images (no VFAT long filenames)
+   FDOSUseSFN          :Boolean;
    //Create *.dsc files with ADFS hard drives
    FCreateDSC          :Boolean;
    //Append filetypes to files upon exporting
    FAppendFileType     :Boolean;
+   //Keep the original extension when saving DOS images
+   FKeepDOSExt         :Boolean;
    //Produce a log file for debugging
    Fdebug              :Boolean;
    //View options (what is visible)
@@ -536,6 +544,9 @@ type
 {$ENDIF}
    //Currently selected directory, when in console mode
    Fcurrdir            :Integer;
+   //Directories renamed while importing (old path -> new path)
+   FImportFrom,
+   FImportTo           :array of String;
   const
 {$IFNDEF DIMCONSOLE}
    //These point to certain icons used when no filetype is found, or non-ADFS
@@ -1834,8 +1845,9 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.OpenImage(filename: String);
 var
- dir   : Cardinal=0;
- entry : Cardinal=0;
+ dir      : Cardinal=0;
+ entry    : Cardinal=0;
+ macclean : Boolean=False;
 begin
  WriteToDebug('MainForm.OpenImage('+filename+')');
  //Show a progress message
@@ -1860,6 +1872,8 @@ begin
  Image.ScanSubDirs         :=FScanSubDirs;
  //Open DOS Partitions
  Image.OpenDOSPartitions   :=FOpenDOS;
+ //Only use short filenames on DOS images
+ Image.DOSUseSFN           :=FDOSUseSFN;
  //Create *.dsc files with ADFS hard drives
  Image.CreateDSC           :=FCreateDSC;
  //Append filetype to files being exported
@@ -1886,8 +1900,18 @@ begin
           +IntToStr(Image.Disc[dir].Entries[entry].DirRef)+')');
    end;
   end;
+  //More than one DOS partition (hard disc image)? Ask which one to use
+  ChooseDOSPartition(False);
+  //Offer to remove any macOS metadata files (.DS_Store, ._*, .fseventsd...)
+  macclean:=OfferMacFileRemoval;
   //Update the display
   ShowNewImage(Image.Filename);
+  //Mark the image as changed, if anything was removed
+  if macclean then
+  begin
+   HasChanged:=True;
+   UpdateImageInfo;
+  end;
  end
  else
   ReportError('"'+ExtractFilename(filename)
@@ -1895,6 +1919,114 @@ begin
                  +ApplicationTitle+' can open.');
  //Close the progress message
  ProgressForm.Hide;
+end;
+
+{------------------------------------------------------------------------------}
+//Choose which DOS partition to work with (hard disc images with an MBR)
+//always: also report when there is nothing to choose (menu option)
+{------------------------------------------------------------------------------}
+function TMainForm.ChooseDOSPartition(always: Boolean): Boolean;
+var
+ list  : TStringList=nil;
+ index : Integer=0;
+ choice: Integer=-1;
+begin
+ Result:=False;
+ WriteToDebug('MainForm.ChooseDOSPartition');
+ if not ErrorReporting then exit;
+ //Nothing to choose from
+ if Image.DOSPartitionCount=0 then
+ begin
+  if always then ShowInfo('This image does not have a partition table.');
+  exit;
+ end;
+ if Image.DOSPartitionCount=1 then
+ begin
+  if always then ShowInfo('This image has only one DOS partition:'+LineEnding
+                         +Image.DOSPartitionDescription(0));
+  exit;
+ end;
+ //Hide the progress window while we ask
+ ProgressForm.Hide;
+ list:=TStringList.Create;
+ try
+  for index:=0 to Image.DOSPartitionCount-1 do
+   list.Add(Image.DOSPartitionDescription(index));
+  choice:=InputCombo('Select DOS Partition',
+                     'This image contains '+IntToStr(Image.DOSPartitionCount)
+                    +' DOS partitions. Which one do you want to work with?',
+                     list);
+ finally
+  list.Free;
+ end;
+ //Open the chosen one, if it is not the one already open
+ if(choice>=0)and(choice<>Image.DOSPartition)then
+  Result:=Image.SelectDOSPartition(choice);
+end;
+
+{------------------------------------------------------------------------------}
+//Select DOS Partition menu option
+{------------------------------------------------------------------------------}
+procedure TMainForm.SelectDOSPartitionClick(Sender: TObject);
+var
+ waschanged: Boolean=False;
+begin
+ //Keep the changed flag - changes to the other partition are still in memory
+ waschanged:=HasChanged;
+ if ChooseDOSPartition(True) then
+ begin
+  ShowNewImage(Image.Filename);
+  HasChanged:=waschanged;
+  UpdateImageInfo;
+ end;
+end;
+
+{------------------------------------------------------------------------------}
+//Offer to remove macOS metadata files from DOS images
+{------------------------------------------------------------------------------}
+function TMainForm.OfferMacFileRemoval: Boolean;
+var
+ dir   : Integer=0;
+ entry : Integer=0;
+ index : Integer=0;
+ names : String='';
+ files : array of String=nil;
+const
+ maxlist = 8; //Maximum number of names to show in the message
+begin
+ Result:=False;
+ WriteToDebug('MainForm.OfferMacFileRemoval');
+ //Only for DOS images, and only when we can ask the user
+ if(Image.MajorFormatNumber<>diDOSPlus)or(not ErrorReporting)then exit;
+ //Look for any files or directories whose name starts with a '.'
+ if Length(Image.Disc)>0 then
+  for dir:=0 to Length(Image.Disc)-1 do
+   if not Image.Disc[dir].Deleted then
+    if Length(Image.Disc[dir].Entries)>0 then
+     for entry:=0 to Length(Image.Disc[dir].Entries)-1 do
+      if LeftStr(Image.Disc[dir].Entries[entry].Filename,1)='.' then
+      begin
+       SetLength(files,Length(files)+1);
+       files[Length(files)-1]:=GetImageFilename(dir,entry);
+       if Length(files)<=maxlist then
+        names:=names+LineEnding+'   '+files[Length(files)-1];
+      end;
+ if Length(files)=0 then exit;
+ if Length(files)>maxlist then names:=names+LineEnding+'   ...';
+ //Hide the progress window while we ask
+ ProgressForm.Hide;
+ if AskConfirm('This image contains '+IntToStr(Length(files))
+              +' file(s) or folder(s) whose names start with a dot:'+names
+              +LineEnding+LineEnding
+              +'These are normally created by macOS (for example, when the '
+              +'image is mounted in the Finder) and are not needed by DOS. '
+              +'They only take up space on the disc.'+LineEnding+LineEnding
+              +'Do you want to delete them? Nothing is written to the image '
+              +'file until you save it.',
+              ['Delete','Keep'])=mrOK then
+  for index:=0 to Length(files)-1 do
+   //Files inside a folder that has already been deleted will fail - ignore
+   if Image.DeleteFile(files[index]) then Result:=True;
 end;
 
 {------------------------------------------------------------------------------}
@@ -2103,6 +2235,11 @@ begin
    else
     ImageDetails.Panels[5].Text:='Single Sided'
   else
+   //Partitioned DOS hard disc image?
+   if Image.DOSPartitionCount>0 then
+    ImageDetails.Panels[5].Text:='Partition '+IntToStr(Image.DOSPartition+1)
+                                +' of '+IntToStr(Image.DOSPartitionCount)
+   else
     ImageDetails.Panels[5].Text:='';
   //Map type (ADFS/AmigaDOS only)
   ImageDetails.Panels[6].Text:=Image.MapTypeString;
@@ -3304,6 +3441,8 @@ begin
 //This is called when the form is created - i.e. when the application is created
 {------------------------------------------------------------------------------}
 procedure TMainForm.FormCreate(Sender: TObject);
+var
+ menuitem: TMenuItem=nil;
  function CreateTickBox(LCaption: String; LParent: TPanel): TRISCOSTickBox;
  begin
   Result:=TRISCOSTickBox.Create(LParent as TComponent);
@@ -3434,11 +3573,16 @@ begin
  //Open DOS Partitions on ADFS
  FOpenDOS                  :=DIMReg.GetRegValB('Open_DOS',True);
  Image.OpenDOSPartitions   :=FOpenDOS;
+ //Only use short filenames on DOS images
+ FDOSUseSFN                :=DIMReg.GetRegValB('DOS_Use_SFN',False);
+ Image.DOSUseSFN           :=FDOSUseSFN;
  //Create *.dsc files with ADFS Hard Drives
  FCreateDSC                :=DIMReg.GetRegValB('Create_DSC',False);
  Image.CreateDSC           :=FCreateDSC;
  //Append filetype upon exporting files
  FAppendFileType           :=DIMReg.GetRegValB('Append_Filetype',True);
+ //Keep the original extension when saving DOS images
+ FKeepDOSExt               :=DIMReg.GetRegValB('Keep_DOS_Ext',False);
  //View menu options
  ViewOptions               :=DIMReg.GetRegValI('View_Options',$FFFF);
  //Toolbar order - this doesn't work currently
@@ -3457,6 +3601,13 @@ begin
 {$ENDIF}
  WriteToDebug('If you are experiencing any issues, please email this to '+
               'gerald@hollypops.co.uk with a description of your issue.');
+{$IFNDEF DIMCONSOLE}
+ //Add the option to select the DOS partition (hard disc images)
+ menuitem:=TMenuItem.Create(PartitionMenu);
+ menuitem.Caption:='Select DOS Partition...';
+ menuitem.OnClick:=@SelectDOSPartitionClick;
+ PartitionMenu.Add(menuitem);
+{$ENDIF}
  //Reset the changed variable
  HasChanged:=False;
 end;
@@ -3583,6 +3734,7 @@ end;
 {------------------------------------------------------------------------------}
 procedure TMainForm.btn_SaveImageClick(Sender: TObject);
 var
+ renamed  : Boolean=False;
  ext      : String='';
  filename : String='';
  pathname : String='';
@@ -3601,17 +3753,32 @@ begin
  if index=0 then index:=1;
  SaveImage.FilterIndex:=index;
  //Populate the filename part of the dialogue
- SaveImage.FileName:=filename+'.'+Image.FormatExt;
- SaveImage.DefaultExt:='.'+Image.FormatExt;
+ //DOS images are raw sector dumps: optionally keep the original extension
+ //(.img, .ima, .flp...) so that emulators still recognise them
+ if(FKeepDOSExt)and(Image.MajorFormatNumber=diDOSPlus)then
+ begin
+  if Length(ext)>1 then ext:=Copy(ext,2,Length(ext)) else ext:='img';
+ end
+ else ext:=Image.FormatExt;
+ SaveImage.FileName:=filename+'.'+ext;
+ SaveImage.DefaultExt:='.'+ext;
+ //Ask before overwriting an existing file
+ SaveImage.Options:=SaveImage.Options+[ofOverwritePrompt];
  //Point it at the same directory from whence it was opened
  SaveImage.InitialDir:=pathname;
  //Show the dialogue
  If SaveImage.Execute then
  begin
+  //'No long filenames on DOS images': the whole image is saved as 8.3 only
+  renamed:=False;
+  if(FDOSUseSFN)and(Image.MajorFormatNumber=diDOSPlus)then
+   renamed:=Image.RemoveDOSLongFilenames;
   //Save the image
   Image.SaveToFile(SaveImage.FileName,FUEFCompress);
   Caption:=ApplicationTitle+' - '+ExtractFileName(Image.Filename);
   HasChanged:=False;
+  //Show the new names, if any were changed
+  if renamed then ShowNewImage(Image.Filename);
   //Update the status bar
   UpdateImageInfo;
  end;
@@ -3820,6 +3987,9 @@ begin
  Result:=0;
  ResetDirEntry(newentry);
  WriteToDebug('MainForm.ImportFiles');
+ //No directories have been renamed yet
+ SetLength(FImportFrom,0);
+ SetLength(FImportTo,0);
  //Read in the catalogue of the new image, if there is none
  if Length(NewImage.Disc)=0 then
  begin
@@ -4114,9 +4284,27 @@ end;
 {------------------------------------------------------------------------------}
 //Import a file into the current image
 {------------------------------------------------------------------------------}
+function TMainForm.MapImportPath(path: String): String;
+var
+ i: Integer=0;
+begin
+ Result:=path;
+ //Go through the renamed directories, latest first
+ for i:=Length(FImportFrom)-1 downto 0 do
+  if(Result=FImportFrom[i])
+  or(LeftStr(Result,Length(FImportFrom[i])+1)=FImportFrom[i]+Image.DirSep)then
+   Result:=FImportTo[i]+Copy(Result,Length(FImportFrom[i])+1);
+end;
+
+{------------------------------------------------------------------------------}
+//Import a single file or directory from another image
+{------------------------------------------------------------------------------}
 function TMainForm.ImportFile(NewImage: TDiscImage; dir,entry: Integer;
            method: String='Importing';rootname: String='$';Errors: Boolean=True): Integer;
 var
+{$IFNDEF DIMCONSOLE}
+ NewNode   : TTreeNode=nil;
+{$ENDIF}
  newentry  : TDirEntry=();
  temp      : String='';
  tempattr  : String='';
@@ -4207,6 +4395,8 @@ begin
                                 ,NewImage.RootName
                                 ,rootname
                                 ,[rfReplaceAll,rfIgnoreCase]);
+ //If the parent directory had to be renamed when it was added, follow it
+ newentry.Parent:=MapImportPath(newentry.Parent);
  ok:=True;
 {$IFNDEF DIMCONSOLE}
  if Fguiopen then
@@ -4235,10 +4425,27 @@ begin
   if(newentry.DirRef>=0)and(Image.DirectoryCapable)then
    if newentry.Filename<>rootname then //Create the directory
    begin
-    newentry.Attributes:='DLR';
+    //DOS to DOS keeps the attributes (e.g. hidden), otherwise use defaults
+    if(Image.MajorFormatNumber<>diDOSPlus)
+    or(NewImage.MajorFormatNumber<>diDOSPlus)then
+     newentry.Attributes:='DLR';
 {$IFNDEF DIMCONSOLE}
     if Fguiopen then
-     CreateDirectory(newentry.Filename,newentry.Attributes)
+    begin
+     NewNode:=CreateDirectory(newentry.Filename,newentry.Attributes);
+     //The name may have changed (e.g. '.Trashes' with short filenames only),
+     //so make a note so that its contents end up in the right place
+     if NewNode<>nil then
+      if NewNode.Text<>newentry.Filename then
+      begin
+       SetLength(FImportFrom,Length(FImportFrom)+1);
+       SetLength(FImportTo,Length(FImportTo)+1);
+       FImportFrom[Length(FImportFrom)-1]:=newentry.Parent+Image.DirSep
+                                          +newentry.Filename;
+       FImportTo[Length(FImportTo)-1]:=newentry.Parent+Image.DirSep
+                                      +NewNode.Text;
+      end;
+    end
     else
 {$ENDIF}
      Image.CreateDirectory(newentry.Filename,
@@ -5182,6 +5389,15 @@ begin
   Image.ProgressIndicator:=nil;
   {$IFNDEF DIMCONSOLE}if Fguiopen then ProgressForm.Show;{$ENDIF}
   UpdateProgress('Preparing to defrag');
+  //'No long filenames on DOS images': remove them first, keeping the short
+  //names DOS already sees, so the defragged image is all 8.3
+  if(FDOSUseSFN)and(Image.MajorFormatNumber=diDOSPlus)then
+   if Image.RemoveDOSLongFilenames then
+   begin
+    //The tree needs the new names, as the files are deleted through it
+    {$IFNDEF DIMCONSOLE}if Fguiopen then ShowNewImage(Image.Filename);{$ENDIF}
+    HasChanged:=True;
+   end;
   //Create a new image, with the same shape as the original
   oldscan:=Image.ScanSubDirs;
   olddos :=Image.OpenDOSPartitions;
@@ -5776,8 +5992,10 @@ begin
  SettingsForm.CompressUEF.Ticked           :=FUEFCompress;
  SettingsForm.ScanSubDirs.Ticked           :=FScanSubDirs;
  SettingsForm.OpenDOS.Ticked               :=FOpenDOS;
+ SettingsForm.DOSUseSFN.Ticked             :=FDOSUseSFN;
  SettingsForm.CreateDSC.Ticked             :=FCreateDSC;
  SettingsForm.AddFiletype.Ticked           :=FAppendFileType;
+ SettingsForm.KeepDOSExt.Ticked            :=FKeepDOSExt;
  //Show the form, modally
  SettingsForm.ShowModal;
  if SettingsForm.ModalResult=mrOK then
@@ -5804,8 +6022,10 @@ begin
   FUEFCompress        :=SettingsForm.CompressUEF.Ticked;
   FScanSubDirs        :=SettingsForm.ScanSubDirs.Ticked;
   FOpenDOS            :=SettingsForm.OpenDOS.Ticked;
+  FDOSUseSFN          :=SettingsForm.DOSUseSFN.Ticked;
   FCreateDSC          :=SettingsForm.CreateDSC.Ticked;
   FAppendFileType     :=SettingsForm.AddFiletype.Ticked;
+  FKeepDOSExt         :=SettingsForm.KeepDOSExt.Ticked;
   //Save the settings
   SaveConfigSettings;
   //Change the control style, if necessary
@@ -5929,8 +6149,10 @@ begin
  DIMReg.SetRegValB('DFS_Allow_Blanks',    FDFSAllowBlank);
  DIMReg.SetRegValB('Scan_SubDirs',        FScanSubDirs);
  DIMReg.SetRegValB('Open_DOS',            FOpenDOS);
+ DIMReg.SetRegValB('DOS_Use_SFN',         FDOSUseSFN);
  DIMReg.SetRegValB('Create_DSC',          FCreateDSC);
  DIMReg.SetRegValB('Append_Filetype',     FAppendFileType);
+ DIMReg.SetRegValB('Keep_DOS_Ext',        FKeepDOSExt);
  DIMReg.SetRegValB('UEF_Compress',        FUEFCompress);
  Image.InterleaveMethod    :=ADFSInterleave;
  Image.SparkAsFS           :=SparkIsFS;
@@ -5939,6 +6161,7 @@ begin
  Image.DFSAllowBlanks      :=FDFSAllowBlank;
  Image.ScanSubDirs         :=FScanSubDirs;
  Image.OpenDOSPartitions   :=FOpenDOS;
+ Image.DOSUseSFN           :=FDOSUseSFN;
  Image.CreateDSC           :=FCreateDSC;
  Image.AppendFiletype      :=FAppendFileType;
  Image.AddImpliedAttributes:=AddImpliedAttributes;
@@ -6195,6 +6418,7 @@ function TMainForm.CreateDirectory(dirname, attr: String): TTreeNode;
 var
  parentdir: String='$';
  index    : Integer=0;
+ pref     : Integer=0;
  Node     : TTreeNode=nil;
 // dir,entry:Cardinal;
 begin
@@ -6212,11 +6436,19 @@ begin
   //Ensure that the directory has been read in
   if not TMyTreeNode(DirList.Selections[0]).BeenRead then
    ReadInDirectory(DirList.Selections[0]);
+  //Directory reference of the parent
+  pref:=TMyTreeNode(DirList.Selections[0]).DirRef;
   //Add it
   index:=Image.CreateDirectory(dirname,parentdir,attr);
   //Function returns pointer to next item (or parent if no children)
   if index>-1 then //Directory added OK
   begin
+   //DOS may have had to change the name (e.g. to a short filename), so show
+   //the name it actually has in the image
+   if Image.MajorFormatNumber=diDOSPlus then
+    if(pref>=0)and(pref<Length(Image.Disc))then
+     if index<Length(Image.Disc[pref].Entries)then
+      dirname:=Image.Disc[pref].Entries[index].Filename;
    //Mark as changed
    if Image.MajorFormatNumber<>diSpark then HasChanged:=True;
    //Create the node as a file
@@ -7110,7 +7342,11 @@ function TMainForm.DeleteFile(confirm: Boolean): Boolean;
 var
  LDirRef : Integer=0;
  j       : Integer=0;
+ k       : Integer=0;
  nodes   : Integer=0;
+ dircount: Integer=0;
+ shift   : Integer=0;
+ subdirs : array of Integer=nil;
  LIsDir  : Boolean=False;
  R       : Boolean=False;
  ok      : Boolean=False;
@@ -7149,6 +7385,18 @@ begin
      LDirRef:=TMyTreeNode(DirList.Selections[0]).DirRef
     else
      LDirRef:=-1;
+    //Make a note of all the directories that will go with it
+    SetLength(subdirs,0);
+    if LIsDir then
+     for j:=0 to DirList.Items.Count-1 do
+      if(DirList.Items[j]=DirList.Selections[0])
+      or(DirList.Items[j].HasAsParent(DirList.Selections[0]))then
+       if TMyTreeNode(DirList.Items[j]).IsDir then
+       begin
+        SetLength(subdirs,Length(subdirs)+1);
+        subdirs[Length(subdirs)-1]:=TMyTreeNode(DirList.Items[j]).DirRef;
+       end;
+    dircount:=Length(Image.Disc);
     //Perform the deletion
     if (Image.MajorFormatNumber<>diAcornUEF)
     and(Image.MajorFormatNumber<>diAcornRFS)then
@@ -7159,6 +7407,25 @@ begin
     begin
      WriteToDebug('MainForm.DeleteFile: File deletion OK');
      //Update the directory references
+     if(LIsDir)and(Length(Image.Disc)<dircount)then
+     begin
+      //The directories have been removed from the image's list, so move each
+      //remaining reference down by the number of directories removed below it
+      for j:=0 to DirList.Items.Count-1 do
+      begin
+       shift:=0;
+       for k:=0 to Length(subdirs)-1 do
+        if TMyTreeNode(DirList.Items[j]).DirRef>subdirs[k] then inc(shift);
+       TMyTreeNode(DirList.Items[j]).DirRef:=
+                                     TMyTreeNode(DirList.Items[j]).DirRef-shift;
+       shift:=0;
+       for k:=0 to Length(subdirs)-1 do
+        if TMyTreeNode(DirList.Items[j]).ParentDir>subdirs[k] then inc(shift);
+       TMyTreeNode(DirList.Items[j]).ParentDir:=
+                                  TMyTreeNode(DirList.Items[j]).ParentDir-shift;
+      end;
+     end
+     else
      if LIsDir then
      begin
       for j:=0 to DirList.Items.Count-1 do

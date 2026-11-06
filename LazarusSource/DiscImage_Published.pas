@@ -189,6 +189,9 @@ begin
   if GetMajorFormatNumber=diSpark then SparkFile.Free;
   //Blank off the variables
   ResetVariables;
+  //Forget any DOS partitions from the previous image
+  SetLength(FDOSPartList,0);
+  FDOSPartChoice:=0;
   {$IFDEF CPU64}
   //Large images are streamed from disc on demand rather than loaded entirely
   //into RAM (which would exhaust memory and overflow the 32-bit addressing).
@@ -614,7 +617,9 @@ begin
  //Get the length of data to be written
  count:=file_details.Length;
  //Only write a file if there is actually any data to be written
- if(count>0)and((Length(FPartitions)>0)or(GetMajorFormatNumber=diSpark))then
+ //(DOS can have zero length files, as they are just a directory entry)
+ if((count>0)or(GetMajorFormatNumber=diDOSPlus))
+ and((Length(FPartitions)>0)or(GetMajorFormatNumber=diSpark))then
  begin
   if GetMajorFormatNumber<>diSpark then
    file_details.Side:=file_details.Side mod Length(FPartitions);

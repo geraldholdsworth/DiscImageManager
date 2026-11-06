@@ -6,6 +6,8 @@ Identifies a DOS Plus disc and which type
 function TDiscImage.ID_DOSPlus: Boolean;
 var
  idbyte: Byte=0;
+ index : Integer=0;
+ found : Boolean=False;
 begin
  Result:=False;
  if FFormat=diInvalidImg then
@@ -50,7 +52,31 @@ begin
   end;
   //Normal DOS disc (i.e. has a header)?
   if FFormat=diInvalidImg then //Only check if nothing found
-   if IDDOSPartition($0000) then
+  begin
+   found:=IDDOSPartition($0000);
+   if found then SetLength(FDOSPartList,0) //Not a partitioned disc
+   else
+   begin
+    //Not there? Then look for DOS partitions in an MBR partition table, as
+    //found on hard disc images (e.g. from PC emulators)
+    ScanMBRPartitions;
+    if Length(FDOSPartList)>0 then
+    begin
+     //Open the chosen partition
+     if(FDOSPartChoice<0)or(FDOSPartChoice>=Length(FDOSPartList))then
+      FDOSPartChoice:=0;
+     found:=IDDOSPartition(FDOSPartList[FDOSPartChoice].Offset);
+     //Not valid? Then use the first one that is
+     if not found then
+      for index:=0 to Length(FDOSPartList)-1 do
+       if not found then
+       begin
+        found:=IDDOSPartition(FDOSPartList[index].Offset);
+        if found then FDOSPartChoice:=index;
+       end;
+    end;
+   end;
+   if found then
    begin
     //ReadDOSHeader;
     FPartitions[0].TotalSize:=DOSBlocks*cluster_size;
@@ -61,9 +87,194 @@ begin
     if FATType=diFAT16 then inc(FFormat,2);
     if FATType=diFAT32 then inc(FFormat,3);
    end;
+  end;
   Result:=GetMajorFormatNumber=diDOSPlus;
   FHasDirs:=Result;
  end;
+end;
+
+{-------------------------------------------------------------------------------
+Find the DOS partitions in an MBR partition table, including the logical drives
+inside an extended partition (hard disc images)
+-------------------------------------------------------------------------------}
+procedure TDiscImage.ScanMBRPartitions;
+var
+ index : Integer=0;
+ ptype : Byte=0;
+ start : Cardinal=0;
+ size  : Cardinal=0;
+ ext   : Cardinal=0;
+ ebr   : Cardinal=0;
+ nxt  : Cardinal=0;
+ count : Integer=0;
+const
+ DOSTypes = [$01,$04,$06,$0B,$0C,$0E];//FAT12, FAT16 and FAT32 partitions
+ ExtTypes = [$05,$0F,$85];            //Extended partitions
+ procedure AddMBRPart(lba,secs: Cardinal;pt: Byte;logical: Boolean);
+ begin
+  //Ignore anything that is beyond the end of the image
+  if QWord(lba)*$200>=GetDataLength then exit;
+  SetLength(FDOSPartList,Length(FDOSPartList)+1);
+  FDOSPartList[Length(FDOSPartList)-1].Offset :=lba*$200;
+  FDOSPartList[Length(FDOSPartList)-1].Size   :=secs*$200;
+  FDOSPartList[Length(FDOSPartList)-1].PType  :=pt;
+  FDOSPartList[Length(FDOSPartList)-1].Logical:=logical;
+ end;
+begin
+ SetLength(FDOSPartList,0);
+ //Must have the boot signature
+ if GetDataLength<$200 then exit;
+ if(ReadByte($1FE)<>$55)or(ReadByte($1FF)<>$AA)then exit;
+ //Primary partitions first
+ for index:=0 to 3 do
+ begin
+  ptype:=ReadByte($1BE+index*$10+4);
+  start:=Read32b($1BE+index*$10+8);
+  size :=Read32b($1BE+index*$10+12);
+  if(ptype in DOSTypes)and(start>0)then AddMBRPart(start,size,ptype,False);
+  if(ptype in ExtTypes)and(start>0)and(ext=0)then ext:=start;
+ end;
+ //Then the logical drives, following the chain of extended boot records
+ if ext>0 then
+ begin
+  ebr:=ext;
+  count:=0;
+  repeat
+   inc(count);
+   nxt:=0;
+   if QWord(ebr)*$200+$200>GetDataLength then break;
+   if(ReadByte(ebr*$200+$1FE)<>$55)or(ReadByte(ebr*$200+$1FF)<>$AA)then break;
+   //First entry is the logical drive (relative to this EBR)
+   ptype:=ReadByte(ebr*$200+$1BE+4);
+   start:=Read32b(ebr*$200+$1BE+8);
+   size :=Read32b(ebr*$200+$1BE+12);
+   if(ptype in DOSTypes)and(start>0)then AddMBRPart(ebr+start,size,ptype,True);
+   //Second entry points to the next EBR (relative to the extended partition)
+   if ReadByte(ebr*$200+$1CE+4)in ExtTypes then
+    nxt:=Read32b(ebr*$200+$1CE+8);
+   if nxt>0 then ebr:=ext+nxt;
+  until(nxt=0)or(count>=64);
+ end;
+end;
+
+{-------------------------------------------------------------------------------
+Remove every long filename in the image, leaving each entry with the short name
+it already has (the one DOS sees). Returns True if anything was changed.
+-------------------------------------------------------------------------------}
+function TDiscImage.RemoveDOSLongFilenames: Boolean;
+var
+ d      : Integer=0;
+ e      : Integer=0;
+ r      : Integer=0;
+ changed: array of Boolean=nil;
+begin
+ Result:=False;
+ if GetMajorFormatNumber<>diDOSPlus then exit;
+ //Make sure every directory has been read in
+ d:=0;
+ while d<Length(FDisc) do
+ begin
+  if Length(FDisc[d].Entries)>0 then
+   for e:=0 to Length(FDisc[d].Entries)-1 do
+   begin
+    r:=FDisc[d].Entries[e].DirRef;
+    if(r>=0)and(r<Length(FDisc))then
+     if not FDisc[r].BeenRead then
+      ReadDirectory(GetParent(d)+DirSep(0)+FDisc[d].Entries[e].Filename);
+   end;
+  inc(d);
+ end;
+ //Give every entry with a long filename its short name
+ SetLength(changed,Length(FDisc));
+ for d:=0 to Length(FDisc)-1 do
+ begin
+  changed[d]:=False;
+  if Length(FDisc[d].Entries)>0 then
+   for e:=0 to Length(FDisc[d].Entries)-1 do
+    if(FDisc[d].Entries[e].ShortFilename<>'')
+    and(FDisc[d].Entries[e].Filename<>FDisc[d].Entries[e].ShortFilename)then
+    begin
+     FDisc[d].Entries[e].Filename:=FDisc[d].Entries[e].ShortFilename;
+     //A directory also needs its own record renaming
+     r:=FDisc[d].Entries[e].DirRef;
+     if(r>=0)and(r<Length(FDisc))then
+     begin
+      FDisc[r].Directory:=FDisc[d].Entries[e].ShortFilename;
+      FDisc[r].Title    :=FDisc[d].Entries[e].ShortFilename;
+     end;
+     changed[d]:=True;
+    end;
+ end;
+ //The paths may have changed, so update the parents
+ for d:=0 to Length(FDisc)-1 do
+  if Length(FDisc[d].Entries)>0 then
+   for e:=0 to Length(FDisc[d].Entries)-1 do
+    FDisc[d].Entries[e].Parent:=GetParent(d);
+ //And write back the directories that have changed
+ for d:=0 to Length(FDisc)-1 do
+  if changed[d] then
+  begin
+   UpdateDOSDirectory(GetParent(d));
+   Result:=True;
+  end;
+end;
+
+{-------------------------------------------------------------------------------
+Number of DOS partitions found in the MBR (0 if the image is not partitioned)
+-------------------------------------------------------------------------------}
+function TDiscImage.DOSPartitionCount: Integer;
+begin
+ Result:=Length(FDOSPartList);
+end;
+
+{-------------------------------------------------------------------------------
+Description of one of the DOS partitions found in the MBR
+-------------------------------------------------------------------------------}
+function TDiscImage.DOSPartitionDescription(index: Integer): String;
+var
+ primary: Integer=0;
+ logical: Integer=0;
+ i      : Integer=0;
+ fat    : String='';
+begin
+ Result:='';
+ if(index<0)or(index>=Length(FDOSPartList))then exit;
+ //Count the primaries and logicals up to this one
+ for i:=0 to index do
+  if FDOSPartList[i].Logical then inc(logical) else inc(primary);
+ if FDOSPartList[index].Logical then
+  Result:='Logical drive '+IntToStr(logical)
+ else
+  Result:='Primary partition '+IntToStr(primary);
+ case FDOSPartList[index].PType of
+  $01               : fat:='FAT12';
+  $04,$06,$0E       : fat:='FAT16';
+  $0B,$0C           : fat:='FAT32';
+ end;
+ Result:=Result+' - '+fat+', '
+        +FormatFloat('0.0',FDOSPartList[index].Size/(1024*1024))+' MB';
+end;
+
+{-------------------------------------------------------------------------------
+Open a different DOS partition from the MBR, without reloading the image (any
+changes made to the other partitions are kept)
+-------------------------------------------------------------------------------}
+function TDiscImage.SelectDOSPartition(index: Integer): Boolean;
+var
+ oldname: String='';
+begin
+ Result:=False;
+ if(index<0)or(index>=Length(FDOSPartList))then exit;
+ FDOSPartChoice:=index;
+ //Re-ID-ing resets the image filename, so keep a copy
+ oldname:=imagefilename;
+ //Re-ID the image (this will now pick the chosen partition) and read it
+ if IDImage then
+ begin
+  ReadImage;
+  Result:=FDOSPartChoice=index;
+ end;
+ imagefilename:=oldname;
 end;
 
 {-------------------------------------------------------------------------------
@@ -342,15 +553,20 @@ begin
  created:=False;
  //Get the status byte (first byte of the filename)
  status:=ReadByte(index*32,buffer);
- while status<>0 do
+ //Stop at the end of the list, or at the end of the directory if it is full
+ //(a full directory has no terminating entry)
+ while(status<>0)and(index*32<Length(buffer))do
  begin
   //Read the attribute byte
   attr:=ReadByte($B+index*32,buffer);
   //Is it the volume name?
-  if(status<>$E5)and(attr AND$8=$8)then
-  begin
-   volname:=ReadString(Fdosroot,-11,buffer);
+ if(status<>$E5)and(attr<>$0F)and(attr AND$8=$8)then
+ begin
+  volname:=ReadString(index*32,-11,buffer);
+  RemoveSpaces(volname);
    FDOSVolInRoot:=True;//Volume name is in the root flag
+   //Remember where it is, so it can be written back in the same place
+   if dirname=dosrootname then FDOSVolEntry:=index;
    //Has it already been set?
    if FPartitions[Length(FPartitions)-1].Name='' then
     FPartitions[Length(FPartitions)-1].Name:=volname;//If no, then set it
@@ -375,10 +591,11 @@ begin
    begin
     while LFNInd<LFNEnd do
     begin
-     C:=' ';
-     if Read16b(LFNInd+index*32,buffer)<>$FFFF then // $FFFF is end of filename
-      C:=Chr(Read16b(LFNInd+index*32,buffer)); //Read the character in
-     volname:=volname+C; //And add it to this part
+     //$0000 terminates the filename and $FFFF pads the rest of the entry,
+     //so neither of them is part of the name
+     if(Read16b(LFNInd+index*32,buffer)<>$FFFF)
+     and(Read16b(LFNInd+index*32,buffer)<>$0000)then
+      volname:=volname+Chr(Read16b(LFNInd+index*32,buffer)); //Read the character in
      inc(LFNInd,2);
     end;
     //Next part
@@ -726,8 +943,8 @@ begin
   //Read the file data
   buffer:=ReadDOSObject(FDisc[dir].Entries[entry].Sector,
                         FDisc[dir].Entries[entry].Length);
-  //Return a result, +ve or -ve
-  Result:=Length(buffer)>0;
+  //Return a result, +ve or -ve (a zero length file is fine, with no data)
+  Result:=(Length(buffer)>0)or(FDisc[dir].Entries[entry].Length=0);
  end;
 end;
 
@@ -914,8 +1131,9 @@ begin
   or(LowerCase(GetParent(dir)+DirSep(side)+newname)=LowerCase(oldname))then
   begin
    Result:=-1; //Unknown error
-   //Change the name
+   //Change the name (it has been validated to 8.3, so is also the short name)
    FDisc[dir].Entries[entry].Filename:=newname;
+   FDisc[dir].Entries[entry].ShortFilename:=newname;
    //And extension
    if Pos('.',newname)>0 then
    begin
@@ -1021,13 +1239,30 @@ var
  chsum     : Byte=0;
  fragments : TFragmentArray=nil;
  parts     : array of String=nil;
+ writevol  : Boolean=False;
+ volname   : String='';
 const
  chrpos: array[1..13] of Byte=($01,$03,$05,$07,$09,$0E,$10,$12,$14,$16,$18,$1C,$1E);
+ procedure WriteVolumeEntry;
+ var
+  i: Integer=0;
+ begin
+  //Clear the entry
+  for i:=0 to $1F do WriteByte($00,i+ptr*$20,buffer);
+  //Write the volume name
+  WriteString(volname,ptr*$20,11,32,buffer);
+  //And the attribute for it
+  WriteByte($08,$B+ptr*$20,buffer);
+  //Update the date/time stamps
+  Write16b(DOSTime(Now),$16+ptr*$20,buffer);
+  Write16b(DOSDate(Now),$18+ptr*$20,buffer);
+  //Next entry
+  inc(ptr);
+  writevol:=False;
+ end;
  procedure AdjustDirLength(entries: Integer);
  begin
   inc(numentries,entries);
-  //Make a note of the starting length
-  dirlenst:=Length(buffer);
   //Work out what it should be
   dirlen:=numentries*$20; //An extra one for the terminator
   dirlen:=((dirlen+(cluster_size*dosalloc))div(cluster_size*dosalloc))
@@ -1079,27 +1314,19 @@ begin
    //Read the directory into a temporary buffer
    SetLength(buffer,dosroot_size);
    ReadDiscData(addr,dosroot_size,side,0,buffer);
-   //If the volume name is not blank, and is stored here
-   if(temp<>'')and(FDOSVolInRoot)then
-   begin
-    //Move the directory entry pointer to the second entry
-    ptr:=1;
-    //And write the volume name
-    WriteString(temp,0,11,32,buffer);
-    //And the attribute for it
-    WriteByte($08,$B,buffer);
-    //Update the date/time stamps
-    Write16b(DOSTime(Now),$16,buffer);
-    Write16b(DOSDate(Now),$18,buffer);
-    //And clear the final entries
-    Write16b(0,$1A,buffer);
-    Write32b(0,$1C,buffer);
-   end;
+   //If the volume name is not blank, and is stored here, write it back in
+   //the same position it was read from. Bootable discs need IO.SYS and
+   //MSDOS.SYS (or IBMBIO.COM and IBMDOS.COM) to be the first two entries in
+   //the root, so it must not be moved to the top.
+   volname:=temp;
+   writevol:=(volname<>'')and(FDOSVolInRoot);
   end
   else buffer:=ReadDOSObject(addr);
   //Extend or contract the buffer, if necessary
   if(not isroot)or(FATType=diFAT32)then
   begin
+   //Make a note of the starting length (before any long filename entries)
+   dirlenst:=Length(buffer);
    AdjustDirLength(Length(FDisc[dir].Entries));
    //Skip the first two entries, unless it is root
    if not isroot then ptr:=2;//First two entries are '.' and '..'
@@ -1110,10 +1337,21 @@ begin
    //Go through each entry in the array
    for index:=0 to Length(FDisc[dir].Entries)-1 do
    begin
-    //Short Filename
-    temp:=DOSShortFilename(dirname,
-                           FDisc[dir].Entries[index].Filename,
-                           FDisc[dir].Entries[index].ShortFilename);
+    //Write the volume name here, if this is where it was
+    if(writevol)and(FDOSVolEntry>=0)and(ptr>=FDOSVolEntry)then WriteVolumeEntry;
+    //Short Filename - keep the one it already has, so that entries that have
+    //not been changed are written back as they were, unless another entry in
+    //this directory has the same one
+    temp:=FDisc[dir].Entries[index].ShortFilename;
+    if temp<>'' then
+     for partindex:=0 to Length(FDisc[dir].Entries)-1 do
+      if(partindex<>index)
+      and(UpperCase(FDisc[dir].Entries[partindex].ShortFilename)=UpperCase(temp))then
+       temp:='';
+    if temp='' then
+     temp:=DOSShortFilename(dirname,
+                            FDisc[dir].Entries[index].Filename,
+                            FDisc[dir].Entries[index].ShortFilename);
     //Remove the extension
     if Pos('.',temp)>1 then temp:=LeftStr(temp,Pos('.',temp)-1);
     //Change the first character, if 0xE5
@@ -1129,8 +1367,9 @@ begin
      else
       chsum:=(chsum>>1)+Ord(SFN[partindex]);
     //Long filename
-    if(FDisc[dir].Entries[index].Filename<>FDisc[dir].Entries[index].ShortFilename)
-    and(not FDOSUseSFN)then
+    //(with 'no long filenames' set, new and renamed entries are given their
+    //short name, so only long names that are already on the disc are kept)
+    if FDisc[dir].Entries[index].Filename<>FDisc[dir].Entries[index].ShortFilename then
     begin
      //Set up the array for the various parts of the filename
      SetLength(parts,Ceil(Length(FDisc[dir].Entries[index].Filename)/13));
@@ -1189,6 +1428,8 @@ begin
     inc(ptr);
    end;
   end;
+  //Volume name not written yet? Then it goes at the end
+  if writevol then WriteVolumeEntry;
   //Clear the end of the list (and mark the end of list with a zero)
   for index:=ptr*$20 to Length(buffer)-1 do
    WriteByte($00,index,buffer);
@@ -1404,7 +1645,8 @@ begin
    //Set the length
    file_details.Length:=Length(buffer);
    //Will if fit on the disc?
-   if FPartitions[partition].FreeSpace>file_details.Length then
+   if(FPartitions[partition].FreeSpace>file_details.Length)
+   or(file_details.Length=0)then
    begin
     Result:=-7; //Map (directory) full
     //Is there enough space in the directory?
@@ -1414,6 +1656,16 @@ begin
     if space then
     begin
      Result:=-5;//Unknown error
+     //A zero length file has no clusters, just a directory entry
+     if(file_details.Length=0)and(Pos('D',file_details.Attributes)=0)then
+     begin
+      file_details.Sector:=0;
+      file_details.DirRef:=-1;
+      if file_details.TimeStamp=0 then file_details.TimeStamp:=Now;
+      Result:=InsertDOSEntry(dir,file_details);
+      ReadDOSFSM;
+      exit;
+     end;
      //Allocate some space
      AllocateDOSClusters(file_details.Length,fragments);
      //Did it allocate anything?
@@ -1439,8 +1691,8 @@ begin
       end
       else //Mark as not a directory
        file_details.DirRef:=-1;
-      //Set the date
-      file_details.TimeStamp:=Now;
+      //Set the date, unless it already has one (e.g. copied from another image)
+      if file_details.TimeStamp=0 then file_details.TimeStamp:=Now;
       //Write the data to the image
       if WriteDOSObject(buffer,fragments) then
       begin
@@ -1566,7 +1818,14 @@ begin
     if not FDisc[index].BeenRead then ReadDirectory(filename);
     //Recursively delete the contents
     while(Length(FDisc[index].Entries)>0)and(success)do
+    begin
      success:=DeleteDOSFile(filename+DirSep(side)+FDisc[index].Entries[0].Filename);
+     //Removing a sub directory moves the others about, so find this one again
+     if success then
+      if FileExists(filename,dir,entry) then
+       index:=FDisc[dir].Entries[entry].DirRef
+      else success:=False;
+    end;
    end;
    //Remove the entry from the directory
    if success then
@@ -1576,8 +1835,13 @@ begin
     DeAllocateDOSClusters(0,clusters);
     //Remove the entry
     RemoveDOSEntry(dir,entry);
-    //Update all the directory references
-    if index>=0 then UpdateDirRef(index);
+    //Remove the directory from the internal array, then update all the
+    //directory references (otherwise they point at the wrong directories)
+    if index>=0 then
+    begin
+     RemoveDirectory(index);
+     UpdateDirRef(index);
+    end;
    end;
    //Return a result
    Result:=success;
@@ -2117,6 +2381,9 @@ begin
   //If this includes the path, then remove the path
   while Pos(FPartitions[0].DirSep,LFN)>0 do
    LFN:=Copy(LFN,Pos(FPartitions[0].DirSep,LFN)+1);
+  //Strip any leading periods (e.g. '.fseventsd') before looking for the
+  //extension, as Windows does - otherwise the whole name becomes the extension
+  while(Length(LFN)>0)and(LFN[1]='.')do LFN:=Copy(LFN,2);
   //Now validate the filename
   LFN:=ValidateDOSFilename(LFN,True);
   //Any extension?
@@ -2138,7 +2405,7 @@ begin
     if Pos(LFN[index],illegal)=0 then
      Result:=Result+UpperCase(LFN[index]);
   //Strip any leading periods
-  if Length(Result)>0 then while Result[1]='.' do Result:=Copy(Result,2);
+  while(Length(Result)>0)and(Result[1]='.')do Result:=Copy(Result,2);
   //Still have a filename which is too long?
   if Length(Result)>8 then
   begin
